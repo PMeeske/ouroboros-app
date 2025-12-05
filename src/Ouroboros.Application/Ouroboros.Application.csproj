@@ -1,18 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <OutputType>Library</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <LangVersion>14.0</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <RootNamespace>LangChainPipeline</RootNamespace>
-    <AssemblyName>Ouroboros.Examples</AssemblyName>
-    <Product>Ouroboros Examples</Product>
-    <Description>Example applications and demonstrations for Ouroboros</Description>
+    <RootNamespace>Ouroboros.Application</RootNamespace>
+    <AssemblyName>Ouroboros.Application</AssemblyName>
+    <Product>Ouroboros Application</Product>
+    <Description>Shared pipeline runtime and application logic</Description>
     <Copyright>Copyright © 2025</Copyright>
-    <Version>1.0.0</Version>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-    <WarningsNotAsErrors>CS1591;CS1570</WarningsNotAsErrors>
+    <WarningsNotAsErrors>CS1591;CS1570;CS1572;CS1573;CS1574</WarningsNotAsErrors>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
     <EnableNETAnalyzers>false</EnableNETAnalyzers>
@@ -27,21 +27,21 @@
     <ProjectReference Include="..\Ouroboros.Tools\Ouroboros.Tools.csproj" />
     <ProjectReference Include="..\Ouroboros.Providers\Ouroboros.Providers.csproj" />
     <ProjectReference Include="..\Ouroboros.Agent\Ouroboros.Agent.csproj" />
-    <ProjectReference Include="..\Ouroboros.Application\Ouroboros.Application.csproj" />
+    <ProjectReference Include="..\Ouroboros.Roslynator\Ouroboros.Roslynator.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Override vulnerable transitive dependencies from project references -->
+    <!-- Override vulnerable transitive dependencies from Microsoft.CodeAnalysis -->
     <PackageReference Include="Microsoft.Build.Tasks.Core" Version="17.14.28" />
     <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.14.28" />
     
     <PackageReference Include="LangChain" Version="0.17.0" />
-  </ItemGroup>
-
-  <!-- Temporarily exclude examples that depend on excluded/broken LangChain integrations -->
-  <ItemGroup>
-    <Compile Remove="Examples\LangChainConversationExample.cs" />
-    <Compile Remove="Examples\ProperLangChainIntegrationExamples.cs" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="System.Reactive" Version="6.1.0" />
+    <PackageReference Include="System.Reactive.Linq" Version="6.1.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.11.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.11.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="4.11.0" />
   </ItemGroup>
 
   <ItemGroup>
