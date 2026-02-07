@@ -9,6 +9,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Using Include="Reqnroll" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="$(OuroborosBuild)\test-infra\Ouroboros.TestKit\Ouroboros.TestKit.csproj" />
     <ProjectReference Include="..\..\src\Ouroboros.Application\Ouroboros.Application.csproj" />
     <ProjectReference Include="..\..\src\Ouroboros.CLI\Ouroboros.CLI.csproj" />
