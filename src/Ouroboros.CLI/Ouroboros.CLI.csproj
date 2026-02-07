@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -16,14 +16,14 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Ouroboros.Application\Ouroboros.Application.csproj" />
-    <ProjectReference Include="..\Ouroboros.Core\Ouroboros.Core.csproj" />
-    <ProjectReference Include="..\Ouroboros.Domain\Ouroboros.Domain.csproj" />
-    <ProjectReference Include="..\Ouroboros.Pipeline\Ouroboros.Pipeline.csproj" />
-    <ProjectReference Include="..\Ouroboros.Tools\Ouroboros.Tools.csproj" />
-    <ProjectReference Include="..\Ouroboros.Providers\Ouroboros.Providers.csproj" />
-    <ProjectReference Include="..\Ouroboros.Agent\Ouroboros.Agent.csproj" />
-    <ProjectReference Include="..\Ouroboros.Roslynator\Ouroboros.Roslynator.csproj" />
-    <ProjectReference Include="..\Ouroboros.Network\Ouroboros.Network.csproj" />
+    <ProjectReference Include="$(OuroborosFoundation)\Ouroboros.Core\Ouroboros.Core.csproj" />
+    <ProjectReference Include="$(OuroborosFoundation)\Ouroboros.Domain\Ouroboros.Domain.csproj" />
+    <ProjectReference Include="$(OuroborosEngine)\Ouroboros.Pipeline\Ouroboros.Pipeline.csproj" />
+    <ProjectReference Include="$(OuroborosFoundation)\Ouroboros.Tools\Ouroboros.Tools.csproj" />
+    <ProjectReference Include="$(OuroborosEngine)\Ouroboros.Providers\Ouroboros.Providers.csproj" />
+    <ProjectReference Include="$(OuroborosEngine)\Ouroboros.Agent\Ouroboros.Agent.csproj" />
+    <ProjectReference Include="$(OuroborosFoundation)\Ouroboros.Roslynator\Ouroboros.Roslynator.csproj" />
+    <ProjectReference Include="$(OuroborosEngine)\Ouroboros.Network\Ouroboros.Network.csproj" />
     <ProjectReference Include="..\Ouroboros.Examples\Ouroboros.Examples.csproj" />
   </ItemGroup>
 
