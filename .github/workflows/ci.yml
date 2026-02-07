@@ -1,0 +1,72 @@
+# CI pipeline for ouroboros-app
+# Triggers on push to main and pull requests
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build
+    uses: PMeeske/ouroboros-build/.github/workflows/_reusable-dotnet-build.yml@main
+    with:
+      projects: >-
+        src/Ouroboros.Application/Ouroboros.Application.csproj
+        src/Ouroboros.CLI/Ouroboros.CLI.csproj
+        src/Ouroboros.WebApi/Ouroboros.WebApi.csproj
+        src/Ouroboros.Easy/Ouroboros.Easy.csproj
+      include-maui: true
+
+  build-android:
+    name: Build Android
+    uses: PMeeske/ouroboros-build/.github/workflows/_reusable-dotnet-build.yml@main
+    with:
+      projects: src/Ouroboros.Android/Ouroboros.Android.csproj
+      include-maui: true
+
+  test:
+    name: Test
+    needs: build
+    uses: PMeeske/ouroboros-build/.github/workflows/_reusable-dotnet-test.yml@main
+    with:
+      test-projects: >-
+        tests/Ouroboros.CLI.Tests/Ouroboros.CLI.Tests.csproj
+        tests/Ouroboros.WebApi.Tests/Ouroboros.WebApi.Tests.csproj
+        tests/Ouroboros.Application.Tests/Ouroboros.Application.Tests.csproj
+      build-projects: >-
+        src/Ouroboros.Application/Ouroboros.Application.csproj
+        src/Ouroboros.CLI/Ouroboros.CLI.csproj
+        src/Ouroboros.WebApi/Ouroboros.WebApi.csproj
+      coverage-threshold: 60
+
+  integration-test:
+    name: Integration Tests
+    needs: build
+    uses: PMeeske/ouroboros-build/.github/workflows/_reusable-dotnet-test.yml@main
+    with:
+      test-projects: tests/Ouroboros.Integration.Tests/Ouroboros.Integration.Tests.csproj
+      build-projects: >-
+        src/Ouroboros.Application/Ouroboros.Application.csproj
+        src/Ouroboros.CLI/Ouroboros.CLI.csproj
+        src/Ouroboros.WebApi/Ouroboros.WebApi.csproj
+      test-filter: 'Category!=RequiresApiKey'
+      coverage-threshold: 0
+
+  bdd:
+    name: BDD Tests
+    needs: build
+    uses: PMeeske/ouroboros-build/.github/workflows/_reusable-dotnet-test.yml@main
+    with:
+      test-projects: tests/Ouroboros.App.BDD/Ouroboros.App.BDD.csproj
+      build-projects: >-
+        src/Ouroboros.Application/Ouroboros.Application.csproj
+        src/Ouroboros.CLI/Ouroboros.CLI.csproj
+      coverage-threshold: 0
