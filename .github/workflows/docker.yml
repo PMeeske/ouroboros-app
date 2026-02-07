@@ -1,0 +1,42 @@
+# Docker build and publish for ouroboros-app
+# Triggers on push to main (only when Dockerfile or src changes)
+
+name: Docker Publish
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Dockerfile*'
+      - 'src/**'
+      - 'docker-compose*.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish-webapi:
+    name: Publish WebApi Image
+    uses: PMeeske/ouroboros-build/.github/workflows/_reusable-docker-publish.yml@main
+    with:
+      registry: ghcr.io
+      image-name: pmeeske/ouroboros-webapi
+      dockerfile: ./Dockerfile.webapi
+      tag-suffix: '-webapi'
+    secrets:
+      registry-username: ${{ github.actor }}
+      registry-password: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-cli:
+    name: Publish CLI Image
+    uses: PMeeske/ouroboros-build/.github/workflows/_reusable-docker-publish.yml@main
+    with:
+      registry: ghcr.io
+      image-name: pmeeske/ouroboros-cli
+      dockerfile: ./Dockerfile
+      tag-suffix: '-cli'
+    secrets:
+      registry-username: ${{ github.actor }}
+      registry-password: ${{ secrets.GITHUB_TOKEN }}
