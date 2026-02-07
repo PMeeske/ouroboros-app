@@ -15,6 +15,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="$(OuroborosBuild)\test-infra\Ouroboros.TestKit\Ouroboros.TestKit.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Official Microsoft UI Testing Framework -->
     <PackageReference Include="Xamarin.UITest" Version="4.3.4" />
     <PackageReference Include="NUnit" Version="4.2.2" />
