@@ -52,7 +52,7 @@ public class XamarinUITests
 
         // Assert
         var outputText = app.Query(c => c.Marked("OutputLabel")).FirstOrDefault()?.Text;
-        Assert.IsNotNull(outputText, "Output label must be visible");
+        Assert.That(outputText, Is.Not.Null, "Output label must be visible");
         Assert.That(outputText, Does.Contain("Ouroboros CLI"), "Welcome message must be displayed");
     }
 
@@ -71,14 +71,14 @@ public class XamarinUITests
         var outputText = app.Query(c => c.Marked("OutputLabel")).FirstOrDefault()?.Text;
 
         // Assert - UI MUST be visible (not purple screen)
-        Assert.IsNotNull(outputText, "CRITICAL: Output label must be visible - purple screen indicates crash");
+        Assert.That(outputText, Is.Not.Null, "CRITICAL: Output label must be visible - purple screen indicates crash");
         
         // The text should contain EITHER the welcome message (success) OR an error message (degraded mode)
         // Both are acceptable - purple screen is NOT acceptable
         var hasWelcomeMessage = outputText!.Contains("Ouroboros CLI");
         var hasErrorMessage = outputText.Contains("⚠ Initialization error");
         
-        Assert.IsTrue(hasWelcomeMessage || hasErrorMessage, 
+        Assert.That(hasWelcomeMessage || hasErrorMessage, Is.True, 
             "UI must show either welcome message or error message (not blank/purple screen)");
         
         // Terminal prompt MUST be visible
@@ -148,7 +148,7 @@ public class XamarinUITests
 
         // Assert
         var entryText = app.Query(c => c.Marked("CommandEntry")).FirstOrDefault()?.Text ?? "";
-        Assert.IsEmpty(entryText, "Command entry should be cleared after execution");
+        Assert.That(entryText, Is.Empty, "Command entry should be cleared after execution");
     }
 
     /// <summary>
@@ -172,7 +172,7 @@ public class XamarinUITests
             var hasNavigated = app.Query(c => c.Text("Settings")).Any() 
                 || app.Query(c => c.Text("Ollama Endpoint")).Any();
             
-            Assert.IsTrue(hasNavigated, "Should navigate to settings page");
+            Assert.That(hasNavigated, Is.True, "Should navigate to settings page");
         }
         catch
         {
@@ -221,7 +221,7 @@ public class XamarinUITests
 
         // Act & Assert - Take screenshot
         var screenshot = app.Screenshot("MainPage-Working-State");
-        Assert.IsNotNull(screenshot, "Screenshot should be captured");
+        Assert.That(screenshot, Is.Not.Null, "Screenshot should be captured");
         
         // This screenshot can be used in documentation to show the fix
         TestContext.WriteLine($"Screenshot saved: {screenshot.FullName}");
