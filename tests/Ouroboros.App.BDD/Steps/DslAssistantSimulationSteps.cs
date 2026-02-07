@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Reqnroll;
 using Ouroboros.CLI;
-using Ouroboros.CLI.CodeGeneration;
+using Ouroboros.Application.CodeGeneration;
 using Ouroboros.Agent.MetaAI;
 using LangChain.Providers;
 
