@@ -6,6 +6,7 @@
   <ItemGroup>
     <Using Include="Xunit" />
     <Using Include="FluentAssertions" />
+    <Using Include="Reqnroll" />
     <!-- Foundation layer -->
     <Using Include="Ouroboros.Core.Kleisli" />
     <Using Include="Ouroboros.Core.Memory" />
