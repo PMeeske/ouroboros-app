@@ -9,6 +9,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="$(OuroborosBuild)\test-infra\Ouroboros.TestKit\Ouroboros.TestKit.csproj" />
     <ProjectReference Include="..\..\src\Ouroboros.CLI\Ouroboros.CLI.csproj" />
     <ProjectReference Include="..\..\src\Ouroboros.Application\Ouroboros.Application.csproj" />

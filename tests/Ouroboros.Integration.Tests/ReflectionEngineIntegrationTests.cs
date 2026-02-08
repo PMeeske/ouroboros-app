@@ -126,11 +126,7 @@ public class ReflectionEngineIntegrationTests
         var tasks = new List<BenchmarkTask>
         {
             new BenchmarkTask("QuickReasoning", CognitiveDimension.Reasoning, () => Task.FromResult(true), TimeSpan.FromSeconds(1)),
-            new BenchmarkTask("SlowReasoning", CognitiveDimension.Reasoning, async () =>
-            {
-                await Task.Delay(100);
-                return true;
-            }, TimeSpan.FromSeconds(5)),
+            new BenchmarkTask("FailedReasoning", CognitiveDimension.Reasoning, () => Task.FromResult(false), TimeSpan.FromSeconds(1)),
             new BenchmarkTask("FailedPlanning", CognitiveDimension.Planning, () => Task.FromResult(false), TimeSpan.FromSeconds(1)),
         };
 

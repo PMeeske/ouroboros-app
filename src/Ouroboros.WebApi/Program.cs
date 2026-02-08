@@ -136,6 +136,11 @@ app.MapGet("/", () => Results.Ok(new
 // Ask endpoint - Main question answering
 app.MapPost("/api/ask", async (AskRequest request, IPipelineService service, CancellationToken ct) =>
 {
+    if (string.IsNullOrWhiteSpace(request.Question))
+    {
+        return Results.BadRequest(ApiResponse<AskResponse>.Fail("Question is required"));
+    }
+
     try
     {
         Stopwatch sw = Stopwatch.StartNew();
@@ -169,6 +174,11 @@ app.MapPost("/api/ask", async (AskRequest request, IPipelineService service, Can
 // Pipeline endpoint - Execute DSL pipeline
 app.MapPost("/api/pipeline", async (PipelineRequest request, IPipelineService service, CancellationToken ct) =>
 {
+    if (string.IsNullOrWhiteSpace(request.Dsl))
+    {
+        return Results.BadRequest(ApiResponse<PipelineResponse>.Fail("DSL is required"));
+    }
+
     try
     {
         Stopwatch sw = Stopwatch.StartNew();
