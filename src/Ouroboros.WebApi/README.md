@@ -271,10 +271,10 @@ Both the CLI and Web API provide the same core functionality as remoting layers:
 
 ## Related Documentation
 
-- [Main README](../../README.md) - Project overview
-- [Deployment Guide](../../DEPLOYMENT.md) - Deployment instructions
-- [Configuration Guide](../../CONFIGURATION_AND_SECURITY.md) - Configuration details
-- [CLI Documentation](../Ouroboros.CLI/README.md) - CLI usage
+- [Main README](../../README.md) - Project overview and app layer architecture
+- [Deployment Guide](../../docs/DEPLOYMENT.md) - Deployment instructions
+- [Configuration Guide](../../docs/CONFIGURATION_AND_SECURITY.md) - Configuration details
+- [Android App](../Ouroboros.Android/README.md) - Android application documentation
 
 ## License
 

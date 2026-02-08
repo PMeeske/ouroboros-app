@@ -49,7 +49,7 @@ A powerful CLI interface for Ouroboros on Android with integrated AI provider su
 
 The Android APK is automatically built by CI/CD and available as an artifact:
 
-1. Go to the [Actions tab](../../actions/workflows/android-build.yml) in this repository
+1. Go to the [Actions tab](https://github.com/PMeeske/ouroboros-app/actions/workflows/android-build.yml) in this repository
 2. Click on the latest successful workflow run
 3. Download the `monadic-pipeline-android-apk` artifact
 4. Extract and install the APK on your Android device
@@ -507,7 +507,8 @@ Open Source - See main repository LICENSE file
 
 ## Links
 
-- **Main Repository**: https://github.com/PMeeske/Ouroboros
+- **Main Repository**: https://github.com/PMeeske/Ouroboros-v2
+- **App Layer Repository**: https://github.com/PMeeske/ouroboros-app
 - **Ollama**: https://ollama.ai/
 - **.NET MAUI**: https://dotnet.microsoft.com/apps/maui
 
