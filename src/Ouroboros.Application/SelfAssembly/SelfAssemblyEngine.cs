@@ -249,6 +249,12 @@ public sealed class SelfAssemblyEngine : IAsyncDisposable
             return Result<Guid>.Failure($"Maximum assembled neurons limit ({_config.MaxAssembledNeurons}) reached");
         }
 
+        // Check for null/empty name
+        if (string.IsNullOrWhiteSpace(blueprint.Name))
+        {
+            return Result<Guid>.Failure("Blueprint must have a name");
+        }
+
         // Check for duplicate names
         if (_assembledNeurons.ContainsKey(blueprint.Name))
         {
@@ -322,9 +328,6 @@ public sealed class SelfAssemblyEngine : IAsyncDisposable
         {
             return Result<Unit>.Failure($"Proposal is not pending approval (status: {proposal.Status})");
         }
-
-        _proposals[proposalId] = proposal with { Status = AssemblyProposalStatus.Approved };
-        RecordState(proposalId, AssemblyProposalStatus.Approved, "Manually approved");
 
         await ExecuteAssemblyPipelineAsync(proposalId);
         return Result<Unit>.Success(Unit.Value);
