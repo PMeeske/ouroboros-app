@@ -1,11 +1,11 @@
 <Project>
   <!-- Import base build config from ouroboros-build (via submodule or manual copy) -->
-  <Import Project="$(MSBuildThisFileDirectory)..\.build\build\Directory.Build.props"
-          Condition="Exists('$(MSBuildThisFileDirectory)..\.build\build\Directory.Build.props')" />
+  <Import Project="$(MSBuildThisFileDirectory)libs/.build/build/Directory.Build.props"
+          Condition="Exists('$(MSBuildThisFileDirectory)libs/.build/build/Directory.Build.props')" />
 
   <PropertyGroup>
     <OuroborosLayer>App</OuroborosLayer>
-    <OuroborosFoundation>$(MSBuildThisFileDirectory)..\foundation\src</OuroborosFoundation>
-    <OuroborosEngine>$(MSBuildThisFileDirectory)..\engine\src</OuroborosEngine>
+    <OuroborosFoundation>$(MSBuildThisFileDirectory)libs/foundation/src</OuroborosFoundation>
+    <OuroborosEngine>$(MSBuildThisFileDirectory)libs/engine/src</OuroborosEngine>
   </PropertyGroup>
 </Project>
