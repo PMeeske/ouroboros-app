@@ -8743,7 +8743,7 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
 
                 _autonomousCoordinator.MeTTaAddFactFunction = async (fact, ct) =>
                 {
-                    Result<Ouroboros.Tools.MeTTa.Unit, string> result = await _mettaEngine.AddFactAsync(fact, ct);
+                    Result<Ouroboros.Tools.MeTTa.MeTTaUnit, string> result = await _mettaEngine.AddFactAsync(fact, ct);
                     return result.IsSuccess;
                 };
 
