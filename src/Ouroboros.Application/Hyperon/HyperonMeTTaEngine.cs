@@ -8,7 +8,7 @@ using System.Collections.Concurrent;
 using Ouroboros.Core.Hyperon;
 using Ouroboros.Core.Hyperon.Parsing;
 using Ouroboros.Tools.MeTTa;
-using Unit = Ouroboros.Tools.MeTTa.Unit;
+using MeTTaUnit = Ouroboros.Tools.MeTTa.MeTTaUnit;
 
 /// <summary>
 /// Native C# Hyperon-based MeTTa engine implementation.
@@ -116,27 +116,27 @@ public sealed class HyperonMeTTaEngine : IMeTTaEngine
     }
 
     /// <inheritdoc/>
-    public Task<Result<Unit, string>> AddFactAsync(string fact, CancellationToken ct = default)
+    public Task<Result<MeTTaUnit, string>> AddFactAsync(string fact, CancellationToken ct = default)
     {
         if (_disposed)
-            return Task.FromResult(Result<Unit, string>.Failure("Engine disposed"));
+            return Task.FromResult(Result<MeTTaUnit, string>.Failure("Engine disposed"));
 
         try
         {
             var parseResult = _parser.Parse(fact);
             if (!parseResult.IsSuccess)
             {
-                return Task.FromResult(Result<Unit, string>.Failure($"Parse error: {parseResult.Error}"));
+                return Task.FromResult(Result<MeTTaUnit, string>.Failure($"Parse error: {parseResult.Error}"));
             }
 
             _space.Add(parseResult.Value);
             AtomAdded?.Invoke(parseResult.Value);
 
-            return Task.FromResult(Result<Unit, string>.Success(Unit.Value));
+            return Task.FromResult(Result<MeTTaUnit, string>.Success(MeTTaUnit.Value));
         }
         catch (Exception ex)
         {
-            return Task.FromResult(Result<Unit, string>.Failure($"Failed to add fact: {ex.Message}"));
+            return Task.FromResult(Result<MeTTaUnit, string>.Failure($"Failed to add fact: {ex.Message}"));
         }
     }
 
@@ -267,10 +267,10 @@ public sealed class HyperonMeTTaEngine : IMeTTaEngine
     }
 
     /// <inheritdoc/>
-    public Task<Result<Unit, string>> ResetAsync(CancellationToken ct = default)
+    public Task<Result<MeTTaUnit, string>> ResetAsync(CancellationToken ct = default)
     {
         if (_disposed)
-            return Task.FromResult(Result<Unit, string>.Failure("Engine disposed"));
+            return Task.FromResult(Result<MeTTaUnit, string>.Failure("Engine disposed"));
 
         // Clear all atoms by creating new space (AtomSpace doesn't have Clear method)
         // We'll remove atoms one by one
@@ -285,7 +285,7 @@ public sealed class HyperonMeTTaEngine : IMeTTaEngine
         // Re-initialize core atoms
         InitializeCoreAtoms();
 
-        return Task.FromResult(Result<Unit, string>.Success(Unit.Value));
+        return Task.FromResult(Result<MeTTaUnit, string>.Success(MeTTaUnit.Value));
     }
 
     /// <summary>

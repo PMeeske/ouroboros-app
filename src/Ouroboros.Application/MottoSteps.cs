@@ -1,6 +1,6 @@
 using System.Text;
 using Ouroboros.Tools.MeTTa;
-using Unit = Ouroboros.Tools.MeTTa.Unit;
+using MeTTaUnit = Ouroboros.Tools.MeTTa.MeTTaUnit;
 
 namespace Ouroboros.Application;
 
@@ -18,12 +18,12 @@ public static class MottoSteps
             _engine = engine;
         }
 
-        public async Task<Result<Unit, string>> ExecuteAsync(Unit input, CancellationToken ct = default)
+        public async Task<Result<MeTTaUnit, string>> ExecuteAsync(MeTTaUnit input, CancellationToken ct = default)
         {
             var result = await _engine.ExecuteQueryAsync("!(import! &self motto)", ct);
             return result.Match(
-                success => Result<Unit, string>.Success(Unit.Value),
-                failure => Result<Unit, string>.Failure($"Failed to import motto: {failure}")
+                success => Result<MeTTaUnit, string>.Success(MeTTaUnit.Value),
+                failure => Result<MeTTaUnit, string>.Failure($"Failed to import motto: {failure}")
             );
         }
     }
