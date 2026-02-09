@@ -1,5 +1,6 @@
 using System.Text;
 using Ouroboros.Tools.MeTTa;
+using Unit = Ouroboros.Tools.MeTTa.Unit;
 
 namespace Ouroboros.Application;
 

@@ -7,6 +7,7 @@ namespace Ouroboros.Application.Tools;
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using Ouroboros.Tools.MeTTa;
+using Unit = Ouroboros.Tools.MeTTa.Unit;
 
 /// <summary>
 /// In-memory MeTTa engine implementation for when Docker/subprocess is unavailable.

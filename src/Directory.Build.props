@@ -2,10 +2,8 @@
   <!-- Import repo-level props (App → ouroboros-build base) -->
   <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)..'))" />
 
-  <!-- Common test global usings (mirrors original Ouroboros.Tests GlobalUsings.cs) -->
+  <!-- Global usings for App layer projects -->
   <ItemGroup>
-    <Using Include="Xunit" />
-    <Using Include="FluentAssertions" />
     <!-- Foundation layer -->
     <Using Include="Ouroboros.Core.Kleisli" />
     <Using Include="Ouroboros.Core.Learning" />
@@ -23,11 +21,6 @@
     <Using Include="Ouroboros.Pipeline.Branches" />
     <Using Include="Ouroboros.Pipeline.Reasoning" />
     <Using Include="Ouroboros.Providers" />
-    <!-- Test infrastructure -->
-    <Using Include="Ouroboros.Tests.Mocks" />
-    <Using Include="Ouroboros.Tests.Infrastructure" />
-    <Using Include="Ouroboros.Tests.Infrastructure.Utilities" />
-    <Using Include="Ouroboros.Tests.Infrastructure.Fixtures" />
   </ItemGroup>
 
   <!-- Alias for naming conflicts -->
