@@ -8,9 +8,11 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  repository_dispatch:
+    types: [dependency-updated]
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name == 'repository_dispatch' && format('dispatch-{0}', github.event.client_payload.source_repo) || github.ref }}
   cancel-in-progress: true
 
 jobs:
