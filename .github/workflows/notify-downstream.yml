@@ -10,6 +10,7 @@ jobs:
   notify:
     if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
+    permissions: {}
     steps:
       - name: Dispatch to Ouroboros-v2
         uses: peter-evans/repository-dispatch@v3
