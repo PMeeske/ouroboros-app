@@ -1,5 +1,8 @@
 # Ouroboros App Layer
 
+[![CI](https://github.com/PMeeske/ouroboros-app/actions/workflows/ci.yml/badge.svg)](https://github.com/PMeeske/ouroboros-app/actions/workflows/ci.yml)
+[![Mutation Testing](https://github.com/PMeeske/ouroboros-app/actions/workflows/mutation.yml/badge.svg)](https://github.com/PMeeske/ouroboros-app/actions/workflows/mutation.yml)
+
 Application layer of the Ouroboros system, providing user-facing interfaces and remoting capabilities for the Ouroboros AI pipeline framework.
 
 This repository is part of the [Ouroboros-v2](https://github.com/PMeeske/Ouroboros-v2) ecosystem and contains the application implementations that sit on top of the foundation and engine layers.
