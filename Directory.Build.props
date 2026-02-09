@@ -5,7 +5,7 @@
 
   <PropertyGroup>
     <OuroborosLayer>App</OuroborosLayer>
-    <OuroborosFoundation>$(MSBuildThisFileDirectory)..\foundation\src</OuroborosFoundation>
-    <OuroborosEngine>$(MSBuildThisFileDirectory)..\engine\src</OuroborosEngine>
+    <OuroborosFoundation>$(MSBuildThisFileDirectory)libs\foundation\src</OuroborosFoundation>
+    <OuroborosEngine>$(MSBuildThisFileDirectory)libs\engine\src</OuroborosEngine>
   </PropertyGroup>
 </Project>
