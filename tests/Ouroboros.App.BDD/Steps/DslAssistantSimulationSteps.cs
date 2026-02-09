@@ -36,6 +36,8 @@ public class DslAssistantSimulationSteps
     private int _startLine;
     private int _endLine;
     private string? _newMethodName;
+    private string? _oldSymbolName;
+    private string? _newSymbolName;
     private string? _codeDescription;
     private string? _codeContext;
     private Dictionary<string, object>? _mcpParameters;
@@ -93,30 +95,30 @@ public class DslAssistantSimulationSteps
     public void ThenIShouldReceiveAtLeastSuggestions(int minCount)
     {
         _suggestions.Should().NotBeNull();
-        _suggestions!.IsSuccess.Should().BeTrue();
-        _suggestions.Value.Count.Should().BeGreaterOrEqualTo(minCount);
+        _suggestions!.Value.IsSuccess.Should().BeTrue();
+        _suggestions!.Value.Value.Count.Should().BeGreaterThanOrEqualTo(minCount);
     }
 
     [Then(@"suggestions should include ""(.*)""")]
     public void ThenSuggestionsShouldInclude(string token)
     {
         _suggestions.Should().NotBeNull();
-        _suggestions!.IsSuccess.Should().BeTrue();
-        _suggestions.Value.Should().Contain(s => s.Token.Equals(token, StringComparison.OrdinalIgnoreCase));
+        _suggestions!.Value.IsSuccess.Should().BeTrue();
+        _suggestions!.Value.Value.Should().Contain(s => s.Token.Equals(token, StringComparison.OrdinalIgnoreCase));
     }
 
     [Then("each suggestion should have an explanation")]
     public void ThenEachSuggestionShouldHaveAnExplanation()
     {
         _suggestions.Should().NotBeNull();
-        _suggestions!.Value.Should().OnlyContain(s => !string.IsNullOrWhiteSpace(s.Explanation));
+        _suggestions!.Value.Value.Should().OnlyContain(s => !string.IsNullOrWhiteSpace(s.Explanation));
     }
 
     [Then("each suggestion should have a confidence score")]
     public void ThenEachSuggestionShouldHaveAConfidenceScore()
     {
         _suggestions.Should().NotBeNull();
-        _suggestions!.Value.Should().OnlyContain(s => s.Confidence > 0 && s.Confidence <= 1);
+        _suggestions!.Value.Value.Should().OnlyContain(s => s.Confidence > 0 && s.Confidence <= 1);
     }
 
     // Token completion steps
@@ -139,15 +141,15 @@ public class DslAssistantSimulationSteps
     public void ThenIShouldReceiveCompletionsIncluding(string completion)
     {
         _completions.Should().NotBeNull();
-        _completions!.IsSuccess.Should().BeTrue();
-        _completions.Value.Should().Contain(c => c.Equals(completion, StringComparison.OrdinalIgnoreCase));
+        _completions!.Value.IsSuccess.Should().BeTrue();
+        _completions!.Value.Value.Should().Contain(c => c.Equals(completion, StringComparison.OrdinalIgnoreCase));
     }
 
     [Then("completions should be case-insensitive")]
     public void ThenCompletionsShouldBeCaseInsensitive()
     {
         _completions.Should().NotBeNull();
-        _completions!.Value.Count.Should().BeGreaterThan(0);
+        _completions!.Value.Value.Count.Should().BeGreaterThan(0);
     }
 
     // Validation steps
@@ -172,44 +174,44 @@ public class DslAssistantSimulationSteps
     public void ThenValidationShouldSucceed()
     {
         _validationResult.Should().NotBeNull();
-        _validationResult!.IsSuccess.Should().BeTrue();
-        _validationResult.Value.IsValid.Should().BeTrue();
+        _validationResult!.Value.IsSuccess.Should().BeTrue();
+        _validationResult!.Value.Value.IsValid.Should().BeTrue();
     }
 
     [Then("validation should fail")]
     public void ThenValidationShouldFail()
     {
         _validationResult.Should().NotBeNull();
-        _validationResult!.IsSuccess.Should().BeTrue();
-        _validationResult.Value.IsValid.Should().BeFalse();
+        _validationResult!.Value.IsSuccess.Should().BeTrue();
+        _validationResult!.Value.Value.IsValid.Should().BeFalse();
     }
 
     [Then("there should be no errors")]
     public void ThenThereShouldBeNoErrors()
     {
         _validationResult.Should().NotBeNull();
-        _validationResult!.Value.Errors.Should().BeEmpty();
+        _validationResult!.Value.Value.Errors.Should().BeEmpty();
     }
 
     [Then("there should be no warnings")]
     public void ThenThereShouldBeNoWarnings()
     {
         _validationResult.Should().NotBeNull();
-        _validationResult!.Value.Warnings.Should().BeEmpty();
+        _validationResult!.Value.Value.Warnings.Should().BeEmpty();
     }
 
     [Then(@"there should be an error about ""(.*)""")]
     public void ThenThereShouldBeAnErrorAbout(string errorToken)
     {
         _validationResult.Should().NotBeNull();
-        _validationResult!.Value.Errors.Should().Contain(e => e.Contains(errorToken, StringComparison.OrdinalIgnoreCase));
+        _validationResult!.Value.Value.Errors.Should().Contain(e => e.Contains(errorToken, StringComparison.OrdinalIgnoreCase));
     }
 
     [Then("suggestions should include similar valid tokens")]
     public void ThenSuggestionsShouldIncludeSimilarValidTokens()
     {
         _validationResult.Should().NotBeNull();
-        _validationResult!.Value.Suggestions.Should().NotBeEmpty();
+        _validationResult!.Value.Value.Suggestions.Should().NotBeEmpty();
     }
 
     // Explanation steps
@@ -226,15 +228,15 @@ public class DslAssistantSimulationSteps
     public void ThenIShouldReceiveANaturalLanguageExplanation()
     {
         _explanation.Should().NotBeNull();
-        _explanation!.IsSuccess.Should().BeTrue();
-        _explanation.Value.Should().NotBeNullOrWhiteSpace();
+        _explanation!.Value.IsSuccess.Should().BeTrue();
+        _explanation!.Value.Value.Should().NotBeNullOrWhiteSpace();
     }
 
     [Then(@"the explanation should mention ""(.*)""")]
     public void ThenTheExplanationShouldMention(string keyword)
     {
         _explanation.Should().NotBeNull();
-        _explanation!.Value.Should().Contain(keyword, Exactly.Once().OrMore());
+        _explanation!.Value.Value.Should().Contain(keyword, AtLeast.Once());
     }
 
     // DSL generation steps
@@ -257,16 +259,17 @@ public class DslAssistantSimulationSteps
     public void ThenIShouldReceiveAValidDslPipeline()
     {
         _generatedDsl.Should().NotBeNull();
-        _generatedDsl!.IsSuccess.Should().BeTrue();
-        _generatedDsl.Value.Should().NotBeNullOrWhiteSpace();
+        _generatedDsl!.Value.IsSuccess.Should().BeTrue();
+        _generatedDsl!.Value.Value.Should().NotBeNullOrWhiteSpace();
     }
 
     [Then(@"the DSL should start with ""(.*)"" or ""(.*)""")]
     public void ThenTheDslShouldStartWith(string option1, string option2)
     {
         _generatedDsl.Should().NotBeNull();
-        bool startsWithEither = _generatedDsl!.Value.TrimStart().StartsWith(option1, StringComparison.OrdinalIgnoreCase) ||
-                                _generatedDsl.Value.TrimStart().StartsWith(option2, StringComparison.OrdinalIgnoreCase);
+        string dslValue = _generatedDsl!.Value.Value;
+        bool startsWithEither = dslValue.TrimStart().StartsWith(option1, StringComparison.OrdinalIgnoreCase) ||
+                                dslValue.TrimStart().StartsWith(option2, StringComparison.OrdinalIgnoreCase);
         startsWithEither.Should().BeTrue();
     }
 
@@ -274,7 +277,7 @@ public class DslAssistantSimulationSteps
     public void ThenTheDslShouldContainThePipeOperator()
     {
         _generatedDsl.Should().NotBeNull();
-        _generatedDsl!.Value.Should().Contain("|");
+        _generatedDsl!.Value.Value.Should().Contain("|");
     }
 
     // Code analysis steps
@@ -327,29 +330,29 @@ namespace Test
     public void ThenAnalysisShouldSucceed()
     {
         _analysisResult.Should().NotBeNull();
-        _analysisResult!.IsSuccess.Should().BeTrue();
+        _analysisResult!.Value.IsSuccess.Should().BeTrue();
     }
 
     [Then("analysis should report invalid code")]
     public void ThenAnalysisShouldReportInvalidCode()
     {
         _analysisResult.Should().NotBeNull();
-        _analysisResult!.IsSuccess.Should().BeTrue();
-        _analysisResult.Value.IsValid.Should().BeFalse();
+        _analysisResult!.Value.IsSuccess.Should().BeTrue();
+        _analysisResult!.Value.Value.IsValid.Should().BeFalse();
     }
 
     [Then("I should get a list of classes found")]
     public void ThenIShouldGetAListOfClassesFound()
     {
         _analysisResult.Should().NotBeNull();
-        _analysisResult!.Value.Classes.Should().NotBeEmpty();
+        _analysisResult!.Value.Value.Classes.Should().NotBeEmpty();
     }
 
     [Then("I should get a list of methods found")]
     public void ThenIShouldGetAListOfMethodsFound()
     {
         _analysisResult.Should().NotBeNull();
-        _analysisResult!.Value.Methods.Should().NotBeEmpty();
+        _analysisResult!.Value.Value.Methods.Should().NotBeEmpty();
     }
 
     [Then("I should get diagnostic information")]
@@ -357,28 +360,28 @@ namespace Test
     {
         _analysisResult.Should().NotBeNull();
         // Diagnostics list exists (may be empty for valid code)
-        _analysisResult!.Value.Diagnostics.Should().NotBeNull();
+        _analysisResult!.Value.Value.Diagnostics.Should().NotBeNull();
     }
 
     [Then("diagnostics should contain error messages")]
     public void ThenDiagnosticsShouldContainErrorMessages()
     {
         _analysisResult.Should().NotBeNull();
-        _analysisResult!.Value.Diagnostics.Should().Contain(d => d.Contains("Error", StringComparison.OrdinalIgnoreCase));
+        _analysisResult!.Value.Value.Diagnostics.Should().Contain(d => d.Contains("Error", StringComparison.OrdinalIgnoreCase));
     }
 
     [Then("error messages should include line numbers")]
     public void ThenErrorMessagesShouldIncludeLineNumbers()
     {
         _analysisResult.Should().NotBeNull();
-        _analysisResult!.Value.Diagnostics.Should().Contain(d => d.Contains("line", StringComparison.OrdinalIgnoreCase));
+        _analysisResult!.Value.Value.Diagnostics.Should().Contain(d => d.Contains("line", StringComparison.OrdinalIgnoreCase));
     }
 
     [Then("analyzer findings should include async pattern issues")]
     public void ThenAnalyzerFindingsShouldIncludeAsyncPatternIssues()
     {
         _analysisResult.Should().NotBeNull();
-        _analysisResult!.Value.AnalyzerResults.Should().Contain(f =>
+        _analysisResult!.Value.Value.AnalyzerResults.Should().Contain(f =>
             f.Contains("async", StringComparison.OrdinalIgnoreCase) ||
             f.Contains(".Result", StringComparison.Ordinal) ||
             f.Contains(".Wait()", StringComparison.Ordinal));
@@ -388,7 +391,7 @@ namespace Test
     public void ThenFindingsShouldMentionResultOrWait()
     {
         _analysisResult.Should().NotBeNull();
-        _analysisResult!.Value.AnalyzerResults.Should().Contain(f =>
+        _analysisResult!.Value.Value.AnalyzerResults.Should().Contain(f =>
             f.Contains(".Result") || f.Contains(".Wait()"));
     }
 
@@ -396,7 +399,7 @@ namespace Test
     public void ThenFindingsShouldMentionMissingDocumentation()
     {
         _analysisResult.Should().NotBeNull();
-        _analysisResult!.Value.AnalyzerResults.Should().Contain(f =>
+        _analysisResult!.Value.Value.AnalyzerResults.Should().Contain(f =>
             f.Contains("documentation", StringComparison.OrdinalIgnoreCase));
     }
 
@@ -404,7 +407,7 @@ namespace Test
     public void ThenFindingsShouldListTheUndocumentedMembers()
     {
         _analysisResult.Should().NotBeNull();
-        _analysisResult!.Value.AnalyzerResults.Should().NotBeEmpty();
+        _analysisResult!.Value.Value.AnalyzerResults.Should().NotBeEmpty();
     }
 
     // Code generation steps
@@ -451,15 +454,15 @@ namespace Test
     public void ThenIShouldReceiveValidCSharpCode()
     {
         _generatedCode.Should().NotBeNull();
-        _generatedCode!.IsSuccess.Should().BeTrue();
-        _generatedCode.Value.Should().NotBeNullOrWhiteSpace();
+        _generatedCode!.Value.IsSuccess.Should().BeTrue();
+        _generatedCode!.Value.Value.Should().NotBeNullOrWhiteSpace();
     }
 
     [Then(@"the code should contain ""(.*)""")]
     public void ThenTheCodeShouldContain(string expectedContent)
     {
         _generatedCode.Should().NotBeNull();
-        _generatedCode!.Value.Should().Contain(expectedContent);
+        _generatedCode!.Value.Value.Should().Contain(expectedContent);
     }
 
     // Add method steps
@@ -511,7 +514,7 @@ namespace Test
     public void ThenIShouldReceiveUpdatedCSharpCode()
     {
         _generatedCode.Should().NotBeNull();
-        _generatedCode!.IsSuccess.Should().BeTrue();
+        _generatedCode!.Value.IsSuccess.Should().BeTrue();
     }
 
     [Then("the code should contain the new method")]
@@ -519,14 +522,14 @@ namespace Test
     {
         _generatedCode.Should().NotBeNull();
         _methodSignature.Should().NotBeNullOrEmpty();
-        _generatedCode!.Value.Should().Contain(_methodSignature!.Split('(')[0]);
+        _generatedCode!.Value.Value.Should().Contain(_methodSignature!.Split('(')[0]);
     }
 
     [Then("the code should be properly formatted")]
     public void ThenTheCodeShouldBeProperlyFormatted()
     {
         _generatedCode.Should().NotBeNull();
-        _generatedCode!.Value.Should().Contain("{").And.Contain("}");
+        _generatedCode!.Value.Value.Should().Contain("{").And.Contain("}");
     }
 
     // Rename steps
@@ -566,14 +569,14 @@ namespace Test
     public void ThenTheCodeShouldNotContain(string text)
     {
         _generatedCode.Should().NotBeNull();
-        _generatedCode!.Value.Should().NotContain(text);
+        _generatedCode!.Value.Value.Should().NotContain(text);
     }
 
     [Then(@"the code should contain ""(.*)"" in all occurrences")]
     public void ThenTheCodeShouldContainInAllOccurrences(string text)
     {
         _generatedCode.Should().NotBeNull();
-        _generatedCode!.Value.Should().Contain(text);
+        _generatedCode!.Value.Value.Should().Contain(text);
     }
 
     // Extract method steps
@@ -630,14 +633,14 @@ namespace Test
     public void ThenTheCodeShouldContainANewMethod(string methodName)
     {
         _generatedCode.Should().NotBeNull();
-        _generatedCode!.Value.Should().Contain(methodName);
+        _generatedCode!.Value.Value.Should().Contain(methodName);
     }
 
     [Then(@"the original location should call ""(.*)""")]
     public void ThenTheOriginalLocationShouldCall(string methodName)
     {
         _generatedCode.Should().NotBeNull();
-        _generatedCode!.Value.Should().Contain($"{methodName}()");
+        _generatedCode!.Value.Value.Should().Contain($"{methodName}()");
     }
 
     // Code generation from description steps
@@ -676,7 +679,7 @@ namespace Test
         _generatedCode.Should().NotBeNull();
         _codeTool.Should().NotBeNull();
 
-        Result<CodeAnalysisResult, string> analysis = await _codeTool!.AnalyzeCodeAsync(_generatedCode!.Value);
+        Result<CodeAnalysisResult, string> analysis = await _codeTool!.AnalyzeCodeAsync(_generatedCode!.Value.Value);
         analysis.IsSuccess.Should().BeTrue();
         analysis.Value.IsValid.Should().BeTrue();
     }
@@ -685,7 +688,7 @@ namespace Test
     public void ThenTheCodeShouldFollowResultPattern()
     {
         _generatedCode.Should().NotBeNull();
-        _generatedCode!.Value.Should().Contain("Result<").And.Contain("Success").And.Contain("Failure");
+        _generatedCode!.Value.Value.Should().Contain("Result<").And.Contain("Success").And.Contain("Failure");
     }
 
     // MCP Server steps
@@ -710,7 +713,7 @@ namespace Test
     public void ThenIShouldReceiveAtLeastTools(int minCount)
     {
         _mcpTools.Should().NotBeNull();
-        _mcpTools!.Tools.Count.Should().BeGreaterOrEqualTo(minCount);
+        _mcpTools!.Tools.Count.Should().BeGreaterThanOrEqualTo(minCount);
     }
 
     [Then(@"tools should include ""(.*)""")]
@@ -860,7 +863,7 @@ namespace Test
     public void ThenIUnderstandWhatThePipelineDoes()
     {
         _explanation.Should().NotBeNull();
-        _explanation!.Value.Should().NotBeNullOrWhiteSpace();
+        _explanation!.Value.Value.Should().NotBeNullOrWhiteSpace();
     }
 
     [When("I suggest improvements")]
@@ -874,7 +877,7 @@ namespace Test
     public void ThenIReceiveEnhancedDslWithAdditionalSteps()
     {
         _suggestions.Should().NotBeNull();
-        _suggestions!.Value.Should().NotBeEmpty();
+        _suggestions!.Value.Value.Should().NotBeEmpty();
     }
 
     [Given(@"I describe ""(.*)""")]
@@ -887,7 +890,7 @@ namespace Test
     public void ThenIReceiveCSharpCode()
     {
         _generatedCode.Should().NotBeNull();
-        _generatedCode!.Value.Should().NotBeNullOrWhiteSpace();
+        _generatedCode!.Value.Value.Should().NotBeNullOrWhiteSpace();
     }
 
     [When("I analyze the generated code")]
@@ -901,15 +904,15 @@ namespace Test
     public void ThenTheCodeShouldBeValid()
     {
         _analysisResult.Should().NotBeNull();
-        _analysisResult!.Value.IsValid.Should().BeTrue();
+        _analysisResult!.Value.Value.IsValid.Should().BeTrue();
     }
 
     [Then("the code should follow monadic patterns")]
     public void ThenTheCodeShouldFollowMonadicPatterns()
     {
         _generatedCode.Should().NotBeNull();
-        _generatedCode!.IsSuccess.Should().BeTrue();
-        string code = _generatedCode.Value.Value;
+        _generatedCode!.Value.IsSuccess.Should().BeTrue();
+        string code = _generatedCode!.Value.Value;
         bool hasMonadicPattern = code.Contains("Result<", StringComparison.Ordinal) ||
                                   code.Contains("Option<", StringComparison.Ordinal);
         hasMonadicPattern.Should().BeTrue();
