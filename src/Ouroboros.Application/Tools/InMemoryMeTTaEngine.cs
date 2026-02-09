@@ -7,7 +7,7 @@ namespace Ouroboros.Application.Tools;
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using Ouroboros.Tools.MeTTa;
-using Unit = Ouroboros.Tools.MeTTa.Unit;
+using MeTTaUnit = Ouroboros.Tools.MeTTa.MeTTaUnit;
 
 /// <summary>
 /// In-memory MeTTa engine implementation for when Docker/subprocess is unavailable.
@@ -59,10 +59,10 @@ public sealed class InMemoryMeTTaEngine : IMeTTaEngine
     }
 
     /// <inheritdoc/>
-    public Task<Result<Unit, string>> AddFactAsync(string fact, CancellationToken ct = default)
+    public Task<Result<MeTTaUnit, string>> AddFactAsync(string fact, CancellationToken ct = default)
     {
         if (_disposed)
-            return Task.FromResult(Result<Unit, string>.Failure("Engine disposed"));
+            return Task.FromResult(Result<MeTTaUnit, string>.Failure("Engine disposed"));
 
         try
         {
@@ -109,11 +109,11 @@ public sealed class InMemoryMeTTaEngine : IMeTTaEngine
                 _rules[ruleName] = ruleBody;
             }
 
-            return Task.FromResult(Result<Unit, string>.Success(Unit.Value));
+            return Task.FromResult(Result<MeTTaUnit, string>.Success(MeTTaUnit.Value));
         }
         catch (Exception ex)
         {
-            return Task.FromResult(Result<Unit, string>.Failure($"Failed to add fact: {ex.Message}"));
+            return Task.FromResult(Result<MeTTaUnit, string>.Failure($"Failed to add fact: {ex.Message}"));
         }
     }
 
@@ -148,11 +148,11 @@ public sealed class InMemoryMeTTaEngine : IMeTTaEngine
     }
 
     /// <inheritdoc/>
-    public Task<Result<Unit, string>> ResetAsync(CancellationToken ct = default)
+    public Task<Result<MeTTaUnit, string>> ResetAsync(CancellationToken ct = default)
     {
         _facts.Clear();
         _rules.Clear();
-        return Task.FromResult(Result<Unit, string>.Success(Unit.Value));
+        return Task.FromResult(Result<MeTTaUnit, string>.Success(MeTTaUnit.Value));
     }
 
     /// <summary>
