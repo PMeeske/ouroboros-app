@@ -1,0 +1,20 @@
+name: Notify Downstream
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  notify:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch to Ouroboros-v2
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.OUROBOROS_DISPATCH_PAT }}
+          repository: PMeeske/Ouroboros-v2
+          event-type: dependency-updated
+          client-payload: '{"source_repo": "ouroboros-app", "source_sha": "${{ github.event.workflow_run.head_sha }}"}'
