@@ -4,6 +4,14 @@
 
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
+// System namespaces
+global using System;
+global using System.Collections.Generic;
+global using System.IO;
+global using System.Linq;
+global using System.Threading;
+global using System.Threading.Tasks;
+
 // Core monadic and functional programming
 global using Ouroboros.Core.Kleisli;
 global using Ouroboros.Core.Monads;
