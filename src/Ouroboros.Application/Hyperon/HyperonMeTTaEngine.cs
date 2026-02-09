@@ -8,6 +8,7 @@ using System.Collections.Concurrent;
 using Ouroboros.Core.Hyperon;
 using Ouroboros.Core.Hyperon.Parsing;
 using Ouroboros.Tools.MeTTa;
+using Unit = Ouroboros.Tools.MeTTa.Unit;
 
 /// <summary>
 /// Native C# Hyperon-based MeTTa engine implementation.
