@@ -149,9 +149,9 @@ public static class OrchestratorCommands
         // Build orchestrator from preset models
         OrchestratorBuilder builder = new OrchestratorBuilder(tools, preset.MasterRole);
 
-        foreach (var slot in preset.Models)
+        foreach (var slot in preset.Models.Where(s => models.ContainsKey(s.Role)))
         {
-            if (!models.TryGetValue(slot.Role, out var model)) continue;
+            var model = models[slot.Role];
 
             ModelType modelType = slot.Role.ToLowerInvariant() switch
             {
