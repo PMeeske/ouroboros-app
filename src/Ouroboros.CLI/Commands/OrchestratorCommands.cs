@@ -5,10 +5,11 @@ using System.Linq;
 using System.Threading.Tasks;
 using LangChain.Providers.Ollama;
 using Ouroboros.Agent.MetaAI;
+using Ouroboros.Application.Configuration;
+using Ouroboros.Application.Services;
 using Ouroboros.Diagnostics;
 using Ouroboros.Options;
 using Ouroboros.Providers;
-using Ouroboros.Application.Services;
 
 namespace Ouroboros.CLI.Commands;
 
@@ -31,6 +32,13 @@ public static class OrchestratorCommands
 
         try
         {
+            // Check for multi-model preset
+            if (!string.IsNullOrWhiteSpace(o.Preset))
+            {
+                await RunWithPresetAsync(o);
+                return;
+            }
+
             OllamaProvider provider = new OllamaProvider();
             ChatRuntimeSettings settings = new ChatRuntimeSettings(o.Temperature, o.MaxTokens, o.TimeoutSeconds, false, o.Culture);
 
@@ -86,35 +94,7 @@ public static class OrchestratorCommands
 
             OrchestratedChatModel orchestrator = builder.Build();
 
-            Console.WriteLine("✓ Orchestrator configured with multiple models\n");
-            Console.WriteLine($"Goal: {o.Goal}\n");
-
-            Stopwatch sw = Stopwatch.StartNew();
-            string response = await orchestrator.GenerateTextAsync(o.Goal);
-            sw.Stop();
-
-            Console.WriteLine("=== Response ===");
-            Console.WriteLine(response);
-            Console.WriteLine();
-            Console.WriteLine($"[timing] Execution time: {sw.ElapsedMilliseconds}ms");
-
-            if (o.ShowMetrics)
-            {
-                Console.WriteLine("\n=== Performance Metrics ===");
-                IModelOrchestrator underlyingOrchestrator = builder.GetOrchestrator();
-                IReadOnlyDictionary<string, PerformanceMetrics> metrics = underlyingOrchestrator.GetMetrics();
-
-                foreach ((string modelName, PerformanceMetrics metric) in metrics)
-                {
-                    Console.WriteLine($"\nModel: {modelName}");
-                    Console.WriteLine($"  Executions: {metric.ExecutionCount}");
-                    Console.WriteLine($"  Avg Latency: {metric.AverageLatencyMs:F2}ms");
-                    Console.WriteLine($"  Success Rate: {metric.SuccessRate:P2}");
-                    Console.WriteLine($"  Last Used: {metric.LastUsed:g}");
-                }
-            }
-
-            Console.WriteLine("\n✓ Orchestrator execution completed successfully");
+            await ExecuteOrchestratorAsync(orchestrator, builder, o);
         }
         catch (Exception ex) when (ex.Message.Contains("Connection refused") || ex.Message.Contains("ECONNREFUSED"))
         {
@@ -124,7 +104,7 @@ public static class OrchestratorCommands
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine("\n=== ❌ Orchestrator Failed ===");
+            Console.Error.WriteLine("\n=== Orchestrator Failed ===");
             Console.Error.WriteLine($"Error: {ex.Message}");
             if (o.Debug)
             {
@@ -132,6 +112,98 @@ public static class OrchestratorCommands
             }
             Environment.Exit(1);
         }
+    }
+
+    /// <summary>
+    /// Runs the orchestrator using a preconfigured multi-model preset.
+    /// </summary>
+    private static async Task RunWithPresetAsync(OrchestratorOptions o)
+    {
+        MultiModelPresetConfig? preset = MultiModelPresets.GetByName(o.Preset!);
+        if (preset is null)
+        {
+            string available = string.Join(", ", MultiModelPresets.ListNames());
+            Console.Error.WriteLine($"Unknown preset '{o.Preset}'. Available presets: {available}");
+            Environment.Exit(1);
+            return;
+        }
+
+        Console.WriteLine($"[PRESET] {preset.Name}: {preset.Description}\n");
+
+        // Display model configuration
+        Console.WriteLine("  Model Configuration:");
+        foreach (var slot in preset.Models)
+        {
+            string master = slot.Role.Equals(preset.MasterRole, StringComparison.OrdinalIgnoreCase) ? " [MASTER]" : "";
+            Console.WriteLine($"    {slot.Role,-12} {slot.ProviderType,-10} {slot.ModelName}{master}");
+        }
+        Console.WriteLine();
+
+        // Create models from preset
+        Dictionary<string, IChatCompletionModel> models = MultiModelPresetFactory.CreateModels(preset, o.Culture);
+        Console.WriteLine($"✓ Created {models.Count} models from preset '{preset.Name}'\n");
+
+        ToolRegistry tools = ToolRegistry.CreateDefault();
+        Console.WriteLine($"✓ Tool registry created with {tools.Count} tools\n");
+
+        // Build orchestrator from preset models
+        OrchestratorBuilder builder = new OrchestratorBuilder(tools, preset.MasterRole);
+
+        foreach (var slot in preset.Models)
+        {
+            if (!models.TryGetValue(slot.Role, out var model)) continue;
+
+            ModelType modelType = slot.Role.ToLowerInvariant() switch
+            {
+                "coder" => ModelType.Code,
+                "reasoner" => ModelType.Reasoning,
+                _ => ModelType.General,
+            };
+
+            int maxTokens = slot.MaxTokens ?? preset.DefaultMaxTokens;
+            builder = builder.WithModel(slot.Role, model, modelType, slot.Tags, maxTokens: maxTokens, avgLatencyMs: slot.AvgLatencyMs);
+        }
+
+        builder = builder.WithMetricTracking(preset.EnableMetrics);
+        OrchestratedChatModel orchestrator = builder.Build();
+
+        await ExecuteOrchestratorAsync(orchestrator, builder, o);
+    }
+
+    /// <summary>
+    /// Common execution logic for the orchestrator (shared between preset and manual configuration).
+    /// </summary>
+    private static async Task ExecuteOrchestratorAsync(OrchestratedChatModel orchestrator, OrchestratorBuilder builder, OrchestratorOptions o)
+    {
+        Console.WriteLine("✓ Orchestrator configured with multiple models\n");
+        Console.WriteLine($"Goal: {o.Goal}\n");
+
+        Stopwatch sw = Stopwatch.StartNew();
+        string response = await orchestrator.GenerateTextAsync(o.Goal);
+        sw.Stop();
+
+        Console.WriteLine("=== Response ===");
+        Console.WriteLine(response);
+        Console.WriteLine();
+        Console.WriteLine($"[timing] Execution time: {sw.ElapsedMilliseconds}ms");
+
+        if (o.ShowMetrics)
+        {
+            Console.WriteLine("\n=== Performance Metrics ===");
+            IModelOrchestrator underlyingOrchestrator = builder.GetOrchestrator();
+            IReadOnlyDictionary<string, PerformanceMetrics> metrics = underlyingOrchestrator.GetMetrics();
+
+            foreach ((string modelName, PerformanceMetrics metric) in metrics)
+            {
+                Console.WriteLine($"\nModel: {modelName}");
+                Console.WriteLine($"  Executions: {metric.ExecutionCount}");
+                Console.WriteLine($"  Avg Latency: {metric.AverageLatencyMs:F2}ms");
+                Console.WriteLine($"  Success Rate: {metric.SuccessRate:P2}");
+                Console.WriteLine($"  Last Used: {metric.LastUsed:g}");
+            }
+        }
+
+        Console.WriteLine("\n✓ Orchestrator execution completed successfully");
     }
 
     /// <summary>

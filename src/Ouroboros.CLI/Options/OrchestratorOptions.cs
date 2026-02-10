@@ -22,6 +22,9 @@ public sealed class OrchestratorOptions : IVoiceOptions
     // Explicit interface for Endpoint
     string IVoiceOptions.Endpoint { get => Endpoint ?? "http://localhost:11434"; set => Endpoint = value; }
 
+    [Option("preset", Required = false, HelpText = "Multi-model preset: anthropic-ollama|anthropic-ollama-lite (overrides individual model options)")]
+    public string? Preset { get; set; }
+
     [Option('g', "goal", Required = true, HelpText = "Goal or task for the orchestrator to accomplish.")]
     public string Goal { get; set; } = string.Empty;
 
