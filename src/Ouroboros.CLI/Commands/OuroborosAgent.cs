@@ -30,6 +30,7 @@ using Ouroboros.Tools.MeTTa;
 using Ouroboros.Application;
 using Ouroboros.Application.Mcp;
 using Ouroboros.Application.Personality;
+using Ouroboros.Application.Configuration;
 using Ouroboros.Application.Services;
 using Ouroboros.Application.Tools;
 using static Ouroboros.Application.Tools.AutonomousTools;
@@ -2368,16 +2369,31 @@ $synth.Dispose()
         // Check for preset
         if (!string.IsNullOrWhiteSpace(_config.CollectivePreset))
         {
-            mind = _config.CollectivePreset.ToLowerInvariant() switch
+            // Check for multi-model presets (anthropic-ollama, etc.) first
+            var multiModelPreset = MultiModelPresets.GetByName(_config.CollectivePreset);
+            if (multiModelPreset is not null)
             {
-                "fast" => CollectiveMindFactory.CreateFast(settings),
-                "premium" => CollectiveMindFactory.CreatePremium(settings),
-                "budget" => CollectiveMindFactory.CreateBudget(settings),
-                "local" => CollectiveMindFactory.CreateLocal(_config.Model, _config.Endpoint, settings),
-                "single" or "default" => CollectiveMindFactory.CreateFromConfig(
-                    _config.Model, _config.Endpoint, _config.ApiKey, _config.EndpointType, settings),
-                _ => CollectiveMindFactory.CreateBalanced(settings)
-            };
+                mind = CollectiveMindPresetFactory.CreateFromPreset(multiModelPreset, settings);
+                Console.WriteLine($"  [preset] Loaded multi-model preset '{multiModelPreset.Name}': {multiModelPreset.Description}");
+                foreach (var slot in multiModelPreset.Models)
+                {
+                    string master = slot.Role.Equals(multiModelPreset.MasterRole, StringComparison.OrdinalIgnoreCase) ? " [MASTER]" : "";
+                    Console.WriteLine($"    {slot.Role,-12} {slot.ProviderType,-10} {slot.ModelName}{master}");
+                }
+            }
+            else
+            {
+                mind = _config.CollectivePreset.ToLowerInvariant() switch
+                {
+                    "fast" => CollectiveMindFactory.CreateFast(settings),
+                    "premium" => CollectiveMindFactory.CreatePremium(settings),
+                    "budget" => CollectiveMindFactory.CreateBudget(settings),
+                    "local" => CollectiveMindFactory.CreateLocal(_config.Model, _config.Endpoint, settings),
+                    "single" or "default" => CollectiveMindFactory.CreateFromConfig(
+                        _config.Model, _config.Endpoint, _config.ApiKey, _config.EndpointType, settings),
+                    _ => CollectiveMindFactory.CreateBalanced(settings)
+                };
+            }
         }
         else if (!string.IsNullOrWhiteSpace(_config.CollectiveProviders))
         {

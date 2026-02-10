@@ -256,7 +256,7 @@ public sealed class OuroborosOptions : IVoiceOptions
     [Option("collective", Required = false, HelpText = "Enable collective mind mode (uses multiple LLM providers)", Default = false)]
     public bool CollectiveMode { get; set; }
 
-    [Option("collective-preset", Required = false, HelpText = "Collective mind preset: single|local|balanced|fast|premium|budget (single=use configured endpoint)")]
+    [Option("collective-preset", Required = false, HelpText = "Collective mind preset: single|local|balanced|fast|premium|budget|anthropic-ollama|anthropic-ollama-lite (anthropic-ollama=Claude master + Ollama sub-models)")]
     public string? CollectivePreset { get; set; }
 
     [Option("collective-mode", Required = false, HelpText = "Collective thinking mode: racing|sequential|ensemble|adaptive", Default = "adaptive")]

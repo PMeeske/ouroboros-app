@@ -99,7 +99,7 @@ public sealed class AskOptions : IVoiceOptions
     [Option("decompose", Required = false, HelpText = "Enable goal decomposition mode: off|auto|local-first|quality-first", Default = "off")]
     public string Decompose { get; set; } = "off";
 
-    [Option("collective", Required = false, HelpText = "Enable CollectiveMind multi-provider mode: off|balanced|fast|premium|budget|decomposed", Default = "off")]
+    [Option("collective", Required = false, HelpText = "Enable CollectiveMind multi-provider mode: off|balanced|fast|premium|budget|decomposed|anthropic-ollama|anthropic-ollama-lite", Default = "off")]
     public string Collective { get; set; } = "off";
 
     [Option("master-model", Required = false, HelpText = "Designate master model for orchestration (pathway name).")]
