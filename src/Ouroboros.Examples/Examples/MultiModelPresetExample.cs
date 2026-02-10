@@ -83,9 +83,9 @@ public static class MultiModelPresetExample
             ToolRegistry tools = ToolRegistry.CreateDefault();
             OrchestratorBuilder builder = new OrchestratorBuilder(tools, preset.MasterRole);
 
-            foreach (ModelSlotConfig slot in preset.Models)
+            foreach (ModelSlotConfig slot in preset.Models.Where(s => models.ContainsKey(s.Role)))
             {
-                if (!models.TryGetValue(slot.Role, out IChatCompletionModel? model)) continue;
+                var model = models[slot.Role];
 
                 ModelType modelType = slot.Role.ToLowerInvariant() switch
                 {
