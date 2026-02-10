@@ -56,6 +56,10 @@ jobs:
     name: Test
     needs: build
     uses: PMeeske/ouroboros-build/.github/workflows/_reusable-dotnet-test.yml@main
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
     with:
       job-identifier: "test"
       test-projects: >-
@@ -72,6 +76,10 @@ jobs:
     name: Integration Tests
     needs: build
     uses: PMeeske/ouroboros-build/.github/workflows/_reusable-dotnet-test.yml@main
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
     with:
       job-identifier: "integration-test"
       test-projects: tests/Ouroboros.Integration.Tests/Ouroboros.Integration.Tests.csproj
