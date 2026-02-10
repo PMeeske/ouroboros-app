@@ -55,13 +55,16 @@ public static class MultiModelPresetFactory
         string? culture)
     {
         string endpoint = slot.Endpoint ?? "http://localhost:11434";
-        using var provider = new OllamaProvider(endpoint);
+        // Note: OllamaProvider is not disposed here because OllamaChatModel needs it for its lifetime.
+        // The model (and transitively the provider) will be disposed when the orchestrator is disposed.
+        var provider = new OllamaProvider(endpoint);
         var ollamaModel = new OllamaChatModel(provider, slot.ModelName);
 
         // Apply known Ollama presets based on model name (provides baseline settings)
         ApplyOllamaPresets(ollamaModel, slot.ModelName, slot.Role);
 
         // Override with preset/slot-specific temperature and maxTokens if Settings exists
+        // Temperature is cast to float as OllamaChatModel expects float, while ChatRuntimeSettings uses double
         if (ollamaModel.Settings != null)
         {
             ollamaModel.Settings = ollamaModel.Settings with
