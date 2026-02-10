@@ -57,6 +57,7 @@ jobs:
     needs: build
     uses: PMeeske/ouroboros-build/.github/workflows/_reusable-dotnet-test.yml@main
     with:
+      job-identifier: "test"
       test-projects: >-
         tests/Ouroboros.CLI.Tests/Ouroboros.CLI.Tests.csproj
         tests/Ouroboros.WebApi.Tests/Ouroboros.WebApi.Tests.csproj
@@ -72,6 +73,7 @@ jobs:
     needs: build
     uses: PMeeske/ouroboros-build/.github/workflows/_reusable-dotnet-test.yml@main
     with:
+      job-identifier: "integration-test"
       test-projects: tests/Ouroboros.Integration.Tests/Ouroboros.Integration.Tests.csproj
       build-projects: >-
         src/Ouroboros.Application/Ouroboros.Application.csproj
@@ -85,6 +87,7 @@ jobs:
     needs: build
     uses: PMeeske/ouroboros-build/.github/workflows/_reusable-dotnet-test.yml@main
     with:
+      job-identifier: "bdd"
       test-projects: tests/Ouroboros.App.BDD/Ouroboros.App.BDD.csproj
       build-projects: >-
         src/Ouroboros.Application/Ouroboros.Application.csproj
