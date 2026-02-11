@@ -229,7 +229,23 @@ public static class CliSteps
             return s;
         };
 
-    public static string ParseString(string? arg) => Utilities.ConfigParser.ParseString(arg);
+    public static string ParseString(string? arg)
+    {
+        if (arg is null)
+        {
+            return string.Empty;
+        }
+
+        // Preserve original string when not quoted (including leading/trailing whitespace),
+        // but strip a single pair of surrounding double quotes if present.
+        Match m = Regex.Match(arg, @"^\s*""(.*)""\s*$");
+        if (m.Success)
+        {
+            return m.Groups[1].Value;
+        }
+
+        return arg;
+    }
 
     // New chain-style tokens -------------------------------------------------
 
