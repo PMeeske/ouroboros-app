@@ -236,8 +236,10 @@ public static class CliSteps
             return string.Empty;
         }
 
-        // Preserve original string when not quoted (including leading/trailing whitespace),
-        // but strip a single pair of surrounding double quotes if present.
+        // If the string is wrapped in double quotes (with optional surrounding whitespace),
+        // extract the content between the quotes. Otherwise, return the original string unchanged.
+        // This preserves whitespace for unquoted strings while stripping quotes and external
+        // whitespace for quoted strings.
         Match m = Regex.Match(arg, @"^\s*""(.*)""\s*$");
         if (m.Success)
         {
