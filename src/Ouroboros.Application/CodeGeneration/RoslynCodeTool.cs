@@ -244,22 +244,25 @@ public class RoslynCodeTool
             SyntaxTree tree = CSharpSyntaxTree.ParseText(code);
             CompilationUnitSyntax root = tree.GetCompilationUnitRoot();
 
-            // Find all identifiers with the old name
-            IEnumerable<IdentifierNameSyntax> identifiers = root.DescendantNodes()
-                .OfType<IdentifierNameSyntax>()
-                .Where(i => i.Identifier.Text == oldName);
+            // First pass: handle declarations (variable declarations, parameters, etc.)
+            // Must get fresh tokens from the current root at each step
+            SyntaxNode currentRoot = root;
+            
+            // Find and replace declaration tokens first
+            while (true)
+            {
+                SyntaxToken? tokenToReplace = currentRoot.DescendantTokens()
+                    .FirstOrDefault(t => t.IsKind(SyntaxKind.IdentifierToken) && t.Text == oldName);
+                
+                if (tokenToReplace == null || tokenToReplace.Value == default)
+                    break;
+                    
+                currentRoot = currentRoot.ReplaceToken(
+                    tokenToReplace.Value, 
+                    SyntaxFactory.Identifier(newName).WithTriviaFrom(tokenToReplace.Value));
+            }
 
-            SyntaxNode newRoot = root.ReplaceNodes(identifiers, (original, _) =>
-                SyntaxFactory.IdentifierName(newName).WithTriviaFrom(original));
-
-            // Also handle declarations
-            IEnumerable<SyntaxToken> declarationTokens = root.DescendantTokens()
-                .Where(t => t.IsKind(SyntaxKind.IdentifierToken) && t.Text == oldName);
-
-            newRoot = newRoot.ReplaceTokens(declarationTokens, (original, _) =>
-                SyntaxFactory.Identifier(newName).WithTriviaFrom(original));
-
-            SyntaxNode formatted = Formatter.Format(newRoot, _workspace);
+            SyntaxNode formatted = Formatter.Format(currentRoot, _workspace);
             return Result<string, string>.Success(formatted.ToFullString());
         }
         catch (Exception ex)
