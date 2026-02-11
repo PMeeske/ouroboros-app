@@ -229,15 +229,7 @@ public static class CliSteps
             return s;
         };
 
-    public static string ParseString(string? arg)
-    {
-        arg ??= string.Empty;
-        Match m = Regex.Match(arg, @"^'(?<s>.*)'$", RegexOptions.Singleline);
-        if (m.Success) return m.Groups["s"].Value;
-        m = Regex.Match(arg, @"^""(?<s>.*)""$", RegexOptions.Singleline);
-        if (m.Success) return m.Groups["s"].Value;
-        return arg;
-    }
+    public static string ParseString(string? arg) => Utilities.ConfigParser.ParseString(arg);
 
     // New chain-style tokens -------------------------------------------------
 
