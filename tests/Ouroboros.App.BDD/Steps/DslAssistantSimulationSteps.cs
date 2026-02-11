@@ -264,11 +264,11 @@ public class DslAssistantSimulationSteps
         startsWithEither.Should().BeTrue();
     }
 
-    [Then(@"the DSL should contain the pipe operator ""\|""")]
-    public void ThenTheDslShouldContainThePipeOperator()
+    [Then("the DSL should contain the pipe operator {string}")]
+    public void ThenTheDslShouldContainThePipeOperator(string pipeChar)
     {
         _generatedDsl.Should().NotBeNull();
-        _generatedDsl!.Value.Value.Should().Contain("|");
+        _generatedDsl!.Value.Value.Should().Contain(pipeChar);
     }
 
     // Code analysis steps
