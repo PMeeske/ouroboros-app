@@ -33,6 +33,5 @@
   <!-- Alias for naming conflicts -->
   <ItemGroup>
     <Using Include="Ouroboros.Core.Synthesis.Program" Alias="SynthesisProgram" />
-    <Using Include="Ouroboros.Tools.MeTTa.MeTTaUnit" Alias="MeTTaUnit" />
   </ItemGroup>
 </Project>

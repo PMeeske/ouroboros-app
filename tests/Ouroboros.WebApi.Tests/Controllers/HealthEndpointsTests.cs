@@ -3,11 +3,7 @@
 // </copyright>
 
 using System.Net;
-using System.Net.Http.Json;
-using FluentAssertions;
-using Ouroboros.Tests.Infrastructure.Utilities;
 using Ouroboros.Tests.WebApi.Fixtures;
-using Xunit;
 
 namespace Ouroboros.Tests.WebApi.Controllers;
 

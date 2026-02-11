@@ -3,31 +3,16 @@
 // </copyright>
 
 using System.Collections.Concurrent;
-using System.Collections.Immutable;
-using System.Reactive.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using LangChain.Databases;
 using LangChain.DocumentLoaders;
 using LangChain.Providers.Ollama;
-using Ouroboros.Agent;
 using Ouroboros.Agent.MetaAI;
 using Ouroboros.Agent.MetaAI.SelfModel;
-using Ouroboros.Domain.Autonomous;
 using Ouroboros.Application.SelfAssembly;
-using Ouroboros.Domain.Events;
-using Ouroboros.Domain.Persistence;
 using Ouroboros.Network;
 using Ouroboros.Agent.MetaAI.Affect;
-using Ouroboros.Diagnostics;
-using Ouroboros.Pipeline.Branches;
-using Ouroboros.Pipeline.Reasoning;
-using Ouroboros.Providers;
-using Ouroboros.Providers.SpeechToText;
-using Ouroboros.Providers.TextToSpeech;
-using Ouroboros.Speech;
 using Ouroboros.Tools.MeTTa;
-using Ouroboros.Application;
 using Ouroboros.Application.Mcp;
 using Ouroboros.Application.Personality;
 using Ouroboros.Application.Configuration;
@@ -43,18 +28,16 @@ using Ouroboros.Pipeline.Metacognition;
 using Ouroboros.Pipeline.Council;
 using Ouroboros.Pipeline.WorldModel;
 using Ouroboros.Pipeline.MultiAgent;
-using Ouroboros.Pipeline.Planning;
 using PipelineReasoningStep = Ouroboros.Domain.Events.ReasoningStep;
 // Type aliases to resolve ambiguities between Agent.MetaAI and Pipeline namespaces
 using PipelineExperience = Ouroboros.Pipeline.Learning.Experience;
 using PipelineGoal = Ouroboros.Pipeline.Planning.Goal;
 using PipelineTaskStatus = Ouroboros.Pipeline.MultiAgent.TaskStatus;
 using PipelineAgentCapability = Ouroboros.Pipeline.MultiAgent.AgentCapability;
-using PipelineAgentStatus = Ouroboros.Pipeline.MultiAgent.AgentStatus;
-using WorldModelCapability = Ouroboros.Pipeline.WorldModel.Capability;
 // Keep MetaAI types accessible with explicit names for existing code
 using MetaAgentStatus = Ouroboros.Agent.MetaAI.AgentStatus;
 using MetaAgentCapability = Ouroboros.Agent.MetaAI.AgentCapability;
+using Unit = Ouroboros.Abstractions.Unit;
 
 namespace Ouroboros.CLI.Commands;
 
@@ -8759,7 +8742,7 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
 
                 _autonomousCoordinator.MeTTaAddFactFunction = async (fact, ct) =>
                 {
-                    Result<Ouroboros.Tools.MeTTa.MeTTaUnit, string> result = await _mettaEngine.AddFactAsync(fact, ct);
+                    Result<Unit, string> result = await _mettaEngine.AddFactAsync(fact, ct);
                     return result.IsSuccess;
                 };
 

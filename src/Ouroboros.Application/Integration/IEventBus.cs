@@ -4,8 +4,6 @@
 
 namespace Ouroboros.Application.Integration;
 
-using System.Reactive.Subjects;
-
 /// <summary>
 /// Interface for the event bus enabling cross-feature communication.
 /// Uses reactive extensions (IObservable) for event streaming.

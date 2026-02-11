@@ -2,9 +2,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
-using Ouroboros.Core.Monads;
 using Ouroboros.Domain.Governance;
-using Ouroboros.Examples;
 
 namespace Ouroboros.Examples.Examples;
 

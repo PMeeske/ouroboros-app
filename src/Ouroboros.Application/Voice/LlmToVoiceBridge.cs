@@ -6,7 +6,6 @@ using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Text;
 using Ouroboros.Domain.Voice;
-using Ouroboros.Providers;
 using Ouroboros.Providers.TextToSpeech;
 
 namespace Ouroboros.Application.Voice;

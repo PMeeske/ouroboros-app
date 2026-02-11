@@ -6,7 +6,6 @@ namespace Ouroboros.Examples;
 
 using Microsoft.Extensions.DependencyInjection;
 using Ouroboros.Application.Integration;
-using Ouroboros.Core.Monads;
 
 /// <summary>
 /// Example demonstrating the full Ouroboros system integration with all features.

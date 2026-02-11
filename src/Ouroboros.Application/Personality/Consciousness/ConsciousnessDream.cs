@@ -6,7 +6,6 @@ namespace Ouroboros.Application.Personality.Consciousness;
 
 using System.Runtime.CompilerServices;
 using Ouroboros.Agent.MetaAI;
-using Ouroboros.Core.LawsOfForm;
 
 /// <summary>
 /// Models the dream of consciousness — from void to void.

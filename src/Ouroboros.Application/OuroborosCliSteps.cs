@@ -4,8 +4,8 @@
 // </copyright>
 
 using System.Text;
+using Ouroboros.Abstractions;
 using Ouroboros.Agent.MetaAI;
-using Ouroboros.Tools.MeTTa;
 
 // Alias to avoid naming conflict with the OuroborosConfidence method
 using ConfidenceLevel = Ouroboros.Agent.MetaAI.OuroborosConfidence;

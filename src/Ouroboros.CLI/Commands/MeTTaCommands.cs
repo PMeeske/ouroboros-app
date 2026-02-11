@@ -1,13 +1,7 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Threading.Tasks;
 using LangChain.Providers.Ollama;
 using Ouroboros.Agent.MetaAI;
-using Ouroboros.Diagnostics;
 using Ouroboros.Options;
-using Ouroboros.Providers;
 using Ouroboros.Application.Services;
 using IEmbeddingModel = Ouroboros.Domain.IEmbeddingModel;
 

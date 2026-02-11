@@ -5,7 +5,6 @@
 namespace Ouroboros.Examples;
 
 using LangChain.Providers.Ollama;
-using Ouroboros.Agent;
 using Ouroboros.Agent.MetaAI;
 using Ouroboros.Core.Monads;
 

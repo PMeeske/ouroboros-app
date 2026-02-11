@@ -3,7 +3,6 @@
 // </copyright>
 
 using Ouroboros.Application.Personality.Consciousness;
-using Ouroboros.CLI.Options;
 
 namespace Ouroboros.CLI.Commands;
 

@@ -3,7 +3,6 @@
 // </copyright>
 
 using Microsoft.Extensions.Logging;
-using Ouroboros.Core.Monads;
 
 namespace Ouroboros.Application.Embodied;
 

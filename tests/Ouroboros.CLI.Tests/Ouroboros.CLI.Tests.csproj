@@ -14,8 +14,8 @@
 
   <ItemGroup>
     <ProjectReference Include="$(OuroborosBuild)\test-infra\Ouroboros.TestKit\Ouroboros.TestKit.csproj" />
-    <ProjectReference Include="..\..\src\Ouroboros.CLI\Ouroboros.CLI.csproj" />
-    <ProjectReference Include="..\..\src\Ouroboros.Application\Ouroboros.Application.csproj" />
+    <ProjectReference Include="$(Ouroboros)\Ouroboros.CLI\Ouroboros.CLI.csproj" />
+    <ProjectReference Include="$(Ouroboros)\Ouroboros.Application\Ouroboros.Application.csproj" />
     <ProjectReference Include="$(OuroborosEngine)\Ouroboros.Agent\Ouroboros.Agent.csproj" />
     <ProjectReference Include="$(OuroborosEngine)\Ouroboros.Pipeline\Ouroboros.Pipeline.csproj" />
     <ProjectReference Include="$(OuroborosFoundation)\Ouroboros.Core\Ouroboros.Core.csproj" />

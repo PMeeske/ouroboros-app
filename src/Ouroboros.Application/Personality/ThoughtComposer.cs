@@ -3,7 +3,6 @@
 // </copyright>
 
 using Ouroboros.Core.Vectors;
-using Ouroboros.Domain;
 
 namespace Ouroboros.Application.Personality;
 

@@ -3,6 +3,7 @@
 // </copyright>
 
 using System.Text.Json;
+using Ouroboros.Abstractions;
 using Ouroboros.Domain.Environment;
 using Ouroboros.Domain.Reinforcement;
 using Ouroboros.Options;

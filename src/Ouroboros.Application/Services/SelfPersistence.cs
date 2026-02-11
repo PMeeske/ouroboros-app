@@ -2,6 +2,8 @@
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
+using System.Net.Http;
+
 namespace Ouroboros.Application.Services;
 
 using System.Net.Http.Json;

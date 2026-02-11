@@ -2,7 +2,6 @@
 using Microsoft.Extensions.Configuration;
 using Ouroboros.Application.Tools;
 using Ouroboros.Options;
-using Ouroboros.Providers;
 
 namespace Ouroboros.CLI.Commands;
 

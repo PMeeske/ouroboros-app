@@ -1,8 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Ouroboros.Core.Learning;
-using Ouroboros.Core.Monads;
+using Ouroboros.Abstractions;
 
 namespace Ouroboros.Application.SelfAssembly;
 

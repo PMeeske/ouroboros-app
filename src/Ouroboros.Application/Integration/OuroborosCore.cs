@@ -2,6 +2,8 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
+using Ouroboros.Abstractions;
+
 namespace Ouroboros.Application.Integration;
 
 using System.Collections.Immutable;
@@ -21,7 +23,6 @@ using Ouroboros.Domain.Reflection;
 using Ouroboros.Pipeline.Branches;
 using Ouroboros.Pipeline.Memory;
 using Ouroboros.Tools.MeTTa;
-using Unit = Ouroboros.Core.Learning.Unit;
 
 /// <summary>
 /// Core implementation of the unified Ouroboros AGI system.

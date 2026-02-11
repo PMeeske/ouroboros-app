@@ -2,6 +2,8 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
+using Ouroboros.Abstractions;
+
 namespace Ouroboros.CLI.Commands;
 
 using Ouroboros.Pipeline.Planning;

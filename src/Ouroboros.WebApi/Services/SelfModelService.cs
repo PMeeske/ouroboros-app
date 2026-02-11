@@ -2,9 +2,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
-using Ouroboros.Agent.MetaAI;
 using Ouroboros.Agent.MetaAI.SelfModel;
-using Ouroboros.WebApi.Models;
 
 namespace Ouroboros.WebApi.Services;
 
