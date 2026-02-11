@@ -5,7 +5,6 @@
 namespace Ouroboros.Examples;
 
 using Ouroboros.Domain.MultiAgent;
-using Ouroboros.Domain.Reinforcement;
 
 /// <summary>
 /// Comprehensive demonstration of multi-agent coordination capabilities.

@@ -1,4 +1,3 @@
-using Ouroboros.Providers;
 using Ouroboros.Providers.SpeechToText;
 using Ouroboros.Providers.TextToSpeech;
 

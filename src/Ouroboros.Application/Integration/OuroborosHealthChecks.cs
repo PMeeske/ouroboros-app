@@ -6,7 +6,6 @@ namespace Ouroboros.Application.Integration;
 
 using System.Diagnostics;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Ouroboros.Core.Monads;
 
 /// <summary>
 /// Health check for the Ouroboros integrated system.

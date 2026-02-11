@@ -2,11 +2,13 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
+using Ouroboros.Abstractions;
+
 namespace Ouroboros.Application.Integration;
 
 using Ouroboros.Agent.MetaAI.SelfModel;
 using Ouroboros.Core.Monads;
-using Unit = Ouroboros.Core.Learning.Unit;
+using Unit = Unit;
 
 /// <summary>
 /// Implementation of consciousness scaffold wrapping global workspace.
@@ -144,14 +146,14 @@ public sealed class ConsciousnessScaffold : IConsciousnessScaffold
     }
 
     /// <inheritdoc/>
-    public Task<Result<Unit, string>> IntegrateInformationAsync(
+    public Task<Result<Abstractions.Unit, string>> IntegrateInformationAsync(
         string newInfo,
         WorkspacePriority priority,
         CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(newInfo))
         {
-            return Task.FromResult(Result<Unit, string>.Failure("Information cannot be empty"));
+            return Task.FromResult(Result<Abstractions.Unit, string>.Failure("Information cannot be empty"));
         }
 
         try
@@ -166,11 +168,11 @@ public sealed class ConsciousnessScaffold : IConsciousnessScaffold
             // Apply attention policies to manage workspace size
             _globalWorkspace.ApplyAttentionPolicies();
 
-            return Task.FromResult(Result<Unit, string>.Success(Unit.Value));
+            return Task.FromResult(Result<Abstractions.Unit, string>.Success(Unit.Value));
         }
         catch (Exception ex)
         {
-            return Task.FromResult(Result<Unit, string>.Failure($"Integration failed: {ex.Message}"));
+            return Task.FromResult(Result<Abstractions.Unit, string>.Failure($"Integration failed: {ex.Message}"));
         }
     }
 

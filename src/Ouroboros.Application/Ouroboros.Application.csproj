@@ -24,6 +24,8 @@
     <ProjectReference Include="$(OuroborosEngine)\Ouroboros.Agent\Ouroboros.Agent.csproj" />
     <ProjectReference Include="$(OuroborosFoundation)\Ouroboros.Roslynator\Ouroboros.Roslynator.csproj" />
     <ProjectReference Include="$(OuroborosFoundation)\Ouroboros.Genetic\Ouroboros.Genetic.csproj" />
+    <ProjectReference Include="..\..\..\foundation\src\Ouroboros.Core\Ouroboros.Core.csproj" />
+    <ProjectReference Include="..\..\..\foundation\src\Ouroboros.Domain\Ouroboros.Domain.csproj" />
   </ItemGroup>
 
   <ItemGroup>

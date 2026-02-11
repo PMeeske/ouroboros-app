@@ -10,7 +10,7 @@
 // ------------------------------------------------------------------------------
 #region Designer generated code
 #pragma warning disable
-namespace Ouroboros.Features
+namespace Ouroboros.Tests.Features
 {
     using Reqnroll;
     using System;

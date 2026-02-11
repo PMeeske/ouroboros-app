@@ -1,12 +1,9 @@
 using System.Diagnostics;
-using CommandLine;
 using LangChain.Databases;
 using LangChain.DocumentLoaders;
 using LangChain.Providers.Ollama;
-using Ouroboros.Agent.MetaAI;
 using Ouroboros.Diagnostics;
 using Ouroboros.Options;
-using Ouroboros.CLI;
 using Ouroboros.Application.Services;
 using IEmbeddingModel = Ouroboros.Domain.IEmbeddingModel;
 

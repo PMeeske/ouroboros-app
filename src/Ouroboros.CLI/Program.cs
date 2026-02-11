@@ -3,26 +3,21 @@
 // Minimal CLI entry (top-level)
 // ==============================
 
-using System.Diagnostics;
-using System.Reactive.Linq;
 using CommandLine;
-using LangChain.Databases;
-using LangChain.DocumentLoaders;
 using LangChain.Providers.Ollama;
-using Ouroboros.Agent;
 using Ouroboros.Agent.MetaAI;
-using Ouroboros.Diagnostics; // added
+// added
 using Ouroboros.Options;
-using Ouroboros.Providers; // for OllamaEmbeddingAdapter
-using Ouroboros.Providers.SpeechToText; // for STT services
-using Ouroboros.Providers.TextToSpeech; // for TTS services
+// for OllamaEmbeddingAdapter
+// for STT services
+// for TTS services
 using Microsoft.Extensions.Hosting;
 
-using Ouroboros.Tools.MeTTa; // added
-using Ouroboros.Speech; // Adaptive speech detection
-using Ouroboros.Application.Tools; // Dynamic tool factory
-using Ouroboros.Application.Personality; // Personality engine with MeTTa + GA
-using Ouroboros.CLI; // added
+// added
+// Adaptive speech detection
+// Dynamic tool factory
+// Personality engine with MeTTa + GA
+// added
 using Ouroboros.CLI.Commands;
 
 // Initialize Ouroboros system on startup (non-blocking)

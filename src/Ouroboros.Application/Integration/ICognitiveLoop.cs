@@ -2,10 +2,11 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
+using Ouroboros.Abstractions;
+
 namespace Ouroboros.Application.Integration;
 
 using Ouroboros.Core.Monads;
-using Unit = Ouroboros.Core.Learning.Unit;
 
 /// <summary>
 /// Interface for the autonomous cognitive loop.
@@ -32,7 +33,7 @@ public interface ICognitiveLoop
     /// </summary>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>Result indicating success or error message.</returns>
-    Task<Result<Unit, string>> StopAsync(CancellationToken ct = default);
+    Task<Result<Abstractions.Unit, string>> StopAsync(CancellationToken ct = default);
 
     /// <summary>
     /// Gets the current state of the cognitive loop.

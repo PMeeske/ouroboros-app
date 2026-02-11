@@ -3,9 +3,7 @@
 // </copyright>
 
 using System.Text.Json;
-using Ouroboros.Core.Monads;
 using Ouroboros.Application.Services;
-using Ouroboros.Tools;
 
 namespace Ouroboros.Application.Mcp;
 

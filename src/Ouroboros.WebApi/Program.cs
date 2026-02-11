@@ -6,8 +6,6 @@ using System.Diagnostics;
 using Ouroboros.Agent.MetaAI;
 using Ouroboros.Agent.MetaAI.SelfModel;
 using Microsoft.OpenApi.Models;
-using Ouroboros.WebApi.Models;
-using Ouroboros.WebApi.Services;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 

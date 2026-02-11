@@ -26,17 +26,19 @@
 
   <PropertyGroup>
     <OuroborosLayer>App</OuroborosLayer>
-    <!-- OuroborosBuild path resolution -->
-    <OuroborosBuild Condition="Exists('$(MSBuildThisFileDirectory)libs\.build')">$(MSBuildThisFileDirectory)libs\.build</OuroborosBuild>
+    <!-- Ouroboros app src path for local test project references -->
+    <Ouroboros>$(MSBuildThisFileDirectory)src</Ouroboros>
+    <!-- OuroborosBuild path resolution: prefer meta-repo .build when available -->
+    <OuroborosBuild Condition="Exists('$(MSBuildThisFileDirectory)..\.build')">$(MSBuildThisFileDirectory)..\.build</OuroborosBuild>
+    <OuroborosBuild Condition="'$(OuroborosBuild)' == '' AND Exists('$(MSBuildThisFileDirectory)libs\.build')">$(MSBuildThisFileDirectory)libs\.build</OuroborosBuild>
     <OuroborosBuild Condition="'$(OuroborosBuild)' == '' AND Exists('$(MSBuildThisFileDirectory).build')">$(MSBuildThisFileDirectory).build</OuroborosBuild>
-    <OuroborosBuild Condition="'$(OuroborosBuild)' == '' AND Exists('$(MSBuildThisFileDirectory)..\.build')">$(MSBuildThisFileDirectory)..\.build</OuroborosBuild>
     <OuroborosBuild Condition="'$(OuroborosBuild)' == '' AND Exists('$(MSBuildThisFileDirectory)..\ouroboros-build')">$(MSBuildThisFileDirectory)..\ouroboros-build</OuroborosBuild>
-    <!-- Cross-layer paths: libs/ submodule layout -->
-    <OuroborosFoundation Condition="Exists('$(MSBuildThisFileDirectory)libs\foundation\src')">$(MSBuildThisFileDirectory)libs\foundation\src</OuroborosFoundation>
-    <OuroborosEngine Condition="Exists('$(MSBuildThisFileDirectory)libs\engine\src')">$(MSBuildThisFileDirectory)libs\engine\src</OuroborosEngine>
-    <!-- Cross-layer paths: meta-repo layout -->
-    <OuroborosFoundation Condition="'$(OuroborosFoundation)' == '' AND Exists('$(MSBuildThisFileDirectory)..\foundation\src')">$(MSBuildThisFileDirectory)..\foundation\src</OuroborosFoundation>
-    <OuroborosEngine Condition="'$(OuroborosEngine)' == '' AND Exists('$(MSBuildThisFileDirectory)..\engine\src')">$(MSBuildThisFileDirectory)..\engine\src</OuroborosEngine>
+    <!-- Cross-layer paths: meta-repo layout (preferred when building from root solution) -->
+    <OuroborosFoundation Condition="Exists('$(MSBuildThisFileDirectory)..\foundation\src')">$(MSBuildThisFileDirectory)..\foundation\src</OuroborosFoundation>
+    <OuroborosEngine Condition="Exists('$(MSBuildThisFileDirectory)..\engine\src')">$(MSBuildThisFileDirectory)..\engine\src</OuroborosEngine>
+    <!-- Cross-layer paths: libs/ submodule layout (standalone app CI) -->
+    <OuroborosFoundation Condition="'$(OuroborosFoundation)' == '' AND Exists('$(MSBuildThisFileDirectory)libs\foundation\src')">$(MSBuildThisFileDirectory)libs\foundation\src</OuroborosFoundation>
+    <OuroborosEngine Condition="'$(OuroborosEngine)' == '' AND Exists('$(MSBuildThisFileDirectory)libs\engine\src')">$(MSBuildThisFileDirectory)libs\engine\src</OuroborosEngine>
     <!-- Cross-layer paths: standalone layout -->
     <OuroborosFoundation Condition="'$(OuroborosFoundation)' == '' AND Exists('$(MSBuildThisFileDirectory)..\ouroboros-foundation\src')">$(MSBuildThisFileDirectory)..\ouroboros-foundation\src</OuroborosFoundation>
     <OuroborosEngine Condition="'$(OuroborosEngine)' == '' AND Exists('$(MSBuildThisFileDirectory)..\ouroboros-engine\src')">$(MSBuildThisFileDirectory)..\ouroboros-engine\src</OuroborosEngine>

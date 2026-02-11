@@ -3,8 +3,8 @@
 // </copyright>
 
 using CommandLine;
+using Ouroboros.Abstractions;
 using Ouroboros.Options;
-using Ouroboros.Tests.Infrastructure.Utilities;
 
 namespace Ouroboros.Tests.CLI.Parsing;
 

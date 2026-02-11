@@ -7,7 +7,6 @@ namespace Ouroboros.Application.Services;
 using System.Collections.Concurrent;
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading.Channels;
 using Ouroboros.Application.Tools;
 using Ouroboros.Tools.MeTTa;

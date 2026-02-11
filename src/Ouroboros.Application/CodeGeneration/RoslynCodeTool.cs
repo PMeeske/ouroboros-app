@@ -5,7 +5,6 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Formatting;
 using Microsoft.CodeAnalysis.Text;
 using Ouroboros.Roslynator.Providers;
-using System.Collections.Immutable;
 
 namespace Ouroboros.Application.CodeGeneration;
 

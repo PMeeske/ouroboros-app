@@ -2,13 +2,10 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Ouroboros.Application.Embodied;
-using Ouroboros.Core.Monads;
 using Ouroboros.Core.Ethics;
 using Ouroboros.Domain.Embodied;
-using Ouroboros.Domain.Reinforcement;
 
 namespace Ouroboros.Examples;
 

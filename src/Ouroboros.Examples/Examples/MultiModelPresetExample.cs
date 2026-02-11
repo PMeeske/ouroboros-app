@@ -4,7 +4,6 @@
 
 namespace Ouroboros.Examples;
 
-using Ouroboros.Agent.MetaAI;
 using Ouroboros.Application.Configuration;
 using Ouroboros.Application.Services;
 

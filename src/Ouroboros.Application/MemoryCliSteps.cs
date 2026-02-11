@@ -3,7 +3,6 @@
 // </copyright>
 
 using Ouroboros.Domain.Persistence;
-using Ouroboros.Domain.Vectors;
 
 namespace Ouroboros.Application;
 

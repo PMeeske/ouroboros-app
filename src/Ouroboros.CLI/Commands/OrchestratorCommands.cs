@@ -1,15 +1,8 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Threading.Tasks;
 using LangChain.Providers.Ollama;
-using Ouroboros.Agent.MetaAI;
 using Ouroboros.Application.Configuration;
 using Ouroboros.Application.Services;
-using Ouroboros.Diagnostics;
 using Ouroboros.Options;
-using Ouroboros.Providers;
 
 namespace Ouroboros.CLI.Commands;
 

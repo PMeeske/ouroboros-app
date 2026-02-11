@@ -18,6 +18,7 @@
     <ProjectReference Include="$(OuroborosEngine)\Ouroboros.Pipeline\Ouroboros.Pipeline.csproj" />
     <ProjectReference Include="$(OuroborosEngine)\Ouroboros.Providers\Ouroboros.Providers.csproj" />
     <ProjectReference Include="$(OuroborosFoundation)\Ouroboros.Tools\Ouroboros.Tools.csproj" />
+    <ProjectReference Include="..\..\..\engine\src\Ouroboros.Providers\Ouroboros.Providers.csproj" />
   </ItemGroup>
 
 </Project>
