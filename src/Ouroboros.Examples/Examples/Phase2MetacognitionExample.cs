@@ -423,7 +423,7 @@ public static class Phase2MetacognitionExample
                 new Dictionary<string, double>(),
                 DateTime.UtcNow.AddDays(-random.Next(1, 30)));
 
-            ExecutionResult exec = new ExecutionResult(
+            PlanExecutionResult exec = new PlanExecutionResult(
                 plan,
                 new List<StepResult>(),
                 success,
@@ -431,7 +431,7 @@ public static class Phase2MetacognitionExample
                 new Dictionary<string, object>(),
                 TimeSpan.FromMilliseconds(random.Next(50, 500)));
 
-            VerificationResult verify = new VerificationResult(
+            PlanVerificationResult verify = new PlanVerificationResult(
                 exec,
                 success,
                 quality,

@@ -1946,7 +1946,7 @@ User: goodbye
             // No-op for simple registry
         }
 
-        public Task<Result<Skill, string>> ExtractSkillAsync(ExecutionResult execution, string skillName, string description) =>
+        public Task<Result<Skill, string>> ExtractSkillAsync(PlanExecutionResult execution, string skillName, string description) =>
             Task.FromResult(Result<Skill, string>.Failure("Not supported in simple registry"));
     }
 

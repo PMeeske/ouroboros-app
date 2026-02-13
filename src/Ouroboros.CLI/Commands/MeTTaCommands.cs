@@ -104,7 +104,7 @@ public static class MeTTaCommands
 
             Console.WriteLine("=== Execution Phase ===");
             sw.Restart();
-            Result<ExecutionResult, string> executionResult = await orchestrator.ExecuteAsync(plan);
+            Result<PlanExecutionResult, string> executionResult = await orchestrator.ExecuteAsync(plan);
             sw.Stop();
 
             executionResult.Match(

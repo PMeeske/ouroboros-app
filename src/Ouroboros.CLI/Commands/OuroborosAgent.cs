@@ -5684,7 +5684,7 @@ No quotes around the response. Just the greeting itself.";
         // Step 6: Update capability if available
         if (_capabilityRegistry != null)
         {
-            var result = CreateCapabilityExecutionResult(true, TimeSpan.FromSeconds(2), $"learn:{topic}");
+            var result = CreateCapabilityPlanExecutionResult(true, TimeSpan.FromSeconds(2), $"learn:{topic}");
             await _capabilityRegistry.UpdateCapabilityAsync("natural_language", result);
         }
 
@@ -8320,7 +8320,7 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
                 var duration = DateTime.UtcNow - startTime;
                 if (_capabilityRegistry != null)
                 {
-                    var execResult = CreateCapabilityExecutionResult(success, duration, dsl);
+                    var execResult = CreateCapabilityPlanExecutionResult(success, duration, dsl);
                     await _capabilityRegistry.UpdateCapabilityAsync("pipeline_execution", execResult);
                 }
 
@@ -8358,7 +8358,7 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
             // Track failure for self-improvement
             if (_capabilityRegistry != null)
             {
-                var execResult = CreateCapabilityExecutionResult(false, TimeSpan.Zero, dsl);
+                var execResult = CreateCapabilityPlanExecutionResult(false, TimeSpan.Zero, dsl);
                 await _capabilityRegistry.UpdateCapabilityAsync("pipeline_execution", execResult);
             }
 
@@ -9155,7 +9155,7 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
 
         foreach (var capName in usedCapabilities)
         {
-            var result = CreateCapabilityExecutionResult(success, duration, goal.Description);
+            var result = CreateCapabilityPlanExecutionResult(success, duration, goal.Description);
             await _capabilityRegistry.UpdateCapabilityAsync(capName, result);
         }
     }
@@ -9185,10 +9185,10 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
     }
 
     /// <summary>
-    /// Creates an ExecutionResult for capability tracking purposes.
-    /// This creates a minimal valid ExecutionResult with empty plan/steps.
+    /// Creates an PlanExecutionResult for capability tracking purposes.
+    /// This creates a minimal valid PlanExecutionResult with empty plan/steps.
     /// </summary>
-    private static ExecutionResult CreateCapabilityExecutionResult(bool success, TimeSpan duration, string taskDescription)
+    private static PlanExecutionResult CreateCapabilityPlanExecutionResult(bool success, TimeSpan duration, string taskDescription)
     {
         var minimalPlan = new Plan(
             Goal: taskDescription,
@@ -9196,7 +9196,7 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
             ConfidenceScores: new Dictionary<string, double>(),
             CreatedAt: DateTime.UtcNow);
 
-        return new ExecutionResult(
+        return new PlanExecutionResult(
             Plan: minimalPlan,
             StepResults: new List<StepResult>(),
             Success: success,

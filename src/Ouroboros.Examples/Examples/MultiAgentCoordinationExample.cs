@@ -414,7 +414,7 @@ public static class MultiAgentCoordinationExample
             new InMemoryAgentRegistry());
     }
 
-    private static void PrintAllocationResult(Ouroboros.Core.Monads.Result<Dictionary<AgentId, TaskAssignment>, string> result)
+    private static void PrintAllocationResult(Ouroboros.Abstractions.Monads.Result<Dictionary<AgentId, TaskAssignment>, string> result)
     {
         if (result.IsSuccess)
         {
@@ -430,7 +430,7 @@ public static class MultiAgentCoordinationExample
         }
     }
 
-    private static void PrintConsensusResult(Ouroboros.Core.Monads.Result<Decision, string> result)
+    private static void PrintConsensusResult(Ouroboros.Abstractions.Monads.Result<Decision, string> result)
     {
         if (result.IsSuccess)
         {

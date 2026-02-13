@@ -160,21 +160,21 @@ public static class Phase2IntegrationExample
                 Console.WriteLine($"✓ Created plan with {plan.Steps.Count} steps");
                 Console.WriteLine($"  Confidence: {plan.ConfidenceScores.GetValueOrDefault("overall", 0.5):P0}\n");
 
-                Result<ExecutionResult, string> execResult = await orchestrator.ExecuteAsync(plan);
+                Result<PlanExecutionResult, string> execResult = await orchestrator.ExecuteAsync(plan);
 
                 if (execResult.IsSuccess)
                 {
-                    ExecutionResult execution = execResult.Value;
+                    PlanExecutionResult execution = execResult.Value;
                     Console.WriteLine($"✓ Execution completed: {(execution.Success ? "SUCCESS" : "FAILED")}");
                     Console.WriteLine($"  Duration: {execution.Duration.TotalSeconds:F2}s");
                     Console.WriteLine($"  Steps completed: {execution.StepResults.Count(r => r.Success)}/{execution.StepResults.Count}\n");
 
                     // Verify results
-                    Result<VerificationResult, string> verifyResult = await orchestrator.VerifyAsync(execution);
+                    Result<PlanVerificationResult, string> verifyResult = await orchestrator.VerifyAsync(execution);
 
                     if (verifyResult.IsSuccess)
                     {
-                        VerificationResult verification = verifyResult.Value;
+                        PlanVerificationResult verification = verifyResult.Value;
                         Console.WriteLine($"✓ Verification: {(verification.Verified ? "PASSED" : "FAILED")}");
                         Console.WriteLine($"  Quality Score: {verification.QualityScore:P0}\n");
 

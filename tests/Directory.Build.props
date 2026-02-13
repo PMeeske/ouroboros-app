@@ -10,6 +10,7 @@
     <Using Include="Ouroboros.Core.Kleisli" />
     <Using Include="Ouroboros.Core.Learning" />
     <Using Include="Ouroboros.Core.Memory" />
+    <Using Include="Ouroboros.Abstractions.Monads" />
     <Using Include="Ouroboros.Core.Monads" />
     <Using Include="Ouroboros.Core.Steps" />
     <Using Include="Ouroboros.Domain" />

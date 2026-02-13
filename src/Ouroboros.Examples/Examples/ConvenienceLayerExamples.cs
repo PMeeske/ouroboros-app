@@ -163,7 +163,7 @@ public static class ConvenienceLayerExamples
         IMetaAIPlannerOrchestrator orchestrator = orchestratorResult.Value;
 
         // Execute complete workflow
-        Result<VerificationResult, string> workflowResult = await orchestrator.CompleteWorkflow(
+        Result<PlanVerificationResult, string> workflowResult = await orchestrator.CompleteWorkflow(
             goal: "Design a caching strategy for a distributed system",
             context: new Dictionary<string, object>
             {
