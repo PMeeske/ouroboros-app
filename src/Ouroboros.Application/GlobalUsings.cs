@@ -14,6 +14,7 @@ global using System.Threading.Tasks;
 
 // Core monadic and functional programming
 global using Ouroboros.Core.Kleisli;
+global using Ouroboros.Abstractions.Monads;
 global using Ouroboros.Core.Monads;
 global using Ouroboros.Core.Steps;
 

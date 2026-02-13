@@ -154,7 +154,7 @@ public static class Phase2SelfModelExample
         identityGraph.UpdateCommitment(commitment1.Id, CommitmentStatus.InProgress, 40.0);
         
         // Record some task results
-        var taskResult = new ExecutionResult(
+        var taskResult = new PlanExecutionResult(
             new Plan("Process query", new List<PlanStep>(), new Dictionary<string, double>(), DateTime.UtcNow),
             new List<StepResult>(),
             true,

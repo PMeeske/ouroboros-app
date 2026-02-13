@@ -79,7 +79,7 @@ public interface IOuroborosCore
     /// <param name="config">Configuration for execution.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>Result containing execution result or error message.</returns>
-    Task<Result<ExecutionResult, string>> ExecuteGoalAsync(
+    Task<Result<PlanExecutionResult, string>> ExecuteGoalAsync(
         string goal,
         ExecutionConfig config,
         CancellationToken ct = default);
@@ -153,7 +153,7 @@ public sealed record ReasoningConfig(
 /// <summary>
 /// Result of goal execution.
 /// </summary>
-public sealed record ExecutionResult(
+public sealed record PlanExecutionResult(
     bool Success,
     string Output,
     PipelineBranch ReasoningTrace,

@@ -76,9 +76,9 @@ public static class MetaAIv2Example
 
             // Step 2: Execute
             Console.WriteLine("\n=== EXECUTING ===");
-            Result<ExecutionResult, string> execResult = await orchestrator.ExecuteAsync(plan);
+            Result<PlanExecutionResult, string> execResult = await orchestrator.ExecuteAsync(plan);
 
-            ExecutionResult? execution = null;
+            PlanExecutionResult? execution = null;
             execResult.Match(
                 e =>
                 {
@@ -101,9 +101,9 @@ public static class MetaAIv2Example
 
             // Step 3: Verify
             Console.WriteLine("\n=== VERIFYING ===");
-            Result<VerificationResult, string> verifyResult = await orchestrator.VerifyAsync(execution);
+            Result<PlanVerificationResult, string> verifyResult = await orchestrator.VerifyAsync(execution);
 
-            VerificationResult? verification = null;
+            PlanVerificationResult? verification = null;
             verifyResult.Match(
                 v =>
                 {
@@ -194,7 +194,7 @@ public static class MetaAIv2Example
             string goal1 = "Explain what a monad is in functional programming";
             Console.WriteLine($"TASK 1: {goal1}");
 
-            VerificationResult? result1 = await ExecuteFullCycle(orchestrator, goal1);
+            PlanVerificationResult? result1 = await ExecuteFullCycle(orchestrator, goal1);
 
             if (result1 != null && result1.Verified && result1.QualityScore > 0.8)
             {
@@ -297,7 +297,7 @@ public static class MetaAIv2Example
         }
     }
 
-    private static async Task<VerificationResult?> ExecuteFullCycle(
+    private static async Task<PlanVerificationResult?> ExecuteFullCycle(
         IMetaAIPlannerOrchestrator orchestrator,
         string goal)
     {
@@ -313,25 +313,25 @@ public static class MetaAIv2Example
             return null;
         }
 
-        Result<ExecutionResult, string> execResult = await orchestrator.ExecuteAsync(plan);
+        Result<PlanExecutionResult, string> execResult = await orchestrator.ExecuteAsync(plan);
         if (!execResult.IsSuccess)
         {
             return null;
         }
 
-        ExecutionResult? execution = execResult.Match(e => e, _ => (ExecutionResult?)null);
+        PlanExecutionResult? execution = execResult.Match(e => e, _ => (PlanExecutionResult?)null);
         if (execution == null)
         {
             return null;
         }
 
-        Result<VerificationResult, string> verifyResult = await orchestrator.VerifyAsync(execution);
+        Result<PlanVerificationResult, string> verifyResult = await orchestrator.VerifyAsync(execution);
         if (!verifyResult.IsSuccess)
         {
             return null;
         }
 
-        VerificationResult? verification = verifyResult.Match(v => v, _ => (VerificationResult?)null);
+        PlanVerificationResult? verification = verifyResult.Match(v => v, _ => (PlanVerificationResult?)null);
         if (verification != null)
         {
             orchestrator.LearnFromExecution(verification);

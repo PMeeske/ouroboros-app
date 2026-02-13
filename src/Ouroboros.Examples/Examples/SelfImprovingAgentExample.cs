@@ -117,7 +117,7 @@ public static class SelfImprovingAgentExample
             new Dictionary<string, double> { ["overall"] = 0.85 },
             DateTime.UtcNow);
 
-        ExecutionResult execution = new ExecutionResult(
+        PlanExecutionResult execution = new PlanExecutionResult(
             plan,
             plan.Steps.Select(s => new StepResult(s, true, "success", null, TimeSpan.FromMilliseconds(100), new())).ToList(),
             true,
@@ -125,7 +125,7 @@ public static class SelfImprovingAgentExample
             new(),
             TimeSpan.FromMilliseconds(300));
 
-        VerificationResult verification = new VerificationResult(
+        PlanVerificationResult verification = new PlanVerificationResult(
             execution,
             Verified: true,
             QualityScore: 0.85,
@@ -236,25 +236,25 @@ public static class SelfImprovingAgentExample
             Console.WriteLine($"✓ Plan created with {plan.Steps.Count} steps");
 
             // Execute
-            Result<ExecutionResult, string> execResult = await orchestrator.ExecuteAsync(plan);
+            Result<PlanExecutionResult, string> execResult = await orchestrator.ExecuteAsync(plan);
             if (!execResult.IsSuccess)
             {
                 Console.WriteLine($"✗ Execution failed: {execResult.Error}");
                 return;
             }
 
-            ExecutionResult execution = execResult.Value;
+            PlanExecutionResult execution = execResult.Value;
             Console.WriteLine($"✓ Execution completed: {execution.FinalOutput}");
 
             // Verify
-            Result<VerificationResult, string> verifyResult = await orchestrator.VerifyAsync(execution);
+            Result<PlanVerificationResult, string> verifyResult = await orchestrator.VerifyAsync(execution);
             if (!verifyResult.IsSuccess)
             {
                 Console.WriteLine($"✗ Verification failed: {verifyResult.Error}");
                 return;
             }
 
-            VerificationResult verification = verifyResult.Value;
+            PlanVerificationResult verification = verifyResult.Value;
             Console.WriteLine($"✓ Verification: {(verification.Verified ? "PASSED" : "FAILED")} (Quality: {verification.QualityScore:P0})");
 
             // Learn
@@ -327,7 +327,7 @@ public static class SelfImprovingAgentExample
             new Dictionary<string, double>(),
             DateTime.UtcNow);
 
-        ExecutionResult execution = new ExecutionResult(
+        PlanExecutionResult execution = new PlanExecutionResult(
             plan,
             new List<StepResult> { new StepResult(plan.Steps[0], true, "result", null, TimeSpan.FromMilliseconds(10), new()) },
             true,
@@ -335,7 +335,7 @@ public static class SelfImprovingAgentExample
             new(),
             TimeSpan.FromMilliseconds(10));
 
-        VerificationResult verification = new VerificationResult(
+        PlanVerificationResult verification = new PlanVerificationResult(
             execution,
             quality > 0.5,
             quality,

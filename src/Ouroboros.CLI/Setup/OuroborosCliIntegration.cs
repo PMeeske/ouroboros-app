@@ -364,7 +364,7 @@ public static class OuroborosCliIntegration
     public static async Task<bool> TryExecuteGoalAsync(
         string goal,
         ExecutionConfig? config = null,
-        Action<ExecutionResult>? onSuccess = null,
+        Action<PlanExecutionResult>? onSuccess = null,
         Action<string>? onError = null)
     {
         if (_ouroborosCore == null)
