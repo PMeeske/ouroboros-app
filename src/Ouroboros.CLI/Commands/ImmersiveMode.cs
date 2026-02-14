@@ -8,8 +8,9 @@ using System.Text;
 using System.Text.RegularExpressions;
 using LangChain.DocumentLoaders;
 using LangChain.Providers.Ollama;
+using Ouroboros.Abstractions.Agent;  // For interfaces: ISkillRegistry, IMemoryStore, ISafetyGuard, IUncertaintyRouter
 using Ouroboros.Agent;
-using Ouroboros.Agent.MetaAI;
+using Ouroboros.Agent.MetaAI;  // For concrete implementations and other types
 using Ouroboros.Domain;
 using Ouroboros.Network;
 using Ouroboros.Options;

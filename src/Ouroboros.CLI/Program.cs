@@ -5,7 +5,8 @@
 
 using CommandLine;
 using LangChain.Providers.Ollama;
-using Ouroboros.Agent.MetaAI;
+using Ouroboros.Abstractions.Agent;  // For interfaces: ISkillRegistry, IMemoryStore, ISafetyGuard, IUncertaintyRouter
+using Ouroboros.Agent.MetaAI;  // For concrete implementations and other types
 // added
 using Ouroboros.Options;
 // for OllamaEmbeddingAdapter
