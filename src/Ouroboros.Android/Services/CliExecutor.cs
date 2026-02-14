@@ -560,9 +560,9 @@ Then try your question again.";
             {
                 // Fall back to creating an OllamaChatAdapter on-demand
                 // _currentModel is guaranteed to be non-null here due to the check above at line 521
-                var ollamaChat = new OllamaChatModel(_ollamaProvider, _currentModel!);
-                var adapter = new OllamaChatAdapter(ollamaChat);
-                response = await adapter.GenerateTextAsync(question);
+                var ollamaChatModel = new OllamaChatModel(_ollamaProvider, _currentModel!);
+                var chatAdapter = new OllamaChatAdapter(ollamaChatModel);
+                response = await chatAdapter.GenerateTextAsync(question);
             }
             
             sb.AppendLine("A: " + response);
