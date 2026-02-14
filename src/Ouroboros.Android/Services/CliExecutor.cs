@@ -39,6 +39,10 @@ public class CliExecutor
     public CliExecutor(string? databasePath = null, IChatCompletionModel? chatModel = null, string ollamaEndpoint = "http://localhost:11434")
     {
         _chatModel = chatModel;
+        
+        // Initialize both OllamaService and OllamaProvider with same endpoint
+        // OllamaService is used for model management operations (via ModelManager)
+        // OllamaProvider is used for on-demand OllamaChatAdapter creation when _chatModel is null
         _ollamaService = new OllamaService(ollamaEndpoint);
         _ollamaProvider = new OllamaProvider { Endpoint = ollamaEndpoint };
         _modelManager = new ModelManager(_ollamaService);
@@ -559,7 +563,8 @@ Then try your question again.";
             else
             {
                 // Fall back to creating an OllamaChatAdapter on-demand
-                // _currentModel is guaranteed to be non-null here due to the check above at line 521
+                // _currentModel is guaranteed non-null: the guard clause above (line 536-542) 
+                // returns early if _currentModel is null, so execution cannot reach this point with null
                 var ollamaChatModel = new OllamaChatModel(_ollamaProvider, _currentModel!);
                 var chatAdapter = new OllamaChatAdapter(ollamaChatModel);
                 response = await chatAdapter.GenerateTextAsync(question);
