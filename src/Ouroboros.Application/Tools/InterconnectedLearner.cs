@@ -2,12 +2,15 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
+extern alias OuroborosAgent;
+
 namespace Ouroboros.Application.Tools;
 
 using System.Collections.Concurrent;
 using System.Text;
-using Ouroboros.Agent.MetaAI;  // For concrete implementations and ISkillRegistry type
+using Ouroboros.Agent.MetaAI;  // For concrete implementations and other types
 using Ouroboros.Genetic.Abstractions;
+using ISkillRegistry = OuroborosAgent::Ouroboros.Agent.MetaAI.ISkillRegistry;
 using Ouroboros.Genetic.Core;
 using Ouroboros.Providers;
 using Ouroboros.Tools;
