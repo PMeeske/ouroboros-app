@@ -5,7 +5,8 @@
 namespace Ouroboros.Examples;
 
 using LangChain.Providers.Ollama;
-using Ouroboros.Agent.MetaAI;
+using Ouroboros.Abstractions.Agent;  // For interfaces: ISkillRegistry, IMemoryStore, ISafetyGuard, IUncertaintyRouter
+using Ouroboros.Agent.MetaAI;  // For concrete implementations and other types
 using Ouroboros.Core.Ethics;
 using IEthicsFramework = Ouroboros.Core.Ethics.IEthicsFramework;
 using AgentPlan = Ouroboros.Agent.MetaAI.Plan;

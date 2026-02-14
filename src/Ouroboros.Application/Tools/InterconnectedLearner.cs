@@ -6,7 +6,8 @@ namespace Ouroboros.Application.Tools;
 
 using System.Collections.Concurrent;
 using System.Text;
-using Ouroboros.Agent.MetaAI;
+using Ouroboros.Abstractions.Agent;  // For interfaces: ISkillRegistry, IMemoryStore, ISafetyGuard, IUncertaintyRouter
+using Ouroboros.Agent.MetaAI;  // For concrete implementations and other types
 using Ouroboros.Genetic.Abstractions;
 using Ouroboros.Genetic.Core;
 using Ouroboros.Providers;
