@@ -10,7 +10,7 @@ on:
 jobs:
   update-build-submodule:
     permissions:
-      contents: read
+      contents: write
       checks: write
       pull-requests: write
     name: Update Build Submodule
@@ -24,7 +24,7 @@ jobs:
 
   update-foundation-submodule:
     permissions:
-      contents: read
+      contents: write
       checks: write
       pull-requests: write
     name: Update Foundation Submodule
@@ -38,7 +38,7 @@ jobs:
 
   update-engine-submodule:
     permissions:
-      contents: read
+      contents: write
       checks: write
       pull-requests: write
     name: Update Engine Submodule
