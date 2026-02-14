@@ -12,6 +12,7 @@ using Ouroboros.Options;
 // for STT services
 // for TTS services
 using Microsoft.Extensions.Hosting;
+using Ouroboros.CLI.Setup;
 
 // added
 // Adaptive speech detection
@@ -246,30 +247,11 @@ static async Task RunAssistAsync(AssistOptions o)
     // Run Ouroboros agent mode by default (unless --dsl-mode is specified)
     if (!o.DslMode)
     {
-        // Convert AssistOptions to OuroborosConfig for the unified agent
-        // Note: AssistOptions is deprecated - use 'ouroboros' command for full features including --push
-        var config = new OuroborosConfig(
-            Persona: o.Persona,
-            Model: o.Model,
-            Endpoint: o.Endpoint ?? "http://localhost:11434",
-            EmbedModel: o.EmbedModel,
-            EmbedEndpoint: "http://localhost:11434",
-            QdrantEndpoint: o.QdrantEndpoint,
-            ApiKey: Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY"),
-            Voice: o.Voice,
-            VoiceOnly: o.VoiceOnly,
-            LocalTts: o.LocalTts,
-            VoiceChannel: o.VoiceChannel,
-            Debug: o.Debug,
-            Temperature: o.Temperature,
-            MaxTokens: o.MaxTokens,
-            Culture: o.Culture,
-            InitialGoal: o.Goal,
-            InitialDsl: o.Dsl
-        );
+        // DEPRECATED: AssistOptions is maintained for backward compatibility only.
+        // Use 'ouroboros' command for full features including autonomous mode, multi-model, etc.
+        var config = AgentBootstrapper.CreateConfig(o);
 
-        await using var agent = new OuroborosAgent(config);
-        await agent.InitializeAsync();
+        await using var agent = await AgentBootstrapper.CreateAgentAsync(config);
         await agent.RunAsync();
         return;
     }
