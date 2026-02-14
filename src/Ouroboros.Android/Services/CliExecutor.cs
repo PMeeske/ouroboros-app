@@ -21,7 +21,14 @@ public class CliExecutor
     /// </summary>
     private readonly OllamaProvider _ollamaProvider;
     
+    /// <summary>
+    /// Cached OllamaChatAdapter instance created on-demand when _chatModel is null.
+    /// Reused across multiple calls to avoid creating new instances for each request.
+    /// </summary>
+    private OllamaChatAdapter? _cachedAdapter;
+    
     private string? _currentModel;
+    private string? _cachedAdapterModel; // Track which model the cached adapter was created for
     private DateTime _lastModelUse;
     private readonly TimeSpan _modelUnloadDelay = TimeSpan.FromMinutes(5);
     private Timer? _modelUnloadTimer;
@@ -44,7 +51,7 @@ public class CliExecutor
         // OllamaService is used for model management operations (via ModelManager)
         // OllamaProvider is used for on-demand OllamaChatAdapter creation when _chatModel is null
         _ollamaService = new OllamaService(ollamaEndpoint);
-        _ollamaProvider = new OllamaProvider { Endpoint = ollamaEndpoint };
+        _ollamaProvider = new OllamaProvider(ollamaEndpoint);
         _modelManager = new ModelManager(_ollamaService);
         _commandExecutor = new CommandExecutor(requiresRoot: false);
         
@@ -565,9 +572,16 @@ Then try your question again.";
                 // Fall back to creating an OllamaChatAdapter on-demand
                 // _currentModel is guaranteed non-null: the guard clause above (line 536-542) 
                 // returns early if _currentModel is null, so execution cannot reach this point with null
-                var ollamaChatModel = new OllamaChatModel(_ollamaProvider, _currentModel!);
-                var chatAdapter = new OllamaChatAdapter(ollamaChatModel);
-                response = await chatAdapter.GenerateTextAsync(question);
+                
+                // Create or reuse cached adapter for the current model
+                if (_cachedAdapter == null || _cachedAdapterModel != _currentModel)
+                {
+                    var ollamaChatModel = new OllamaChatModel(_ollamaProvider, _currentModel!);
+                    _cachedAdapter = new OllamaChatAdapter(ollamaChatModel);
+                    _cachedAdapterModel = _currentModel;
+                }
+                
+                response = await _cachedAdapter.GenerateTextAsync(question);
             }
             
             sb.AppendLine("A: " + response);

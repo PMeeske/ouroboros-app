@@ -4,4 +4,3 @@
 
 global using LangChain.Providers.Ollama;
 global using Ouroboros.Abstractions.Core;
-global using Ouroboros.Providers;
