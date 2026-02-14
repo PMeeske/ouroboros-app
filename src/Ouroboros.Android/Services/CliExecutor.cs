@@ -2,6 +2,11 @@ using System.Text;
 
 namespace Ouroboros.Android.Services;
 
+// TODO: Migrate to shared provider pipeline from Engine
+// Currently uses standalone OllamaService/ModelManager/CommandExecutor instantiation.
+// Should use ServiceFactory.CreateRemoteChatModel() or OllamaChatAdapter from Engine's provider layer.
+// See: src/Ouroboros.Application/Services/ServiceFactory.cs for reference implementation.
+
 /// <summary>
 /// Enhanced service to execute CLI commands within the Android app with full Ollama integration
 /// </summary>
