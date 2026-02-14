@@ -2,21 +2,19 @@ using System.Text;
 
 namespace Ouroboros.Android.Services;
 
-// TODO: Migrate to shared provider pipeline from Engine
-// Currently uses standalone OllamaService/ModelManager/CommandExecutor instantiation.
-// Should use ServiceFactory.CreateRemoteChatModel() or OllamaChatAdapter from Engine's provider layer.
-// See: src/Ouroboros.Application/Services/ServiceFactory.cs for reference implementation.
-
 /// <summary>
 /// Enhanced service to execute CLI commands within the Android app with full Ollama integration
+/// using the shared provider pipeline from Engine.
 /// </summary>
 public class CliExecutor
 {
+    private readonly IChatCompletionModel? _chatModel;
     private readonly OllamaService _ollamaService;
     private readonly ModelManager _modelManager;
     private readonly CommandExecutor _commandExecutor;
     private readonly CommandHistoryService? _historyService;
     private readonly CommandSuggestionEngine? _suggestionEngine;
+    private readonly OllamaProvider _ollamaProvider;
     
     private string? _currentModel;
     private DateTime _lastModelUse;
@@ -27,9 +25,13 @@ public class CliExecutor
     /// Initializes a new instance of the <see cref="CliExecutor"/> class.
     /// </summary>
     /// <param name="databasePath">Optional path to SQLite database for history</param>
-    public CliExecutor(string? databasePath = null)
+    /// <param name="chatModel">Optional chat completion model. If not provided, will be created on-demand.</param>
+    /// <param name="ollamaEndpoint">Ollama endpoint URL (default: http://localhost:11434)</param>
+    public CliExecutor(string? databasePath = null, IChatCompletionModel? chatModel = null, string ollamaEndpoint = "http://localhost:11434")
     {
-        _ollamaService = new OllamaService("http://localhost:11434");
+        _chatModel = chatModel;
+        _ollamaService = new OllamaService(ollamaEndpoint);
+        _ollamaProvider = new OllamaProvider { Endpoint = ollamaEndpoint };
         _modelManager = new ModelManager(_ollamaService);
         _commandExecutor = new CommandExecutor(requiresRoot: false);
         
@@ -55,7 +57,11 @@ public class CliExecutor
     public string OllamaEndpoint
     {
         get => _ollamaService.BaseUrl;
-        set => _ollamaService.BaseUrl = value;
+        set
+        {
+            _ollamaService.BaseUrl = value;
+            _ollamaProvider.Endpoint = value;
+        }
     }
 
     /// <summary>
@@ -532,8 +538,20 @@ Then try your question again.";
             sb.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             sb.AppendLine();
 
-            // Generate response
-            var response = await _ollamaService.GenerateAsync(_currentModel, question);
+            // Generate response using IChatCompletionModel abstraction
+            string response;
+            if (_chatModel != null)
+            {
+                // Use provided chat model (goes through Engine's provider pipeline)
+                response = await _chatModel.GenerateTextAsync(question);
+            }
+            else
+            {
+                // Fall back to creating an OllamaChatAdapter on-demand
+                var ollamaChat = new OllamaChatModel(_ollamaProvider, _currentModel);
+                var adapter = new OllamaChatAdapter(ollamaChat);
+                response = await adapter.GenerateTextAsync(question);
+            }
             
             sb.AppendLine("A: " + response);
             sb.AppendLine();
