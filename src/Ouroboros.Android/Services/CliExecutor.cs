@@ -14,6 +14,11 @@ public class CliExecutor
     private readonly CommandExecutor _commandExecutor;
     private readonly CommandHistoryService? _historyService;
     private readonly CommandSuggestionEngine? _suggestionEngine;
+    
+    /// <summary>
+    /// Ollama provider used for on-demand OllamaChatAdapter creation when no IChatCompletionModel is injected.
+    /// This enables the executor to fall back to creating its own models when needed.
+    /// </summary>
     private readonly OllamaProvider _ollamaProvider;
     
     private string? _currentModel;
@@ -26,7 +31,11 @@ public class CliExecutor
     /// </summary>
     /// <param name="databasePath">Optional path to SQLite database for history</param>
     /// <param name="chatModel">Optional chat completion model. If not provided, will be created on-demand.</param>
-    /// <param name="ollamaEndpoint">Ollama endpoint URL (default: http://localhost:11434). Note: This only affects on-demand model creation, not injected chatModel.</param>
+    /// <param name="ollamaEndpoint">Ollama endpoint URL (default: http://localhost:11434)</param>
+    /// <remarks>
+    /// The ollamaEndpoint parameter only affects on-demand model creation and model management operations.
+    /// It does not affect an injected chatModel provided via the chatModel parameter.
+    /// </remarks>
     public CliExecutor(string? databasePath = null, IChatCompletionModel? chatModel = null, string ollamaEndpoint = "http://localhost:11434")
     {
         _chatModel = chatModel;
