@@ -9,6 +9,10 @@ on:
 
 jobs:
   update-build-submodule:
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
     name: Update Build Submodule
     if: github.event.client_payload.source_repo == 'ouroboros-build'
     uses: PMeeske/ouroboros-build/.github/workflows/_reusable-update-submodule.yml@main
@@ -19,6 +23,10 @@ jobs:
       token: ${{ secrets.OUROBOROS_DISPATCH_PAT }}
 
   update-foundation-submodule:
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
     name: Update Foundation Submodule
     if: github.event.client_payload.source_repo == 'ouroboros-foundation'
     uses: PMeeske/ouroboros-build/.github/workflows/_reusable-update-submodule.yml@main
@@ -29,6 +37,10 @@ jobs:
       token: ${{ secrets.OUROBOROS_DISPATCH_PAT }}
 
   update-engine-submodule:
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
     name: Update Engine Submodule
     if: github.event.client_payload.source_repo == 'ouroboros-engine'
     uses: PMeeske/ouroboros-build/.github/workflows/_reusable-update-submodule.yml@main
