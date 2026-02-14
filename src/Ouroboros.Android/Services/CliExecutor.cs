@@ -26,7 +26,7 @@ public class CliExecutor
     /// </summary>
     /// <param name="databasePath">Optional path to SQLite database for history</param>
     /// <param name="chatModel">Optional chat completion model. If not provided, will be created on-demand.</param>
-    /// <param name="ollamaEndpoint">Ollama endpoint URL (default: http://localhost:11434)</param>
+    /// <param name="ollamaEndpoint">Ollama endpoint URL (default: http://localhost:11434). Note: This only affects on-demand model creation, not injected chatModel.</param>
     public CliExecutor(string? databasePath = null, IChatCompletionModel? chatModel = null, string ollamaEndpoint = "http://localhost:11434")
     {
         _chatModel = chatModel;
@@ -52,7 +52,9 @@ public class CliExecutor
     }
 
     /// <summary>
-    /// Gets or sets the Ollama endpoint URL
+    /// Gets or sets the Ollama endpoint URL.
+    /// Note: Changing this endpoint only affects model management operations and on-demand model creation.
+    /// It does not affect an injected IChatCompletionModel provided via constructor.
     /// </summary>
     public string OllamaEndpoint
     {
@@ -548,7 +550,8 @@ Then try your question again.";
             else
             {
                 // Fall back to creating an OllamaChatAdapter on-demand
-                var ollamaChat = new OllamaChatModel(_ollamaProvider, _currentModel);
+                // _currentModel is guaranteed to be non-null here due to the check above at line 521
+                var ollamaChat = new OllamaChatModel(_ollamaProvider, _currentModel!);
                 var adapter = new OllamaChatAdapter(ollamaChat);
                 response = await adapter.GenerateTextAsync(question);
             }
