@@ -28,24 +28,24 @@
 
   <ItemGroup>
     <!-- Override vulnerable transitive dependencies from Microsoft.CodeAnalysis -->
-    <PackageReference Include="Microsoft.Build.Tasks.Core" Version="17.14.28" />
-    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.14.28" />
+    <PackageReference Include="Microsoft.Build.Tasks.Core" Version="18.3.3" />
+    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="18.3.3" />
 
     <PackageReference Include="LangChain" Version="0.17.0" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
-    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="9.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.3" />
     <PackageReference Include="System.Reactive" Version="6.1.0" />
     <PackageReference Include="System.Reactive.Linq" Version="6.1.0" />
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.12.0" />
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.12.0" />
-    <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="4.12.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.0.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="5.0.0" />
 
     <!-- For cross-platform System.Drawing support -->
-    <PackageReference Include="System.Drawing.Common" Version="8.0.1" />
+    <PackageReference Include="System.Drawing.Common" Version="10.0.3" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="SonarAnalyzer.CSharp" Version="9.16.0.82469" PrivateAssets="all" />
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.19.0.132793" PrivateAssets="all" />
   </ItemGroup>
 
 </Project>
