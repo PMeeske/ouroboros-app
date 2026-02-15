@@ -193,9 +193,9 @@ public static class MetaAIv2EnhancementsExample
             DateTime.UtcNow,
             DateTime.UtcNow);
 
-        skills.RegisterSkill(extractSkill);
-        skills.RegisterSkill(transformSkill);
-        skills.RegisterSkill(loadSkill);
+        skills.RegisterSkill(extractSkill.ToAgentSkill());
+        skills.RegisterSkill(transformSkill.ToAgentSkill());
+        skills.RegisterSkill(loadSkill.ToAgentSkill());
 
         // Compose into ETL pipeline skill
         Result<Skill, string> compositeResult = await composer.ComposeSkillsAsync(
@@ -561,14 +561,7 @@ public static class MetaAIv2EnhancementsExample
             new List<string>(),
             null);
 
-        return new Experience(
-            Guid.NewGuid(),
-            goal,
-            plan,
-            execution,
-            verification,
-            DateTime.UtcNow,
-            new Dictionary<string, object>());
+        return ExperienceFactory.FromExecution(goal, execution, verification);
     }
 
     private static PlanStep CreateSampleStep(string action)

@@ -1,3 +1,4 @@
+using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 using Ouroboros.Abstractions.Monads;
 
 namespace Ouroboros.Easy;

@@ -4,6 +4,7 @@ using CodeAnalysisResult = Ouroboros.Application.CodeGeneration.CodeAnalysisResu
 using DslAssistant = Ouroboros.Application.DslAssistant;
 using DslSuggestion = Ouroboros.Application.DslSuggestion;
 using DslValidationResult = Ouroboros.Application.DslValidationResult;
+using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 
 namespace Ouroboros.Specs.Steps;
 

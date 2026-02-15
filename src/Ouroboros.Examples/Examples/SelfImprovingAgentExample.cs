@@ -120,19 +120,19 @@ public static class SelfImprovingAgentExample
 
         PlanExecutionResult execution = new PlanExecutionResult(
             plan,
-            plan.Steps.Select(s => new StepResult(s, true, "success", null, TimeSpan.FromMilliseconds(100), new())).ToList(),
+            plan.Steps.Select(s => new StepResult(s, true, "success", null, TimeSpan.FromMilliseconds(100), new Dictionary<string, object>())).ToList(),
             true,
             "Final output",
-            new(),
+            new Dictionary<string, object>(),
             TimeSpan.FromMilliseconds(300));
 
         PlanVerificationResult verification = new PlanVerificationResult(
             execution,
             Verified: true,
             QualityScore: 0.85,
-            Issues: new(),
-            Improvements: new(),
-            RevisedPlan: null);
+            Issues: new List<string>(),
+            Improvements: new List<string>(),
+            Timestamp: null);
 
         // Extract skill with custom config
         Result<Skill, string> result = await skillExtractor.ExtractSkillAsync(execution, verification, extractionConfig);
@@ -193,11 +193,11 @@ public static class SelfImprovingAgentExample
         Console.WriteLine("Waiting for memory consolidation...");
         await Task.Delay(6000);
 
-        MemoryStatistics stats = await memory.GetStatisticsAsync();
+        MemoryStatistics stats = await memory.GetStatsAsync();
         Console.WriteLine($"\n✓ Memory Statistics:");
         Console.WriteLine($"  Total experiences: {stats.TotalExperiences}");
-        Console.WriteLine($"  Successful: {stats.SuccessfulExecutions}");
-        Console.WriteLine($"  Failed: {stats.FailedExecutions}");
+        Console.WriteLine($"  Successful: {stats.SuccessfulExperiences}");
+        Console.WriteLine($"  Failed: {stats.FailedExperiences}");
         Console.WriteLine($"  Average quality: {stats.AverageQualityScore:P0}");
 
         List<Experience> episodic = memory.GetExperiencesByType(MemoryType.Episodic);
@@ -273,7 +273,7 @@ public static class SelfImprovingAgentExample
     /// </summary>
     private static void DisplayLearnedSkills(ISkillRegistry skillRegistry)
     {
-        IReadOnlyList<Skill> skills = skillRegistry.GetAllSkills();
+        IReadOnlyList<Skill> skills = skillRegistry.GetAllSkills().ToSkills();
 
         if (skills.Count == 0)
         {
@@ -300,21 +300,13 @@ public static class SelfImprovingAgentExample
     /// </summary>
     private static async Task DisplayMemoryStats(IMemoryStore memory)
     {
-        MemoryStatistics stats = await memory.GetStatisticsAsync();
+        MemoryStatistics stats = await memory.GetStatsAsync();
 
         Console.WriteLine($"Total Experiences: {stats.TotalExperiences}");
-        Console.WriteLine($"Successful: {stats.SuccessfulExecutions}");
-        Console.WriteLine($"Failed: {stats.FailedExecutions}");
+        Console.WriteLine($"Successful: {stats.SuccessfulExperiences}");
+        Console.WriteLine($"Failed: {stats.FailedExperiences}");
         Console.WriteLine($"Average Quality: {stats.AverageQualityScore:P0}");
-
-        if (stats.GoalCounts.Any())
-        {
-            Console.WriteLine("\nTop Goals by Frequency:");
-            foreach ((string goal, int count) in stats.GoalCounts.OrderByDescending(kv => kv.Value).Take(5))
-            {
-                Console.WriteLine($"  {goal}: {count} times");
-            }
-        }
+        Console.WriteLine($"Unique Contexts: {stats.UniqueContexts}");
     }
 
     /// <summary>
@@ -330,27 +322,20 @@ public static class SelfImprovingAgentExample
 
         PlanExecutionResult execution = new PlanExecutionResult(
             plan,
-            new List<StepResult> { new StepResult(plan.Steps[0], true, "result", null, TimeSpan.FromMilliseconds(10), new()) },
+            new List<StepResult> { new StepResult(plan.Steps[0], true, "result", null, TimeSpan.FromMilliseconds(10), new Dictionary<string, object>()) },
             true,
             "result",
-            new(),
+            new Dictionary<string, object>(),
             TimeSpan.FromMilliseconds(10));
 
         PlanVerificationResult verification = new PlanVerificationResult(
             execution,
             quality > 0.5,
             quality,
-            new(),
-            new(),
+            new List<string>(),
+            new List<string>(),
             null);
 
-        return new Experience(
-            Guid.NewGuid(),
-            goal,
-            plan,
-            execution,
-            verification,
-            DateTime.UtcNow,
-            new());
+        return ExperienceFactory.FromExecution(goal, execution, verification);
     }
 }

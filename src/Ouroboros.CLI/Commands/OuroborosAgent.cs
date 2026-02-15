@@ -39,6 +39,7 @@ using PipelineAgentCapability = Ouroboros.Pipeline.MultiAgent.AgentCapability;
 using MetaAgentStatus = Ouroboros.Agent.MetaAI.AgentStatus;
 using MetaAgentCapability = Ouroboros.Agent.MetaAI.AgentCapability;
 using Unit = Ouroboros.Abstractions.Unit;
+using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 
 namespace Ouroboros.CLI.Commands;
 
@@ -5637,12 +5638,12 @@ No quotes around the response. Just the greeting itself.";
                         CreatedAt: DateTime.UtcNow,
                         LastUsed: DateTime.UtcNow);
 
-                    await _skills.RegisterSkillAsync(skill);
+                    await _skills.RegisterSkillAsync(skill.ToAgentSkill());
                     sb.AppendLine($"\n✓ Registered skill: '{skillName}'");
                 }
                 else
                 {
-                    _skills.RecordSkillExecution(skillName, true);
+                    _skills.RecordSkillExecution(skillName, true, 0L);
                     sb.AppendLine($"\n↺ Updated existing skill: '{skillName}'");
                 }
             }
@@ -5756,7 +5757,7 @@ No quotes around the response. Just the greeting itself.";
             var matches = await _skills.FindMatchingSkillsAsync(skillName);
             if (matches.Any())
             {
-                skill = matches.First();
+                skill = matches.First().ToAgentSkill();
             }
             else
             {
@@ -5766,12 +5767,12 @@ No quotes around the response. Just the greeting itself.";
 
         // Execute skill steps
         var results = new List<string>();
-        foreach (var step in skill.Steps)
+        foreach (var step in skill.ToSkill().Steps)
         {
             results.Add($"• {step.Action}: {step.ExpectedOutcome}");
         }
 
-        _skills.RecordSkillExecution(skill.Name, true);
+        _skills.RecordSkillExecution(skill.Name, true, 0L);
         return $"Running '{skill.Name}':\n" + string.Join("\n", results);
     }
 
@@ -5988,7 +5989,7 @@ No quotes around the response. Just the greeting itself.";
                         new("Synthesize", new Dictionary<string, object> { ["action"] = "combine" }, "Actionable knowledge", 0.8)
                     },
                     0.75, 0, DateTime.UtcNow, DateTime.UtcNow);
-                _skills.RegisterSkill(newSkill);
+                _skills.RegisterSkill(newSkill.ToAgentSkill());
             }
 
             var sb = new StringBuilder();
@@ -10046,7 +10047,7 @@ Commands:
         if (_skills != null)
         {
             var skills = _skills.GetAllSkills();
-            skillList = skills.ToList();
+            skillList = skills.ToSkills().ToList();
             if (skillList.Count > 0)
             {
                 sb.AppendLine($"📚 Learned Skills ({skillList.Count} total):");
