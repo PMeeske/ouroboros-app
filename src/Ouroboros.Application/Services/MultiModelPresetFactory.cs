@@ -1,4 +1,5 @@
 using LangChain.Providers.Ollama;
+using Ouroboros.Abstractions.Core;
 using Ouroboros.Application.Configuration;
 
 namespace Ouroboros.Application.Services;

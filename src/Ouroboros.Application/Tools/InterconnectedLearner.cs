@@ -63,7 +63,7 @@ public sealed record ActionGene(string ActionType, string ActionName, double Pri
 public sealed class InterconnectedLearner : IAsyncDisposable
 {
     private readonly DynamicToolFactory _toolFactory;
-    private readonly ISkillRegistry? _skillRegistry;
+    private readonly Ouroboros.Agent.MetaAI.ISkillRegistry? _skillRegistry;
     private readonly IMeTTaEngine _mettaEngine;
     private readonly IEmbeddingModel? _embeddingModel;
     private readonly ToolAwareChatModel? _llm;
@@ -86,7 +86,7 @@ public sealed class InterconnectedLearner : IAsyncDisposable
     /// </summary>
     public InterconnectedLearner(
         DynamicToolFactory toolFactory,
-        ISkillRegistry? skillRegistry,
+        Ouroboros.Agent.MetaAI.ISkillRegistry? skillRegistry,
         IMeTTaEngine mettaEngine,
         IEmbeddingModel? embeddingModel = null,
         ToolAwareChatModel? llm = null)
