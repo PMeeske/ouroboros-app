@@ -1,0 +1,582 @@
+using System.CommandLine;
+
+namespace Ouroboros.CLI.Commands.Options;
+
+/// <summary>
+/// Full options for the ouroboros agent command using System.CommandLine 2.0.3 GA.
+/// Maps 1:1 to legacy OuroborosOptions (CommandLineParser) for full parity.
+/// Every option here corresponds to a property on <see cref="OuroborosConfig"/>.
+/// </summary>
+public class OuroborosCommandOptions
+{
+    // ═══════════════════════════════════════════════════════════════════════════
+    // VOICE & INTERACTION
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    public System.CommandLine.Option<bool> VoiceOption { get; } = new("--voice", "-v")
+    {
+        Description = "Enable voice mode (speak & listen)",
+        DefaultValueFactory = _ => true
+    };
+
+    public System.CommandLine.Option<bool> TextOnlyOption { get; } = new("--text-only")
+    {
+        Description = "Disable voice, use text input/output only",
+        DefaultValueFactory = _ => false
+    };
+
+    public System.CommandLine.Option<bool> VoiceOnlyOption { get; } = new("--voice-only")
+    {
+        Description = "Voice-only mode (no text output)",
+        DefaultValueFactory = _ => false
+    };
+
+    public System.CommandLine.Option<bool> LocalTtsOption { get; } = new("--local-tts")
+    {
+        Description = "Prefer local TTS (Windows SAPI) over Azure",
+        DefaultValueFactory = _ => false
+    };
+
+    public System.CommandLine.Option<bool> AzureTtsOption { get; } = new("--azure-tts")
+    {
+        Description = "Use Azure Text-to-Speech (default when available)",
+        DefaultValueFactory = _ => true
+    };
+
+    public System.CommandLine.Option<string?> AzureSpeechKeyOption { get; } = new("--azure-speech-key")
+    {
+        Description = "Azure Speech API key (or set AZURE_SPEECH_KEY env var)"
+    };
+
+    public System.CommandLine.Option<string> AzureSpeechRegionOption { get; } = new("--azure-speech-region")
+    {
+        Description = "Azure Speech region",
+        DefaultValueFactory = _ => "eastus"
+    };
+
+    public System.CommandLine.Option<string> TtsVoiceOption { get; } = new("--tts-voice")
+    {
+        Description = "Azure TTS voice name",
+        DefaultValueFactory = _ => "en-US-AvaMultilingualNeural"
+    };
+
+    public System.CommandLine.Option<bool> VoiceChannelOption { get; } = new("--voice-channel")
+    {
+        Description = "Enable parallel voice side channel for persona-specific audio",
+        DefaultValueFactory = _ => false
+    };
+
+    public System.CommandLine.Option<bool> VoiceV2Option { get; } = new("--voice-v2")
+    {
+        Description = "Enable unified Rx streaming voice mode V2",
+        DefaultValueFactory = _ => false
+    };
+
+    public System.CommandLine.Option<bool> ListenOption { get; } = new("--listen")
+    {
+        Description = "Enable voice input (speech-to-text) on startup",
+        DefaultValueFactory = _ => false
+    };
+
+    public System.CommandLine.Option<bool> VoiceLoopOption { get; } = new("--voice-loop")
+    {
+        Description = "Continue voice conversation in loop",
+        DefaultValueFactory = _ => true
+    };
+
+    public System.CommandLine.Option<string> PersonaOption { get; } = new("--persona")
+    {
+        Description = "Persona: Ouroboros, Aria, Echo, Sage, Atlas",
+        DefaultValueFactory = _ => "Ouroboros"
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // LLM & MODEL CONFIGURATION
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    public System.CommandLine.Option<string> ModelOption { get; } = new("--model", "-m")
+    {
+        Description = "LLM model name",
+        DefaultValueFactory = _ => "deepseek-v3.1:671b-cloud"
+    };
+
+    public System.CommandLine.Option<string?> CultureOption { get; } = new("--culture", "-c")
+    {
+        Description = "Target culture for the response (e.g. en-US, fr-FR, es)"
+    };
+
+    public System.CommandLine.Option<string> EndpointOption { get; } = new("--endpoint")
+    {
+        Description = "LLM endpoint URL",
+        DefaultValueFactory = _ => "http://localhost:11434"
+    };
+
+    public System.CommandLine.Option<string?> ApiKeyOption { get; } = new("--api-key")
+    {
+        Description = "API key for remote endpoint"
+    };
+
+    public System.CommandLine.Option<string?> EndpointTypeOption { get; } = new("--endpoint-type")
+    {
+        Description = "Provider type: auto|anthropic|openai|azure|google|mistral|deepseek|groq|together|fireworks|perplexity|cohere|ollama|github-models|litellm|huggingface|replicate"
+    };
+
+    public System.CommandLine.Option<double> TemperatureOption { get; } = new("--temperature")
+    {
+        Description = "Sampling temperature",
+        DefaultValueFactory = _ => 0.7
+    };
+
+    public System.CommandLine.Option<int> MaxTokensOption { get; } = new("--max-tokens")
+    {
+        Description = "Max tokens for completion",
+        DefaultValueFactory = _ => 2048
+    };
+
+    public System.CommandLine.Option<int> TimeoutSecondsOption { get; } = new("--timeout")
+    {
+        Description = "Request timeout in seconds",
+        DefaultValueFactory = _ => 120
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EMBEDDINGS & MEMORY
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    public System.CommandLine.Option<string> EmbedModelOption { get; } = new("--embed-model")
+    {
+        Description = "Embedding model name",
+        DefaultValueFactory = _ => "nomic-embed-text"
+    };
+
+    public System.CommandLine.Option<string> EmbedEndpointOption { get; } = new("--embed-endpoint")
+    {
+        Description = "Embedding endpoint (defaults to local Ollama)",
+        DefaultValueFactory = _ => "http://localhost:11434"
+    };
+
+    public System.CommandLine.Option<string> QdrantEndpointOption { get; } = new("--qdrant")
+    {
+        Description = "Qdrant endpoint for persistent memory",
+        DefaultValueFactory = _ => "http://localhost:6334"
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // FEATURE TOGGLES (All enabled by default for max experience)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    public System.CommandLine.Option<bool> NoSkillsOption { get; } = new("--no-skills")
+    {
+        Description = "Disable skill learning subsystem",
+        DefaultValueFactory = _ => false
+    };
+
+    public System.CommandLine.Option<bool> NoMeTTaOption { get; } = new("--no-metta")
+    {
+        Description = "Disable MeTTa symbolic reasoning",
+        DefaultValueFactory = _ => false
+    };
+
+    public System.CommandLine.Option<bool> NoToolsOption { get; } = new("--no-tools")
+    {
+        Description = "Disable dynamic tools (web search, etc.)",
+        DefaultValueFactory = _ => false
+    };
+
+    public System.CommandLine.Option<bool> NoPersonalityOption { get; } = new("--no-personality")
+    {
+        Description = "Disable personality engine & affect",
+        DefaultValueFactory = _ => false
+    };
+
+    public System.CommandLine.Option<bool> NoMindOption { get; } = new("--no-mind")
+    {
+        Description = "Disable autonomous mind (inner thoughts)",
+        DefaultValueFactory = _ => false
+    };
+
+    public System.CommandLine.Option<bool> NoBrowserOption { get; } = new("--no-browser")
+    {
+        Description = "Disable Playwright browser automation",
+        DefaultValueFactory = _ => false
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // AUTONOMOUS/PUSH MODE
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    public System.CommandLine.Option<bool> PushOption { get; } = new("--push")
+    {
+        Description = "Enable push mode - Ouroboros proposes actions for your approval",
+        DefaultValueFactory = _ => false
+    };
+
+    public System.CommandLine.Option<bool> PushVoiceOption { get; } = new("--push-voice")
+    {
+        Description = "Enable voice in push mode",
+        DefaultValueFactory = _ => false
+    };
+
+    public System.CommandLine.Option<bool> YoloOption { get; } = new("--yolo")
+    {
+        Description = "YOLO mode - full autonomous operation, auto-approve ALL actions (use with caution!)",
+        DefaultValueFactory = _ => false
+    };
+
+    public System.CommandLine.Option<string> AutoApproveOption { get; } = new("--auto-approve")
+    {
+        Description = "Auto-approve intention categories: safe,memory,analysis (comma-separated)",
+        DefaultValueFactory = _ => ""
+    };
+
+    public System.CommandLine.Option<int> IntentionIntervalOption { get; } = new("--intention-interval")
+    {
+        Description = "Seconds between autonomous intention proposals",
+        DefaultValueFactory = _ => 45
+    };
+
+    public System.CommandLine.Option<int> DiscoveryIntervalOption { get; } = new("--discovery-interval")
+    {
+        Description = "Seconds between autonomous topic discovery",
+        DefaultValueFactory = _ => 90
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // GOVERNANCE & SELF-MODIFICATION
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    public System.CommandLine.Option<bool> EnableSelfModOption { get; } = new("--enable-self-mod")
+    {
+        Description = "Enable self-modification for agent autonomy",
+        DefaultValueFactory = _ => false
+    };
+
+    public System.CommandLine.Option<string> RiskLevelOption { get; } = new("--risk-level")
+    {
+        Description = "Minimum risk level for approval: Low|Medium|High|Critical",
+        DefaultValueFactory = _ => "Medium"
+    };
+
+    public System.CommandLine.Option<bool> AutoApproveLowOption { get; } = new("--auto-approve-low")
+    {
+        Description = "Auto-approve low-risk modifications",
+        DefaultValueFactory = _ => true
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // INITIAL TASK (Optional)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    public System.CommandLine.Option<string?> GoalOption { get; } = new("--goal", "-g")
+    {
+        Description = "Initial goal to accomplish (starts planning immediately)"
+    };
+
+    public System.CommandLine.Option<string?> QuestionOption { get; } = new("--question", "-q")
+    {
+        Description = "Initial question to answer"
+    };
+
+    public System.CommandLine.Option<string?> DslOption { get; } = new("--dsl", "-d")
+    {
+        Description = "Pipeline DSL to execute immediately"
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // MULTI-MODEL ORCHESTRATION
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    public System.CommandLine.Option<string?> CoderModelOption { get; } = new("--coder-model")
+    {
+        Description = "Model for code/refactor tasks"
+    };
+
+    public System.CommandLine.Option<string?> ReasonModelOption { get; } = new("--reason-model")
+    {
+        Description = "Model for strategic reasoning"
+    };
+
+    public System.CommandLine.Option<string?> SummarizeModelOption { get; } = new("--summarize-model")
+    {
+        Description = "Model for summarization"
+    };
+
+    public System.CommandLine.Option<string?> VisionModelOption { get; } = new("--vision-model")
+    {
+        Description = "Model for visual understanding (e.g. qwen3-vl:235b-cloud)"
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // AGENT BEHAVIOR
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    public System.CommandLine.Option<int> AgentMaxStepsOption { get; } = new("--agent-max-steps")
+    {
+        Description = "Max steps for agent planning",
+        DefaultValueFactory = _ => 10
+    };
+
+    public System.CommandLine.Option<int> ThinkingIntervalOption { get; } = new("--thinking-interval")
+    {
+        Description = "Seconds between autonomous thoughts",
+        DefaultValueFactory = _ => 30
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PIPING & BATCH MODE
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    public System.CommandLine.Option<bool> PipeOption { get; } = new("--pipe")
+    {
+        Description = "Enable pipe mode - read commands from stdin, output to stdout",
+        DefaultValueFactory = _ => false
+    };
+
+    public System.CommandLine.Option<string?> BatchFileOption { get; } = new("--batch")
+    {
+        Description = "Batch file containing commands to execute (one per line)"
+    };
+
+    public System.CommandLine.Option<bool> JsonOutputOption { get; } = new("--json-output")
+    {
+        Description = "Output responses as JSON for scripting",
+        DefaultValueFactory = _ => false
+    };
+
+    public System.CommandLine.Option<bool> NoGreetingOption { get; } = new("--no-greeting")
+    {
+        Description = "Skip greeting in non-interactive mode",
+        DefaultValueFactory = _ => false
+    };
+
+    public System.CommandLine.Option<bool> ExitOnErrorOption { get; } = new("--exit-on-error")
+    {
+        Description = "Exit immediately on command error in batch/pipe mode",
+        DefaultValueFactory = _ => false
+    };
+
+    public System.CommandLine.Option<string?> ExecOption { get; } = new("--exec", "-e")
+    {
+        Description = "Execute a single command and exit (supports | piping syntax)"
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // DEBUG & OUTPUT
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    public System.CommandLine.Option<bool> DebugOption { get; } = new("--debug")
+    {
+        Description = "Enable debug logging",
+        DefaultValueFactory = _ => false
+    };
+
+    public System.CommandLine.Option<bool> TraceOption { get; } = new("--trace")
+    {
+        Description = "Enable trace output for pipelines",
+        DefaultValueFactory = _ => false
+    };
+
+    public System.CommandLine.Option<bool> MetricsOption { get; } = new("--metrics")
+    {
+        Description = "Show performance metrics",
+        DefaultValueFactory = _ => false
+    };
+
+    public System.CommandLine.Option<bool> StreamOption { get; } = new("--stream")
+    {
+        Description = "Stream responses as generated",
+        DefaultValueFactory = _ => true
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // COST TRACKING & EFFICIENCY
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    public System.CommandLine.Option<bool> ShowCostsOption { get; } = new("--show-costs")
+    {
+        Description = "Display token counts and API costs after each response",
+        DefaultValueFactory = _ => false
+    };
+
+    public System.CommandLine.Option<bool> CostAwareOption { get; } = new("--cost-aware")
+    {
+        Description = "Inject cost-awareness guidelines into system prompt",
+        DefaultValueFactory = _ => false
+    };
+
+    public System.CommandLine.Option<bool> CostSummaryOption { get; } = new("--cost-summary")
+    {
+        Description = "Show session cost summary on exit",
+        DefaultValueFactory = _ => true
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // COLLECTIVE MIND (Multi-Provider)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    public System.CommandLine.Option<bool> CollectiveModeOption { get; } = new("--collective")
+    {
+        Description = "Enable collective mind mode (uses multiple LLM providers)",
+        DefaultValueFactory = _ => false
+    };
+
+    public System.CommandLine.Option<string?> CollectivePresetOption { get; } = new("--collective-preset")
+    {
+        Description = "Collective mind preset: single|local|balanced|fast|premium|budget|anthropic-ollama|anthropic-ollama-lite"
+    };
+
+    public System.CommandLine.Option<string> CollectiveThinkingModeOption { get; } = new("--collective-mode")
+    {
+        Description = "Collective thinking mode: racing|sequential|ensemble|adaptive",
+        DefaultValueFactory = _ => "adaptive"
+    };
+
+    public System.CommandLine.Option<string?> CollectiveProvidersOption { get; } = new("--collective-providers")
+    {
+        Description = "Comma-separated list of providers (e.g., anthropic,openai,deepseek,groq,ollama)"
+    };
+
+    public System.CommandLine.Option<bool> FailoverOption { get; } = new("--failover")
+    {
+        Description = "Enable automatic failover to other providers on error",
+        DefaultValueFactory = _ => true
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ELECTION & ORCHESTRATION
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    public System.CommandLine.Option<string> ElectionStrategyOption { get; } = new("--election")
+    {
+        Description = "Election strategy: majority|weighted|borda|condorcet|runoff|approval|master",
+        DefaultValueFactory = _ => "weighted"
+    };
+
+    public System.CommandLine.Option<string?> MasterModelOption { get; } = new("--master")
+    {
+        Description = "Designate master model for orchestration"
+    };
+
+    public System.CommandLine.Option<string> EvalCriteriaOption { get; } = new("--eval-criteria")
+    {
+        Description = "Evaluation criteria preset: default|quality|speed|cost",
+        DefaultValueFactory = _ => "default"
+    };
+
+    public System.CommandLine.Option<bool> ShowElectionOption { get; } = new("--show-election")
+    {
+        Description = "Show election results and voting details",
+        DefaultValueFactory = _ => false
+    };
+
+    public System.CommandLine.Option<bool> ShowOptimizationOption { get; } = new("--show-optimization")
+    {
+        Description = "Show model optimization suggestions after session",
+        DefaultValueFactory = _ => false
+    };
+
+    /// <summary>
+    /// Adds all ouroboros command options to the given command.
+    /// </summary>
+    public void AddToCommand(Command command)
+    {
+        // Voice & Interaction
+        command.Add(VoiceOption);
+        command.Add(TextOnlyOption);
+        command.Add(VoiceOnlyOption);
+        command.Add(LocalTtsOption);
+        command.Add(AzureTtsOption);
+        command.Add(AzureSpeechKeyOption);
+        command.Add(AzureSpeechRegionOption);
+        command.Add(TtsVoiceOption);
+        command.Add(VoiceChannelOption);
+        command.Add(VoiceV2Option);
+        command.Add(ListenOption);
+        command.Add(VoiceLoopOption);
+        command.Add(PersonaOption);
+
+        // LLM & Model
+        command.Add(ModelOption);
+        command.Add(CultureOption);
+        command.Add(EndpointOption);
+        command.Add(ApiKeyOption);
+        command.Add(EndpointTypeOption);
+        command.Add(TemperatureOption);
+        command.Add(MaxTokensOption);
+        command.Add(TimeoutSecondsOption);
+
+        // Embeddings & Memory
+        command.Add(EmbedModelOption);
+        command.Add(EmbedEndpointOption);
+        command.Add(QdrantEndpointOption);
+
+        // Feature Toggles
+        command.Add(NoSkillsOption);
+        command.Add(NoMeTTaOption);
+        command.Add(NoToolsOption);
+        command.Add(NoPersonalityOption);
+        command.Add(NoMindOption);
+        command.Add(NoBrowserOption);
+
+        // Autonomous/Push Mode
+        command.Add(PushOption);
+        command.Add(PushVoiceOption);
+        command.Add(YoloOption);
+        command.Add(AutoApproveOption);
+        command.Add(IntentionIntervalOption);
+        command.Add(DiscoveryIntervalOption);
+
+        // Governance & Self-Modification
+        command.Add(EnableSelfModOption);
+        command.Add(RiskLevelOption);
+        command.Add(AutoApproveLowOption);
+
+        // Initial Task
+        command.Add(GoalOption);
+        command.Add(QuestionOption);
+        command.Add(DslOption);
+
+        // Multi-Model Orchestration
+        command.Add(CoderModelOption);
+        command.Add(ReasonModelOption);
+        command.Add(SummarizeModelOption);
+        command.Add(VisionModelOption);
+
+        // Agent Behavior
+        command.Add(AgentMaxStepsOption);
+        command.Add(ThinkingIntervalOption);
+
+        // Piping & Batch Mode
+        command.Add(PipeOption);
+        command.Add(BatchFileOption);
+        command.Add(JsonOutputOption);
+        command.Add(NoGreetingOption);
+        command.Add(ExitOnErrorOption);
+        command.Add(ExecOption);
+
+        // Debug & Output
+        command.Add(DebugOption);
+        command.Add(TraceOption);
+        command.Add(MetricsOption);
+        command.Add(StreamOption);
+
+        // Cost Tracking
+        command.Add(ShowCostsOption);
+        command.Add(CostAwareOption);
+        command.Add(CostSummaryOption);
+
+        // Collective Mind
+        command.Add(CollectiveModeOption);
+        command.Add(CollectivePresetOption);
+        command.Add(CollectiveThinkingModeOption);
+        command.Add(CollectiveProvidersOption);
+        command.Add(FailoverOption);
+
+        // Election & Orchestration
+        command.Add(ElectionStrategyOption);
+        command.Add(MasterModelOption);
+        command.Add(EvalCriteriaOption);
+        command.Add(ShowElectionOption);
+        command.Add(ShowOptimizationOption);
+    }
+}

@@ -25,7 +25,7 @@ public interface ISpectreConsoleService
     /// <summary>
     /// Creates a status context
     /// </summary>
-    StatusContext Status();
+    Status Status();
     
     /// <summary>
     /// Writes a table
@@ -50,7 +50,7 @@ public class SpectreConsoleService : ISpectreConsoleService
         AnsiConsole.WriteLine(text);
     }
     
-    public StatusContext Status()
+    public Status Status()
     {
         return AnsiConsole.Status();
     }

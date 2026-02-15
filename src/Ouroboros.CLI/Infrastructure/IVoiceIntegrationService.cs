@@ -1,3 +1,7 @@
+using System.Text;
+using Microsoft.Extensions.Logging;
+using Ouroboros.CLI.Commands;
+
 namespace Ouroboros.CLI.Infrastructure;
 
 /// <summary>

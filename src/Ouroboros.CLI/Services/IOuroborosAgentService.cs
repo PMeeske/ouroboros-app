@@ -1,34 +1,17 @@
+using Ouroboros.CLI.Commands;
+
 namespace Ouroboros.CLI.Services;
 
 /// <summary>
-/// Service for handling Ouroboros agent commands
+/// Service for handling Ouroboros agent lifecycle: bootstrap, run, and dispose.
 /// </summary>
 public interface IOuroborosAgentService
 {
     /// <summary>
-    /// Runs the Ouroboros agent
+    /// Runs the Ouroboros agent with the given configuration.
+    /// Handles loading IConfiguration, applying static config, creating the agent, running, and disposing.
     /// </summary>
-    Task RunAgentAsync(string persona);
-}
-
-/// <summary>
-/// Implementation of Ouroboros agent service
-/// </summary>
-public class OuroborosAgentService : IOuroborosAgentService
-{
-    private readonly ILogger<OuroborosAgentService> _logger;
-    
-    public OuroborosAgentService(ILogger<OuroborosAgentService> logger)
-    {
-        _logger = logger;
-    }
-    
-    public async Task RunAgentAsync(string persona)
-    {
-        _logger.LogInformation("Running Ouroboros agent with persona: {Persona}", persona);
-        
-        // TODO: Extract business logic from existing OuroborosCommands
-        
-        await Task.CompletedTask;
-    }
+    /// <param name="config">The fully populated OuroborosConfig built from parsed CLI options.</param>
+    /// <param name="cancellationToken">Cancellation token for graceful shutdown.</param>
+    Task RunAgentAsync(OuroborosConfig config, CancellationToken cancellationToken = default);
 }
