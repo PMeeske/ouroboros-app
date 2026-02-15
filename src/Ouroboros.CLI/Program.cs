@@ -9,6 +9,7 @@ using Ouroboros.Abstractions.Agent;  // For interfaces: ISkillRegistry, IMemoryS
 using Ouroboros.Agent.MetaAI;  // For concrete implementations and other types
 // added
 using Ouroboros.Options;
+using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 // for OllamaEmbeddingAdapter
 // for STT services
 // for TTS services
@@ -499,7 +500,7 @@ static async Task RunSkillsAsync(SkillsOptions o)
 
         // Use async registration to ensure skills are persisted to Qdrant
         foreach (var skill in predefinedSkills)
-            await registry.RegisterSkillAsync(skill);
+            await registry.RegisterSkillAsync(skill.ToAgentSkill());
 
         Console.WriteLine($"  [OK] Registered {predefinedSkills.Length} predefined skills");
     }
@@ -525,7 +526,7 @@ static async Task RunSkillsAsync(SkillsOptions o)
         {
             Console.WriteLine($"  [*] {skill.Name,-30} ({skill.SuccessRate:P0})");
             Console.WriteLine($"     {skill.Description}");
-            Console.WriteLine($"     Steps: {string.Join(" -> ", skill.Steps.Select(s => s.Action.Split(' ')[0]))}");
+            Console.WriteLine($"     Steps: {string.Join(" -> ", skill.ToSkill().Steps.Select(s => s.Action.Split(' ')[0]))}");
             Console.WriteLine();
         }
     }
@@ -577,7 +578,7 @@ static async Task RunSkillsAsync(SkillsOptions o)
                 },
                 0.75, 0, DateTime.UtcNow, DateTime.UtcNow
             );
-            registry.RegisterSkill(newSkill);
+            registry.RegisterSkill(newSkill.ToAgentSkill());
             Console.WriteLine($"\n[OK] New skill extracted: UseSkill_{skillName}\n");
         }
         catch (Exception ex)
@@ -625,7 +626,7 @@ static async Task RunSkillsAsync(SkillsOptions o)
                 if (skill != null)
                 {
                     Console.WriteLine($"     [>] Executing: {skill.Name}");
-                    foreach (var step in skill.Steps)
+                    foreach (var step in skill.ToSkill().Steps)
                     {
                         Console.WriteLine($"        -> {step.Action}");
                         await Task.Delay(100); // Simulate execution
@@ -854,7 +855,7 @@ static async Task RunInteractiveSkillsMode(ISkillRegistry registry, Func<string,
                         },
                         0.75, 0, DateTime.UtcNow, DateTime.UtcNow
                     );
-                    registry.RegisterSkill(newSkill);
+                    registry.RegisterSkill(newSkill.ToAgentSkill());
                     Console.WriteLine($"  [OK] New skill: UseSkill_{skillName}\n");
                 }
                 catch (Exception ex)
@@ -905,7 +906,7 @@ static async Task RunInteractiveSkillsMode(ISkillRegistry registry, Func<string,
                 if (skillToRun != null)
                 {
                     Console.WriteLine($"\n  [>] Executing: {skillToRun.Name}");
-                    foreach (var step in skillToRun.Steps)
+                    foreach (var step in skillToRun.ToSkill().Steps)
                     {
                         Console.Write($"     -> {step.Action}...");
                         await Task.Delay(200);
@@ -941,7 +942,7 @@ static async Task RunInteractiveSkillsMode(ISkillRegistry registry, Func<string,
                         Console.WriteLine($"  [!] Orchestration error: {ex.Message}\n");
                     }
                 }
-                else if (baseModel != null)
+                else if (baseModel is not null)
                 {
                     Console.WriteLine("  [~] Orchestration not configured, using single model...");
                     var result = await baseModel.GenerateTextAsync(arg);

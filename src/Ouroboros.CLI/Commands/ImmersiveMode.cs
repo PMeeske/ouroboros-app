@@ -27,6 +27,8 @@ using Ouroboros.Core.DistinctionLearning;
 using Ouroboros.Domain.DistinctionLearning;
 using Ouroboros.Tools.MeTTa;
 using static Ouroboros.Application.Tools.AutonomousTools;
+using Ouroboros.Abstractions;
+using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 
 /// <summary>
 /// Unified immersive AI persona experience combining:
@@ -1922,32 +1924,88 @@ User: goodbye
     /// </summary>
     private sealed class SimpleInMemorySkillRegistry : ISkillRegistry
     {
-        private readonly List<Skill> _skills = [];
+        private readonly List<AgentSkill> _skills = [];
 
-        public void RegisterSkill(Skill skill) => _skills.Add(skill);
-
-        public Task RegisterSkillAsync(Skill skill, CancellationToken ct = default)
+        public Task<Result<Unit, string>> RegisterSkillAsync(AgentSkill skill, CancellationToken ct = default)
         {
             _skills.Add(skill);
-            return Task.CompletedTask;
+            return Task.FromResult(Result<Unit, string>.Success(Unit.Value));
         }
 
-        public IReadOnlyList<Skill> GetAllSkills() => _skills.AsReadOnly();
+        public Result<Unit, string> RegisterSkill(AgentSkill skill)
+        {
+            _skills.Add(skill);
+            return Result<Unit, string>.Success(Unit.Value);
+        }
 
-        public Skill? GetSkill(string name) =>
-            _skills.FirstOrDefault(s => s.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        public Task<Result<AgentSkill, string>> GetSkillAsync(string skillId, CancellationToken ct = default)
+        {
+            var skill = _skills.FirstOrDefault(s => s.Id.Equals(skillId, StringComparison.OrdinalIgnoreCase)
+                || s.Name.Equals(skillId, StringComparison.OrdinalIgnoreCase));
+            return skill is not null
+                ? Task.FromResult(Result<AgentSkill, string>.Success(skill))
+                : Task.FromResult(Result<AgentSkill, string>.Failure($"Skill '{skillId}' not found"));
+        }
 
-        public Task<List<Skill>> FindMatchingSkillsAsync(string goal, Dictionary<string, object>? context = null) =>
-            Task.FromResult(_skills.Where(s =>
-                s.Name.Contains(goal, StringComparison.OrdinalIgnoreCase) ||
-                s.Description.Contains(goal, StringComparison.OrdinalIgnoreCase)).ToList());
+        public AgentSkill? GetSkill(string skillId) =>
+            _skills.FirstOrDefault(s => s.Id.Equals(skillId, StringComparison.OrdinalIgnoreCase)
+                || s.Name.Equals(skillId, StringComparison.OrdinalIgnoreCase));
 
-        public void RecordSkillExecution(string name, bool success)
+        public Task<Result<IReadOnlyList<AgentSkill>, string>> FindSkillsAsync(
+            string? category = null, IReadOnlyList<string>? tags = null, CancellationToken ct = default)
+        {
+            IEnumerable<AgentSkill> results = _skills;
+            if (category is not null)
+                results = results.Where(s => s.Category.Equals(category, StringComparison.OrdinalIgnoreCase));
+            if (tags is { Count: > 0 })
+                results = results.Where(s => tags.Any(t => s.Tags.Contains(t, StringComparer.OrdinalIgnoreCase)));
+            return Task.FromResult(Result<IReadOnlyList<AgentSkill>, string>.Success(results.ToList().AsReadOnly()));
+        }
+
+        public Task<List<Skill>> FindMatchingSkillsAsync(
+            string goal, Dictionary<string, object>? context = null, CancellationToken ct = default) =>
+            Task.FromResult(_skills
+                .Where(s => s.Name.Contains(goal, StringComparison.OrdinalIgnoreCase)
+                    || s.Description.Contains(goal, StringComparison.OrdinalIgnoreCase))
+                .Select(s => s.ToSkill())
+                .ToList());
+
+        public Task<Result<Unit, string>> UpdateSkillAsync(AgentSkill skill, CancellationToken ct = default)
+        {
+            var idx = _skills.FindIndex(s => s.Id == skill.Id);
+            if (idx < 0)
+                return Task.FromResult(Result<Unit, string>.Failure($"Skill '{skill.Id}' not found"));
+            _skills[idx] = skill;
+            return Task.FromResult(Result<Unit, string>.Success(Unit.Value));
+        }
+
+        public Task<Result<Unit, string>> RecordExecutionAsync(
+            string skillId, bool success, long executionTimeMs, CancellationToken ct = default)
+        {
+            // No-op for simple registry
+            return Task.FromResult(Result<Unit, string>.Success(Unit.Value));
+        }
+
+        public void RecordSkillExecution(string skillId, bool success, long executionTimeMs)
         {
             // No-op for simple registry
         }
 
-        public Task<Result<Skill, string>> ExtractSkillAsync(PlanExecutionResult execution, string skillName, string description) =>
+        public Task<Result<Unit, string>> UnregisterSkillAsync(string skillId, CancellationToken ct = default)
+        {
+            var removed = _skills.RemoveAll(s => s.Id.Equals(skillId, StringComparison.OrdinalIgnoreCase));
+            return removed > 0
+                ? Task.FromResult(Result<Unit, string>.Success(Unit.Value))
+                : Task.FromResult(Result<Unit, string>.Failure($"Skill '{skillId}' not found"));
+        }
+
+        public Task<Result<IReadOnlyList<AgentSkill>, string>> GetAllSkillsAsync(CancellationToken ct = default) =>
+            Task.FromResult(Result<IReadOnlyList<AgentSkill>, string>.Success((IReadOnlyList<AgentSkill>)_skills.AsReadOnly()));
+
+        public IReadOnlyList<AgentSkill> GetAllSkills() => _skills.AsReadOnly();
+
+        public Task<Result<Skill, string>> ExtractSkillAsync(
+            PlanExecutionResult execution, string skillName, string description, CancellationToken ct = default) =>
             Task.FromResult(Result<Skill, string>.Failure("Not supported in simple registry"));
     }
 
@@ -2637,7 +2695,7 @@ User: goodbye
         Console.WriteLine($"\n  [>] Executing skill: {skill.Name}");
         var results = new List<string>();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        foreach (var step in skill.Steps)
+        foreach (var step in skill.ToSkill().Steps)
         {
             Console.WriteLine($"      -> {step.Action}: {step.ExpectedOutcome}");
             results.Add($"Step: {step.Action}");
@@ -2652,13 +2710,13 @@ User: goodbye
         {
             await _interconnectedLearner.RecordSkillExecutionAsync(
                 skill.Name,
-                string.Join(", ", skill.Steps.Select(s => s.Action)),
+                string.Join(", ", skill.ToSkill().Steps.Select(s => s.Action)),
                 string.Join("\n", results),
                 true,
                 ct);
         }
 
-        return $"I ran the {skill.Name} skill. It has {skill.Steps.Count} steps.";
+        return $"I ran the {skill.Name} skill. It has {skill.ToSkill().Steps.Count} steps.";
     }
 
     private static async Task<string> HandleLearnAboutAsync(
@@ -2692,7 +2750,7 @@ User: goodbye
                 0,
                 DateTime.UtcNow,
                 DateTime.UtcNow);
-            await _skillRegistry.RegisterSkillAsync(skill);
+            await _skillRegistry.RegisterSkillAsync(skill.ToAgentSkill());
             return $"I learned about {topic} and created a research skill for it.";
         }
 

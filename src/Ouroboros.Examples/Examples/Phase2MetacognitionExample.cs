@@ -440,14 +440,7 @@ public static class Phase2MetacognitionExample
                 new List<string>(),
                 null);
 
-            Experience experience = new Experience(
-                Guid.NewGuid(),
-                plan.Goal,
-                plan,
-                exec,
-                verify,
-                plan.CreatedAt,
-                new Dictionary<string, object>());
+            Experience experience = ExperienceFactory.FromExecution(plan.Goal, exec, verify);
 
             await memory.StoreExperienceAsync(experience);
 

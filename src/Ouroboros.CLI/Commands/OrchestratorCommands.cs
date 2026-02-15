@@ -3,6 +3,7 @@ using LangChain.Providers.Ollama;
 using Ouroboros.Application.Configuration;
 using Ouroboros.Application.Services;
 using Ouroboros.Options;
+using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 
 namespace Ouroboros.CLI.Commands;
 

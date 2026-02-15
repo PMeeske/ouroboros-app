@@ -6,6 +6,7 @@ using Ouroboros.Agent.MetaAI.SelfModel;
 using Ouroboros.Pipeline.Planning;
 using Ouroboros.Pipeline.Verification;
 using Ouroboros.Tools.MeTTa;
+using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 
 namespace Ouroboros.CLI.Commands;
 

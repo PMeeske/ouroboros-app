@@ -77,7 +77,7 @@ public static class Phase3EmergentIntelligenceExample
             DateTime.UtcNow.AddDays(-20),
             DateTime.UtcNow);
 
-        skills.RegisterSkill(codingSkill);
+        skills.RegisterSkill(codingSkill.ToAgentSkill());
         Console.WriteLine($"Registered skill: {codingSkill.Name}");
         Console.WriteLine($"Domain: Software debugging\n");
 

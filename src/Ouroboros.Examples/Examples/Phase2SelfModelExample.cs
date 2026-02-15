@@ -3,6 +3,7 @@
 // </copyright>
 
 using System.IO;
+using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 using Ouroboros.Agent.MetaAI;
 using Ouroboros.Agent.MetaAI.SelfModel;
 
