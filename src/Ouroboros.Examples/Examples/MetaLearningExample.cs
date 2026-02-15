@@ -3,7 +3,6 @@
 // </copyright>
 
 using Ouroboros.Agent.MetaLearning;
-using Ouroboros.Domain;
 using Ouroboros.Domain.MetaLearning;
 
 namespace Ouroboros.Examples;

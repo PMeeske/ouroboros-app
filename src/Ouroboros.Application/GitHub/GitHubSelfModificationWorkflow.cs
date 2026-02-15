@@ -3,7 +3,6 @@
 // </copyright>
 
 using Ouroboros.Core.Ethics;
-using Ouroboros.Core.Monads;
 using Ouroboros.Domain.SelfModification;
 
 namespace Ouroboros.Application.GitHub;

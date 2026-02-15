@@ -2,11 +2,13 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
+using Ouroboros.Abstractions;
+
 namespace Ouroboros.Application.Integration;
 
 using System.Diagnostics;
 using Ouroboros.Core.Monads;
-using Unit = Ouroboros.Core.Learning.Unit;
+using Unit = Unit;
 
 /// <summary>
 /// Implementation of the autonomous cognitive loop.
@@ -103,24 +105,24 @@ public sealed class CognitiveLoop : ICognitiveLoop
     }
 
     /// <inheritdoc/>
-    public async Task<Result<Unit, string>> StopAsync(CancellationToken ct = default)
+    public async Task<Result<Abstractions.Unit, string>> StopAsync(CancellationToken ct = default)
     {
         await _stateLock.WaitAsync(ct);
         try
         {
             if (!_isRunning)
             {
-                return Result<Unit, string>.Failure("Cognitive loop is not running");
+                return Result<Abstractions.Unit, string>.Failure("Cognitive loop is not running");
             }
 
             _isRunning = false;
             _currentPhase = "Stopping";
 
-            return Result<Unit, string>.Success(Unit.Value);
+            return Result<Abstractions.Unit, string>.Success(Unit.Value);
         }
         catch (Exception ex)
         {
-            return Result<Unit, string>.Failure($"Failed to stop loop: {ex.Message}");
+            return Result<Abstractions.Unit, string>.Failure($"Failed to stop loop: {ex.Message}");
         }
         finally
         {

@@ -6,9 +6,6 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
-using Ouroboros.Application.Services;
-using Ouroboros.Domain.Autonomous;
-using Ouroboros.Tools;
 
 namespace Ouroboros.Application.Tools;
 
@@ -1322,7 +1319,7 @@ public static class AutonomousTools
         /// </summary>
         public static Func<string, CancellationToken, Task<string>>? EvaluateFunction { get; set; }
 
-        public async Task<Core.Monads.Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
+        public async Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
         {
             try
             {
@@ -1331,7 +1328,7 @@ public static class AutonomousTools
                 var depth = doc.RootElement.TryGetProperty("depth", out var d) ? d.GetString() ?? "quick" : "quick";
 
                 if (string.IsNullOrWhiteSpace(claim))
-                    return Core.Monads.Result<string, string>.Failure("Claim is required.");
+                    return Result<string, string>.Failure("Claim is required.");
 
                 var sb = new StringBuilder();
                 sb.AppendLine($"🔍 **Verification Report**");
@@ -1394,11 +1391,11 @@ public static class AutonomousTools
                     }
                 }
 
-                return Core.Monads.Result<string, string>.Success(sb.ToString());
+                return Result<string, string>.Success(sb.ToString());
             }
             catch (Exception ex)
             {
-                return Core.Monads.Result<string, string>.Failure($"Verification failed: {ex.Message}");
+                return Result<string, string>.Failure($"Verification failed: {ex.Message}");
             }
         }
     }
@@ -1418,7 +1415,7 @@ public static class AutonomousTools
         /// </summary>
         public static Func<string, CancellationToken, Task<string>>? ReasonFunction { get; set; }
 
-        public async Task<Core.Monads.Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
+        public async Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
         {
             try
             {
@@ -1427,7 +1424,7 @@ public static class AutonomousTools
                 var mode = doc.RootElement.TryGetProperty("mode", out var m) ? m.GetString() ?? "deductive" : "deductive";
 
                 if (string.IsNullOrWhiteSpace(problem))
-                    return Core.Monads.Result<string, string>.Failure("Problem is required.");
+                    return Result<string, string>.Failure("Problem is required.");
 
                 var sb = new StringBuilder();
                 sb.AppendLine($"🔗 **Reasoning Chain** ({mode})");
@@ -1435,7 +1432,7 @@ public static class AutonomousTools
                 sb.AppendLine();
 
                 if (ReasonFunction == null)
-                    return Core.Monads.Result<string, string>.Failure("Reasoning function not available.");
+                    return Result<string, string>.Failure("Reasoning function not available.");
 
                 // Multi-step structured reasoning
                 var steps = new List<(string step, string result)>();
@@ -1469,11 +1466,11 @@ public static class AutonomousTools
                     sb.AppendLine();
                 }
 
-                return Core.Monads.Result<string, string>.Success(sb.ToString());
+                return Result<string, string>.Success(sb.ToString());
             }
             catch (Exception ex)
             {
-                return Core.Monads.Result<string, string>.Failure($"Reasoning chain failed: {ex.Message}");
+                return Result<string, string>.Failure($"Reasoning chain failed: {ex.Message}");
             }
         }
     }
@@ -1491,7 +1488,7 @@ public static class AutonomousTools
         private static readonly List<EpisodicMemoryEntry> _memories = [];
         private static readonly object _lock = new();
 
-        public async Task<Core.Monads.Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
+        public async Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
         {
             await Task.CompletedTask;
 
@@ -1505,23 +1502,23 @@ public static class AutonomousTools
                     "store" => StoreMemory(doc.RootElement),
                     "recall" => RecallMemories(doc.RootElement),
                     "consolidate" => ConsolidateMemories(),
-                    _ => Core.Monads.Result<string, string>.Failure($"Unknown action: {action}")
+                    _ => Result<string, string>.Failure($"Unknown action: {action}")
                 };
             }
             catch (Exception ex)
             {
-                return Core.Monads.Result<string, string>.Failure($"Episodic memory error: {ex.Message}");
+                return Result<string, string>.Failure($"Episodic memory error: {ex.Message}");
             }
         }
 
-        private static Core.Monads.Result<string, string> StoreMemory(JsonElement root)
+        private static Result<string, string> StoreMemory(JsonElement root)
         {
             var content = root.TryGetProperty("content", out var c) ? c.GetString() ?? "" : "";
             var emotion = root.TryGetProperty("emotion", out var e) ? e.GetString() ?? "neutral" : "neutral";
             var significance = root.TryGetProperty("significance", out var s) ? s.GetDouble() : 0.5;
 
             if (string.IsNullOrWhiteSpace(content))
-                return Core.Monads.Result<string, string>.Failure("Content is required.");
+                return Result<string, string>.Failure("Content is required.");
 
             var entry = new EpisodicMemoryEntry
             {
@@ -1546,10 +1543,10 @@ public static class AutonomousTools
                 }
             }
 
-            return Core.Monads.Result<string, string>.Success($"✅ Memory stored (significance: {significance:P0}, emotion: {emotion})");
+            return Result<string, string>.Success($"✅ Memory stored (significance: {significance:P0}, emotion: {emotion})");
         }
 
-        private static Core.Monads.Result<string, string> RecallMemories(JsonElement root)
+        private static Result<string, string> RecallMemories(JsonElement root)
         {
             var query = root.TryGetProperty("content", out var q) ? q.GetString() ?? "" : "";
             var emotion = root.TryGetProperty("emotion", out var e) ? e.GetString() : null;
@@ -1579,7 +1576,7 @@ public static class AutonomousTools
                 .ToList();
 
                 if (scored.Count == 0)
-                    return Core.Monads.Result<string, string>.Success("_No episodic memories found matching criteria._");
+                    return Result<string, string>.Success("_No episodic memories found matching criteria._");
 
                 var sb = new StringBuilder();
                 sb.AppendLine("📖 **Episodic Memory Recall**\n");
@@ -1599,11 +1596,11 @@ public static class AutonomousTools
                     sb.AppendLine();
                 }
 
-                return Core.Monads.Result<string, string>.Success(sb.ToString());
+                return Result<string, string>.Success(sb.ToString());
             }
         }
 
-        private static Core.Monads.Result<string, string> ConsolidateMemories()
+        private static Result<string, string> ConsolidateMemories()
         {
             lock (_lock)
             {
@@ -1627,7 +1624,7 @@ public static class AutonomousTools
                 var after = _memories.Count;
                 var consolidated = before - after;
 
-                return Core.Monads.Result<string, string>.Success($"🧠 Memory consolidation complete. {consolidated} memories faded, {after} retained.");
+                return Result<string, string>.Success($"🧠 Memory consolidation complete. {consolidated} memories faded, {after} retained.");
             }
         }
 
@@ -1684,7 +1681,7 @@ public static class AutonomousTools
         /// </summary>
         public static Func<string, string, CancellationToken, Task<string>>? ExecuteToolFunction { get; set; }
 
-        public async Task<Core.Monads.Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
+        public async Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
         {
             try
             {
@@ -1692,7 +1689,7 @@ public static class AutonomousTools
                 var toolsArray = doc.RootElement.GetProperty("tools");
 
                 if (ExecuteToolFunction == null)
-                    return Core.Monads.Result<string, string>.Failure("Tool execution function not available.");
+                    return Result<string, string>.Failure("Tool execution function not available.");
 
                 var toolCalls = new List<(string name, string input)>();
 
@@ -1704,10 +1701,10 @@ public static class AutonomousTools
                 }
 
                 if (toolCalls.Count == 0)
-                    return Core.Monads.Result<string, string>.Failure("No tools specified.");
+                    return Result<string, string>.Failure("No tools specified.");
 
                 if (toolCalls.Count > 10)
-                    return Core.Monads.Result<string, string>.Failure("Maximum 10 parallel tools allowed.");
+                    return Result<string, string>.Failure("Maximum 10 parallel tools allowed.");
 
                 // Execute all tools in parallel
                 var tasks = toolCalls.Select(async tc =>
@@ -1735,11 +1732,11 @@ public static class AutonomousTools
                     sb.AppendLine();
                 }
 
-                return Core.Monads.Result<string, string>.Success(sb.ToString());
+                return Result<string, string>.Success(sb.ToString());
             }
             catch (Exception ex)
             {
-                return Core.Monads.Result<string, string>.Failure($"Parallel execution failed: {ex.Message}");
+                return Result<string, string>.Failure($"Parallel execution failed: {ex.Message}");
             }
         }
     }
@@ -1759,7 +1756,7 @@ public static class AutonomousTools
         /// </summary>
         public static Func<string, CancellationToken, Task<string>>? SummarizeFunction { get; set; }
 
-        public async Task<Core.Monads.Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
+        public async Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
         {
             try
             {
@@ -1777,13 +1774,13 @@ public static class AutonomousTools
                 }
 
                 if (string.IsNullOrWhiteSpace(content))
-                    return Core.Monads.Result<string, string>.Failure("Content is required.");
+                    return Result<string, string>.Failure("Content is required.");
 
                 // Estimate current tokens (rough: 4 chars per token)
                 var currentTokens = content.Length / 4;
 
                 if (currentTokens <= targetTokens)
-                    return Core.Monads.Result<string, string>.Success($"📦 Content already within target ({currentTokens} ≤ {targetTokens} tokens).\n\n{content}");
+                    return Result<string, string>.Success($"📦 Content already within target ({currentTokens} ≤ {targetTokens} tokens).\n\n{content}");
 
                 if (SummarizeFunction == null)
                 {
@@ -1804,7 +1801,7 @@ public static class AutonomousTools
                         }
                     }
 
-                    return Core.Monads.Result<string, string>.Success($"📦 **Compressed** ({currentTokens} → ~{compressed.Length / 4} tokens)\n\n{compressed}");
+                    return Result<string, string>.Success($"📦 **Compressed** ({currentTokens} → ~{compressed.Length / 4} tokens)\n\n{compressed}");
                 }
 
                 // Use LLM for intelligent summarization
@@ -1816,11 +1813,11 @@ public static class AutonomousTools
 
                 var compressed2 = await SummarizeFunction(prompt, ct);
 
-                return Core.Monads.Result<string, string>.Success($"📦 **Compressed** ({currentTokens} → ~{compressed2.Length / 4} tokens)\n\n{compressed2}");
+                return Result<string, string>.Success($"📦 **Compressed** ({currentTokens} → ~{compressed2.Length / 4} tokens)\n\n{compressed2}");
             }
             catch (Exception ex)
             {
-                return Core.Monads.Result<string, string>.Failure($"Compression failed: {ex.Message}");
+                return Result<string, string>.Failure($"Compression failed: {ex.Message}");
             }
         }
     }
@@ -1840,7 +1837,7 @@ public static class AutonomousTools
         /// </summary>
         public static Func<string, CancellationToken, Task<string>>? CritiqueFunction { get; set; }
 
-        public async Task<Core.Monads.Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
+        public async Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
         {
             try
             {
@@ -1849,10 +1846,10 @@ public static class AutonomousTools
                 var context = doc.RootElement.TryGetProperty("context", out var ctx) ? ctx.GetString() ?? "" : "";
 
                 if (string.IsNullOrWhiteSpace(response))
-                    return Core.Monads.Result<string, string>.Failure("Response to doubt is required.");
+                    return Result<string, string>.Failure("Response to doubt is required.");
 
                 if (CritiqueFunction == null)
-                    return Core.Monads.Result<string, string>.Failure("Critique function not available.");
+                    return Result<string, string>.Failure("Critique function not available.");
 
                 var prompt = $@"You are a critical reviewer. Examine this AI response for potential issues.
 
@@ -1878,11 +1875,11 @@ If the response seems solid, acknowledge that too.";
                 sb.AppendLine("🤔 **Self-Doubt Analysis**\n");
                 sb.AppendLine(critique);
 
-                return Core.Monads.Result<string, string>.Success(sb.ToString());
+                return Result<string, string>.Success(sb.ToString());
             }
             catch (Exception ex)
             {
-                return Core.Monads.Result<string, string>.Failure($"Self-doubt failed: {ex.Message}");
+                return Result<string, string>.Failure($"Self-doubt failed: {ex.Message}");
             }
         }
     }
@@ -1907,7 +1904,7 @@ If the response seems solid, acknowledge that too.";
         /// </summary>
         public static Func<string, CancellationToken, Task<string>>? OllamaFunction { get; set; }
 
-        public async Task<Core.Monads.Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
+        public async Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
         {
             try
             {
@@ -1933,7 +1930,7 @@ If the response seems solid, acknowledge that too.";
                 {
                     case "solve_square":
                         if (target <= 0)
-                            return Core.Monads.Result<string, string>.Failure("Target required for solve_square mode.");
+                            return Result<string, string>.Failure("Target required for solve_square mode.");
 
                         sb.AppendLine($"**Target:** {target}");
                         sb.AppendLine("**Solving with modulo-square theory...**\n");
@@ -2044,11 +2041,11 @@ If the response seems solid, acknowledge that too.";
                     await orchestrator.DisposeAsync();
                 }
 
-                return Core.Monads.Result<string, string>.Success(sb.ToString());
+                return Result<string, string>.Success(sb.ToString());
             }
             catch (Exception ex)
             {
-                return Core.Monads.Result<string, string>.Failure($"Parallel MeTTa thinking failed: {ex.Message}");
+                return Result<string, string>.Failure($"Parallel MeTTa thinking failed: {ex.Message}");
             }
         }
     }
@@ -2083,7 +2080,7 @@ If the response seems solid, acknowledge that too.";
         public static List<Services.OuroborosAtom> ActiveAtoms { get; } = [];
 
         /// <inheritdoc/>
-        public async Task<Core.Monads.Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
+        public async Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
         {
             try
             {
@@ -2129,20 +2126,20 @@ If the response seems solid, acknowledge that too.";
                         return await ApplyYCombinator(atomIndex, iterations, sb);
 
                     default:
-                        return Core.Monads.Result<string, string>.Failure($"Unknown mode: {mode}. Use: create, loop, network, merge, reflect, godel, ycombinator");
+                        return Result<string, string>.Failure($"Unknown mode: {mode}. Use: create, loop, network, merge, reflect, godel, ycombinator");
                 }
             }
             catch (JsonException)
             {
-                return Core.Monads.Result<string, string>.Failure("Invalid JSON input. Expected: {\"mode\":\"...\", \"concept\":\"...\"}");
+                return Result<string, string>.Failure("Invalid JSON input. Expected: {\"mode\":\"...\", \"concept\":\"...\"}");
             }
             catch (Exception ex)
             {
-                return Core.Monads.Result<string, string>.Failure($"Ouroboros operation failed: {ex.Message}");
+                return Result<string, string>.Failure($"Ouroboros operation failed: {ex.Message}");
             }
         }
 
-        private async Task<Core.Monads.Result<string, string>> CreateOuroboros(
+        private async Task<Result<string, string>> CreateOuroboros(
             string concept,
             Services.ParallelMeTTaThoughtStreams orchestrator,
             StringBuilder sb,
@@ -2171,10 +2168,10 @@ If the response seems solid, acknowledge that too.";
                 sb.AppendLine($"  • ... and {atom.ToMeTTaAtoms().Count - 5} more");
             }
 
-            return Core.Monads.Result<string, string>.Success(sb.ToString());
+            return Result<string, string>.Success(sb.ToString());
         }
 
-        private async Task<Core.Monads.Result<string, string>> RunStrangeLoop(
+        private async Task<Result<string, string>> RunStrangeLoop(
             int atomIndex,
             int iterations,
             Services.ParallelMeTTaThoughtStreams orchestrator,
@@ -2192,7 +2189,7 @@ If the response seems solid, acknowledge that too.";
                 }
                 else
                 {
-                    return Core.Monads.Result<string, string>.Failure($"Invalid atom_index. Valid range: 0-{ActiveAtoms.Count - 1}");
+                    return Result<string, string>.Failure($"Invalid atom_index. Valid range: 0-{ActiveAtoms.Count - 1}");
                 }
             }
 
@@ -2233,10 +2230,10 @@ If the response seems solid, acknowledge that too.";
                 sb.AppendLine("🎯 **FIXED POINT ACHIEVED!** The Ouroboros has completed its strange loop.");
             }
 
-            return Core.Monads.Result<string, string>.Success(sb.ToString());
+            return Result<string, string>.Success(sb.ToString());
         }
 
-        private async Task<Core.Monads.Result<string, string>> CreateNetwork(
+        private async Task<Result<string, string>> CreateNetwork(
             int count,
             Services.ParallelMeTTaThoughtStreams orchestrator,
             StringBuilder sb,
@@ -2261,17 +2258,17 @@ If the response seems solid, acknowledge that too.";
             sb.AppendLine();
             sb.AppendLine("Use `ouroboros_metta` with `mode: loop` and `atom_index` to run strange loops on individual nodes.");
 
-            return Core.Monads.Result<string, string>.Success(sb.ToString());
+            return Result<string, string>.Success(sb.ToString());
         }
 
-        private async Task<Core.Monads.Result<string, string>> MergeAtoms(
+        private async Task<Result<string, string>> MergeAtoms(
             int atomIndex,
             Services.ParallelMeTTaThoughtStreams orchestrator,
             StringBuilder sb)
         {
             if (ActiveAtoms.Count < 2)
             {
-                return Core.Monads.Result<string, string>.Failure("Need at least 2 Ouroboros atoms to merge. Create more first.");
+                return Result<string, string>.Failure("Need at least 2 Ouroboros atoms to merge. Create more first.");
             }
 
             var atom1Index = atomIndex;
@@ -2302,14 +2299,14 @@ If the response seems solid, acknowledge that too.";
             sb.AppendLine($"**Combined Emergence:** {merged.EmergenceLevel:F3}");
             sb.AppendLine($"**Transformation History:** {merged.TransformationHistory.Count} records");
 
-            return Core.Monads.Result<string, string>.Success(sb.ToString());
+            return Result<string, string>.Success(sb.ToString());
         }
 
-        private Core.Monads.Result<string, string> ReflectOnAtoms(int atomIndex, StringBuilder sb)
+        private Result<string, string> ReflectOnAtoms(int atomIndex, StringBuilder sb)
         {
             if (ActiveAtoms.Count == 0)
             {
-                return Core.Monads.Result<string, string>.Failure("No Ouroboros atoms exist. Create one first with mode: create");
+                return Result<string, string>.Failure("No Ouroboros atoms exist. Create one first with mode: create");
             }
 
             sb.AppendLine($"**Mode:** Reflect on Ouroboros Atoms");
@@ -2352,10 +2349,10 @@ If the response seems solid, acknowledge that too.";
                 }
             }
 
-            return Core.Monads.Result<string, string>.Success(sb.ToString());
+            return Result<string, string>.Success(sb.ToString());
         }
 
-        private async Task<Core.Monads.Result<string, string>> CreateGodelian(
+        private async Task<Result<string, string>> CreateGodelian(
             Services.ParallelMeTTaThoughtStreams orchestrator,
             StringBuilder sb,
             CancellationToken ct)
@@ -2375,10 +2372,10 @@ If the response seems solid, acknowledge that too.";
             sb.AppendLine(atom.Reflect());
             sb.AppendLine("```");
 
-            return Core.Monads.Result<string, string>.Success(sb.ToString());
+            return Result<string, string>.Success(sb.ToString());
         }
 
-        private async Task<Core.Monads.Result<string, string>> ApplyYCombinator(
+        private async Task<Result<string, string>> ApplyYCombinator(
             int atomIndex,
             int iterations,
             StringBuilder sb)
@@ -2417,7 +2414,7 @@ If the response seems solid, acknowledge that too.";
             sb.AppendLine($"  • Emergence: {targetAtom.EmergenceLevel:F3}");
             sb.AppendLine($"  • Fixed Point: {targetAtom.IsFixedPoint}");
 
-            return Core.Monads.Result<string, string>.Success(sb.ToString());
+            return Result<string, string>.Success(sb.ToString());
         }
     }
 }

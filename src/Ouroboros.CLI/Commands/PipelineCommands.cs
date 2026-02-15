@@ -1,19 +1,11 @@
-using System.Diagnostics;
-using System.Reactive.Linq;
-using CommandLine;
-using LangChain.Databases;
 using LangChain.DocumentLoaders;
 using LangChain.Providers.Ollama;
-using Ouroboros.Agent.MetaAI;
 using Ouroboros.Diagnostics;
 using Ouroboros.Options;
-using Ouroboros.Providers.SpeechToText;
-using Ouroboros.Providers.TextToSpeech;
-using Microsoft.Extensions.Hosting;
 using Ouroboros.Application.Tools;
-using Ouroboros.CLI;
 using Ouroboros.Application.Services;
 using IEmbeddingModel = Ouroboros.Domain.IEmbeddingModel;
+using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 
 namespace Ouroboros.CLI.Commands;
 

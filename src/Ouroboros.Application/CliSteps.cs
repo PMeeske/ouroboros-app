@@ -1,10 +1,9 @@
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
-using System.Reactive.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using LangChain.Databases; // for Vector, IVectorCollection
 using LangChain.DocumentLoaders;
-using LangChain.Providers; // for IChatModel
+// for IChatModel
 // for TrackedVectorStore
 using Ouroboros.Pipeline.Ingestion.Zip;
 using Ouroboros.Application.Configuration;

@@ -11,7 +11,6 @@ using Ouroboros.Application.Personality.Consciousness;
 using Ouroboros.Application.Services;
 using Ouroboros.Core.DistinctionLearning;
 using Ouroboros.Domain.DistinctionLearning;
-using Ouroboros.Domain.Learning;
 
 /// <summary>
 /// Extension methods for registering distinction learning services.

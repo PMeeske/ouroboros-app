@@ -4,6 +4,7 @@
 // aggregations, windowing, and real-time data processing
 // ==========================================================
 
+using System.IO;
 using LangChain.DocumentLoaders;
 using LangChain.Providers.Ollama;
 using Ouroboros.Application;

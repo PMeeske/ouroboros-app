@@ -44,11 +44,11 @@ public static class MetaAIv2EnhancementsExample
             Console.WriteLine($"Plan created with {plan.Steps.Count} steps");
 
             // Execute with automatic parallel detection
-            Result<ExecutionResult, string> execResult = await orchestrator.ExecuteAsync(plan);
+            Result<PlanExecutionResult, string> execResult = await orchestrator.ExecuteAsync(plan);
 
             if (execResult.IsSuccess)
             {
-                ExecutionResult execution = execResult.Value;
+                PlanExecutionResult execution = execResult.Value;
                 object isParallel = execution.Metadata.GetValueOrDefault("parallel_execution", false);
                 object speedup = execution.Metadata.GetValueOrDefault("estimated_speedup", 1.0);
 
@@ -193,9 +193,9 @@ public static class MetaAIv2EnhancementsExample
             DateTime.UtcNow,
             DateTime.UtcNow);
 
-        skills.RegisterSkill(extractSkill);
-        skills.RegisterSkill(transformSkill);
-        skills.RegisterSkill(loadSkill);
+        skills.RegisterSkill(extractSkill.ToAgentSkill());
+        skills.RegisterSkill(transformSkill.ToAgentSkill());
+        skills.RegisterSkill(loadSkill.ToAgentSkill());
 
         // Compose into ETL pipeline skill
         Result<Skill, string> compositeResult = await composer.ComposeSkillsAsync(
@@ -260,11 +260,11 @@ public static class MetaAIv2EnhancementsExample
             new Dictionary<string, double> { ["overall"] = 0.9 },
             DateTime.UtcNow);
 
-        Result<ExecutionResult, string> result = await orchestrator.ExecuteDistributedAsync(plan);
+        Result<PlanExecutionResult, string> result = await orchestrator.ExecuteDistributedAsync(plan);
 
         if (result.IsSuccess)
         {
-            ExecutionResult execution = result.Value;
+            PlanExecutionResult execution = result.Value;
             Console.WriteLine($"Distributed execution completed:");
             Console.WriteLine($"  Agents used: {execution.Metadata.GetValueOrDefault("agents_used", 0)}");
             Console.WriteLine($"  Success: {execution.Success}");
@@ -310,11 +310,11 @@ public static class MetaAIv2EnhancementsExample
             EnableAutoReplan: false,
             FailureThreshold: 0.5);
 
-        Result<ExecutionResult, string> result = await adaptivePlanner.ExecuteWithAdaptationAsync(plan, config);
+        Result<PlanExecutionResult, string> result = await adaptivePlanner.ExecuteWithAdaptationAsync(plan, config);
 
         if (result.IsSuccess)
         {
-            ExecutionResult execution = result.Value;
+            PlanExecutionResult execution = result.Value;
             Console.WriteLine($"Adaptive execution completed:");
             Console.WriteLine($"  Success: {execution.Success}");
 
@@ -433,11 +433,11 @@ public static class MetaAIv2EnhancementsExample
             DefaultTimeout: TimeSpan.FromMinutes(2),
             CriticalActionPatterns: new List<string> { "delete", "drop", "remove" });
 
-        Result<ExecutionResult, string> result = await hitlOrchestrator.ExecuteWithHumanOversightAsync(plan, config);
+        Result<PlanExecutionResult, string> result = await hitlOrchestrator.ExecuteWithHumanOversightAsync(plan, config);
 
         if (result.IsSuccess)
         {
-            ExecutionResult execution = result.Value;
+            PlanExecutionResult execution = result.Value;
             Console.WriteLine($"Human oversight execution:");
             Console.WriteLine($"  Success: {execution.Success}");
 
@@ -536,7 +536,7 @@ public static class MetaAIv2EnhancementsExample
             new Dictionary<string, double> { ["overall"] = quality },
             DateTime.UtcNow);
 
-        ExecutionResult execution = new ExecutionResult(
+        PlanExecutionResult execution = new PlanExecutionResult(
             plan,
             new List<StepResult>
             {
@@ -553,7 +553,7 @@ public static class MetaAIv2EnhancementsExample
             new Dictionary<string, object>(),
             TimeSpan.FromSeconds(1));
 
-        VerificationResult verification = new VerificationResult(
+        PlanVerificationResult verification = new PlanVerificationResult(
             execution,
             true,
             quality,
@@ -561,14 +561,7 @@ public static class MetaAIv2EnhancementsExample
             new List<string>(),
             null);
 
-        return new Experience(
-            Guid.NewGuid(),
-            goal,
-            plan,
-            execution,
-            verification,
-            DateTime.UtcNow,
-            new Dictionary<string, object>());
+        return ExperienceFactory.FromExecution(goal, execution, verification);
     }
 
     private static PlanStep CreateSampleStep(string action)

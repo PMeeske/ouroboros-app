@@ -1,10 +1,12 @@
 global using System;
 global using System.Collections.Generic;
+global using System.Collections.Immutable;
 global using System.Linq;
 global using System.Threading.Tasks;
 global using Ouroboros.Agent;
 global using Ouroboros.Application;
 global using Ouroboros.Core.Kleisli;
+global using Ouroboros.Abstractions.Monads;
 global using Ouroboros.Core.Monads;
 global using Ouroboros.Core.Steps;
 global using Ouroboros.Domain;

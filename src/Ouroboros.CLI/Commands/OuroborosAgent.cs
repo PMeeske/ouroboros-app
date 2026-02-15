@@ -3,31 +3,17 @@
 // </copyright>
 
 using System.Collections.Concurrent;
-using System.Collections.Immutable;
-using System.Reactive.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using LangChain.Databases;
 using LangChain.DocumentLoaders;
 using LangChain.Providers.Ollama;
-using Ouroboros.Agent;
-using Ouroboros.Agent.MetaAI;
+using Ouroboros.Abstractions.Agent;  // For interfaces: ISkillRegistry, IMemoryStore, ISafetyGuard, IUncertaintyRouter
+using Ouroboros.Agent.MetaAI;  // For concrete implementations and other types
 using Ouroboros.Agent.MetaAI.SelfModel;
-using Ouroboros.Domain.Autonomous;
 using Ouroboros.Application.SelfAssembly;
-using Ouroboros.Domain.Events;
-using Ouroboros.Domain.Persistence;
 using Ouroboros.Network;
 using Ouroboros.Agent.MetaAI.Affect;
-using Ouroboros.Diagnostics;
-using Ouroboros.Pipeline.Branches;
-using Ouroboros.Pipeline.Reasoning;
-using Ouroboros.Providers;
-using Ouroboros.Providers.SpeechToText;
-using Ouroboros.Providers.TextToSpeech;
-using Ouroboros.Speech;
 using Ouroboros.Tools.MeTTa;
-using Ouroboros.Application;
 using Ouroboros.Application.Mcp;
 using Ouroboros.Application.Personality;
 using Ouroboros.Application.Configuration;
@@ -43,18 +29,17 @@ using Ouroboros.Pipeline.Metacognition;
 using Ouroboros.Pipeline.Council;
 using Ouroboros.Pipeline.WorldModel;
 using Ouroboros.Pipeline.MultiAgent;
-using Ouroboros.Pipeline.Planning;
 using PipelineReasoningStep = Ouroboros.Domain.Events.ReasoningStep;
 // Type aliases to resolve ambiguities between Agent.MetaAI and Pipeline namespaces
 using PipelineExperience = Ouroboros.Pipeline.Learning.Experience;
 using PipelineGoal = Ouroboros.Pipeline.Planning.Goal;
 using PipelineTaskStatus = Ouroboros.Pipeline.MultiAgent.TaskStatus;
 using PipelineAgentCapability = Ouroboros.Pipeline.MultiAgent.AgentCapability;
-using PipelineAgentStatus = Ouroboros.Pipeline.MultiAgent.AgentStatus;
-using WorldModelCapability = Ouroboros.Pipeline.WorldModel.Capability;
 // Keep MetaAI types accessible with explicit names for existing code
 using MetaAgentStatus = Ouroboros.Agent.MetaAI.AgentStatus;
 using MetaAgentCapability = Ouroboros.Agent.MetaAI.AgentCapability;
+using Unit = Ouroboros.Abstractions.Unit;
+using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 
 namespace Ouroboros.CLI.Commands;
 
@@ -5653,12 +5638,12 @@ No quotes around the response. Just the greeting itself.";
                         CreatedAt: DateTime.UtcNow,
                         LastUsed: DateTime.UtcNow);
 
-                    await _skills.RegisterSkillAsync(skill);
+                    await _skills.RegisterSkillAsync(skill.ToAgentSkill());
                     sb.AppendLine($"\n✓ Registered skill: '{skillName}'");
                 }
                 else
                 {
-                    _skills.RecordSkillExecution(skillName, true);
+                    _skills.RecordSkillExecution(skillName, true, 0L);
                     sb.AppendLine($"\n↺ Updated existing skill: '{skillName}'");
                 }
             }
@@ -5701,7 +5686,7 @@ No quotes around the response. Just the greeting itself.";
         // Step 6: Update capability if available
         if (_capabilityRegistry != null)
         {
-            var result = CreateCapabilityExecutionResult(true, TimeSpan.FromSeconds(2), $"learn:{topic}");
+            var result = CreateCapabilityPlanExecutionResult(true, TimeSpan.FromSeconds(2), $"learn:{topic}");
             await _capabilityRegistry.UpdateCapabilityAsync("natural_language", result);
         }
 
@@ -5772,7 +5757,7 @@ No quotes around the response. Just the greeting itself.";
             var matches = await _skills.FindMatchingSkillsAsync(skillName);
             if (matches.Any())
             {
-                skill = matches.First();
+                skill = matches.First().ToAgentSkill();
             }
             else
             {
@@ -5782,12 +5767,12 @@ No quotes around the response. Just the greeting itself.";
 
         // Execute skill steps
         var results = new List<string>();
-        foreach (var step in skill.Steps)
+        foreach (var step in skill.ToSkill().Steps)
         {
             results.Add($"• {step.Action}: {step.ExpectedOutcome}");
         }
 
-        _skills.RecordSkillExecution(skill.Name, true);
+        _skills.RecordSkillExecution(skill.Name, true, 0L);
         return $"Running '{skill.Name}':\n" + string.Join("\n", results);
     }
 
@@ -6004,7 +5989,7 @@ No quotes around the response. Just the greeting itself.";
                         new("Synthesize", new Dictionary<string, object> { ["action"] = "combine" }, "Actionable knowledge", 0.8)
                     },
                     0.75, 0, DateTime.UtcNow, DateTime.UtcNow);
-                _skills.RegisterSkill(newSkill);
+                _skills.RegisterSkill(newSkill.ToAgentSkill());
             }
 
             var sb = new StringBuilder();
@@ -8337,7 +8322,7 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
                 var duration = DateTime.UtcNow - startTime;
                 if (_capabilityRegistry != null)
                 {
-                    var execResult = CreateCapabilityExecutionResult(success, duration, dsl);
+                    var execResult = CreateCapabilityPlanExecutionResult(success, duration, dsl);
                     await _capabilityRegistry.UpdateCapabilityAsync("pipeline_execution", execResult);
                 }
 
@@ -8375,7 +8360,7 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
             // Track failure for self-improvement
             if (_capabilityRegistry != null)
             {
-                var execResult = CreateCapabilityExecutionResult(false, TimeSpan.Zero, dsl);
+                var execResult = CreateCapabilityPlanExecutionResult(false, TimeSpan.Zero, dsl);
                 await _capabilityRegistry.UpdateCapabilityAsync("pipeline_execution", execResult);
             }
 
@@ -8759,7 +8744,7 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
 
                 _autonomousCoordinator.MeTTaAddFactFunction = async (fact, ct) =>
                 {
-                    Result<Ouroboros.Tools.MeTTa.MeTTaUnit, string> result = await _mettaEngine.AddFactAsync(fact, ct);
+                    Result<Unit, string> result = await _mettaEngine.AddFactAsync(fact, ct);
                     return result.IsSuccess;
                 };
 
@@ -9172,7 +9157,7 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
 
         foreach (var capName in usedCapabilities)
         {
-            var result = CreateCapabilityExecutionResult(success, duration, goal.Description);
+            var result = CreateCapabilityPlanExecutionResult(success, duration, goal.Description);
             await _capabilityRegistry.UpdateCapabilityAsync(capName, result);
         }
     }
@@ -9202,10 +9187,10 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
     }
 
     /// <summary>
-    /// Creates an ExecutionResult for capability tracking purposes.
-    /// This creates a minimal valid ExecutionResult with empty plan/steps.
+    /// Creates an PlanExecutionResult for capability tracking purposes.
+    /// This creates a minimal valid PlanExecutionResult with empty plan/steps.
     /// </summary>
-    private static ExecutionResult CreateCapabilityExecutionResult(bool success, TimeSpan duration, string taskDescription)
+    private static PlanExecutionResult CreateCapabilityPlanExecutionResult(bool success, TimeSpan duration, string taskDescription)
     {
         var minimalPlan = new Plan(
             Goal: taskDescription,
@@ -9213,7 +9198,7 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
             ConfidenceScores: new Dictionary<string, double>(),
             CreatedAt: DateTime.UtcNow);
 
-        return new ExecutionResult(
+        return new PlanExecutionResult(
             Plan: minimalPlan,
             StepResults: new List<StepResult>(),
             Success: success,
@@ -10062,7 +10047,7 @@ Commands:
         if (_skills != null)
         {
             var skills = _skills.GetAllSkills();
-            skillList = skills.ToList();
+            skillList = skills.ToSkills().ToList();
             if (skillList.Count > 0)
             {
                 sb.AppendLine($"📚 Learned Skills ({skillList.Count} total):");

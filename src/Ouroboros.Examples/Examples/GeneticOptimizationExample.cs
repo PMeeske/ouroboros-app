@@ -4,7 +4,6 @@
 
 namespace Ouroboros.Examples;
 
-using Ouroboros.Core.Monads;
 using Ouroboros.Core.Steps;
 using Ouroboros.Genetic.Abstractions;
 using Ouroboros.Genetic.Core;

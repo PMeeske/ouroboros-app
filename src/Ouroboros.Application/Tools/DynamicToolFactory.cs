@@ -2,6 +2,8 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
+using System.Net.Http;
+
 namespace Ouroboros.Application.Tools;
 
 using System.Reflection;
@@ -12,7 +14,6 @@ using System.Text.RegularExpressions;
 using Ouroboros.Providers;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.Emit;
 using Ouroboros.Application.Mcp;
 using Ouroboros.Application.Tools.CaptchaResolver;
 using Ouroboros.Tools;

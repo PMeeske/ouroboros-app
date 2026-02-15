@@ -12,6 +12,7 @@ global using Ouroboros.Agent;
 global using Ouroboros.Core.Conversation;
 global using Ouroboros.Core.Kleisli;
 global using Ouroboros.Core.Memory;
+global using Ouroboros.Abstractions.Monads;
 global using Ouroboros.Core.Monads;
 global using Ouroboros.Core.Steps;
 // Domain models and state management

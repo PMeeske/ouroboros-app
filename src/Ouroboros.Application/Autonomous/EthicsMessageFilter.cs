@@ -4,7 +4,6 @@
 
 using Microsoft.Extensions.Logging;
 using Ouroboros.Core.Ethics;
-using Ouroboros.Domain.Autonomous;
 
 namespace Ouroboros.Application.Autonomous;
 

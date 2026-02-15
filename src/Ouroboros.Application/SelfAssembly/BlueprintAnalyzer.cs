@@ -2,9 +2,7 @@
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
-using System.Text;
 using System.Text.Json;
-using Ouroboros.Domain.Autonomous;
 
 namespace Ouroboros.Application.SelfAssembly;
 

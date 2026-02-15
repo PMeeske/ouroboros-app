@@ -1,6 +1,6 @@
 using LangChain.Providers.Ollama;
+using Ouroboros.Abstractions.Core;
 using Ouroboros.Application.Configuration;
-using Ouroboros.Providers;
 
 namespace Ouroboros.Application.Services;
 
@@ -63,15 +63,12 @@ public static class MultiModelPresetFactory
         // Apply known Ollama presets based on model name (provides baseline settings)
         ApplyOllamaPresets(ollamaModel, slot.ModelName, slot.Role);
 
-        // Override with preset/slot-specific temperature and maxTokens if Settings exists
+        // Override with preset/slot-specific temperature and maxTokens
         // Temperature is cast to float as OllamaChatModel expects float, while ChatRuntimeSettings uses double
-        if (ollamaModel.Settings != null)
+        if (ollamaModel.Settings is OllamaChatSettings ollamaSettings)
         {
-            ollamaModel.Settings = ollamaModel.Settings with
-            {
-                Temperature = (float)settings.Temperature,
-                MaxTokens = settings.MaxTokens
-            };
+            ollamaSettings.Temperature = (float)settings.Temperature;
+            ollamaSettings.NumPredict = settings.MaxTokens;
         }
 
         return new OllamaChatAdapter(ollamaModel, culture);

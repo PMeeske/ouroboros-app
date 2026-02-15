@@ -2,7 +2,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
-using Ouroboros.Core.Monads;
 using Ouroboros.Domain.Environment;
 
 namespace Ouroboros.Examples.Environments;

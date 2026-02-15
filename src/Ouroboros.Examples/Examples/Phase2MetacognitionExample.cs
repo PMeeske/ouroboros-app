@@ -5,13 +5,13 @@
 namespace Ouroboros.Examples;
 
 using LangChain.Providers.Ollama;
-using Ouroboros.Agent.MetaAI;
+using Ouroboros.Abstractions.Agent;  // For interfaces: ISkillRegistry, IMemoryStore, ISafetyGuard, IUncertaintyRouter
+using Ouroboros.Agent.MetaAI;  // For concrete implementations and other types
 using Ouroboros.Core.Ethics;
 using IEthicsFramework = Ouroboros.Core.Ethics.IEthicsFramework;
 using Goal = Ouroboros.Agent.MetaAI.Goal;
 using AgentPlan = Ouroboros.Agent.MetaAI.Plan;
 using AgentPlanStep = Ouroboros.Agent.MetaAI.PlanStep;
-using AgentSkill = Ouroboros.Agent.MetaAI.Skill;
 
 /// <summary>
 /// Example demonstrating Phase 2 metacognitive capabilities.
@@ -424,7 +424,7 @@ public static class Phase2MetacognitionExample
                 new Dictionary<string, double>(),
                 DateTime.UtcNow.AddDays(-random.Next(1, 30)));
 
-            ExecutionResult exec = new ExecutionResult(
+            PlanExecutionResult exec = new PlanExecutionResult(
                 plan,
                 new List<StepResult>(),
                 success,
@@ -432,7 +432,7 @@ public static class Phase2MetacognitionExample
                 new Dictionary<string, object>(),
                 TimeSpan.FromMilliseconds(random.Next(50, 500)));
 
-            VerificationResult verify = new VerificationResult(
+            PlanVerificationResult verify = new PlanVerificationResult(
                 exec,
                 success,
                 quality,
@@ -440,14 +440,7 @@ public static class Phase2MetacognitionExample
                 new List<string>(),
                 null);
 
-            Experience experience = new Experience(
-                Guid.NewGuid(),
-                plan.Goal,
-                plan,
-                exec,
-                verify,
-                plan.CreatedAt,
-                new Dictionary<string, object>());
+            Experience experience = ExperienceFactory.FromExecution(plan.Goal, exec, verify);
 
             await memory.StoreExperienceAsync(experience);
 

@@ -13,13 +13,11 @@ using Ouroboros.Core.Reasoning;
 using Ouroboros.Core.Synthesis;
 using Ouroboros.Domain.Benchmarks;
 using Ouroboros.Domain.Embodied;
-using Ouroboros.Domain.Environment;
 using Ouroboros.Domain.MetaLearning;
 using Ouroboros.Domain.MultiAgent;
 using Ouroboros.Domain.Reflection;
 using Ouroboros.Pipeline.Branches;
 using Ouroboros.Pipeline.Memory;
-using Ouroboros.Pipeline.Verification;
 using Ouroboros.Tools.MeTTa;
 using Plan = Ouroboros.Agent.MetaAI.Plan;
 using Episode = Ouroboros.Pipeline.Memory.Episode;
@@ -81,7 +79,7 @@ public interface IOuroborosCore
     /// <param name="config">Configuration for execution.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>Result containing execution result or error message.</returns>
-    Task<Result<ExecutionResult, string>> ExecuteGoalAsync(
+    Task<Result<PlanExecutionResult, string>> ExecuteGoalAsync(
         string goal,
         ExecutionConfig config,
         CancellationToken ct = default);
@@ -155,7 +153,7 @@ public sealed record ReasoningConfig(
 /// <summary>
 /// Result of goal execution.
 /// </summary>
-public sealed record ExecutionResult(
+public sealed record PlanExecutionResult(
     bool Success,
     string Output,
     PipelineBranch ReasoningTrace,

@@ -7,10 +7,8 @@ using System.Reactive.Linq;
 using System.Text;
 using Ouroboros.Application.Voice;
 using Ouroboros.Domain.Voice;
-using Ouroboros.Providers;
 using Ouroboros.Providers.SpeechToText;
 using Ouroboros.Providers.TextToSpeech;
-using Ouroboros.Speech;
 
 namespace Ouroboros.CLI.Commands;
 

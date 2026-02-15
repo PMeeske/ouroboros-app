@@ -3,10 +3,8 @@
 // </copyright>
 
 using System.Text.Json;
-using Ouroboros.CLI.Options;
 using Ouroboros.Core.DistinctionLearning;
 using Ouroboros.Domain.DistinctionLearning;
-using Ouroboros.Core.Learning;
 
 namespace Ouroboros.CLI.Commands;
 

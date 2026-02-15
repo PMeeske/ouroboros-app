@@ -3,7 +3,6 @@
 namespace Ouroboros.Examples.Embodiment;
 
 using Ouroboros.Domain.Environment;
-using Ouroboros.Pipeline.Branches;
 
 /// <summary>
 /// Demonstrates Phase 1 (Embodiment) integration: linking environment episodes to the DAG.

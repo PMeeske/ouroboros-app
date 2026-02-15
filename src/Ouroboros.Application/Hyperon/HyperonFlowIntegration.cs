@@ -8,7 +8,6 @@ using System.Collections.Concurrent;
 using System.Threading.Channels;
 using Ouroboros.Core.Hyperon;
 using Ouroboros.Core.Hyperon.Parsing;
-using Ouroboros.Tools.MeTTa;
 
 /// <summary>
 /// Integrates the Hyperon AtomSpace with Ouroboros flows for neural-symbolic reasoning.

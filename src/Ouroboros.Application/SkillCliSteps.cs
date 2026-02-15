@@ -1199,7 +1199,7 @@ public static class SkillCliSteps
                 0.80, 1, DateTime.UtcNow, DateTime.UtcNow
             );
 
-            _registry.Value.RegisterSkill(newSkill);
+            _registry.Value.RegisterSkill(newSkill.ToAgentSkill());
             Console.WriteLine($"  ✅ New skill registered: UseSkill_{skillName}");
             Console.WriteLine($"     Success rate: 80% | Steps: 4");
 
@@ -1374,7 +1374,7 @@ public static class SkillCliSteps
                     },
                     0.75, 0, DateTime.UtcNow, DateTime.UtcNow
                 );
-                _registry.Value.RegisterSkill(newSkill);
+                _registry.Value.RegisterSkill(newSkill.ToAgentSkill());
 
                 Console.WriteLine($"[FetchSkill] ✅ New skill registered: UseSkill_{skillName}");
                 s.Output = $"Learned new skill: UseSkill_{skillName} from {entries.Count} papers";
@@ -1450,10 +1450,11 @@ public static class SkillCliSteps
             }
 
             string input = args ?? s.Prompt ?? s.Query ?? s.Context;
-            Console.WriteLine($"[UseSkill_{skill.Name}] Executing with {skill.Steps.Count} steps...");
+            var skillData = skill.ToSkill();
+            Console.WriteLine($"[UseSkill_{skill.Name}] Executing with {skillData.Steps.Count} steps...");
 
             // Build a prompt that applies the skill's methodology
-            var stepDescriptions = skill.Steps.Select(step => $"- {step.Action}: {step.ExpectedOutcome}");
+            var stepDescriptions = skillData.Steps.Select(step => $"- {step.Action}: {step.ExpectedOutcome}");
             string methodology = string.Join("\n", stepDescriptions);
 
             string skillPrompt = $"""
@@ -1473,7 +1474,7 @@ public static class SkillCliSteps
                 string result = await s.Llm.InnerModel.GenerateTextAsync(skillPrompt);
 
                 // Record skill execution for learning
-                _registry.Value.RecordSkillExecution(skill.Name, !string.IsNullOrWhiteSpace(result));
+                _registry.Value.RecordSkillExecution(skill.Name, !string.IsNullOrWhiteSpace(result), 0L);
 
                 if (string.IsNullOrWhiteSpace(result))
                 {
@@ -1503,7 +1504,7 @@ public static class SkillCliSteps
             }
             catch (Exception ex)
             {
-                _registry.Value.RecordSkillExecution(skill.Name, false);
+                _registry.Value.RecordSkillExecution(skill.Name, false, 0L);
                 Console.WriteLine($"[UseSkill_{skill.Name}] ⚠ Failed: {ex.Message}");
                 s.Output = $"Skill execution failed: {ex.Message}";
             }
@@ -1557,7 +1558,7 @@ public static class SkillCliSteps
         };
 
         foreach (var skill in predefinedSkills)
-            registry.RegisterSkill(skill);
+            registry.RegisterSkill(skill.ToAgentSkill());
     }
 
     private static string ParseString(string? arg)

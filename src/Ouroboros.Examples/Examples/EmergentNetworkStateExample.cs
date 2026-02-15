@@ -2,8 +2,6 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
-using System.Collections.Immutable;
-using Ouroboros.Domain.States;
 using Ouroboros.Network;
 
 namespace Ouroboros.Examples;

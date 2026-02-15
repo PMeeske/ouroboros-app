@@ -1,3 +1,5 @@
+using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
+
 namespace Ouroboros.WebApi.Services;
 
 /// <summary>

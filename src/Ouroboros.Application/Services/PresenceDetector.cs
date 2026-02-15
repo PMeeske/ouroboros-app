@@ -6,8 +6,6 @@ namespace Ouroboros.Application.Services;
 
 using System.Diagnostics;
 using System.Net.NetworkInformation;
-using System.Runtime.InteropServices;
-using System.Text;
 
 /// <summary>
 /// Detects user presence via camera (face/motion detection) and WiFi (device proximity).
