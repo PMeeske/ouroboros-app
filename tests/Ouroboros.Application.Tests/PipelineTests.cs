@@ -1,5 +1,3 @@
-using Xunit;
-using FluentAssertions;
 using Ouroboros.Easy.Localization;
 
 namespace Ouroboros.Tests.Easy;

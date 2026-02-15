@@ -3,23 +3,9 @@ using System.Reflection;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Ouroboros.Core.Monads;
-using Ouroboros.Domain.Autonomous;
-using Ouroboros.Domain.Reinforcement;
+using Ouroboros.Abstractions;
 
 namespace Ouroboros.Application.SelfAssembly;
-
-/// <summary>
-/// Types of neurons that can be assembled.
-/// </summary>
-public enum NeuronType
-{
-    Custom,
-    Processor,
-    Aggregator,
-    Observer,
-    Responder
-}
 
 /// <summary>
 /// Capability categories for assembled neurons.

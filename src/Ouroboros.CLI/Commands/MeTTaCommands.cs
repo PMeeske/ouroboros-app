@@ -1,15 +1,10 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Threading.Tasks;
 using LangChain.Providers.Ollama;
 using Ouroboros.Agent.MetaAI;
-using Ouroboros.Diagnostics;
 using Ouroboros.Options;
-using Ouroboros.Providers;
 using Ouroboros.Application.Services;
 using IEmbeddingModel = Ouroboros.Domain.IEmbeddingModel;
+using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 
 namespace Ouroboros.CLI.Commands;
 
@@ -110,7 +105,7 @@ public static class MeTTaCommands
 
             Console.WriteLine("=== Execution Phase ===");
             sw.Restart();
-            Result<ExecutionResult, string> executionResult = await orchestrator.ExecuteAsync(plan);
+            Result<PlanExecutionResult, string> executionResult = await orchestrator.ExecuteAsync(plan);
             sw.Stop();
 
             executionResult.Match(

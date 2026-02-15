@@ -1,5 +1,3 @@
-using Ouroboros.Application.CodeGeneration;
-
 namespace Ouroboros.Application;
 
 public static class CodeFixCliSteps

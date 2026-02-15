@@ -2,8 +2,6 @@
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
-using Ouroboros.Core.Monads;
-
 namespace Ouroboros.Application.GitHub;
 
 /// <summary>

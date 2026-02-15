@@ -2,6 +2,8 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
+using Ouroboros.Abstractions;
+
 namespace Ouroboros.Application.Integration;
 
 using System.Collections.Immutable;
@@ -21,7 +23,6 @@ using Ouroboros.Domain.Reflection;
 using Ouroboros.Pipeline.Branches;
 using Ouroboros.Pipeline.Memory;
 using Ouroboros.Tools.MeTTa;
-using Unit = Ouroboros.Core.Learning.Unit;
 
 /// <summary>
 /// Core implementation of the unified Ouroboros AGI system.
@@ -121,14 +122,14 @@ public sealed class OuroborosCore : IOuroborosCore
     public IConsciousnessScaffold Consciousness => _consciousness;
 
     /// <inheritdoc/>
-    public async Task<Result<ExecutionResult, string>> ExecuteGoalAsync(
+    public async Task<Result<PlanExecutionResult, string>> ExecuteGoalAsync(
         string goal,
         ExecutionConfig config,
         CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(goal))
         {
-            return Result<ExecutionResult, string>.Failure("Goal cannot be empty");
+            return Result<PlanExecutionResult, string>.Failure("Goal cannot be empty");
         }
 
         ArgumentNullException.ThrowIfNull(config);
@@ -168,7 +169,7 @@ public sealed class OuroborosCore : IOuroborosCore
 
                 if (planResult.IsFailure)
                 {
-                    return Result<ExecutionResult, string>.Failure(
+                    return Result<PlanExecutionResult, string>.Failure(
                         $"Planning failed: {planResult.Error}");
                 }
 
@@ -193,7 +194,7 @@ public sealed class OuroborosCore : IOuroborosCore
 
                 if (executionResult.IsFailure)
                 {
-                    return Result<ExecutionResult, string>.Failure(
+                    return Result<PlanExecutionResult, string>.Failure(
                         $"Execution failed: {executionResult.Error}");
                 }
 
@@ -236,7 +237,7 @@ public sealed class OuroborosCore : IOuroborosCore
 
             _eventBus.Publish(goalEvent);
 
-            var result = new ExecutionResult(
+            var result = new PlanExecutionResult(
                 true,
                 output,
                 reasoningTrace!,
@@ -244,7 +245,7 @@ public sealed class OuroborosCore : IOuroborosCore
                 generatedEpisodes,
                 stopwatch.Elapsed);
 
-            return Result<ExecutionResult, string>.Success(result);
+            return Result<PlanExecutionResult, string>.Success(result);
         }
         catch (OperationCanceledException)
         {
@@ -254,7 +255,7 @@ public sealed class OuroborosCore : IOuroborosCore
         {
             stopwatch.Stop();
 
-            return Result<ExecutionResult, string>.Failure(
+            return Result<PlanExecutionResult, string>.Failure(
                 $"Goal execution failed: {ex.Message}");
         }
     }

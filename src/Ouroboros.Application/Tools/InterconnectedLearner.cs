@@ -6,8 +6,8 @@ namespace Ouroboros.Application.Tools;
 
 using System.Collections.Concurrent;
 using System.Text;
-using System.Text.Json;
-using Ouroboros.Agent.MetaAI;
+using Ouroboros.Abstractions.Agent;  // For interfaces: ISkillRegistry, IMemoryStore, ISafetyGuard, IUncertaintyRouter
+using Ouroboros.Agent.MetaAI;  // For concrete implementations and other types
 using Ouroboros.Genetic.Abstractions;
 using Ouroboros.Genetic.Core;
 using Ouroboros.Providers;
@@ -63,7 +63,7 @@ public sealed record ActionGene(string ActionType, string ActionName, double Pri
 public sealed class InterconnectedLearner : IAsyncDisposable
 {
     private readonly DynamicToolFactory _toolFactory;
-    private readonly ISkillRegistry? _skillRegistry;
+    private readonly Ouroboros.Agent.MetaAI.ISkillRegistry? _skillRegistry;
     private readonly IMeTTaEngine _mettaEngine;
     private readonly IEmbeddingModel? _embeddingModel;
     private readonly ToolAwareChatModel? _llm;
@@ -86,7 +86,7 @@ public sealed class InterconnectedLearner : IAsyncDisposable
     /// </summary>
     public InterconnectedLearner(
         DynamicToolFactory toolFactory,
-        ISkillRegistry? skillRegistry,
+        Ouroboros.Agent.MetaAI.ISkillRegistry? skillRegistry,
         IMeTTaEngine mettaEngine,
         IEmbeddingModel? embeddingModel = null,
         ToolAwareChatModel? llm = null)

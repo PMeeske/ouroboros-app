@@ -1,7 +1,5 @@
-using LangChain.Providers;
 using LangChain.Providers.Ollama;
-using Ouroboros.Domain;
-using Ouroboros.Providers;
+using Ouroboros.Abstractions.Core;
 using IEmbeddingModel = Ouroboros.Domain.IEmbeddingModel;
 
 namespace Ouroboros.Application.Services;

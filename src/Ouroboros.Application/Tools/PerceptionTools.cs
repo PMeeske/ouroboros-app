@@ -6,7 +6,6 @@ namespace Ouroboros.Application.Tools;
 
 using System.Diagnostics;
 using System.Drawing;
-using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;

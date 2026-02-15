@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using Ouroboros.Application.Tools;
 using Ouroboros.Options;
-using Ouroboros.Providers;
+using Ouroboros.CLI.Setup;
 
 namespace Ouroboros.CLI.Commands;
 
@@ -16,24 +16,9 @@ public static class OuroborosCommands
     /// </summary>
     public static async Task RunOuroborosAsync(OuroborosOptions opts)
     {
-        // Load configuration (includes user secrets in Development)
-        var configuration = new ConfigurationBuilder()
-            .SetBasePath(AppContext.BaseDirectory)
-            .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
-            .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? "Production"}.json", optional: true)
-            .AddUserSecrets<OuroborosAgent>(optional: true)
-            .AddEnvironmentVariables()
-            .Build();
-
-        // Set configuration for API key provider (used by Firecrawl, etc.)
-        ApiKeyProvider.SetConfiguration(configuration);
-
-        // Set configuration for ChatConfig (used for Anthropic, GitHub Models, etc.)
-        ChatConfig.SetConfiguration(configuration);
-
-        // Set configuration for Azure Speech TTS
-        OuroborosAgent.SetConfiguration(configuration);
-        VoiceModeService.SetConfiguration(configuration);
+        // Load and apply configuration
+        var configuration = AgentBootstrapper.LoadConfiguration();
+        AgentBootstrapper.ApplyConfiguration(configuration);
 
         // Clear console safely (may fail when output is redirected)
         try
@@ -54,91 +39,11 @@ public static class OuroborosCommands
 
         try
         {
-            // Determine if Azure TTS should be used (prefer Azure if credentials available, allow override with --local-tts)
-            var azureKey = opts.AzureSpeechKey ?? Environment.GetEnvironmentVariable("AZURE_SPEECH_KEY");
-            var useAzureTts = opts.LocalTts ? false : (opts.AzureTts && !string.IsNullOrEmpty(azureKey));
+            // Create unified config from CLI options
+            var config = AgentBootstrapper.CreateConfig(opts);
 
-            // Create unified config from CLI options - ALL features enabled by default
-            var config = new OuroborosConfig(
-                Persona: opts.Persona,
-                Model: opts.Model,
-                Endpoint: opts.Endpoint,
-                EmbedModel: opts.EmbedModel,
-                EmbedEndpoint: opts.EmbedEndpoint,
-                QdrantEndpoint: opts.QdrantEndpoint,
-                ApiKey: opts.ApiKey ?? Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY"),
-                EndpointType: opts.EndpointType,
-                // Voice is disabled in push/yolo mode by default unless --push-voice is used
-                Voice: (opts.Push || opts.Yolo) ? opts.PushVoice : (opts.Voice && !opts.TextOnly),
-                VoiceOnly: opts.VoiceOnly,
-                LocalTts: opts.LocalTts,
-                AzureTts: useAzureTts,
-                AzureSpeechKey: azureKey,
-                AzureSpeechRegion: opts.AzureSpeechRegion,
-                TtsVoice: opts.TtsVoice,
-                VoiceChannel: opts.VoiceChannel,
-                VoiceV2: opts.VoiceV2,
-                Listen: opts.Listen,
-                Debug: opts.Debug,
-                Temperature: opts.Temperature,
-                MaxTokens: opts.MaxTokens,
-                Culture: opts.Culture,
-                // Feature toggles - invert the "No" flags
-                EnableSkills: !opts.NoSkills,
-                EnableMeTTa: !opts.NoMeTTa,
-                EnableTools: !opts.NoTools,
-                EnablePersonality: !opts.NoPersonality,
-                EnableMind: !opts.NoMind,
-                EnableBrowser: !opts.NoBrowser,
-                // Autonomous/Push mode
-                EnablePush: opts.Push,
-                YoloMode: opts.Yolo,
-                AutoApproveCategories: opts.AutoApprove,
-                IntentionIntervalSeconds: opts.IntentionInterval,
-                DiscoveryIntervalSeconds: opts.DiscoveryInterval,
-                // Governance & Self-Modification
-                EnableSelfModification: opts.EnableSelfModification,
-                RiskLevel: opts.RiskLevel,
-                AutoApproveLow: opts.AutoApproveLow,
-                // Additional config
-                ThinkingIntervalSeconds: opts.ThinkingInterval,
-                AgentMaxSteps: opts.AgentMaxSteps,
-                InitialGoal: opts.Goal,
-                InitialQuestion: opts.Question,
-                InitialDsl: opts.Dsl,
-                // Multi-model
-                CoderModel: opts.CoderModel,
-                ReasonModel: opts.ReasonModel,
-                SummarizeModel: opts.SummarizeModel,
-                VisionModel: opts.VisionModel,
-                // Piping & Batch mode
-                PipeMode: opts.Pipe,
-                BatchFile: opts.BatchFile,
-                JsonOutput: opts.JsonOutput,
-                NoGreeting: opts.NoGreeting || opts.Pipe || !string.IsNullOrWhiteSpace(opts.BatchFile) || !string.IsNullOrWhiteSpace(opts.Exec),
-                ExitOnError: opts.ExitOnError,
-                ExecCommand: opts.Exec,
-                // Cost tracking & efficiency
-                ShowCosts: opts.ShowCosts,
-                CostAware: opts.CostAware,
-                CostSummary: opts.CostSummary,
-                // Collective Mind (Multi-Provider)
-                CollectiveMode: opts.CollectiveMode,
-                CollectivePreset: opts.CollectivePreset,
-                CollectiveThinkingMode: opts.CollectiveThinkingMode,
-                CollectiveProviders: opts.CollectiveProviders,
-                Failover: opts.Failover,
-                // Election & Orchestration
-                ElectionStrategy: opts.ElectionStrategy,
-                MasterModel: opts.MasterModel,
-                EvaluationCriteria: opts.EvaluationCriteria,
-                ShowElection: opts.ShowElection,
-                ShowOptimization: opts.ShowOptimization
-            );
-
-            // Create the unified Ouroboros agent
-            await using var agent = new OuroborosAgent(config);
-            await agent.InitializeAsync();
+            // Create and initialize the unified Ouroboros agent
+            await using var agent = await AgentBootstrapper.CreateAgentAsync(config);
 
             // Handle initial goal or question if provided
             if (!string.IsNullOrEmpty(opts.Goal))

@@ -4,16 +4,31 @@ namespace Ouroboros.Android.Services;
 
 /// <summary>
 /// Enhanced service to execute CLI commands within the Android app with full Ollama integration
+/// using the shared provider pipeline from Engine.
 /// </summary>
 public class CliExecutor
 {
+    private readonly IChatCompletionModel? _chatModel;
     private readonly OllamaService _ollamaService;
     private readonly ModelManager _modelManager;
     private readonly CommandExecutor _commandExecutor;
     private readonly CommandHistoryService? _historyService;
     private readonly CommandSuggestionEngine? _suggestionEngine;
     
+    /// <summary>
+    /// Ollama provider used for on-demand OllamaChatAdapter creation when no IChatCompletionModel is injected.
+    /// This enables the executor to fall back to creating its own models when needed.
+    /// </summary>
+    private readonly OllamaProvider _ollamaProvider;
+    
+    /// <summary>
+    /// Cached OllamaChatAdapter instance created on-demand when _chatModel is null.
+    /// Reused across multiple calls to avoid creating new instances for each request.
+    /// </summary>
+    private OllamaChatAdapter? _cachedAdapter;
+    
     private string? _currentModel;
+    private string? _cachedAdapterModel; // Track which model the cached adapter was created for
     private DateTime _lastModelUse;
     private readonly TimeSpan _modelUnloadDelay = TimeSpan.FromMinutes(5);
     private Timer? _modelUnloadTimer;
@@ -22,9 +37,21 @@ public class CliExecutor
     /// Initializes a new instance of the <see cref="CliExecutor"/> class.
     /// </summary>
     /// <param name="databasePath">Optional path to SQLite database for history</param>
-    public CliExecutor(string? databasePath = null)
+    /// <param name="chatModel">Optional chat completion model. If not provided, will be created on-demand.</param>
+    /// <param name="ollamaEndpoint">Ollama endpoint URL (default: http://localhost:11434)</param>
+    /// <remarks>
+    /// The ollamaEndpoint parameter only affects on-demand model creation and model management operations.
+    /// It does not affect an injected chatModel provided via the chatModel parameter.
+    /// </remarks>
+    public CliExecutor(string? databasePath = null, IChatCompletionModel? chatModel = null, string ollamaEndpoint = "http://localhost:11434")
     {
-        _ollamaService = new OllamaService("http://localhost:11434");
+        _chatModel = chatModel;
+        
+        // Initialize both OllamaService and OllamaProvider with same endpoint
+        // OllamaService is used for model management operations (via ModelManager)
+        // OllamaProvider is used for on-demand OllamaChatAdapter creation when _chatModel is null
+        _ollamaService = new OllamaService(ollamaEndpoint);
+        _ollamaProvider = new OllamaProvider(ollamaEndpoint);
         _modelManager = new ModelManager(_ollamaService);
         _commandExecutor = new CommandExecutor(requiresRoot: false);
         
@@ -45,12 +72,18 @@ public class CliExecutor
     }
 
     /// <summary>
-    /// Gets or sets the Ollama endpoint URL
+    /// Gets or sets the Ollama endpoint URL.
+    /// Note: Changing this endpoint only affects model management operations and on-demand model creation.
+    /// It does not affect an injected IChatCompletionModel provided via constructor.
     /// </summary>
     public string OllamaEndpoint
     {
         get => _ollamaService.BaseUrl;
-        set => _ollamaService.BaseUrl = value;
+        set
+        {
+            _ollamaService.BaseUrl = value;
+            _ollamaProvider.Endpoint = value;
+        }
     }
 
     /// <summary>
@@ -527,8 +560,29 @@ Then try your question again.";
             sb.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             sb.AppendLine();
 
-            // Generate response
-            var response = await _ollamaService.GenerateAsync(_currentModel, question);
+            // Generate response using IChatCompletionModel abstraction
+            string response;
+            if (_chatModel != null)
+            {
+                // Use provided chat model (goes through Engine's provider pipeline)
+                response = await _chatModel.GenerateTextAsync(question);
+            }
+            else
+            {
+                // Fall back to creating an OllamaChatAdapter on-demand
+                // _currentModel is guaranteed non-null: the guard clause above (line 536-542) 
+                // returns early if _currentModel is null, so execution cannot reach this point with null
+                
+                // Create or reuse cached adapter for the current model
+                if (_cachedAdapter == null || _cachedAdapterModel != _currentModel)
+                {
+                    var ollamaChatModel = new OllamaChatModel(_ollamaProvider, _currentModel!);
+                    _cachedAdapter = new OllamaChatAdapter(ollamaChatModel);
+                    _cachedAdapterModel = _currentModel;
+                }
+                
+                response = await _cachedAdapter.GenerateTextAsync(question);
+            }
             
             sb.AppendLine("A: " + response);
             sb.AppendLine();

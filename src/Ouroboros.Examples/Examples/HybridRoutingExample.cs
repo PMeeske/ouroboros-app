@@ -4,7 +4,6 @@
 // </copyright>
 
 using LangChain.Providers.Ollama;
-using Ouroboros.Providers;
 using Ouroboros.Providers.DeepSeek;
 using Ouroboros.Providers.Routing;
 

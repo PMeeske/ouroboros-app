@@ -4,7 +4,6 @@
 
 using Ouroboros.Options;
 using Ouroboros.Tests.CLI.Fixtures;
-using Ouroboros.Tests.Infrastructure.Utilities;
 
 namespace Ouroboros.Tests.CLI.Integration;
 

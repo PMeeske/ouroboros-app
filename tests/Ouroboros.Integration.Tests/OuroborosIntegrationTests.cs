@@ -6,12 +6,8 @@ namespace Ouroboros.Tests.Integration;
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
-
-using Ouroboros.Agent.MetaAI.SelfModel;
 using Ouroboros.Application.Integration;
 using Xunit;
 

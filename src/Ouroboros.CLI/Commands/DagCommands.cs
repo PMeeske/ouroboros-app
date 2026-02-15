@@ -1,8 +1,6 @@
 using System.Text.Json;
 using LangChain.DocumentLoaders;
-using Ouroboros.Domain.Vectors;
 using Ouroboros.Options;
-using Ouroboros.Pipeline.Branches;
 
 namespace Ouroboros.CLI.Commands;
 

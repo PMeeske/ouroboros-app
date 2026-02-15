@@ -2,6 +2,8 @@
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
+using System.Net.Http;
+
 namespace Ouroboros.Application.Tools;
 
 using System.Diagnostics;

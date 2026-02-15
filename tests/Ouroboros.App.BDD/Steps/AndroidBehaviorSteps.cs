@@ -218,17 +218,33 @@ public class AndroidBehaviorSteps
     [When("I execute command \"(.*)\"")]
     public void WhenIExecuteCommand(string cmd)
     {
-        _cliExecutor.Should().NotBeNull();
-        _commandResult = _cliExecutor!.Execute(cmd);
+        // Use activity's ExecuteCommand if in activity scenario, otherwise use CLI executor
+        if (_activity != null)
+        {
+            _commandResult = _activity.ExecuteCommand(cmd);
+        }
+        else
+        {
+            _cliExecutor.Should().NotBeNull();
+            _commandResult = _cliExecutor!.Execute(cmd);
+        }
     }
 
     [When("I attempt to execute command \"(.*)\"")]
     public void WhenIAttemptToExecuteCommand(string cmd)
     {
-        _cliExecutor.Should().NotBeNull();
+        // Use activity's ExecuteCommand if in activity scenario, otherwise use CLI executor
         try
         {
-            _commandResult = _cliExecutor!.Execute(cmd);
+            if (_activity != null)
+            {
+                _commandResult = _activity.ExecuteCommand(cmd);
+            }
+            else
+            {
+                _cliExecutor.Should().NotBeNull();
+                _commandResult = _cliExecutor!.Execute(cmd);
+            }
         }
         catch (Exception ex)
         {
@@ -361,7 +377,8 @@ public class AndroidBehaviorSteps
     [Given("primary service fails but fallback succeeds")]
     public void GivenPrimaryServiceFailsButFallbackSucceeds()
     {
-        // marker only
+        // Primary service fails, but fallback succeeds - show warning
+        _pendingErrorMessage = "Primary service unavailable, using fallback";
     }
 
     [Given("initialization will fail with \"(.*)\"")]

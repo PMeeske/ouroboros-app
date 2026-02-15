@@ -2,11 +2,12 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
+using Ouroboros.Abstractions;
+
 namespace Ouroboros.Application.Integration;
 
 using Ouroboros.Agent.MetaAI.SelfModel;
 using Ouroboros.Core.Monads;
-using Unit = Ouroboros.Core.Learning.Unit;
 
 /// <summary>
 /// Interface for the consciousness scaffold wrapping global workspace.
@@ -60,7 +61,7 @@ public interface IConsciousnessScaffold
     /// <param name="priority">Priority level for the new information.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>Result indicating success or error message.</returns>
-    Task<Result<Unit, string>> IntegrateInformationAsync(
+    Task<Result<Abstractions.Unit, string>> IntegrateInformationAsync(
         string newInfo,
         WorkspacePriority priority,
         CancellationToken ct = default);

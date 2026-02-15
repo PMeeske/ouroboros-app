@@ -5,12 +5,9 @@
 namespace Ouroboros.Application.Services;
 
 using System.Collections.Concurrent;
-using System.Collections.Immutable;
 using System.Text;
 using System.Text.Json;
 using Ouroboros.Application.Personality;
-using Ouroboros.Pipeline.Reasoning;
-using Ouroboros.Tools;
 
 /// <summary>
 /// Autonomous mind that thinks, explores, and acts independently in the background.

@@ -5,10 +5,10 @@
 namespace Ouroboros.Examples;
 
 using LangChain.Providers.Ollama;
-using Ouroboros.Agent.MetaAI;
+using Ouroboros.Abstractions.Agent;  // For interfaces: ISkillRegistry, IMemoryStore, ISafetyGuard, IUncertaintyRouter
+using Ouroboros.Agent.MetaAI;  // For concrete implementations and other types
 using Ouroboros.Core.Ethics;
 using IEthicsFramework = Ouroboros.Core.Ethics.IEthicsFramework;
-using AgentGoal = Ouroboros.Agent.MetaAI.Goal;
 using AgentPlan = Ouroboros.Agent.MetaAI.Plan;
 using AgentPlanStep = Ouroboros.Agent.MetaAI.PlanStep;
 using AgentSkill = Ouroboros.Agent.MetaAI.Skill;
@@ -77,7 +77,7 @@ public static class Phase3EmergentIntelligenceExample
             DateTime.UtcNow.AddDays(-20),
             DateTime.UtcNow);
 
-        skills.RegisterSkill(codingSkill);
+        skills.RegisterSkill(codingSkill.ToAgentSkill());
         Console.WriteLine($"Registered skill: {codingSkill.Name}");
         Console.WriteLine($"Domain: Software debugging\n");
 

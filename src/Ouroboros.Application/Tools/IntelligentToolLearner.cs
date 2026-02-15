@@ -5,7 +5,6 @@
 namespace Ouroboros.Application.Tools;
 
 using System.Collections.Concurrent;
-using System.Text;
 using System.Text.Json;
 using Ouroboros.Agent.MetaAI;
 using Ouroboros.Genetic.Abstractions;

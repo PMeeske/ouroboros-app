@@ -1,7 +1,5 @@
-using System.Text;
 using System.Text.Json;
 using Ouroboros.Agent.MetaAI.Affect;
-using Ouroboros.CLI.Options;
 
 namespace Ouroboros.CLI.Commands;
 

@@ -2,6 +2,8 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
+using System.IO;
+
 namespace Ouroboros.Examples.Learning;
 
 using Microsoft.Extensions.Logging.Abstractions;

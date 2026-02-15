@@ -4,9 +4,9 @@
 
 namespace Ouroboros.Examples;
 
-using Ouroboros.Agent.MetaAI;
 using Ouroboros.Application.Configuration;
 using Ouroboros.Application.Services;
+using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 
 /// <summary>
 /// Demonstrates the multi-model orchestrator preset system.

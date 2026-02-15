@@ -197,6 +197,37 @@ Focus on the high-level purpose and flow, not implementation details.";
     }
 
     /// <summary>
+    /// Explains C# code in natural language.
+    /// </summary>
+    /// <param name="code">C# code to explain</param>
+    /// <returns>Natural language explanation of the code</returns>
+    public async Task<Result<string, string>> ExplainCodeAsync(string code)
+    {
+        try
+        {
+            string prompt = $@"You are explaining C# code to a developer.
+
+Code:
+{code}
+
+Provide a clear, concise explanation of:
+1. What the code does (purpose)
+2. Key patterns used (e.g., Result<T> monad, async/await, immutability)
+3. Structure and flow
+
+Be brief but informative (3-5 sentences).";
+
+            (string response, List<ToolExecution> _) = await _llm.GenerateWithToolsAsync(prompt);
+
+            return Result<string, string>.Success(response.Trim());
+        }
+        catch (Exception ex)
+        {
+            return Result<string, string>.Failure($"Failed to explain code: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// Builds a DSL pipeline interactively by asking clarifying questions.
     /// </summary>
     /// <param name="goal">High-level goal for the pipeline</param>

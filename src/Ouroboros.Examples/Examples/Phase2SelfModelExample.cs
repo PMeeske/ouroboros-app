@@ -2,6 +2,8 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
+using System.IO;
+using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 using Ouroboros.Agent.MetaAI;
 using Ouroboros.Agent.MetaAI.SelfModel;
 
@@ -153,7 +155,7 @@ public static class Phase2SelfModelExample
         identityGraph.UpdateCommitment(commitment1.Id, CommitmentStatus.InProgress, 40.0);
         
         // Record some task results
-        var taskResult = new ExecutionResult(
+        var taskResult = new PlanExecutionResult(
             new Plan("Process query", new List<PlanStep>(), new Dictionary<string, double>(), DateTime.UtcNow),
             new List<StepResult>(),
             true,

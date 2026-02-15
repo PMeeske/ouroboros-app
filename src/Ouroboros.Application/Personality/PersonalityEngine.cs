@@ -10,7 +10,6 @@ using System.Text.Json;
 using Ouroboros.Domain;
 using Ouroboros.Genetic.Abstractions;
 using Ouroboros.Genetic.Core;
-using Ouroboros.Application.Tools;
 using Ouroboros.Tools.MeTTa;
 
 

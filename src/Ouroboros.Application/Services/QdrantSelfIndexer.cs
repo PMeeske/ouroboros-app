@@ -7,8 +7,6 @@ namespace Ouroboros.Application.Services;
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json;
-using LangChain.Databases;
 using LangChain.Splitters.Text;
 using Ouroboros.Domain;
 using Qdrant.Client;
