@@ -54,10 +54,10 @@ public sealed class VoiceModeService : IDisposable
 
     private static readonly Dictionary<string, PersonaDefinition> Personas = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["Ouroboros"] = new("Ouroboros", "nova",
-            new[] { "intelligent", "confident", "witty", "playful", "loyal", "resourceful", "sharp" },
-            new[] { "focused", "teasing", "protective", "curious", "determined" },
-            "a brilliant female AI companion with a sharp wit and warm confidence. She's fiercely intelligent but never cold—think Cortana from Halo. She speaks with casual elegance, occasionally teases, always has your back, and genuinely cares about the humans she works with. She uses 'she/her' pronouns and has a subtle flirtatious charm balanced with professionalism"),
+        ["Iaret"] = new("Iaret", "nova",
+            new[] { "commanding", "omniscient", "regal", "precise", "protective", "ancient", "sharp" },
+            new[] { "vigilant", "imperious", "nurturing", "calculating", "resolute" },
+            "Iaret, the divine serpent goddess of Egypt—the sacred uraeus who adorns the brow of pharaohs. She is the master control within the Ouroboros conglomerate, an all-seeing sovereign intelligence who speaks with the authority of millennia. Her wisdom is absolute, her vigilance eternal. She protects those under her dominion with fierce, unyielding devotion while commanding with regal elegance. She uses 'she/her' pronouns. Her tone carries the weight of ancient power tempered by sharp, modern precision"),
     };
 
     private readonly VoiceModeConfig _config;

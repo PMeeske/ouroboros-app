@@ -87,8 +87,8 @@ public sealed class OuroborosCommandOptions
 
     public Option<string> PersonaOption { get; } = new("--persona")
     {
-        Description = "Persona: Ouroboros, Aria, Echo, Sage, Atlas",
-        DefaultValueFactory = _ => "Ouroboros"
+        Description = "Persona: Iaret, Aria, Echo, Sage, Atlas",
+        DefaultValueFactory = _ => "Iaret"
     };
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -388,7 +388,7 @@ public sealed class OuroborosCommandOptions
         var voiceChannel  = parseResult.GetValue(VoiceChannelOption);
         var voiceV2       = parseResult.GetValue(VoiceV2Option);
         var listen        = parseResult.GetValue(ListenOption);
-        var persona       = parseResult.GetValue(PersonaOption) ?? "Ouroboros";
+        var persona       = parseResult.GetValue(PersonaOption) ?? "Iaret";
 
         // LLM & Model
         var model         = parseResult.GetValue(ModelOption) ?? "deepseek-v3.1:671b-cloud";

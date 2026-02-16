@@ -58,8 +58,8 @@ public sealed class OuroborosOptions : IVoiceOptions
     [Option("voice-loop", Required = false, HelpText = "Continue voice conversation in loop", Default = true)]
     public bool VoiceLoop { get; set; } = true;
 
-    [Option("persona", Required = false, HelpText = "Persona: Ouroboros, Aria, Echo, Sage, Atlas", Default = "Ouroboros")]
-    public string Persona { get; set; } = "Ouroboros";
+    [Option("persona", Required = false, HelpText = "Persona: Iaret, Aria, Echo, Sage, Atlas", Default = "Iaret")]
+    public string Persona { get; set; } = "Iaret";
 
     // ═══════════════════════════════════════════════════════════════════════════
     // LLM & MODEL CONFIGURATION

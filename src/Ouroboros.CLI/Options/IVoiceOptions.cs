@@ -62,8 +62,8 @@ public abstract class VoiceOptionsBase : IVoiceOptions
     [Option('v', "voice", Required = false, Default = false, HelpText = "Enable voice persona mode (speak & listen).")]
     public bool Voice { get; set; }
 
-    [Option("persona", Required = false, Default = "Ouroboros", HelpText = "Persona name for voice mode (Ouroboros, Aria, Nova, Echo, Sage, Atlas).")]
-    public string Persona { get; set; } = "Ouroboros";
+    [Option("persona", Required = false, Default = "Iaret", HelpText = "Persona name for voice mode (Iaret, Aria, Nova, Echo, Sage, Atlas).")]
+    public string Persona { get; set; } = "Iaret";
 
     [Option("model", Required = false, Default = "ministral-3:latest", HelpText = "LLM model for voice mode.")]
     public virtual string Model { get; set; } = "ministral-3:latest";
