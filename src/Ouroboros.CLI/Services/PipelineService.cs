@@ -30,7 +30,7 @@ public class PipelineService : IPipelineService
             VoiceOnly = false,
             VoiceLoop = false,
             LocalTts = false,
-            Persona = "Ouroboros"
+            Persona = "Iaret"
         };
 
         await s_consoleLock.WaitAsync();

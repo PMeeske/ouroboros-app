@@ -10,8 +10,8 @@ public sealed class AskOptions : IVoiceOptions
     [Option('v', "voice", Required = false, Default = false, HelpText = "Enable voice persona mode (speak & listen).")]
     public bool Voice { get; set; }
 
-    [Option("persona", Required = false, Default = "Ouroboros", HelpText = "Persona name for voice mode (Ouroboros, Aria, Echo, Sage, Atlas).")]
-    public string Persona { get; set; } = "Ouroboros";
+    [Option("persona", Required = false, Default = "Iaret", HelpText = "Persona name for voice mode (Iaret, Aria, Echo, Sage, Atlas).")]
+    public string Persona { get; set; } = "Iaret";
 
     [Option("embed-model", Required = false, Default = "nomic-embed-text", HelpText = "Embedding model for voice mode.")]
     public string EmbedModel { get; set; } = "nomic-embed-text";

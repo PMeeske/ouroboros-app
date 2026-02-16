@@ -397,7 +397,7 @@ When user says 'read file X' you MUST output [TOOL:read_my_file X]"
 /// Configuration for the unified Ouroboros agent.
 /// </summary>
 public sealed record OuroborosConfig(
-    string Persona = "Ouroboros",
+    string Persona = "Iaret",
     string Model = "deepseek-v3.1:671b-cloud",
     string Endpoint = "http://localhost:11434",
     string EmbedModel = "nomic-embed-text",
