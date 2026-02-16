@@ -1,65 +1,58 @@
-
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Ouroboros.CLI.Commands;
+using Ouroboros.CLI.Commands.Handlers;
 using Ouroboros.CLI.Infrastructure;
 using Ouroboros.CLI.Services;
-using Ouroboros.CLI.Commands.Handlers;
 using Ouroboros.Core.CognitivePhysics;
 
 namespace Ouroboros.CLI.Hosting;
 
 /// <summary>
-/// Extension methods for service registration
+/// Extension methods for service registration.
 /// </summary>
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers CLI-specific services
+    /// Registers CLI business-logic services.
     /// </summary>
     public static IServiceCollection AddCliServices(this IServiceCollection services)
     {
-        // Register command services
         services.TryAddScoped<IAskService, AskService>();
         services.TryAddScoped<IPipelineService, PipelineService>();
         services.TryAddScoped<IOuroborosAgentService, OuroborosAgentService>();
         services.TryAddScoped<ISkillsService, SkillsService>();
         services.TryAddScoped<IOrchestratorService, OrchestratorService>();
         services.TryAddScoped<ICognitivePhysicsService, CognitivePhysicsService>();
-        
         return services;
     }
-    
+
     /// <summary>
-    /// Registers command handlers
+    /// Registers all command handlers.
     /// </summary>
     public static IServiceCollection AddCommandHandlers(this IServiceCollection services)
     {
-        // Register command handlers
-        services.AddAskCommandHandler();
-        // Add other command handlers here...
-        
+        services.AddScoped<AskCommandHandler>();
+        services.AddScoped<PipelineCommandHandler>();
+        services.AddScoped<OuroborosCommandHandler>();
+        services.AddScoped<SkillsCommandHandler>();
+        services.AddScoped<OrchestratorCommandHandler>();
+        services.AddScoped<CognitivePhysicsCommandHandler>();
         return services;
     }
-    
+
     /// <summary>
-    /// Registers infrastructure services
+    /// Registers infrastructure services (console, voice).
     /// </summary>
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services)
     {
-        // Spectre.Console service
         services.TryAddSingleton<ISpectreConsoleService, SpectreConsoleService>();
-        
-        // Voice integration service
         services.TryAddScoped<IVoiceIntegrationService, VoiceIntegrationService>();
-        
         return services;
     }
-    
+
     /// <summary>
     /// Registers Cognitive Physics Engine dependencies.
-    /// IEmbeddingProvider and IEthicsGate are marked Obsolete in foundation but
-    /// still required by CognitivePhysicsEngine's constructor.
     /// </summary>
     public static IServiceCollection AddCognitivePhysicsDefaults(this IServiceCollection services)
     {
@@ -73,18 +66,11 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Registers existing business logic services
+    /// Registers existing business logic services.
     /// </summary>
     public static IServiceCollection AddExistingBusinessLogic(this IServiceCollection services)
     {
-        // Register existing services that are already in the codebase
-        // This ensures we don't duplicate functionality
-        
-        // VoiceModeService (existing)
         services.TryAddScoped<VoiceModeService>();
-        
-        // Other existing services would be registered here
-        
         return services;
     }
 }
