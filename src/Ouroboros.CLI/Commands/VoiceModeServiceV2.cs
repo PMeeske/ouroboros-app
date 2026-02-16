@@ -16,7 +16,7 @@ namespace Ouroboros.CLI.Commands;
 /// Configuration for the unified voice mode service.
 /// </summary>
 public sealed record VoiceModeConfigV2(
-    string Persona = "Ouroboros",
+    string Persona = "Iaret",
     bool VoiceOnly = false,
     bool EnableTts = true,
     bool EnableStt = true,

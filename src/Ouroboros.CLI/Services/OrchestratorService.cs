@@ -30,7 +30,7 @@ public class OrchestratorService : IOrchestratorService
             VoiceOnly = false,
             VoiceLoop = false,
             LocalTts = false,
-            Persona = "Ouroboros",
+            Persona = "Iaret",
             Model = "llama3",
             Endpoint = "http://localhost:11434",
             Temperature = 0.7f,
