@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Ouroboros.CLI.Commands;
 using Ouroboros.Options;
@@ -6,10 +5,12 @@ using Ouroboros.Options;
 namespace Ouroboros.CLI.Services;
 
 /// <summary>
-/// Implementation of IPipelineService that wraps the existing pipeline functionality
+/// Implementation of IPipelineService that wraps the existing pipeline functionality.
+/// Uses a semaphore to prevent concurrent Console.SetOut calls.
 /// </summary>
 public class PipelineService : IPipelineService
 {
+    private static readonly SemaphoreSlim s_consoleLock = new(1, 1);
     private readonly ILogger<PipelineService> _logger;
 
     public PipelineService(ILogger<PipelineService> logger)
@@ -20,12 +21,10 @@ public class PipelineService : IPipelineService
     public async Task<string> ExecutePipelineAsync(string dsl)
     {
         _logger.LogInformation("Executing pipeline DSL: {Dsl}", dsl);
-        
-        // Create options that match what PipelineCommands.RunPipelineAsync expects
+
         var options = new PipelineOptions
         {
             Dsl = dsl,
-            // Set default values for other required properties
             Debug = false,
             Voice = false,
             VoiceOnly = false,
@@ -34,23 +33,19 @@ public class PipelineService : IPipelineService
             Persona = "Ouroboros"
         };
 
-        // Capture console output
+        await s_consoleLock.WaitAsync();
         var originalOut = Console.Out;
         using var stringWriter = new StringWriter();
-        Console.SetOut(stringWriter);
-
         try
         {
-            // Execute the existing PipelineCommands logic
+            Console.SetOut(stringWriter);
             await PipelineCommands.RunPipelineAsync(options);
-            
-            // Get the output
+
             var output = stringWriter.ToString();
-            
-            // Extract the result (remove timing information)
             var lines = output.Split('\n');
-            var resultLines = lines.Where(line => !line.StartsWith("[timing]") && !string.IsNullOrWhiteSpace(line)).ToList();
-            
+            var resultLines = lines
+                .Where(line => !line.StartsWith("[timing]") && !string.IsNullOrWhiteSpace(line))
+                .ToList();
             return string.Join("\n", resultLines);
         }
         catch (Exception ex)
@@ -61,6 +56,7 @@ public class PipelineService : IPipelineService
         finally
         {
             Console.SetOut(originalOut);
+            s_consoleLock.Release();
         }
     }
 }

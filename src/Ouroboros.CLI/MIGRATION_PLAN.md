@@ -1,7 +1,7 @@
 # Ouroboros CLI Migration Plan
 
 ## Overview
-This document outlines the incremental migration plan to refactor the existing CLI application to use modern .NET 8 patterns including System.CommandLine, Microsoft.Extensions.Hosting, Dependency Injection, and Spectre.Console.
+This document outlines the incremental migration plan to refactor the existing CLI application to use modern .NET 10 patterns including System.CommandLine, Microsoft.Extensions.Hosting, Dependency Injection, and Spectre.Console.
 
 ## Migration Requirements
 
@@ -21,7 +21,7 @@ This document outlines the incremental migration plan to refactor the existing C
 ### Step 3: Replace Console Output with Spectre.Console
 - [x] Create SpectreConsoleService wrapper
 - [x] Update command handlers to use Spectre.Console
-- [ ] Replace Console.WriteLine calls
+- [ ] Replace Console.WriteLine calls in legacy command files
 - [ ] Test rich terminal output
 
 ### Step 4: Add Global "--voice" Option Integration
@@ -31,246 +31,79 @@ This document outlines the incremental migration plan to refactor the existing C
 - [ ] Test voice command handling
 - [ ] Add cancellation support
 
-## ✅ **Migration Status Update**
+### Step 5: Architectural Refactoring ✅ **COMPLETED**
+- [x] Extract shared options into composable groups (SharedOptions.cs)
+- [x] Create dedicated command handlers for all commands
+- [x] Simplify Program.cs entry point (549 → 151 lines)
+- [x] Add BindConfig to OuroborosCommandOptions (eliminates 100-line inline extraction)
+- [x] Fix thread-unsafe Console.SetOut with SemaphoreSlim
+- [x] Update service registration for all handlers
+- [x] Update tests for new composed option structure
 
-### **Option Classes Migration - COMPLETED**
+## Architecture
 
-All option classes have been successfully migrated from the legacy `CommandLine` library to System.CommandLine:
+### Composable Option Groups (SharedOptions.cs)
+Commands compose the option groups they need, eliminating cross-command duplication:
 
-#### **New Option Classes Created:**
-- ✅ `AskCommandOptions` - All 30+ options migrated
-- ✅ `PipelineCommandOptions` - All 25+ options migrated  
-- ✅ `OuroborosCommandOptions` - All 20+ options migrated
-- ✅ `SkillsCommandOptions` - All 15+ options migrated
-- ✅ `OrchestratorCommandOptions` - All 20+ options migrated
-- ✅ `VoiceCommandOptions` - Base class for voice-related options
+| Group | Options | Used By |
+|-------|---------|---------|
+| `ModelOptions` | model, temperature, max-tokens, timeout, stream | ask, pipeline, orchestrator, skills |
+| `EndpointOptions` | endpoint, api-key, endpoint-type | ask, pipeline, orchestrator, skills |
+| `MultiModelOptions` | router, coder-model, summarize-model, reason-model, general-model | ask, pipeline, orchestrator |
+| `DiagnosticOptions` | debug, strict-model, json-tools | ask, pipeline, orchestrator, skills |
+| `EmbeddingOptions` | embed-model, qdrant | ask, skills |
+| `CollectiveOptions` | collective, master-model, election-strategy, decompose, ... | ask, orchestrator |
+| `AgentLoopOptions` | agent, agent-mode, agent-max-steps | ask, pipeline |
+| `CommandVoiceOptions` | voice-only, local-tts, voice-loop | ask |
 
-#### **Key Improvements:**
-- **Type Safety**: Strongly typed Option<T> instead of reflection-based attributes
-- **DI Integration**: Options work seamlessly with dependency injection
-- **Better Validation**: Built-in validation and default value handling
-- **Consistent Patterns**: Standardized option naming and structure
+### Command Handler Pattern
+Each command has a dedicated handler class in `Commands/Handlers/`:
+- `AskCommandHandler` - question/answer with LLM
+- `PipelineCommandHandler` - DSL pipeline execution
+- `OuroborosCommandHandler` - unified agent lifecycle
+- `SkillsCommandHandler` - skill listing and research
+- `OrchestratorCommandHandler` - multi-model orchestration
+- `CognitivePhysicsCommandHandler` - ZeroShift, trajectory, entangle, chaos
 
-#### **Command Handler Integration:**
-- ✅ `AskCommandHandler` - Bridge between System.CommandLine and business logic
-- ✅ Service registration extensions updated
-- ✅ Program.cs updated to use new option classes
+### Config Binding
+`OuroborosCommandOptions.BindConfig(ParseResult)` maps all 60+ parsed CLI values
+into a single `OuroborosConfig` record, including environment-variable fallbacks
+and derived logic (Azure TTS key resolution, push-mode voice derivation, etc.).
 
 ## Safe Rollout Strategy
 
-### Phase 1: Parallel Operation (Week 1-2) ✅ **COMPLETED**
+### Phase 1: Parallel Operation ✅ **COMPLETED**
 - ✅ Keep existing CommandLineParser working
 - ✅ Add new System.CommandLine commands alongside
-- ✅ Use feature flags to enable/disable new implementation
 - ✅ Run integration tests on both implementations
 
-### Phase 2: Gradual Migration (Week 3-4) 🔄 **IN PROGRESS**
-- ✅ Migrate one command at a time
-- 🔄 Test thoroughly before moving to next command
+### Phase 2: Gradual Migration ✅ **COMPLETED**
+- ✅ Migrate all commands to handler pattern
 - ✅ Maintain backward compatibility
-- 🔄 Update documentation
+- ✅ Compose shared options across commands
 
-### Phase 3: Full Cutover (Week 5)
+### Phase 3: Full Cutover
 - 🔄 Remove old CommandLineParser dependency
-- 🔄 Remove feature flags
+- 🔄 Remove legacy Options/ folder
 - 🔄 Final testing and validation
 - 🔄 Update CI/CD pipelines
 
-## Unit Test Strategy
-
-### Command Handler Tests
-```csharp
-public class AskCommandHandlerTests
-{
-    [Fact]
-    public async Task AskCommand_WithValidQuestion_ReturnsAnswer()
-    {
-        // Arrange
-        var mockAskService = new Mock<IAskService>();
-        mockAskService.Setup(s => s.AskAsync("test", false))
-            .ReturnsAsync("test answer");
-        
-        var handler = new AskCommandHandler(mockAskService.Object);
-        
-        // Act
-        var result = await handler.HandleAsync("test", false);
-        
-        // Assert
-        Assert.Equal("test answer", result);
-    }
-}
-```
-
-### Command Options Tests
-```csharp
-public class CommandOptionsMigrationTests
-{
-    [Fact]
-    public void AskCommandOptions_ShouldHaveAllProperties()
-    {
-        // Arrange
-        var options = new AskCommandOptions();
-
-        // Act & Assert
-        Assert.NotNull(options.QuestionOption);
-        Assert.NotNull(options.RagOption);
-        // ... all options verified
-    }
-}
-```
-
-### Voice Integration Tests
-```csharp
-public class VoiceIntegrationServiceTests
-{
-    [Fact]
-    public async Task HandleVoiceCommandAsync_WhenVoiceAvailable_RecognizesSpeech()
-    {
-        // Arrange
-        var mockVoiceService = new Mock<VoiceModeService>();
-        mockVoiceService.Setup(v => v.HasStt).Returns(true);
-        mockVoiceService.Setup(v => v.GetInputAsync(It.IsAny<string>()))
-            .ReturnsAsync("test question");
-        
-        var service = new VoiceIntegrationService(mockVoiceService.Object, ...);
-        
-        // Act
-        await service.HandleVoiceCommandAsync("ask", Array.Empty<string>());
-        
-        // Assert
-        mockVoiceService.Verify(v => v.GetInputAsync(It.IsAny<string>()), Times.Once);
-    }
-}
-```
-
-### Spectre.Console Integration Tests
-```csharp
-public class SpectreConsoleServiceTests
-{
-    [Fact]
-    public void MarkupLine_WithValidMarkup_WritesToConsole()
-    {
-        // Arrange
-        var console = new TestConsole();
-        var service = new SpectreConsoleService(console);
-        
-        // Act
-        service.MarkupLine("[green]test[/]");
-        
-        // Assert
-        Assert.Contains("test", console.Output);
-    }
-}
-```
-
-## Cancellation Handling Strategy
-
-### Command-Level Cancellation
-```csharp
-command.SetHandler(async (context) =>
-{
-    var cancellationToken = context.GetCancellationToken();
-    
-    await console.Status().StartAsync("Processing...", async ctx =>
-    {
-        try
-        {
-            var result = await service.ProcessAsync(input, cancellationToken);
-            ctx.Status = "Done";
-            console.MarkupLine($"[green]Result:[/] {result}");
-        }
-        catch (OperationCanceledException)
-        {
-            console.MarkupLine("[yellow]Operation cancelled[/]");
-        }
-    });
-});
-```
-
-### Voice Recognition Cancellation
-```csharp
-public async Task<string[]> RecognizeSpeechAsync(CancellationToken cancellationToken = default)
-{
-    try
-    {
-        return await _voiceModeService.GetInputAsync("Speak now: ", cancellationToken)
-            .ContinueWith(task => ParseSpeechToArguments(task.Result), cancellationToken);
-    }
-    catch (OperationCanceledException)
-    {
-        _logger.LogInformation("Speech recognition cancelled");
-        return Array.Empty<string>();
-    }
-}
-```
-
-## Domain/Application/Infrastructure Layer Separation
-
-### Domain Layer
-- Command definitions
-- Option classes
-- Business entities
-
-### Application Layer
-- Command handlers
-- Service interfaces
-- Business logic
-
-### Infrastructure Layer
-- Spectre.Console integration
-- Voice recognition
-- External service clients
-
-## Risk Mitigation
-
-### Backward Compatibility
-- ✅ Maintain existing CommandLineParser during migration
-- ✅ Ensure all existing options are supported
-- ✅ Test with existing scripts and workflows
-
-### Performance Impact
-- 🔄 Monitor startup time with HostBuilder
-- 🔄 Profile command execution
-- 🔄 Optimize service registration
-
-### Voice Integration Stability
-- ✅ Graceful fallback when voice services unavailable
-- ✅ Comprehensive error handling
-- ✅ User-friendly error messages
-
-## Success Metrics
-
-- ✅ All existing commands work identically
-- 🔄 Voice integration works reliably
-- 🔄 Rich terminal output enhances UX
-- ✅ Codebase is more maintainable
-- 🔄 Unit test coverage increases
-- 🔄 Performance remains acceptable
-
-## Next Steps
-
-1. ✅ Implement command handlers with extracted business logic
-2. ✅ Migrate existing option classes to System.CommandLine
-3. 🔄 Add comprehensive unit tests
-4. 🔄 Perform integration testing
-5. 🔄 Update documentation
-6. 🔄 Deploy and monitor
-
-## Migration Completion Status: 90%
+## Migration Completion Status: 95%
 
 ### Completed:
 - ✅ HostBuilder and DI setup
-- ✅ System.CommandLine 2.0.3 GA integration (with correct API surface)
-- ✅ Option classes migration (fully qualified `System.CommandLine.Option<T>` to avoid monadic conflict)
-- ✅ Command handler structure
+- ✅ System.CommandLine 2.0.3 GA integration
+- ✅ Composable shared option groups (SharedOptions.cs)
+- ✅ Dedicated command handlers for all 6 commands
+- ✅ OuroborosCommandOptions.BindConfig() for clean config mapping
+- ✅ Thread-safe Console.SetOut with SemaphoreSlim in services
+- ✅ Simplified Program.cs (549 → 151 lines)
 - ✅ Voice integration service
-- ✅ Spectre.Console service wrapper (`Status`, `MarkupLine`, `Table`)
+- ✅ Spectre.Console service wrapper
+- ✅ Updated tests for composed option structure
 - ✅ **Build succeeds with 0 errors, 0 warnings**
 
 ### Remaining:
-- 🔄 Replace Console.WriteLine calls with Spectre.Console (legacy files: GuidedSetup, OuroborosCliIntegration, etc.)
-- 🔄 Comprehensive testing
-- 🔄 Documentation updates
-- 🔄 Performance optimization
-- 🔄 CI/CD pipeline updates
+- 🔄 Replace Console.WriteLine calls with Spectre.Console in legacy command files
 - 🔄 Remove legacy CommandLineParser NuGet dependency once all option classes are fully routed
+- 🔄 CI/CD pipeline updates
