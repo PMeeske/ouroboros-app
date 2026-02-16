@@ -38,7 +38,7 @@ public class AskService : IAskService
             VoiceOnly = false,
             VoiceLoop = false,
             LocalTts = false,
-            Persona = "Ouroboros",
+            Persona = "Iaret",
             Router = "auto",
             Debug = false,
             StrictModel = false,

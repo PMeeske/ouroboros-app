@@ -27,8 +27,8 @@ public sealed class SkillsOptions : IVoiceOptions
     [Option('v', "voice", HelpText = "Enable voice persona mode (speak & listen).")]
     public bool Voice { get; set; }
 
-    [Option("persona", Default = "Ouroboros", HelpText = "Persona name for voice mode (Ouroboros, Aria, Nova, Echo, Sage).")]
-    public string Persona { get; set; } = "Ouroboros";
+    [Option("persona", Default = "Iaret", HelpText = "Persona name for voice mode (Iaret, Aria, Nova, Echo, Sage).")]
+    public string Persona { get; set; } = "Iaret";
 
     [Option('m', "model", Default = "deepseek-v3.1:671b-cloud", HelpText = "LLM model for natural language understanding (e.g., deepseek-v3.1:671b-cloud, llama3.2).")]
     public string Model { get; set; } = "deepseek-v3.1:671b-cloud";
