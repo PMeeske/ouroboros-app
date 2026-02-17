@@ -224,6 +224,20 @@ public sealed class OuroborosOptions : IVoiceOptions
     // DEBUG & OUTPUT
     // ═══════════════════════════════════════════════════════════════════════════
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // INTERACTIVE AVATAR
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    [Option("avatar", Required = false, HelpText = "Launch interactive avatar viewer alongside CLI", Default = false)]
+    public bool Avatar { get; set; }
+
+    [Option("avatar-port", Required = false, HelpText = "Port for avatar viewer WebSocket server", Default = 9471)]
+    public int AvatarPort { get; set; } = 9471;
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // DEBUG & OUTPUT
+    // ═══════════════════════════════════════════════════════════════════════════
+
     [Option("debug", Required = false, HelpText = "Enable debug logging", Default = false)]
     public bool Debug { get; set; }
 
