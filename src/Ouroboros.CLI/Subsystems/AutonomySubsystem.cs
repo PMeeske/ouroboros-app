@@ -1,14 +1,24 @@
-// Copyright (c) Ouroboros. All rights reserved.
+﻿// Copyright (c) Ouroboros. All rights reserved.
 namespace Ouroboros.CLI.Subsystems;
 
 using System.Collections.Concurrent;
+using LangChain.DocumentLoaders;
+using Ouroboros.Abstractions.Monads;
+using Unit = Ouroboros.Abstractions.Unit;
+using PipelineReasoningStep = Ouroboros.Domain.Events.ReasoningStep;
+using System.Text;
+using System.Text.RegularExpressions;
 using Ouroboros.Abstractions.Agent;
 using Ouroboros.Agent.MetaAI;
 using Ouroboros.Agent.MetaAI.SelfModel;
+using Ouroboros.Application.Personality;
+using Ouroboros.Application.Personality.Consciousness;
 using Ouroboros.Application.SelfAssembly;
 using Ouroboros.Application.Services;
 using Ouroboros.Application.Tools;
 using Ouroboros.CLI.Commands;
+using Ouroboros.Domain.Voice;
+using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Network;
 using Ouroboros.Tools.MeTTa;
 using static Ouroboros.Application.Tools.AutonomousTools;
@@ -52,6 +62,9 @@ public interface IAutonomySubsystem : IAgentSubsystem
 
     // Network State
     NetworkStateTracker? NetworkTracker { get; }
+
+    // Persistent Network State Projector (learning persistence across sessions)
+    PersistentNetworkStateProjector? NetworkProjector { get; }
 }
 
 /// <summary>
@@ -96,15 +109,44 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
     // Network State
     public NetworkStateTracker? NetworkTracker { get; set; }
 
+    // Persistent Network State Projector
+    public PersistentNetworkStateProjector? NetworkProjector { get; set; }
+
     // Push Mode
     public Task? PushModeTask { get; set; }
     public CancellationTokenSource? PushModeCts { get; set; }
+
+    // ── Runtime cross-subsystem references (set during InitializeAsync) ──
+    internal OuroborosConfig Config { get; private set; } = null!;
+    internal IConsoleOutput Output { get; private set; } = null!;
+    internal ModelSubsystem Models { get; private set; } = null!;
+    internal ToolSubsystem Tools { get; private set; } = null!;
+    internal MemorySubsystem Memory { get; private set; } = null!;
+    internal VoiceSubsystem Voice { get; private set; } = null!;
+    internal CognitiveSubsystem Cognitive { get; private set; } = null!;
+
+    // ── Agent-level callbacks (wired by mediator after init) ──
+    internal Func<bool> IsInConversationLoop { get; set; } = () => false;
+    internal Func<string, string?, Task> SayAndWaitAsyncFunc { get; set; } = (_, _) => Task.CompletedTask;
+    internal Action<string> AnnounceAction { get; set; } = _ => { };
+    internal Func<string, Task<string>> ChatAsyncFunc { get; set; } = _ => Task.FromResult("");
+    internal Func<string, string> GetLanguageNameFunc { get; set; } = _ => "English";
+    internal Func<Task> StartListeningAsyncFunc { get; set; } = () => Task.CompletedTask;
+    internal Action StopListeningAction { get; set; } = () => { };
 
     public void MarkInitialized() => IsInitialized = true;
 
     /// <inheritdoc/>
     public async Task InitializeAsync(SubsystemInitContext ctx)
     {
+        // Store cross-subsystem references for runtime use
+        Config = ctx.Config;
+        Output = ctx.Output;
+        Models = ctx.Models;
+        Tools = ctx.Tools;
+        Memory = ctx.Memory;
+        Voice = ctx.Voice;
+        Cognitive = ctx.Cognitive;
         // ── Autonomous Mind (core creation; delegate wiring done by agent mediator) ──
         if (ctx.Config.EnableMind)
         {
@@ -126,6 +168,9 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
 
         // ── Network State (Merkle-DAG + Qdrant) ──
         await InitializeNetworkStateCoreAsync(ctx);
+
+        // ── Persistent Network State Projector (learning persistence) ──
+        await InitializeNetworkProjectorCoreAsync(ctx);
 
         // ── Self-Indexer (code perception) ──
         await InitializeSelfIndexerCoreAsync(ctx);
@@ -296,6 +341,28 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
         }
     }
 
+    private async Task InitializeNetworkProjectorCoreAsync(SubsystemInitContext ctx)
+    {
+        var embedding = ctx.Models.Embedding;
+        if (embedding == null) return;
+
+        try
+        {
+            var dag = new Ouroboros.Network.MerkleDag();
+            NetworkProjector = new PersistentNetworkStateProjector(
+                dag,
+                ctx.Config.QdrantEndpoint,
+                async text => await embedding.CreateEmbeddingsAsync(text));
+            await NetworkProjector.InitializeAsync(CancellationToken.None);
+            ctx.Output.RecordInit("Network Projector", true,
+                $"epoch {NetworkProjector.CurrentEpoch}, {NetworkProjector.RecentLearnings.Count} learnings");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"  ⚠ Network Projector: {ex.Message}");
+        }
+    }
+
     private async Task InitializeSelfIndexerCoreAsync(SubsystemInitContext ctx)
     {
         if (ctx.Models.Embedding == null)
@@ -423,7 +490,1337 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
         await Task.CompletedTask;
     }
 
-    public async ValueTask DisposeAsync()
+
+    // 
+    // MIGRATED FROM OuroborosAgent  Autonomous behavior methods
+    // 
+
+    /// <summary>
+    /// Initializes the autonomous coordinator (always enabled for status, commands, network).
+    /// </summary>
+    internal async Task InitializeAutonomousCoordinatorAsync()
+    {
+        try
+        {
+            // Parse auto-approve categories from config
+            HashSet<string> autoApproveCategories = Config.AutoApproveCategories
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            // Create autonomous configuration using existing API
+            AutonomousConfiguration autonomousConfig = new AutonomousConfiguration
+            {
+                PushBasedMode = Config.EnablePush,
+                YoloMode = Config.YoloMode,
+                TickIntervalSeconds = Config.IntentionIntervalSeconds,
+                AutoApproveLowRisk = autoApproveCategories.Contains("safe") || autoApproveCategories.Contains("low"),
+                AutoApproveMemoryOps = autoApproveCategories.Contains("memory"),
+                AutoApproveSelfReflection = autoApproveCategories.Contains("analysis") || autoApproveCategories.Contains("reflection"),
+                EnableProactiveCommunication = Config.EnablePush,
+                EnableCodeModification = !autoApproveCategories.Contains("no-code"),
+                Culture = Config.Culture
+            };
+
+            // Create the autonomous coordinator
+            Coordinator = new AutonomousCoordinator(autonomousConfig);
+
+            // Share coordinator with autonomous tools (enables status checks even without push mode)
+            Ouroboros.Application.Tools.AutonomousTools.SharedCoordinator = Coordinator;
+
+            // Wire up event handlers
+            Coordinator.OnProactiveMessage += HandleAutonomousMessage;
+            Coordinator.OnIntentionRequiresAttention += HandleIntentionAttention;
+
+            // Configure functions if available
+            if (Models.Llm != null)
+            {
+                Coordinator.ExecuteToolFunction = async (tool, args, ct) =>
+                {
+                    ITool? toolObj = Tools.Tools.All.FirstOrDefault(t => t.Name == tool);
+                    if (toolObj != null)
+                    {
+                        Result<string, string> result = await toolObj.InvokeAsync(args, ct);
+                        return result.Match(
+                            success => success,
+                            error => $"Tool execution failed: {error}");
+                    }
+                    return $"Tool '{tool}' not found.";
+                };
+
+                // Wire up ThinkFunction for autonomous topic discovery
+                Coordinator.ThinkFunction = async (prompt, ct) =>
+                {
+                    (string response, List<ToolExecution> _) = await Models.Llm.GenerateWithToolsAsync(prompt, ct);
+                    return response;
+                };
+            }
+
+            if (Models.Embedding != null)
+            {
+                Coordinator.EmbedFunction = async (text, ct) =>
+                {
+                    return await Models.Embedding.CreateEmbeddingsAsync(text, ct);
+                };
+            }
+
+            // Wire up Qdrant storage and search for autonomous memory
+            if (Memory.NeuralMemory != null)
+            {
+                Coordinator.StoreToQdrantFunction = async (category, content, embedding, ct) =>
+                {
+                    await Memory.NeuralMemory.StoreMemoryAsync(category, content, embedding, ct);
+                };
+
+                Coordinator.SearchQdrantFunction = async (embedding, limit, ct) =>
+                {
+                    return await Memory.NeuralMemory.SearchMemoriesAsync(embedding, limit, ct);
+                };
+
+                // Wire up intention storage
+                Coordinator.StoreIntentionFunction = async (intention, ct) =>
+                {
+                    await Memory.NeuralMemory.StoreIntentionAsync(intention, ct);
+                };
+
+                // Wire up neuron message storage
+                Coordinator.StoreNeuronMessageFunction = async (message, ct) =>
+                {
+                    await Memory.NeuralMemory.StoreNeuronMessageAsync(message, ct);
+                };
+            }
+            else if (Memory.Skills != null)
+            {
+                // Fallback: Use skills to find related context
+                Coordinator.SearchQdrantFunction = async (embedding, limit, ct) =>
+                {
+                    IEnumerable<Skill> results = await Memory.Skills.FindMatchingSkillsAsync("recent topics and interests", null);
+                    return results.Take(limit).Select(s => $"{s.Name}: {s.Description}").ToList();
+                };
+            }
+
+            // Wire up MeTTa symbolic reasoning functions
+            if (Memory.MeTTaEngine != null)
+            {
+                Coordinator.MeTTaQueryFunction = async (query, ct) =>
+                {
+                    Result<string, string> result = await Memory.MeTTaEngine.ExecuteQueryAsync(query, ct);
+                    return result.Match(
+                        success => success,
+                        error => $"MeTTa error: {error}");
+                };
+
+                Coordinator.MeTTaAddFactFunction = async (fact, ct) =>
+                {
+                    Result<Unit, string> result = await Memory.MeTTaEngine.AddFactAsync(fact, ct);
+                    return result.IsSuccess;
+                };
+
+                // Wire up DAG constraint verification through NetworkTracker
+                if (NetworkTracker?.HasMeTTaEngine == true)
+                {
+                    Coordinator.VerifyDagConstraintFunction = async (branchName, constraint, ct) =>
+                    {
+                        Result<bool> result = await NetworkTracker.VerifyConstraintAsync(branchName, constraint, ct);
+                        return result.IsSuccess && result.Value;
+                    };
+                }
+            }
+
+            // Wire up ProcessChatFunction for auto-training mode
+            Coordinator.ProcessChatFunction = async (message, ct) =>
+            {
+                // Process through the main chat pipeline and return response
+                string response = await ChatAsyncFunc(message);
+                return response;
+            };
+
+            // Wire up FullChatWithToolsFunction for User persona in problem-solving mode
+            Coordinator.FullChatWithToolsFunction = async (message, ct) =>
+            {
+                string response = await ChatAsyncFunc(message);
+                return response;
+            };
+
+            // Wire up DisplayAndSpeakFunction for proper User→Ouroboros sequencing
+            Coordinator.DisplayAndSpeakFunction = async (message, persona, ct) =>
+            {
+                bool isUser = persona == "User";
+                Console.ForegroundColor = isUser ? ConsoleColor.Yellow : ConsoleColor.Cyan;
+                Console.WriteLine($"\n  {message}");
+                Console.ResetColor();
+
+                await SayAndWaitAsyncFunc(message, persona);
+            };
+
+            // Wire up proactive message suppression for problem-solving mode
+            Coordinator.SetSuppressProactiveMessages = (suppress) =>
+            {
+                if (AutonomousMind != null)
+                {
+                    AutonomousMind.SuppressProactiveMessages = suppress;
+                }
+            };
+
+            // Wire up voice output (TTS) toggle
+            Coordinator.SetVoiceEnabled = (enabled) =>
+            {
+                if (Voice.SideChannel != null)
+                {
+                    Voice.SideChannel.SetEnabled(enabled);
+                }
+            };
+
+            // Wire up voice input (STT) toggle
+            Coordinator.SetListeningEnabled = (enabled) =>
+            {
+                if (enabled)
+                {
+                    StartListeningAsyncFunc().ConfigureAwait(false);
+                }
+                else
+                {
+                    StopListeningAction();
+                }
+            };
+
+            // Configure topic discovery interval
+            Coordinator.TopicDiscoveryIntervalSeconds = Config.DiscoveryIntervalSeconds;
+
+            // Populate available tools for priority resolution
+            Coordinator.AvailableTools = Tools.Tools.All.Select(t => t.Name).ToHashSet();
+
+            // Start the neural network (for status visibility) without coordination loops
+            Coordinator.StartNetwork();
+
+            Output.RecordInit("Coordinator", true, "neural network active");
+            await Task.CompletedTask;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"  ⚠ Autonomous Coordinator initialization failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Handles proactive messages from autonomous coordinator.
+    /// </summary>
+    internal void HandleAutonomousMessage(ProactiveMessageEventArgs args)
+    {
+        // Always show auto-training and user_persona messages
+        bool isTrainingMessage = args.Source is "user_persona" or "auto_training";
+
+        // Skip non-training messages during conversation loop to avoid cluttering
+        if (IsInConversationLoop() && !isTrainingMessage && args.Priority < IntentionPriority.High)
+            return;
+
+        // In Normal mode, only show training and high-priority messages
+        if (Config.Verbosity < OutputVerbosity.Verbose && !isTrainingMessage && args.Priority < IntentionPriority.High)
+        {
+            Output.WriteDebug($"[{args.Source}] {args.Message}");
+        }
+        else
+        {
+            string sourceIcon = args.Source switch
+            {
+                "user_persona" => "👤",
+                "auto_training" => "🤖",
+                _ => "🐍"
+            };
+            var displayMessage = args.Message.StartsWith("👤") || args.Message.StartsWith("🐍")
+                ? args.Message
+                : $"{sourceIcon} [{args.Source}] {args.Message}";
+            Output.WriteSystem(displayMessage);
+        }
+
+        // Speak on voice side channel - block until complete
+        // Use distinct persona for user_persona to get a different voice
+        if (args.Priority >= IntentionPriority.Normal)
+        {
+            var voicePersona = args.Source == "user_persona" ? "User" : null;
+            SayAndWaitAsyncFunc(args.Message, voicePersona).GetAwaiter().GetResult();
+        }
+    }
+
+    /// <summary>
+    /// Handles intentions requiring user attention.
+    /// </summary>
+    internal void HandleIntentionAttention(Intention intention)
+    {
+        if (IsInConversationLoop()) return;
+
+        var shortId = intention.Id.ToString()[..4];
+        Output.WriteSystem($"⚡ {intention.Title} ({intention.Category}/{intention.Priority}) — /approve {shortId} | /reject {shortId}");
+
+        // Announce intention on voice side channel
+        if (intention.Priority >= IntentionPriority.Normal)
+        {
+            AnnounceAction($"Intention: {intention.Title}. {intention.Rationale}");
+        }
+    }
+
+    /// <summary>
+    /// Background loop that displays pending intentions and handles user interaction.
+    /// </summary>
+    internal async Task PushModeLoopAsync(CancellationToken ct)
+    {
+        // The PushModeLoop is now simpler since the AutonomousCoordinator handles
+        // the tick loop internally. We just wait for events and keep the task alive.
+        while (!ct.IsCancellationRequested && Coordinator != null)
+        {
+            try
+            {
+                // The coordinator handles its own tick loop and fires events
+                // We just keep this task alive to monitor and potentially inject goals
+                await Task.Delay(5000, ct);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                Output.WriteWarning($"[push] {ex.Message}");
+                await Task.Delay(5000, ct);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Background loop for self-execution of queued goals.
+    /// </summary>
+    internal async Task SelfExecutionLoopAsync()
+    {
+        while (SelfExecutionEnabled && !SelfExecutionCts?.Token.IsCancellationRequested == true)
+        {
+            try
+            {
+                if (GoalQueue.TryDequeue(out var goal))
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkCyan;
+                    Console.WriteLine($"\n  [self-exec] Starting autonomous goal: {goal.Description}");
+                    Console.ResetColor();
+
+                    var startTime = DateTime.UtcNow;
+                    string result;
+                    bool success = true;
+
+                    try
+                    {
+                        // Check if this is a DSL goal (starts with pipe syntax)
+                        if (goal.Description.Contains("|") || goal.Description.StartsWith("pipeline:"))
+                        {
+                            result = await ExecuteDslGoalAsync(goal);
+                        }
+                        else
+                        {
+                            result = await ExecuteGoalAutonomouslyAsync(goal);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        success = false;
+                        result = $"Execution failed: {ex.Message}";
+                    }
+
+                    var duration = DateTime.UtcNow - startTime;
+
+                    // Track capability usage for self-improvement
+                    await TrackGoalExecutionAsync(goal, success, duration);
+
+                    // Reify execution into network state
+                    ReifyGoalExecution(goal, result, success, duration);
+
+                    // Update global workspace with result
+                    var priority = goal.Priority switch
+                    {
+                        GoalPriority.Critical => WorkspacePriority.Critical,
+                        GoalPriority.High => WorkspacePriority.High,
+                        GoalPriority.Normal => WorkspacePriority.Normal,
+                        _ => WorkspacePriority.Low
+                    };
+                    GlobalWorkspace?.AddItem(
+                        $"Goal completed: {goal.Description}\nResult: {result}\nDuration: {duration.TotalSeconds:F2}s",
+                        priority,
+                        "self-execution",
+                        new List<string> { "goal", success ? "completed" : "failed" });
+
+                    // Trigger autonomous reflection on completion
+                    if (success)
+                    {
+                        // Learn from successful execution
+                        await ExecuteAutonomousActionAsync("Learn", $"Successful goal execution: {goal.Description}");
+                    }
+                    else
+                    {
+                        // Reflect on failure to improve
+                        await ExecuteAutonomousActionAsync("Reflect", $"Failed goal: {goal.Description}. Result: {result}");
+                    }
+
+                    // Trigger self-evaluation periodically
+                    if (GoalQueue.IsEmpty && SelfEvaluator != null)
+                    {
+                        await PerformPeriodicSelfEvaluationAsync();
+                    }
+
+                    Console.ForegroundColor = success ? ConsoleColor.DarkGreen : ConsoleColor.Yellow;
+                    Console.WriteLine($"  [self-exec] Goal {(success ? "completed" : "failed")}: {goal.Description} ({duration.TotalSeconds:F2}s)");
+                    Console.ResetColor();
+                }
+                else
+                {
+                    // Idle time - check for self-improvement opportunities and generate autonomous thoughts
+                    await CheckSelfImprovementOpportunitiesAsync();
+
+                    // Periodically run autonomous introspection cycles
+                    if (Random.Shared.NextDouble() < 0.05) // 5% chance per idle cycle
+                    {
+                        await ExecuteAutonomousActionAsync("SelfImprove", "idle_introspection");
+                    }
+
+                    await Task.Delay(1000, SelfExecutionCts?.Token ?? CancellationToken.None);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"  [self-exec] Error: {ex.Message}");
+                Console.ResetColor();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Executes a DSL pipeline goal with full reification.
+    /// </summary>
+    internal async Task<string> ExecuteDslGoalAsync(AutonomousGoal goal)
+    {
+        var dsl = goal.Description.StartsWith("pipeline:")
+            ? goal.Description[9..].Trim()
+            : goal.Description;
+
+        if (Models.Embedding == null || Models.Llm == null)
+        {
+            return "DSL execution requires LLM and embeddings to be initialized.";
+        }
+
+        var store = new TrackedVectorStore();
+        var dataSource = DataSource.FromPath(".");
+        var branch = new PipelineBranch($"goal-{goal.Id.ToString()[..8]}", store, dataSource);
+
+        var state = new CliPipelineState
+        {
+            Branch = branch,
+            Llm = Models.Llm,
+            Tools = Tools.Tools,
+            Embed = Models.Embedding,
+            Trace = Config.Debug,
+            NetworkTracker = NetworkTracker
+        };
+
+        // Track the branch for reification
+        NetworkTracker?.TrackBranch(branch);
+
+        var step = PipelineDsl.Build(dsl);
+        state = await step(state);
+
+        // Final reification update
+        NetworkTracker?.UpdateBranch(state.Branch);
+
+        // Extract output
+        var lastReasoning = state.Branch.Events.OfType<PipelineReasoningStep>().LastOrDefault();
+        return lastReasoning?.State.Text ?? state.Output ?? "Pipeline completed without output.";
+    }
+
+    /// <summary>
+    /// Tracks goal execution for capability self-improvement.
+    /// </summary>
+    internal async Task TrackGoalExecutionAsync(AutonomousGoal goal, bool success, TimeSpan duration)
+    {
+        if (CapabilityRegistry == null) return;
+
+        // Determine which capabilities were used
+        var usedCapabilities = InferCapabilitiesFromGoal(goal.Description);
+
+        foreach (var capName in usedCapabilities)
+        {
+            var result = CreateCapabilityPlanExecutionResult(success, duration, goal.Description);
+            await CapabilityRegistry.UpdateCapabilityAsync(capName, result);
+        }
+    }
+
+    /// <summary>
+    /// Infers which capabilities were used based on goal description.
+    /// </summary>
+    internal List<string> InferCapabilitiesFromGoal(string description)
+    {
+        var caps = new List<string> { "natural_language" };
+        var lower = description.ToLowerInvariant();
+
+        if (lower.Contains("|") || lower.Contains("pipeline") || lower.Contains("dsl"))
+            caps.Add("pipeline_execution");
+        if (lower.Contains("plan") || lower.Contains("step") || lower.Contains("multi"))
+            caps.Add("planning");
+        if (lower.Contains("tool") || lower.Contains("search") || lower.Contains("fetch"))
+            caps.Add("tool_use");
+        if (lower.Contains("metta") || lower.Contains("query") || lower.Contains("symbol"))
+            caps.Add("symbolic_reasoning");
+        if (lower.Contains("remember") || lower.Contains("recall") || lower.Contains("memory"))
+            caps.Add("memory_management");
+        if (lower.Contains("code") || lower.Contains("program") || lower.Contains("script"))
+            caps.Add("coding");
+
+        return caps;
+    }
+
+    /// <summary>
+    /// Creates an PlanExecutionResult for capability tracking purposes.
+    /// This creates a minimal valid PlanExecutionResult with empty plan/steps.
+    /// </summary>
+    internal static PlanExecutionResult CreateCapabilityPlanExecutionResult(bool success, TimeSpan duration, string taskDescription)
+    {
+        var minimalPlan = new Plan(
+            Goal: taskDescription,
+            Steps: new List<PlanStep>(),
+            ConfidenceScores: new Dictionary<string, double>(),
+            CreatedAt: DateTime.UtcNow);
+
+        return new PlanExecutionResult(
+            Plan: minimalPlan,
+            StepResults: new List<StepResult>(),
+            Success: success,
+            FinalOutput: taskDescription,
+            Metadata: new Dictionary<string, object>
+            {
+                ["capability_tracking"] = true,
+                ["timestamp"] = DateTime.UtcNow
+            },
+            Duration: duration);
+    }
+
+    /// <summary>
+    /// Reifies goal execution into the network state (MerkleDag).
+    /// </summary>
+    internal void ReifyGoalExecution(AutonomousGoal goal, string result, bool success, TimeSpan duration)
+
+    {
+        if (NetworkTracker == null) return;
+
+        // Create a synthetic branch for goal execution tracking
+        var store = new TrackedVectorStore();
+        var dataSource = DataSource.FromPath(".");
+        var branch = new PipelineBranch($"goal-exec-{goal.Id.ToString()[..8]}", store, dataSource);
+
+        // Add goal execution event
+        branch = branch.WithIngestEvent(
+            $"goal:{(success ? "success" : "failure")}",
+            new[] { goal.Description, result, duration.TotalSeconds.ToString("F2") });
+
+        NetworkTracker.TrackBranch(branch);
+        NetworkTracker.UpdateBranch(branch);
+    }
+
+    /// <summary>
+    /// Performs periodic self-evaluation and learning.
+    /// </summary>
+    internal async Task PerformPeriodicSelfEvaluationAsync()
+    {
+        if (SelfEvaluator == null) return;
+
+        try
+        {
+            var evalResult = await SelfEvaluator.EvaluatePerformanceAsync();
+            if (evalResult.IsSuccess)
+            {
+                var assessment = evalResult.Value;
+
+                // Log evaluation to global workspace
+                GlobalWorkspace?.AddItem(
+                    $"Self-Evaluation: {assessment.OverallPerformance:P0} performance\n" +
+                    $"Strengths: {string.Join(", ", assessment.Strengths.Take(3))}\n" +
+                    $"Weaknesses: {string.Join(", ", assessment.Weaknesses.Take(3))}",
+                    WorkspacePriority.Normal,
+                    "self-evaluation",
+                    new List<string> { "evaluation", "self-improvement" });
+
+                // Check if we need to learn new capabilities
+                foreach (var weakness in assessment.Weaknesses)
+                {
+                    await ConsiderLearningCapabilityAsync(weakness);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[SelfEval] Error: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Checks for self-improvement opportunities during idle time.
+    /// </summary>
+    internal async Task CheckSelfImprovementOpportunitiesAsync()
+    {
+        if (CapabilityRegistry == null || GlobalWorkspace == null) return;
+
+        try
+        {
+            // Generate autonomous thought about current state
+            var thought = await GenerateAutonomousThoughtAsync();
+            if (thought != null)
+            {
+                await ProcessAutonomousThoughtAsync(thought);
+            }
+
+            // Check for recent failures that might indicate capability gaps
+            var recentItems = GlobalWorkspace.GetItems()
+                .Where(i => i.Tags.Contains("failed") && i.CreatedAt > DateTime.UtcNow.AddHours(-1))
+                .ToList();
+
+            if (recentItems.Count >= 2)
+            {
+                // Multiple recent failures - trigger autonomous reflection
+                await ExecuteAutonomousActionAsync("Reflect",
+                    $"Recent failures detected: {string.Join(", ", recentItems.Select(i => i.Content[..Math.Min(50, i.Content.Length)]))}");
+
+                // Queue learning goal using DSL
+                var learningDsl = $"Set('Analyze failures: {recentItems.Count} recent') | Plan | SelfEvaluate('failure_analysis') | Learn";
+                var learningGoal = new AutonomousGoal(
+                    Guid.NewGuid(),
+                    $"pipeline:{learningDsl}",
+                    GoalPriority.Low,
+                    DateTime.UtcNow);
+                GoalQueue.Enqueue(learningGoal);
+            }
+
+            // Periodic autonomous introspection
+            if (Random.Shared.NextDouble() < 0.1) // 10% chance each idle cycle
+            {
+                await ExecuteAutonomousActionAsync("SelfEvaluate", "periodic_introspection");
+            }
+        }
+        catch
+        {
+            // Silent failure for background improvement checks
+        }
+    }
+
+    /// <summary>
+    /// Generates an autonomous thought based on current state and context.
+    /// </summary>
+    internal async Task<AutonomousThought?> GenerateAutonomousThoughtAsync()
+    {
+        if (Models.ChatModel == null || GlobalWorkspace == null) return null;
+
+        try
+        {
+            // Gather context for thought generation
+            var workspaceItems = GlobalWorkspace.GetItems().TakeLast(5).ToList();
+            var recentContext = string.Join("\n", workspaceItems.Select(i => $"- {i.Content[..Math.Min(100, i.Content.Length)]}"));
+
+            var capabilities = CapabilityRegistry != null
+                ? await CapabilityRegistry.GetCapabilitiesAsync()
+                : new List<MetaAgentCapability>();
+            var capSummary = string.Join(", ", capabilities.Take(5).Select(c => $"{c.Name}({c.SuccessRate:P0})"));
+
+            // Add language directive for thoughts if culture is specified
+            string thoughtLanguageDirective = string.Empty;
+            if (!string.IsNullOrEmpty(Config.Culture) && Config.Culture != "en-US")
+            {
+                var languageName = GetLanguageNameFunc(Config.Culture);
+                thoughtLanguageDirective = $@"LANGUAGE CONSTRAINT: All thoughts MUST be generated EXCLUSIVELY in {languageName}.
+Every word must be in {languageName}. Do NOT use English.
+
+";
+            }
+
+            var thoughtPrompt = $@"{thoughtLanguageDirective}You are an autonomous AI agent with self-improvement capabilities.
+Based on your current state, generate a brief autonomous thought about what you should focus on or improve.
+
+Current capabilities: {capSummary}
+Recent activity:
+{recentContext}
+
+Available autonomous actions:
+- SelfEvaluate: Evaluate performance against criteria
+- Learn: Synthesize learning from experience
+- Plan: Create action plan for a task
+- Reflect: Analyze recent actions and outcomes
+- SelfImprove: Iterative improvement cycle
+
+Generate a single autonomous thought (1-2 sentences) about what action would be most beneficial right now.
+Format: [ACTION] thought content
+Example: [Learn] I should consolidate my understanding of the recent coding tasks to improve future performance.";
+
+            var response = await Models.ChatModel.GenerateTextAsync(thoughtPrompt);
+
+            // Parse the thought
+            var match = Regex.Match(response, @"\[(\w+)\]\s*(.+)", RegexOptions.Singleline);
+            if (match.Success)
+            {
+                var actionType = match.Groups[1].Value;
+                var content = match.Groups[2].Value.Trim();
+
+                return new AutonomousThought(
+                    Guid.NewGuid(),
+                    actionType,
+                    content,
+                    DateTime.UtcNow);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[AutonomousThought] Error: {ex.Message}");
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Processes an autonomous thought, potentially triggering actions.
+    /// </summary>
+    internal async Task ProcessAutonomousThoughtAsync(AutonomousThought thought)
+    {
+        if (Config.Debug)
+        {
+            Console.ForegroundColor = ConsoleColor.DarkMagenta;
+            Console.WriteLine($"  [thought] [{thought.ActionType}] {thought.Content}");
+            Console.ResetColor();
+        }
+
+        // Log thought to global workspace
+        GlobalWorkspace?.AddItem(
+            $"Autonomous thought: [{thought.ActionType}] {thought.Content}",
+            WorkspacePriority.Low,
+            "autonomous-thought",
+            new List<string> { "thought", thought.ActionType.ToLowerInvariant() });
+
+        // Persist thought if persistence is available
+        if (Memory.ThoughtPersistence != null)
+        {
+            // Map action type to thought type
+            var thoughtType = thought.ActionType.ToLowerInvariant() switch
+            {
+                "learn" => InnerThoughtType.Consolidation,
+                "selfevaluate" => InnerThoughtType.Metacognitive,
+                "reflect" => InnerThoughtType.SelfReflection,
+                "plan" => InnerThoughtType.Strategic,
+                "selfimprove" => InnerThoughtType.Intention,
+                _ => InnerThoughtType.Analytical
+            };
+
+            var innerThought = InnerThought.CreateAutonomous(
+                thoughtType,
+                thought.Content,
+                confidence: 0.7,
+                priority: ThoughtPriority.Background,
+                tags: new[] { "autonomous", thought.ActionType.ToLowerInvariant() });
+
+            await Memory.ThoughtPersistence.SaveAsync(innerThought, thought.ActionType);
+        }
+
+        // Decide whether to act on the thought
+        var shouldAct = thought.ActionType.ToLowerInvariant() switch
+        {
+            "learn" => true,
+            "selfevaluate" => true,
+            "reflect" => true,
+            "plan" => GoalQueue.Count < 3, // Only plan if not too busy
+            "selfimprove" => GoalQueue.IsEmpty, // Only improve when idle
+            _ => false
+        };
+
+        if (shouldAct)
+        {
+            await ExecuteAutonomousActionAsync(thought.ActionType, thought.Content);
+        }
+    }
+
+    /// <summary>
+    /// Executes an autonomous action using the self-improvement DSL tokens.
+    /// </summary>
+    internal async Task ExecuteAutonomousActionAsync(string actionType, string context)
+    {
+        if (Models.Llm == null || Models.Embedding == null) return;
+
+        try
+        {
+            // Build DSL pipeline based on action type
+            var dsl = actionType.ToLowerInvariant() switch
+            {
+                "learn" => $"Set('{EscapeDslString(context)}') | Reify | Learn",
+                "selfevaluate" => $"Set('{EscapeDslString(context)}') | Reify | SelfEvaluate('{EscapeDslString(context)}')",
+                "reflect" => $"Set('{EscapeDslString(context)}') | Reify | Reflect",
+                "plan" => $"Set('{EscapeDslString(context)}') | Reify | Plan('{EscapeDslString(context)}')",
+                "selfimprove" => $"Set('{EscapeDslString(context)}') | Reify | SelfImprovingCycle('{EscapeDslString(context)}')",
+                "autosolve" => $"Set('{EscapeDslString(context)}') | Reify | AutoSolve('{EscapeDslString(context)}')",
+                _ => $"Set('{EscapeDslString(context)}') | Draft"
+            };
+
+            if (Config.Debug)
+            {
+                Console.ForegroundColor = ConsoleColor.DarkCyan;
+                Console.WriteLine($"  [autonomous] Executing: {dsl}");
+                Console.ResetColor();
+            }
+
+            // Execute the DSL pipeline
+            var store = new TrackedVectorStore();
+            var dataSource = DataSource.FromPath(".");
+            var branch = new PipelineBranch($"autonomous-{actionType.ToLowerInvariant()}-{Guid.NewGuid().ToString()[..8]}", store, dataSource);
+
+            var state = new CliPipelineState
+            {
+                Branch = branch,
+                Llm = Models.Llm,
+                Tools = Tools.Tools,
+                Embed = Models.Embedding,
+                Trace = Config.Debug,
+                NetworkTracker = NetworkTracker
+            };
+
+            NetworkTracker?.TrackBranch(branch);
+
+            var step = PipelineDsl.Build(dsl);
+            state = await step(state);
+
+            NetworkTracker?.UpdateBranch(state.Branch);
+
+            // Extract result
+            var result = state.Branch.Events.OfType<PipelineReasoningStep>().LastOrDefault()?.State.Text
+                ?? state.Output
+                ?? "Action completed";
+
+            // Log result to workspace
+            GlobalWorkspace?.AddItem(
+                $"Autonomous action [{actionType}]: {result[..Math.Min(200, result.Length)]}",
+                WorkspacePriority.Low,
+                "autonomous-action",
+                new List<string> { "action", actionType.ToLowerInvariant(), "autonomous" });
+
+            if (Config.Debug)
+            {
+                Console.ForegroundColor = ConsoleColor.DarkGreen;
+                Console.WriteLine($"  [autonomous] Completed: {result[..Math.Min(100, result.Length)]}...");
+                Console.ResetColor();
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[AutonomousAction] Error executing {actionType}: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Escapes a string for use in DSL arguments.
+    /// </summary>
+    internal static string EscapeDslString(string input)
+    {
+        if (string.IsNullOrEmpty(input)) return "";
+        return input
+            .Replace("'", "\\'")
+            .Replace("\n", " ")
+            .Replace("\r", "")
+            [..Math.Min(input.Length, 200)];
+    }
+
+    /// <summary>
+    /// Considers learning a new capability based on identified weakness.
+    /// </summary>
+
+    internal async Task ConsiderLearningCapabilityAsync(string weakness)
+    {
+        if (CapabilityRegistry == null || Tools.ToolLearner == null) return;
+
+        // Check if this is a capability we could learn
+        var gaps = await CapabilityRegistry.IdentifyCapabilityGapsAsync(weakness);
+
+        foreach (var gap in gaps)
+        {
+            // Queue a learning goal
+            var learningGoal = new AutonomousGoal(
+                Guid.NewGuid(),
+                $"Learn capability: {gap} to address weakness: {weakness}",
+                GoalPriority.Low,
+                DateTime.UtcNow);
+
+            GoalQueue.Enqueue(learningGoal);
+
+            Console.ForegroundColor = ConsoleColor.DarkCyan;
+            Console.WriteLine($"  [self-improvement] Queued learning goal: {gap}");
+            Console.ResetColor();
+        }
+    }
+
+    /// <summary>
+    /// Executes a goal autonomously using planning and sub-agent delegation.
+    /// </summary>
+    internal async Task<string> ExecuteGoalAutonomouslyAsync(AutonomousGoal goal)
+    {
+        var sb = new StringBuilder();
+
+        // Step 1: Plan the goal
+        if (Orchestrator != null)
+        {
+            var planResult = await Orchestrator.PlanAsync(goal.Description);
+            if (planResult.IsSuccess)
+            {
+                var plan = planResult.Value;
+                sb.AppendLine($"Plan created with {plan.Steps.Count} steps");
+
+                // Step 2: Check if we should delegate to sub-agents
+                if (plan.Steps.Count > 3 && DistributedOrchestrator != null)
+                {
+                    // Distribute to sub-agents
+                    var execResult = await DistributedOrchestrator.ExecuteDistributedAsync(plan);
+                    if (execResult.IsSuccess)
+                    {
+                        sb.AppendLine($"Distributed execution completed: {execResult.Value.FinalOutput}");
+                        return sb.ToString();
+                    }
+                }
+
+                // Step 3: Execute directly
+                var directResult = await Orchestrator.ExecuteAsync(plan);
+                if (directResult.IsSuccess)
+                {
+                    sb.AppendLine($"Execution completed: {directResult.Value.FinalOutput}");
+                }
+                else
+                {
+                    sb.AppendLine($"Execution failed: {directResult.Error}");
+                }
+            }
+            else
+            {
+                sb.AppendLine($"Planning failed: {planResult.Error}");
+            }
+        }
+        else
+        {
+            // Fall back to simple chat-based execution
+            var response = await ChatAsyncFunc($"Please help me accomplish this goal: {goal.Description}");
+            sb.AppendLine(response);
+        }
+
+        return sb.ToString();
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // SELF-EXECUTION COMMAND HANDLERS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Handles self-execution commands.
+    /// </summary>
+    internal async Task<string> SelfExecCommandAsync(string subCommand)
+    {
+        var cmd = subCommand.ToLowerInvariant().Trim();
+
+        if (cmd is "" or "status")
+        {
+            var status = SelfExecutionEnabled ? "Active" : "Disabled";
+            var queueCount = GoalQueue.Count;
+            return $@"Self-Execution Status:
+• Status: {status}
+• Queued Goals: {queueCount}
+• Completed: (tracked in global workspace)
+
+Commands:
+  selfexec start    - Enable autonomous execution
+  selfexec stop     - Disable autonomous execution
+  selfexec queue    - Show queued goals";
+        }
+
+        if (cmd == "start")
+        {
+            if (!SelfExecutionEnabled)
+            {
+                SelfExecutionCts?.Dispose();
+                SelfExecutionCts = new CancellationTokenSource();
+                SelfExecutionEnabled = true;
+                SelfExecutionTask = Task.Run(SelfExecutionLoopAsync, SelfExecutionCts.Token);
+            }
+            return "Self-execution enabled. I will autonomously pursue queued goals.";
+        }
+
+        if (cmd == "stop")
+        {
+            SelfExecutionEnabled = false;
+            SelfExecutionCts?.Cancel();
+            return "Self-execution disabled. Goals will no longer be automatically executed.";
+        }
+
+        if (cmd == "queue")
+        {
+            if (GoalQueue.IsEmpty)
+            {
+                return "Goal queue is empty. Use 'goal add <description>' to add goals.";
+            }
+            var goals = GoalQueue.ToArray();
+            var sb = new StringBuilder("Queued Goals:\n");
+            for (int i = 0; i < goals.Length; i++)
+            {
+                sb.AppendLine($"  {i + 1}. [{goals[i].Priority}] {goals[i].Description}");
+            }
+            return sb.ToString();
+        }
+
+        return $"Unknown self-exec command: {subCommand}. Try 'selfexec status'.";
+    }
+
+    /// <summary>
+    /// Handles sub-agent commands.
+    /// </summary>
+    internal async Task<string> SubAgentCommandAsync(string subCommand)
+    {
+        var cmd = subCommand.ToLowerInvariant().Trim();
+
+        if (cmd is "" or "status" or "list")
+        {
+            if (DistributedOrchestrator == null)
+            {
+                return "Sub-agent orchestration not initialized.";
+            }
+
+            var agents = DistributedOrchestrator.GetAgentStatus();
+            var sb = new StringBuilder("Registered Sub-Agents:\n");
+            foreach (var agent in agents)
+            {
+                var statusIcon = agent.Status switch
+                {
+                    MetaAgentStatus.Available => "✓",
+                    MetaAgentStatus.Busy => "⏳",
+                    MetaAgentStatus.Offline => "✗",
+                    _ => "?"
+                };
+                sb.AppendLine($"  {statusIcon} {agent.Name} ({agent.AgentId})");
+                sb.AppendLine($"      Capabilities: {string.Join(", ", agent.Capabilities.Take(5))}");
+                sb.AppendLine($"      Last heartbeat: {agent.LastHeartbeat:HH:mm:ss}");
+            }
+            return sb.ToString();
+        }
+
+        if (cmd.StartsWith("spawn "))
+        {
+            var agentName = cmd[6..].Trim();
+            return await SpawnSubAgentAsync(agentName);
+        }
+
+        if (cmd.StartsWith("remove "))
+        {
+            var agentId = cmd[7..].Trim();
+            DistributedOrchestrator?.UnregisterAgent(agentId);
+            SubAgents.TryRemove(agentId, out _);
+            return $"Removed sub-agent: {agentId}";
+        }
+
+        await Task.CompletedTask;
+        return $"Unknown subagent command. Try: subagent list, subagent spawn <name>, subagent remove <id>";
+    }
+
+    /// <summary>
+    /// Spawns a new sub-agent with specialized capabilities.
+    /// </summary>
+    internal async Task<string> SpawnSubAgentAsync(string agentName)
+    {
+        if (DistributedOrchestrator == null)
+        {
+            return "Sub-agent orchestration not initialized.";
+        }
+
+        var agentId = $"sub-{agentName.ToLowerInvariant()}-{Guid.NewGuid().ToString()[..8]}";
+
+        // Determine capabilities based on name hints
+        var capabilities = new HashSet<string>();
+        var lowerName = agentName.ToLowerInvariant();
+
+        if (lowerName.Contains("code") || lowerName.Contains("dev"))
+            capabilities.UnionWith(new[] { "coding", "debugging", "refactoring", "testing" });
+        else if (lowerName.Contains("research") || lowerName.Contains("analyst"))
+            capabilities.UnionWith(new[] { "research", "analysis", "summarization", "web_search" });
+        else if (lowerName.Contains("plan") || lowerName.Contains("architect"))
+            capabilities.UnionWith(new[] { "planning", "architecture", "design", "decomposition" });
+        else
+            capabilities.UnionWith(new[] { "general", "chat", "reasoning" });
+
+        var agent = new AgentInfo(
+            agentId,
+            agentName,
+            capabilities,
+            MetaAgentStatus.Available,
+            DateTime.UtcNow);
+
+        DistributedOrchestrator.RegisterAgent(agent);
+
+        // Create sub-agent instance
+        var subAgent = new SubAgentInstance(agentId, agentName, capabilities, Models.ChatModel);
+        SubAgents[agentId] = subAgent;
+
+        await Task.CompletedTask;
+        return $"Spawned sub-agent '{agentName}' ({agentId}) with capabilities: {string.Join(", ", capabilities)}";
+    }
+
+    /// <summary>
+    /// Handles epic orchestration commands.
+    /// </summary>
+    internal async Task<string> EpicCommandAsync(string subCommand)
+    {
+        var cmd = subCommand.ToLowerInvariant().Trim();
+
+        if (cmd is "" or "status" or "list")
+        {
+            return "Epic Orchestration:\n• Use 'epic create <title>' to create a new epic\n• Use 'epic add <epic#> <sub-issue>' to add sub-issues";
+        }
+
+        if (cmd.StartsWith("create "))
+        {
+            var title = cmd[7..].Trim();
+            if (EpicOrchestrator != null)
+            {
+                var epicNumber = new Random().Next(1000, 9999);
+                var result = await EpicOrchestrator.RegisterEpicAsync(
+                    epicNumber, title, "", new List<int>());
+
+                if (result.IsSuccess)
+                {
+                    return $"Created epic #{epicNumber}: {title}";
+                }
+                return $"Failed to create epic: {result.Error}";
+            }
+            return "Epic orchestrator not initialized.";
+        }
+
+        await Task.CompletedTask;
+        return $"Unknown epic command: {subCommand}";
+    }
+
+    /// <summary>
+    /// Handles goal queue commands.
+    /// </summary>
+    internal async Task<string> GoalCommandAsync(string subCommand)
+    {
+        var cmd = subCommand.ToLowerInvariant().Trim();
+
+        if (cmd is "" or "list")
+        {
+            if (GoalQueue.IsEmpty)
+            {
+                return "No goals in queue. Use 'goal add <description>' to add a goal.";
+            }
+            var goals = GoalQueue.ToArray();
+            var sb = new StringBuilder("Goal Queue:\n");
+            for (int i = 0; i < goals.Length; i++)
+            {
+                sb.AppendLine($"  {i + 1}. [{goals[i].Priority}] {goals[i].Description}");
+            }
+            return sb.ToString();
+        }
+
+        if (cmd.StartsWith("add "))
+        {
+            var description = subCommand[4..].Trim();
+            var priority = description.Contains("urgent") ? GoalPriority.High
+                : description.Contains("later") ? GoalPriority.Low
+                : GoalPriority.Normal;
+
+            var goal = new AutonomousGoal(Guid.NewGuid(), description, priority, DateTime.UtcNow);
+            GoalQueue.Enqueue(goal);
+
+            return $"Added goal to queue: {description} (Priority: {priority})";
+        }
+
+        if (cmd == "clear")
+        {
+            while (GoalQueue.TryDequeue(out _)) { }
+            return "Goal queue cleared.";
+        }
+
+        await Task.CompletedTask;
+        return "Goal commands: goal list, goal add <description>, goal clear";
+    }
+
+    /// <summary>
+    /// Handles task delegation to sub-agents.
+    /// </summary>
+    internal async Task<string> DelegateCommandAsync(string taskDescription)
+    {
+        if (string.IsNullOrWhiteSpace(taskDescription))
+        {
+            return "Usage: delegate <task description>";
+        }
+
+        if (DistributedOrchestrator == null || Orchestrator == null)
+        {
+            return "Delegation requires sub-agent orchestration to be initialized.";
+        }
+
+        // Create a plan for the task
+        var planResult = await Orchestrator.PlanAsync(taskDescription);
+        if (!planResult.IsSuccess)
+        {
+            return $"Could not create plan for delegation: {planResult.Error}";
+        }
+
+        // Execute distributed
+        var execResult = await DistributedOrchestrator.ExecuteDistributedAsync(planResult.Value);
+        if (execResult.IsSuccess)
+        {
+            var agents = execResult.Value.Metadata.GetValueOrDefault("agents_used", 0);
+            return $"Task delegated and completed using {agents} agent(s):\n{execResult.Value.FinalOutput}";
+        }
+
+        return $"Delegation failed: {execResult.Error}";
+    }
+
+    /// <summary>
+    /// Handles self-model inspection commands.
+    /// </summary>
+    internal async Task<string> SelfModelCommandAsync(string subCommand)
+    {
+        var cmd = subCommand.ToLowerInvariant().Trim();
+
+        if (cmd is "" or "status" or "identity")
+        {
+            if (IdentityGraph == null)
+            {
+                return "Self-model not initialized.";
+            }
+
+            var state = await IdentityGraph.GetStateAsync();
+            var sb = new StringBuilder();
+            sb.AppendLine("╔═══════════════════════════════════════╗");
+            sb.AppendLine("║         SELF-MODEL IDENTITY           ║");
+            sb.AppendLine("╠═══════════════════════════════════════╣");
+            sb.AppendLine($"║ Agent ID: {state.AgentId.ToString()[..8],-27} ║");
+            sb.AppendLine($"║ Name: {state.Name,-31} ║");
+            sb.AppendLine("╠═══════════════════════════════════════╣");
+            sb.AppendLine("║ Capabilities:                         ║");
+
+            if (CapabilityRegistry != null)
+            {
+                var caps = await CapabilityRegistry.GetCapabilitiesAsync();
+                foreach (var cap in caps.Take(5))
+                {
+                    sb.AppendLine($"║   • {cap.Name,-20} ({cap.SuccessRate:P0}) ║");
+                }
+            }
+
+            sb.AppendLine("╚═══════════════════════════════════════╝");
+            return sb.ToString();
+        }
+
+        if (cmd == "capabilities" || cmd == "caps")
+        {
+            if (CapabilityRegistry == null)
+            {
+                return "Capability registry not initialized.";
+            }
+
+            var caps = await CapabilityRegistry.GetCapabilitiesAsync();
+            var sb = new StringBuilder("Agent Capabilities:\n");
+            foreach (var cap in caps)
+            {
+                sb.AppendLine($"  • {cap.Name}");
+                sb.AppendLine($"      Description: {cap.Description}");
+                sb.AppendLine($"      Success Rate: {cap.SuccessRate:P0} ({cap.UsageCount} uses)");
+                var toolsList = cap.RequiredTools?.Any() == true ? string.Join(", ", cap.RequiredTools) : "none";
+                sb.AppendLine($"      Required Tools: {toolsList}");
+            }
+            return sb.ToString();
+        }
+
+        if (cmd == "workspace")
+        {
+            if (GlobalWorkspace == null)
+            {
+                return "Global workspace not initialized.";
+            }
+
+            var items = GlobalWorkspace.GetItems();
+            if (!items.Any())
+            {
+                return "Global workspace is empty.";
+            }
+
+            var sb = new StringBuilder("Global Workspace Contents:\n");
+            foreach (var item in items.Take(10))
+            {
+                sb.AppendLine($"  [{item.Priority}] {item.Content[..Math.Min(50, item.Content.Length)]}...");
+                sb.AppendLine($"      Source: {item.Source} | Created: {item.CreatedAt:HH:mm:ss}");
+            }
+            return sb.ToString();
+        }
+
+        return "Self-model commands: selfmodel status, selfmodel capabilities, selfmodel workspace";
+    }
+
+    /// <summary>
+    /// Handles self-evaluation commands.
+    /// </summary>
+    internal async Task<string> EvaluateCommandAsync(string subCommand)
+    {
+        var cmd = subCommand.ToLowerInvariant().Trim();
+
+        if (SelfEvaluator == null)
+        {
+            return "Self-evaluator not initialized. Requires orchestrator and skill registry.";
+        }
+
+        if (cmd is "" or "performance" or "assess")
+        {
+            var result = await SelfEvaluator.EvaluatePerformanceAsync();
+            if (result.IsSuccess)
+            {
+                var assessment = result.Value;
+                var sb = new StringBuilder();
+                sb.AppendLine("╔═══════════════════════════════════════╗");
+                sb.AppendLine("║       SELF-ASSESSMENT REPORT          ║");
+                sb.AppendLine("╠═══════════════════════════════════════╣");
+                sb.AppendLine($"║ Overall Performance: {assessment.OverallPerformance:P0,-15} ║");
+                sb.AppendLine($"║ Confidence Calibration: {assessment.ConfidenceCalibration:P0,-12} ║");
+                sb.AppendLine($"║ Skill Acquisition Rate: {assessment.SkillAcquisitionRate:F2,-12} ║");
+                sb.AppendLine("╠═══════════════════════════════════════╣");
+
+                if (assessment.Strengths.Any())
+                {
+                    sb.AppendLine("║ Strengths:                            ║");
+                    foreach (var s in assessment.Strengths.Take(3))
+                    {
+                        sb.AppendLine($"║   ✓ {s,-33} ║");
+                    }
+                }
+
+                if (assessment.Weaknesses.Any())
+                {
+                    sb.AppendLine("║ Areas for Improvement:                ║");
+                    foreach (var w in assessment.Weaknesses.Take(3))
+                    {
+                        sb.AppendLine($"║   △ {w,-33} ║");
+                    }
+                }
+
+                sb.AppendLine("╚═══════════════════════════════════════╝");
+                sb.AppendLine();
+                sb.AppendLine("Summary:");
+                sb.AppendLine(assessment.Summary);
+
+                return sb.ToString();
+            }
+            return $"Evaluation failed: {result.Error}";
+        }
+
+        return "Evaluate commands: evaluate performance";
+    }
+
+    // 
+    // END MIGRATED METHODS
+    // 
+
+        public async ValueTask DisposeAsync()
     {
         // Stop self-execution
         SelfExecutionEnabled = false;
@@ -458,6 +1855,10 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
 
         // Dispose network tracker
         NetworkTracker?.Dispose();
+
+        // Dispose network projector
+        if (NetworkProjector != null)
+            await NetworkProjector.DisposeAsync();
 
         IsInitialized = false;
     }

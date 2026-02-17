@@ -20,6 +20,10 @@ public interface IToolSubsystem : IAgentSubsystem
     ToolCapabilityMatcher? ToolCapabilityMatcher { get; set; }
     PlaywrightMcpTool? PlaywrightTool { get; }
     PromptOptimizer PromptOptimizer { get; }
+
+    // Pipeline DSL state
+    IReadOnlyDictionary<string, PipelineTokenInfo>? AllPipelineTokens { get; }
+    CliPipelineState? PipelineState { get; set; }
 }
 
 /// <summary>
@@ -45,6 +49,13 @@ public sealed class ToolSubsystem : IToolSubsystem
     // Runtime prompt optimization
     public PromptOptimizer PromptOptimizer { get; } = new();
 
+    // Pipeline DSL state
+    public IReadOnlyDictionary<string, PipelineTokenInfo>? AllPipelineTokens { get; set; }
+    public CliPipelineState? PipelineState { get; set; }
+
+    // Cross-subsystem context (set during InitializeAsync)
+    internal SubsystemInitContext Ctx { get; private set; } = null!;
+
     public void MarkInitialized() => IsInitialized = true;
 
     /// <summary>Tool-aware LLM wrapping the effective chat model with all registered tools.</summary>
@@ -53,6 +64,7 @@ public sealed class ToolSubsystem : IToolSubsystem
     /// <inheritdoc/>
     public async Task InitializeAsync(SubsystemInitContext ctx)
     {
+        Ctx = ctx;
         if (!ctx.Config.EnableTools)
         {
             Tools = ToolRegistry.CreateDefault();
@@ -157,6 +169,17 @@ public sealed class ToolSubsystem : IToolSubsystem
         catch (Exception ex)
         {
             Console.WriteLine($"  \u26a0 Tool factory failed: {ex.Message}");
+        }
+
+        // ── Pipeline DSL tokens ──
+        try
+        {
+            AllPipelineTokens = SkillCliSteps.GetAllPipelineTokens();
+            ctx.Output.RecordInit("Pipeline Tokens", true, $"{AllPipelineTokens.Count} tokens");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"  \u26a0 Pipeline tokens: {ex.Message}");
         }
 
         MarkInitialized();

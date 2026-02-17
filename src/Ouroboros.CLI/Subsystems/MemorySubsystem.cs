@@ -10,7 +10,8 @@ using Ouroboros.Application.Tools;
 using Ouroboros.Tools.MeTTa;
 
 /// <summary>
-/// Manages skills, personality, MeTTa reasoning, neural memory, and thought persistence.
+/// Manages skills, personality, MeTTa reasoning, neural memory, thought persistence,
+/// conversation memory, and self-persistence.
 /// </summary>
 public interface IMemorySubsystem : IAgentSubsystem
 {
@@ -24,6 +25,12 @@ public interface IMemorySubsystem : IAgentSubsystem
     string? LastThoughtContent { get; set; }
     QdrantNeuralMemory? NeuralMemory { get; }
     List<string> ConversationHistory { get; }
+
+    // Persistent conversation memory (cross-session recall)
+    PersistentConversationMemory? ConversationMemory { get; }
+
+    // Self-persistence (mind state storage in Qdrant)
+    SelfPersistence? SelfPersistence { get; }
 }
 
 /// <summary>
@@ -54,11 +61,22 @@ public sealed class MemorySubsystem : IMemorySubsystem
     // Conversation history
     public List<string> ConversationHistory { get; } = new();
 
+    // Persistent conversation memory (cross-session recall)
+    public PersistentConversationMemory? ConversationMemory { get; set; }
+
+    // Self-persistence (mind state storage in Qdrant)
+    public SelfPersistence? SelfPersistence { get; set; }
+
+    // Cross-subsystem context (set during InitializeAsync)
+    internal SubsystemInitContext Ctx { get; private set; } = null!;
+
     public void MarkInitialized() => IsInitialized = true;
 
     /// <inheritdoc/>
     public async Task InitializeAsync(SubsystemInitContext ctx)
     {
+        Ctx = ctx;
+
         // ── MeTTa ──
         if (ctx.Config.EnableMeTTa)
         {
@@ -91,6 +109,12 @@ public sealed class MemorySubsystem : IMemorySubsystem
 
         // ── Persistent Thoughts ──
         await InitializePersistentThoughtsCoreAsync(ctx);
+
+        // ── Persistent Conversation Memory ──
+        await InitializeConversationMemoryCoreAsync(ctx);
+
+        // ── Self-Persistence ──
+        await InitializeSelfPersistenceCoreAsync(ctx);
 
         MarkInitialized();
     }
@@ -284,6 +308,57 @@ public sealed class MemorySubsystem : IMemorySubsystem
         catch (Exception ex)
         {
             Console.WriteLine($"  \u26a0 Persistent memory unavailable: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Initializes persistent cross-session conversation memory.
+    /// </summary>
+    private async Task InitializeConversationMemoryCoreAsync(SubsystemInitContext ctx)
+    {
+        try
+        {
+            var embedding = ctx.Models.Embedding;
+            ConversationMemory = new PersistentConversationMemory(
+                embedding,
+                new ConversationMemoryConfig { QdrantEndpoint = ctx.Config.QdrantEndpoint });
+            await ConversationMemory.InitializeAsync(ctx.Config.Persona, CancellationToken.None);
+            var memStats = ConversationMemory.GetStats();
+            if (memStats.TotalSessions > 0)
+            {
+                ctx.Output.RecordInit("Conversation Memory", true,
+                    $"{memStats.TotalSessions} sessions ({memStats.TotalTurns} turns)");
+            }
+            else
+            {
+                ctx.Output.RecordInit("Conversation Memory", true, "first session");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"  ⚠ Conversation Memory: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Initializes self-persistence for mind state storage in Qdrant.
+    /// </summary>
+    private async Task InitializeSelfPersistenceCoreAsync(SubsystemInitContext ctx)
+    {
+        var embedding = ctx.Models.Embedding;
+        if (embedding == null) return;
+
+        try
+        {
+            SelfPersistence = new SelfPersistence(
+                ctx.Config.QdrantEndpoint,
+                async text => await embedding.CreateEmbeddingsAsync(text));
+            await SelfPersistence.InitializeAsync(CancellationToken.None);
+            ctx.Output.RecordInit("Self-Persistence", true, "Qdrant mind state storage");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"  ⚠ Self-Persistence: {ex.Message}");
         }
     }
 
