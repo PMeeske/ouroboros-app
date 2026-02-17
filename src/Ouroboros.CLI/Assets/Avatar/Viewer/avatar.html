@@ -13,6 +13,8 @@
     --violet: #9333ea;
     --violet-deep: #581c87;
     --cosmic-bg: #0a0612;
+    --holo-cyan: rgba(0, 255, 220, 0.7);
+    --holo-violet: rgba(147, 51, 234, 0.5);
     --energy: 0.5;
     --positivity: 0.5;
     --breath-duration: 4.5s;
@@ -41,7 +43,7 @@
   }
 
   /* ══════════════════════════════════════
-     PORTRAIT MODE (circular bust frame)
+     AVATAR STAGE
      ══════════════════════════════════════ */
 
   #avatar-stage {
@@ -52,7 +54,6 @@
     transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* Full-body mode overrides */
   body.fullbody #avatar-stage {
     width: min(45vw, 60vh);
     height: min(90vh, 120vw);
@@ -83,10 +84,23 @@
     animation-delay: calc(var(--breath-duration) * -0.5);
   }
 
-  /* Full-body: elongated vertical aura */
   body.fullbody .aura {
     border-radius: 40% / 50%;
     inset: -6% -15%;
+  }
+
+  /* Holographic aura override — cyan shift */
+  body.holographic .aura-outer {
+    background: radial-gradient(ellipse at center,
+      transparent 50%,
+      rgba(0, 255, 220, 0.25) 70%,
+      transparent 85%);
+  }
+  body.holographic .aura-inner {
+    background: radial-gradient(ellipse at center,
+      transparent 55%,
+      rgba(0, 255, 220, 0.35) 72%,
+      transparent 80%);
   }
 
   @keyframes aura-pulse {
@@ -105,13 +119,21 @@
       0 0 40px var(--aura-color),
       0 0 80px rgba(147, 51, 234, 0.15),
       inset 0 0 30px rgba(0, 0, 0, 0.4);
-    transition: border-radius 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: border-radius 0.8s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.8s ease;
   }
 
-  /* Full-body: tall rounded rectangle */
   body.fullbody #portrait-frame {
     border-radius: 20px;
     inset: 3%;
+  }
+
+  /* Holographic frame glow */
+  body.holographic #portrait-frame {
+    box-shadow:
+      0 0 40px rgba(0, 255, 220, 0.3),
+      0 0 80px rgba(0, 255, 220, 0.1),
+      inset 0 0 30px rgba(0, 0, 0, 0.4);
   }
 
   @keyframes breathe {
@@ -135,10 +157,102 @@
     opacity: 1;
   }
 
-  /* Full-body layers */
   .avatar-layer.fullbody-layer {
     object-fit: contain;
     object-position: center center;
+  }
+
+  /* ══════════════════════════════════════
+     HOLOGRAPHIC WIREFRAME OVERLAY
+     ══════════════════════════════════════ */
+
+  /* Holographic layer sits on top, fades in during Thinking */
+  .holo-layer {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: opacity;
+    mix-blend-mode: screen;
+    filter: brightness(1.2) saturate(1.3);
+  }
+  .holo-layer.fullbody-holo {
+    object-fit: contain;
+    object-position: center center;
+  }
+  .holo-layer.active {
+    opacity: 0.85;
+  }
+
+  /* Scanline overlay — only visible in holographic mode */
+  #scanlines {
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 2px,
+      rgba(0, 255, 220, 0.03) 2px,
+      rgba(0, 255, 220, 0.03) 4px
+    );
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 1s ease;
+    z-index: 2;
+  }
+  body.holographic #scanlines {
+    opacity: 1;
+    animation: scanline-drift 8s linear infinite;
+  }
+
+  @keyframes scanline-drift {
+    0% { background-position: 0 0; }
+    100% { background-position: 0 200px; }
+  }
+
+  /* Holographic glitch flicker */
+  #holo-glitch {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 3;
+    mix-blend-mode: screen;
+  }
+  body.holographic #holo-glitch {
+    animation: holo-flicker 4s ease-in-out infinite;
+  }
+
+  @keyframes holo-flicker {
+    0%, 92%, 95%, 100% { opacity: 0; }
+    93% { opacity: 0.4; background: rgba(0, 255, 220, 0.08); transform: translateX(2px); }
+    94% { opacity: 0.2; background: rgba(147, 51, 234, 0.08); transform: translateX(-1px); }
+  }
+
+  /* Data stream text during holographic mode */
+  #holo-data {
+    position: absolute;
+    top: 8%;
+    right: 6%;
+    font-family: 'Courier New', monospace;
+    font-size: 0.55rem;
+    line-height: 1.4;
+    color: rgba(0, 255, 220, 0);
+    text-align: right;
+    pointer-events: none;
+    z-index: 4;
+    transition: color 1s ease;
+    text-shadow: 0 0 6px rgba(0, 255, 220, 0.5);
+    max-width: 35%;
+    overflow: hidden;
+  }
+  body.holographic #holo-data {
+    color: rgba(0, 255, 220, 0.45);
   }
 
   /* ── Eye shimmer overlay ── */
@@ -159,7 +273,6 @@
     transition: background 0.8s ease;
   }
 
-  /* Full-body: reposition eye shimmer higher */
   body.fullbody #eye-shimmer {
     background: radial-gradient(
       ellipse 20% 4% at 45% 18%,
@@ -201,7 +314,7 @@
       transparent 23%);
   }
 
-  /* ── Speaking indicator (subtle mouth glow) ── */
+  /* ── Speaking indicator ── */
   #speak-glow {
     position: absolute;
     inset: 0;
@@ -238,7 +351,7 @@
     pointer-events: none;
     box-shadow: 0 0 15px var(--gold-glow), inset 0 0 15px var(--gold-glow);
     animation: ring-breathe var(--breath-duration) ease-in-out infinite;
-    transition: border-radius 0.8s cubic-bezier(0.4, 0, 0.2, 1), inset 0.8s ease;
+    transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   body.fullbody #gold-ring {
@@ -246,15 +359,18 @@
     inset: 2.5%;
   }
 
+  /* Holographic ring shifts to cyan */
+  body.holographic #gold-ring {
+    border-color: rgba(0, 255, 220, 0.5);
+    box-shadow: 0 0 15px rgba(0, 255, 220, 0.3), inset 0 0 15px rgba(0, 255, 220, 0.15);
+  }
+
   @keyframes ring-breathe {
     0%, 100% { opacity: 0.3; }
     50% { opacity: 0.6; }
   }
 
-  /* ══════════════════════════════════════
-     FULL-BODY TURNAROUND: ground glow
-     ══════════════════════════════════════ */
-
+  /* ── Full-body ground glow ── */
   #ground-glow {
     display: none;
     position: absolute;
@@ -270,18 +386,24 @@
     pointer-events: none;
     animation: ground-pulse var(--breath-duration) ease-in-out infinite;
     filter: blur(8px);
+    transition: background 0.8s ease;
   }
   body.fullbody #ground-glow { display: block; }
+
+  body.holographic #ground-glow {
+    background: radial-gradient(
+      ellipse 60% 100% at 50% 100%,
+      rgba(0, 255, 220, 0.35) 0%,
+      rgba(0, 255, 220, 0.15) 40%,
+      transparent 80%);
+  }
 
   @keyframes ground-pulse {
     0%, 100% { opacity: 0.4; transform: scaleX(1); }
     50% { opacity: 0.7; transform: scaleX(1.05); }
   }
 
-  /* ══════════════════════════════════════
-     TURNAROUND ANGLE INDICATOR
-     ══════════════════════════════════════ */
-
+  /* ── Turnaround angle indicator ── */
   #angle-indicator {
     display: none;
     position: fixed;
@@ -347,6 +469,29 @@
     border-color: var(--gold);
   }
 
+  /* Holo indicator badge */
+  #holo-badge {
+    position: fixed;
+    top: 44px;
+    left: 16px;
+    z-index: 10;
+    font-size: 0.55rem;
+    letter-spacing: 0.2em;
+    color: rgba(0, 255, 220, 0);
+    text-transform: uppercase;
+    pointer-events: none;
+    transition: color 0.8s ease;
+  }
+  body.holographic #holo-badge {
+    color: rgba(0, 255, 220, 0.6);
+    animation: holo-badge-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes holo-badge-pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+
   /* ── Status HUD ── */
   #hud {
     position: fixed;
@@ -366,6 +511,12 @@
     color: var(--gold);
     text-shadow: 0 0 20px var(--gold-glow);
     margin-bottom: 6px;
+    transition: color 0.8s ease, text-shadow 0.8s ease;
+  }
+
+  body.holographic #persona-name {
+    color: var(--holo-cyan);
+    text-shadow: 0 0 20px rgba(0, 255, 220, 0.5);
   }
 
   #status-text {
@@ -392,6 +543,10 @@
     background: linear-gradient(90deg, var(--violet), var(--gold));
     border-radius: 1px;
     transition: width 1.5s ease, background 1.5s ease;
+  }
+
+  body.holographic #mood-fill {
+    background: linear-gradient(90deg, var(--violet), var(--holo-cyan));
   }
 
   /* ── Connection indicator ── */
@@ -423,7 +578,7 @@
     50% { opacity: 0.3; }
   }
 
-  /* ── Floating particles (ankh / star motifs) ── */
+  /* ── Floating particles ── */
   .particle {
     position: fixed;
     color: var(--gold);
@@ -451,19 +606,31 @@
   <div class="aura aura-inner"></div>
 
   <div id="portrait-frame">
-    <!-- Portrait mode layers (bust) — crossfaded by state -->
+    <!-- Portrait mode layers (bust) -->
     <img class="avatar-layer portrait-layer active" id="layer-idle"        src="idle.png"        alt="" draggable="false">
     <img class="avatar-layer portrait-layer"        id="layer-listening"   src="listening.png"   alt="" draggable="false">
     <img class="avatar-layer portrait-layer"        id="layer-thinking"    src="thinking.png"    alt="" draggable="false">
     <img class="avatar-layer portrait-layer"        id="layer-speaking"    src="speaking.png"    alt="" draggable="false">
     <img class="avatar-layer portrait-layer"        id="layer-encouraging" src="encouraging.png" alt="" draggable="false">
 
-    <!-- Full-body mode layers (turnaround angles) — crossfaded by angle -->
-    <img class="avatar-layer fullbody-layer" id="layer-fb-front"      src="fullbody_front.png"      alt="" draggable="false">
+    <!-- Full-body mode layers (turnaround angles) -->
+    <img class="avatar-layer fullbody-layer" id="layer-fb-front"        src="fullbody_front.png"        alt="" draggable="false">
     <img class="avatar-layer fullbody-layer" id="layer-fb-threequarter" src="fullbody_threequarter.png" alt="" draggable="false">
-    <img class="avatar-layer fullbody-layer" id="layer-fb-side"       src="fullbody_side.png"       alt="" draggable="false">
-    <img class="avatar-layer fullbody-layer" id="layer-fb-back"       src="fullbody_back.png"       alt="" draggable="false">
-    <img class="avatar-layer fullbody-layer" id="layer-fb-sideleft"   src="fullbody_sideleft.png"   alt="" draggable="false">
+    <img class="avatar-layer fullbody-layer" id="layer-fb-side"         src="fullbody_side.png"         alt="" draggable="false">
+    <img class="avatar-layer fullbody-layer" id="layer-fb-back"         src="fullbody_back.png"         alt="" draggable="false">
+    <img class="avatar-layer fullbody-layer" id="layer-fb-sideleft"     src="fullbody_sideleft.png"     alt="" draggable="false">
+
+    <!-- Holographic wireframe layers (overlay during Thinking) -->
+    <img class="holo-layer portrait-holo" id="holo-portrait"    src="holo_portrait.png"    alt="" draggable="false">
+    <img class="holo-layer fullbody-holo" id="holo-fb-front"    src="holo_front.png"       alt="" draggable="false">
+    <img class="holo-layer fullbody-holo" id="holo-fb-34"       src="holo_threequarter.png" alt="" draggable="false">
+    <img class="holo-layer fullbody-holo" id="holo-fb-side"     src="holo_side.png"        alt="" draggable="false">
+    <img class="holo-layer fullbody-holo" id="holo-fb-back"     src="holo_back.png"        alt="" draggable="false">
+    <img class="holo-layer fullbody-holo" id="holo-fb-sideleft" src="holo_sideleft.png"    alt="" draggable="false">
+
+    <div id="scanlines"></div>
+    <div id="holo-glitch"></div>
+    <div id="holo-data"></div>
 
     <div id="eye-shimmer"></div>
     <div id="blink-overlay"></div>
@@ -474,7 +641,7 @@
   <div id="ground-glow"></div>
 </div>
 
-<!-- Turnaround angle indicator dots -->
+<!-- Turnaround angle dots -->
 <div id="angle-indicator">
   <span class="angle-label" id="angle-name">front</span>
   <div class="angle-dot active" data-angle="0"></div>
@@ -485,6 +652,7 @@
 </div>
 
 <button id="mode-toggle">Portrait</button>
+<div id="holo-badge">HOLOGRAPHIC</div>
 
 <div id="hud">
   <div id="persona-name">Iaret</div>
@@ -531,7 +699,6 @@ function initStars() {
 function drawCosmos(t) {
   ctx.clearRect(0, 0, cosmos.width, cosmos.height);
 
-  // Nebula gradient
   const grd = ctx.createRadialGradient(
     cosmos.width * 0.5, cosmos.height * 0.45, 0,
     cosmos.width * 0.5, cosmos.height * 0.45, cosmos.width * 0.7
@@ -542,7 +709,6 @@ function drawCosmos(t) {
   ctx.fillStyle = grd;
   ctx.fillRect(0, 0, cosmos.width, cosmos.height);
 
-  // Stars
   for (const s of stars) {
     const twinkle = 0.4 + 0.6 * Math.sin(t * s.speed * 1000 + s.phase);
     ctx.beginPath();
@@ -560,7 +726,7 @@ requestAnimationFrame(drawCosmos);
 
 
 // ═══════════════════════════════════════════════
-//  Floating particles — ankh motifs
+//  Floating particles
 // ═══════════════════════════════════════════════
 const particlesEl = document.getElementById('particles');
 const SYMBOLS = ['☥', '✦', '◆', '✧', '⟐', '◇'];
@@ -592,9 +758,7 @@ const blinkEl = document.getElementById('blink-overlay');
 function scheduleBlink() {
   const delay = 3000 + Math.random() * 5000;
   setTimeout(() => {
-    // Only blink when showing front-facing images
     if (isFullbody && currentAngle > 1) { scheduleBlink(); return; }
-
     blinkEl.style.opacity = '1';
     setTimeout(() => { blinkEl.style.opacity = '0'; }, 120);
     if (Math.random() < 0.2) {
@@ -610,12 +774,14 @@ scheduleBlink();
 
 
 // ═══════════════════════════════════════════════
-//  View mode management (portrait vs fullbody)
+//  View mode management
 // ═══════════════════════════════════════════════
 let isFullbody = false;
 const modeToggle = document.getElementById('mode-toggle');
 const portraitLayers = document.querySelectorAll('.portrait-layer');
 const fullbodyLayers = document.querySelectorAll('.fullbody-layer');
+const portraitHolos = document.querySelectorAll('.portrait-holo');
+const fullbodyHolos = document.querySelectorAll('.fullbody-holo');
 const angleName = document.getElementById('angle-name');
 
 const ANGLES = ['front', '¾ right', 'profile right', 'back', 'profile left'];
@@ -625,25 +791,23 @@ function setViewMode(fullbody) {
   document.body.classList.toggle('fullbody', fullbody);
   modeToggle.textContent = fullbody ? 'Full Body' : 'Portrait';
 
-  // Show/hide appropriate layer sets
-  portraitLayers.forEach(el => {
-    el.style.display = fullbody ? 'none' : '';
-  });
-  fullbodyLayers.forEach(el => {
-    el.style.display = fullbody ? '' : 'none';
-  });
+  portraitLayers.forEach(el => { el.style.display = fullbody ? 'none' : ''; });
+  fullbodyLayers.forEach(el => { el.style.display = fullbody ? '' : 'none'; });
+  portraitHolos.forEach(el => { el.style.display = fullbody ? 'none' : ''; });
+  fullbodyHolos.forEach(el => { el.style.display = fullbody ? '' : 'none'; });
 
   if (fullbody) {
-    // Hide portrait overlays that don't map well to back views
     setAngle(currentAngle);
   } else {
-    // Restore portrait state
     setAvatarState(currentState);
   }
+  // Re-apply holographic if active
+  updateHolographic();
 }
 
-// Initialize: hide fullbody layers
+// Initialize: hide fullbody layers and all holo layers
 fullbodyLayers.forEach(el => { el.style.display = 'none'; });
+fullbodyHolos.forEach(el => { el.style.display = 'none'; });
 
 modeToggle.addEventListener('click', () => setViewMode(!isFullbody));
 
@@ -659,29 +823,35 @@ const fbLayers = {
   3: document.getElementById('layer-fb-back'),
   4: document.getElementById('layer-fb-sideleft'),
 };
+const holoFbLayers = {
+  0: document.getElementById('holo-fb-front'),
+  1: document.getElementById('holo-fb-34'),
+  2: document.getElementById('holo-fb-side'),
+  3: document.getElementById('holo-fb-back'),
+  4: document.getElementById('holo-fb-sideleft'),
+};
 const angleDots = document.querySelectorAll('.angle-dot');
 
 function setAngle(angle) {
   if (angle < 0 || angle > 4) angle = 0;
   currentAngle = angle;
 
-  // Crossfade fullbody layers
   for (const [key, el] of Object.entries(fbLayers)) {
     el.classList.toggle('active', parseInt(key) === angle);
   }
 
-  // Update indicator dots
+  // Update holo layers to match current angle
+  updateHolographic();
+
   angleDots.forEach((dot, i) => dot.classList.toggle('active', i === angle));
   angleName.textContent = ANGLES[angle] || 'front';
 
-  // Disable face effects on back/side views
   const showFace = angle <= 1;
   document.getElementById('eye-shimmer').style.display = showFace ? '' : 'none';
   blinkEl.style.display = showFace ? '' : 'none';
   document.getElementById('speak-glow').style.display = showFace ? '' : 'none';
 }
 
-// Auto-turnaround: slowly rotate through angles when idle in fullbody mode
 let turnaroundTimer = null;
 let turnaroundPaused = false;
 
@@ -697,14 +867,12 @@ function stopTurnaround() {
   if (turnaroundTimer) { clearInterval(turnaroundTimer); turnaroundTimer = null; }
 }
 
-// Start turnaround on idle, pause when active
 function updateTurnaroundForState(state) {
   if (!isFullbody) return;
   if (state === 'Idle') {
     turnaroundPaused = false;
     if (!turnaroundTimer) startTurnaround();
   } else {
-    // When speaking/listening/thinking, face front
     turnaroundPaused = true;
     setAngle(state === 'Listening' ? 1 : 0);
   }
@@ -712,7 +880,72 @@ function updateTurnaroundForState(state) {
 
 
 // ═══════════════════════════════════════════════
-//  Avatar state management (portrait mode)
+//  Holographic wireframe system
+// ═══════════════════════════════════════════════
+let holoActive = false;
+const holoData = document.getElementById('holo-data');
+const holoPortrait = document.getElementById('holo-portrait');
+
+const HOLO_PHRASES = [
+  'ANALYZING PATTERN...',
+  'CONSCIOUSNESS DEPTH: ∞',
+  'SYMBOLIC REASONING',
+  'MERKLE STATE: VALID',
+  'METTA EVALUATION',
+  'NEURAL TOPOLOGY OK',
+  'RECURSIVE THOUGHT',
+  'ATTENTION LAYER 7',
+  'SEMANTIC BINDING',
+  'EIGENVALUE STABLE',
+  'OUROBOROS CYCLE',
+  'SELF-REFERENCE ☥',
+];
+
+let holoTextTimer = null;
+
+function setHolographic(active) {
+  holoActive = active;
+  document.body.classList.toggle('holographic', active);
+  updateHolographic();
+
+  if (active) {
+    // Start data stream
+    cycleHoloText();
+  } else {
+    if (holoTextTimer) clearTimeout(holoTextTimer);
+    holoData.textContent = '';
+  }
+}
+
+function updateHolographic() {
+  // Deactivate all holo layers first
+  document.querySelectorAll('.holo-layer').forEach(el => el.classList.remove('active'));
+
+  if (!holoActive) return;
+
+  if (isFullbody) {
+    // Show holo for current angle
+    const layer = holoFbLayers[currentAngle];
+    if (layer) layer.classList.add('active');
+  } else {
+    // Show portrait holo
+    holoPortrait.classList.add('active');
+  }
+}
+
+function cycleHoloText() {
+  if (!holoActive) return;
+  const lines = [];
+  for (let i = 0; i < 5; i++) {
+    lines.push(HOLO_PHRASES[Math.floor(Math.random() * HOLO_PHRASES.length)]);
+  }
+  holoData.textContent = lines.join('\n');
+  holoTextTimer = setTimeout(cycleHoloText, 2000 + Math.random() * 1500);
+}
+
+
+// ═══════════════════════════════════════════════
+//  Avatar state management
 // ═══════════════════════════════════════════════
 const layers = {
   Idle:        document.getElementById('layer-idle'),
@@ -741,19 +974,16 @@ const STATE_STATUS = {
 
 function setAvatarState(state) {
   if (!layers[state]) state = 'Idle';
-  if (state === currentState && !isFullbody) return;
+  const changed = state !== currentState;
 
-  if (!isFullbody) {
-    // Crossfade portrait layers
+  if (!isFullbody && changed) {
     for (const [key, el] of Object.entries(layers)) {
       el.classList.toggle('active', key === state);
     }
   }
 
-  // Speaking glow (works in both modes for front-facing)
   speakGlow.classList.toggle('active', state === 'Speaking');
 
-  // Breathing speed varies by state
   const root = document.documentElement;
   switch (state) {
     case 'Listening': root.style.setProperty('--breath-duration', '3.5s'); break;
@@ -764,12 +994,13 @@ function setAvatarState(state) {
 
   currentState = state;
 
-  // In fullbody mode, state influences angle
+  // Holographic mode activates during Thinking
+  setHolographic(state === 'Thinking');
+
   updateTurnaroundForState(state);
 }
 
 function applySnapshot(snap) {
-  // snap: { VisualState, Mood, Energy, Positivity, StatusText, PersonaName }
   const stateNames = ['Idle', 'Listening', 'Thinking', 'Speaking', 'Encouraging'];
   const visualName = typeof snap.VisualState === 'number'
     ? (stateNames[snap.VisualState] || 'Idle')
@@ -777,17 +1008,14 @@ function applySnapshot(snap) {
 
   setAvatarState(visualName);
 
-  // Update HUD
   if (snap.PersonaName) personaNameEl.textContent = snap.PersonaName;
   statusText.textContent = snap.StatusText
     ? `${snap.Mood || ''} — ${snap.StatusText}`.replace(/^ — /, '')
     : (snap.Mood || STATE_STATUS[visualName] || '');
 
-  // Mood bar = positivity
   const positivity = Math.max(0, Math.min(1, snap.Positivity || 0.5));
   moodFill.style.width = (positivity * 100) + '%';
 
-  // Aura intensity from energy
   const energy = Math.max(0, Math.min(1, snap.Energy || 0.5));
   const auraAlpha = 0.2 + energy * 0.5;
   document.documentElement.style.setProperty(
@@ -798,7 +1026,7 @@ function applySnapshot(snap) {
 
 
 // ═══════════════════════════════════════════════
-//  WebSocket connection to CLI host
+//  WebSocket connection
 // ═══════════════════════════════════════════════
 const WS_PORT = new URLSearchParams(window.location.search).get('port') || '9471';
 let ws = null;
@@ -841,16 +1069,14 @@ connectWs();
 
 
 // ═══════════════════════════════════════════════
-//  Idle ambient state cycling
+//  Idle ambient cycling
 // ═══════════════════════════════════════════════
 let lastUpdateTime = Date.now();
 
 setInterval(() => {
   if (Date.now() - lastUpdateTime > 30000 && currentState === 'Idle') {
     if (Math.random() < 0.3) {
-      if (isFullbody) {
-        // In fullbody idle, the turnaround handles ambient motion
-      } else {
+      if (!isFullbody) {
         setAvatarState('Encouraging');
         setTimeout(() => setAvatarState('Idle'), 2500);
       }
@@ -870,21 +1096,18 @@ applySnapshot = function(snap) {
 // ═══════════════════════════════════════════════
 document.addEventListener('keydown', (e) => {
   switch(e.key) {
-    // State shortcuts (portrait mode)
     case '1': setAvatarState('Idle'); break;
     case '2': setAvatarState('Listening'); break;
     case '3': setAvatarState('Thinking'); break;
     case '4': setAvatarState('Speaking'); break;
     case '5': setAvatarState('Encouraging'); break;
 
-    // Angle shortcuts (fullbody mode)
     case 'q': if (isFullbody) { turnaroundPaused = true; setAngle(0); } break;
     case 'w': if (isFullbody) { turnaroundPaused = true; setAngle(1); } break;
     case 'e': if (isFullbody) { turnaroundPaused = true; setAngle(2); } break;
     case 'r': if (isFullbody) { turnaroundPaused = true; setAngle(3); } break;
     case 't': if (isFullbody) { turnaroundPaused = true; setAngle(4); } break;
 
-    // Arrow keys rotate in fullbody
     case 'ArrowLeft':
       if (isFullbody) { turnaroundPaused = true; setAngle((currentAngle + 4) % 5); }
       break;
@@ -892,9 +1115,8 @@ document.addEventListener('keydown', (e) => {
       if (isFullbody) { turnaroundPaused = true; setAngle((currentAngle + 1) % 5); }
       break;
 
-    // Toggle view mode
     case 'f': setViewMode(!isFullbody); break;
-    // Resume auto-turnaround
+    case 'h': setHolographic(!holoActive); break;
     case ' ': if (isFullbody) { turnaroundPaused = false; startTurnaround(); } break;
   }
 });
