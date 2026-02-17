@@ -228,11 +228,11 @@ public sealed class OuroborosOptions : IVoiceOptions
     // INTERACTIVE AVATAR
     // ═══════════════════════════════════════════════════════════════════════════
 
-    [Option("avatar", Required = false, HelpText = "Launch interactive avatar viewer alongside CLI", Default = false)]
+    [Option("avatar", Required = false, HelpText = "Launch interactive avatar viewer (auto-opens browser on default port)", Default = false)]
     public bool Avatar { get; set; }
 
-    [Option("avatar-port", Required = false, HelpText = "Port for avatar viewer WebSocket server", Default = 9471)]
-    public int AvatarPort { get; set; } = 9471;
+    [Option("avatar-port", Required = false, HelpText = "Override avatar viewer port (default: auto-assign from 9471)", Default = 0)]
+    public int AvatarPort { get; set; }
 
     // ═══════════════════════════════════════════════════════════════════════════
     // DEBUG & OUTPUT
