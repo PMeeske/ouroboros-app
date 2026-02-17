@@ -471,7 +471,10 @@ public sealed record OuroborosConfig(
     string? MasterModel = null,  // Provider name to use as master for orchestration
     string EvaluationCriteria = "default",  // default|quality|speed|cost
     bool ShowElection = false,
-    bool ShowOptimization = false);
+    bool ShowOptimization = false,
+    // Interactive Avatar
+    bool Avatar = false,
+    int AvatarPort = 9471);
 
 /// <summary>
 /// Unified Ouroboros agent that integrates all capabilities:

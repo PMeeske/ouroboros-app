@@ -195,6 +195,9 @@ public static class ImmersiveMode
     private static DivideAndConquerOrchestrator? _divideAndConquer;
     private static IChatCompletionModel? _baseModel;
 
+    // Interactive avatar
+    private static Application.Avatar.InteractiveAvatarService? _avatarService;
+
     /// <summary>
     /// Runs the fully immersive persona experience.
     /// </summary>
@@ -247,6 +250,12 @@ public static class ImmersiveMode
             Console.ForegroundColor = ConsoleColor.DarkMagenta;
             Console.WriteLine($"\n  [consciousness] Emotional shift: {e.NewEmotion} (Δ arousal: {e.ArousalChange:+0.00;-0.00})");
             Console.ResetColor();
+
+            // Push emotional shift to avatar
+            _avatarService?.NotifyMoodChange(
+                e.NewEmotion ?? "neutral",
+                0.5 + (e.ArousalChange * 0.5),
+                e.NewEmotion?.Contains("warm") == true || e.NewEmotion?.Contains("gentle") == true ? 0.8 : 0.5);
         };
 
         // Awaken the persona
@@ -535,6 +544,22 @@ public static class ImmersiveMode
             Console.ResetColor();
         }
 
+        // Launch interactive avatar if enabled
+        if (options is Ouroboros.Options.OuroborosOptions ouroOpts && ouroOpts.Avatar)
+        {
+            try
+            {
+                Console.WriteLine("  [~] Launching interactive avatar...");
+                _avatarService = await Avatar.AvatarIntegration.CreateAndStartAsync(
+                    personaName, ouroOpts.AvatarPort, ct: ct);
+                Console.WriteLine("  [OK] Avatar viewer launched — Iaret is watching");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"  [!] Avatar launch failed: {ex.Message}");
+            }
+        }
+
         // Main interaction loop - use persistent memory
         var conversationHistory = _conversationMemory.GetActiveHistory();
         var chatModel = await CreateChatModelAsync(options);
@@ -544,6 +569,7 @@ public static class ImmersiveMode
             try
             {
                 // Get input (voice or text)
+                _avatarService?.SetPresenceState("Listening", "attentive");
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.Write("\n  You: ");
                 Console.ResetColor();
@@ -624,6 +650,7 @@ public static class ImmersiveMode
                 }
 
                 // Process through the persona's consciousness
+                _avatarService?.SetPresenceState("Processing", "contemplative");
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.WriteLine($"  [{GetDynamicThinkingPhrase(input, random)}]");
                 Console.ResetColor();
@@ -662,6 +689,7 @@ public static class ImmersiveMode
                 DetectToolCreationContext(input, response);
 
                 // Display response with emotional context
+                _avatarService?.SetPresenceState("Speaking", persona.Consciousness?.DominantEmotion ?? "warm");
                 PrintResponse(persona, personaName, response);
 
                 // Speak response
@@ -669,6 +697,8 @@ public static class ImmersiveMode
                 {
                     await SpeakAsync(ttsService, response, personaName);
                 }
+
+                _avatarService?.SetPresenceState("Idle", persona.Consciousness?.DominantEmotion ?? "neutral");
             }
             catch (OperationCanceledException)
             {
@@ -705,6 +735,13 @@ public static class ImmersiveMode
             {
                 Console.WriteLine($"  [!] Failed to persist state: {ex.Message}");
             }
+        }
+
+        // Dispose avatar
+        if (_avatarService != null)
+        {
+            await _avatarService.DisposeAsync();
+            _avatarService = null;
         }
 
         Console.WriteLine($"\n  Session complete. {persona.InteractionCount} interactions. Uptime: {persona.Uptime.TotalMinutes:F1} minutes.");
