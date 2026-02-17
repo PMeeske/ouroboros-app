@@ -5,43 +5,11 @@
 using System.Collections.Concurrent;
 using System.Text;
 using System.Text.RegularExpressions;
-using LangChain.DocumentLoaders;
-using LangChain.Providers.Ollama;
-using Ouroboros.Abstractions.Agent;  // For interfaces: ISkillRegistry, IMemoryStore, ISafetyGuard, IUncertaintyRouter
-using Ouroboros.Agent.MetaAI;  // For concrete implementations and other types
-using Ouroboros.Agent.MetaAI.SelfModel;
-using Ouroboros.Application.SelfAssembly;
-using Ouroboros.Network;
-using Ouroboros.Agent.MetaAI.Affect;
-using Ouroboros.Tools.MeTTa;
-using Ouroboros.Application.Mcp;
-using Ouroboros.Application.Personality;
-using Ouroboros.Application.Configuration;
-using Ouroboros.Application.Services;
-using Ouroboros.Application.Tools;
-using static Ouroboros.Application.Tools.AutonomousTools;
 using IEmbeddingModel = Ouroboros.Domain.IEmbeddingModel;
-using Ouroboros.Options;
-using Ouroboros.CLI.Abstractions;
-using Ouroboros.CLI.Infrastructure;
-using Ouroboros.CLI.Subsystems;
-using Ouroboros.Core.EmbodiedInteraction;
-using Ouroboros.Pipeline.Learning;
-using Ouroboros.Pipeline.Metacognition;
-using Ouroboros.Pipeline.Council;
-using Ouroboros.Pipeline.WorldModel;
-using Ouroboros.Pipeline.MultiAgent;
 using PipelineReasoningStep = Ouroboros.Domain.Events.ReasoningStep;
 // Type aliases to resolve ambiguities between Agent.MetaAI and Pipeline namespaces
-using PipelineExperience = Ouroboros.Pipeline.Learning.Experience;
 using PipelineGoal = Ouroboros.Pipeline.Planning.Goal;
-using PipelineTaskStatus = Ouroboros.Pipeline.MultiAgent.TaskStatus;
-using PipelineAgentCapability = Ouroboros.Pipeline.MultiAgent.AgentCapability;
 // Keep MetaAI types accessible with explicit names for existing code
-using MetaAgentStatus = Ouroboros.Agent.MetaAI.AgentStatus;
-using MetaAgentCapability = Ouroboros.Agent.MetaAI.AgentCapability;
-using Ouroboros.Abstractions.Monads;
-using Unit = Ouroboros.Abstractions.Unit;
 using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 
 namespace Ouroboros.CLI.Commands;
@@ -7891,3 +7859,12 @@ public sealed class SubAgentInstance
         return await _model.GenerateTextAsync(prompt, ct);
     }
 }
+
+/// <summary>
+/// Represents the result of a tool execution.
+/// </summary>
+public sealed record ToolExecution(
+    string ToolName,
+    string Input,
+    string Output,
+    DateTime Timestamp);
