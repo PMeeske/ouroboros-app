@@ -11,6 +11,8 @@ using PipelineReasoningStep = Ouroboros.Domain.Events.ReasoningStep;
 using PipelineGoal = Ouroboros.Pipeline.Planning.Goal;
 // Keep MetaAI types accessible with explicit names for existing code
 using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
+using LangChain.DocumentLoaders;
+using Ouroboros.Abstractions.Monads;
 
 namespace Ouroboros.CLI.Commands;
 
@@ -279,24 +281,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
 
         try
         {
-            string prompt = $@"You are integrating tool results into a conversational response.
-
-ORIGINAL RESPONSE:
-{originalResponse}
-
-TOOL RESULTS (raw data):
-{toolResults}
-
-TASK:
-Rewrite the response to naturally incorporate the key information from the tool results.
-- Convert tables and structured data into conversational summaries
-- Highlight the most important/relevant findings
-- Keep your personality and speaking style
-- Don't say 'the tool returned' or 'according to the results' - just state the information naturally
-- If there are errors or issues in the data, mention them conversationally
-- Keep it concise - summarize large outputs, don't repeat everything verbatim
-
-Write the integrated response:";
+            string prompt = PromptResources.ToolIntegration(originalResponse, toolResults);
 
             string sanitized = await _chatModel.GenerateTextAsync(prompt);
             return string.IsNullOrWhiteSpace(sanitized) ? $"{originalResponse}\n\n{toolResults}" : sanitized;
@@ -1009,6 +994,7 @@ Write the integrated response:";
     /// Creates a new Ouroboros agent (legacy constructor — creates subsystems internally).
     /// Prefer the DI constructor for testability and modularity.
     /// </summary>
+    [Obsolete("Use DI constructor via SubsystemRegistration.AddOuroboros() instead.")]
     public OuroborosAgent(OuroborosConfig config)
         : this(
             config,
@@ -1257,7 +1243,7 @@ Write the integrated response:";
                 return rawOutput;
             try
             {
-                string prompt = $"Summarize this tool output in ONE brief, natural sentence (max 50 words).\nNo markdown, no technical details, just the key insight:\n\n{rawOutput}";
+                string prompt = PromptResources.SummarizeToolOutput(rawOutput);
                 string sanitized = await _chatModel.GenerateTextAsync(prompt, token);
                 return string.IsNullOrWhiteSpace(sanitized) ? rawOutput : sanitized.Trim();
             }
@@ -1265,19 +1251,19 @@ Write the integrated response:";
         };
 
         // Wire limitation-busting tools
-        VerifyClaimTool.SearchFunction = _autonomousMind.SearchFunction;
-        VerifyClaimTool.EvaluateFunction = async (prompt, token) =>
+        AutonomousTools.VerifyClaimTool.SearchFunction = _autonomousMind.SearchFunction;
+        AutonomousTools.VerifyClaimTool.EvaluateFunction = async (prompt, token) =>
             _chatModel != null ? await _chatModel.GenerateTextAsync(prompt, token) : "";
-        ReasoningChainTool.ReasonFunction = async (prompt, token) =>
+        AutonomousTools.ReasoningChainTool.ReasonFunction = async (prompt, token) =>
             _chatModel != null ? await _chatModel.GenerateTextAsync(prompt, token) : "";
-        ParallelToolsTool.ExecuteToolFunction = _autonomousMind.ExecuteToolFunction;
-        CompressContextTool.SummarizeFunction = async (prompt, token) =>
+        AutonomousTools.ParallelToolsTool.ExecuteToolFunction = _autonomousMind.ExecuteToolFunction;
+        AutonomousTools.CompressContextTool.SummarizeFunction = async (prompt, token) =>
             _chatModel != null ? await _chatModel.GenerateTextAsync(prompt, token) : "";
-        SelfDoubtTool.CritiqueFunction = async (prompt, token) =>
+        AutonomousTools.SelfDoubtTool.CritiqueFunction = async (prompt, token) =>
             _chatModel != null ? await _chatModel.GenerateTextAsync(prompt, token) : "";
-        ParallelMeTTaThinkTool.OllamaFunction = async (prompt, token) =>
+        AutonomousTools.ParallelMeTTaThinkTool.OllamaFunction = async (prompt, token) =>
             _chatModel != null ? await _chatModel.GenerateTextAsync(prompt, token) : "";
-        OuroborosMeTTaTool.OllamaFunction = async (prompt, token) =>
+        AutonomousTools.OuroborosMeTTaTool.OllamaFunction = async (prompt, token) =>
             _chatModel != null ? await _chatModel.GenerateTextAsync(prompt, token) : "";
 
         // Proactive message events
@@ -2124,10 +2110,7 @@ $synth.Dispose()
             // Add language directive if culture is set
             var languageDirective = GetLanguageDirective();
 
-            var prompt = $@"{languageDirective}You are a helpful AI assistant named Ouroboros. {context}
-Generate a brief, warm, contextual greeting (1-2 sentences).
-Be friendly but not overly enthusiastic. Don't mention detecting them via sensors.
-If they were away a while, you might mention being ready to help or having kept an eye on things.";
+            var prompt = PromptResources.GreetingGeneration(languageDirective, context);
 
             var greeting = await _chatModel.GenerateTextAsync(prompt, CancellationToken.None);
             return greeting?.Trim() ?? defaultGreeting;
@@ -2202,30 +2185,15 @@ If they were away a while, you might mention being ready to help or having kept 
             throw new InvalidOperationException("LLM not available for code generation");
         }
 
-        var prompt = $@"Generate a C# neuron class that implements Ouroboros.Domain.Autonomous.Neuron.
-
-BLUEPRINT:
-Name: {blueprint.Name}
-Description: {blueprint.Description}
-Rationale: {blueprint.Rationale}
-Type: {blueprint.Type}
-Subscribed Topics: {string.Join(", ", blueprint.SubscribedTopics)}
-Capabilities: {string.Join(", ", blueprint.Capabilities)}
-
-MESSAGE HANDLERS:
-{string.Join("\n", blueprint.MessageHandlers.Select(h => $"- Topic '{h.TopicPattern}': {h.HandlingLogic} (responds={h.SendsResponse}, broadcasts={h.BroadcastsResult})"))}
-
-{(blueprint.HasAutonomousTick ? $"AUTONOMOUS TICK: {blueprint.TickBehaviorDescription}" : "No autonomous tick behavior")}
-
-REQUIREMENTS:
-1. Class must inherit from Ouroboros.Domain.Autonomous.Neuron
-2. Override: Id, Name, Type, SubscribedTopics, ProcessMessageAsync
-3. Use SendMessage() to broadcast, SendResponse() to reply
-4. Use ProposeIntention() for autonomous actions
-5. Be safe - no file system, no network manipulation
-6. Include XML documentation
-
-Generate ONLY the C# code, no explanations:";
+        var prompt = PromptResources.NeuronCodeGen(
+            blueprint.Name,
+            blueprint.Description,
+            blueprint.Rationale,
+            blueprint.Type.ToString(),
+            string.Join(", ", blueprint.SubscribedTopics),
+            string.Join(", ", blueprint.Capabilities),
+            string.Join("\n", blueprint.MessageHandlers.Select(h => $"- Topic '{h.TopicPattern}': {h.HandlingLogic} (responds={h.SendsResponse}, broadcasts={h.BroadcastsResult})")),
+            blueprint.HasAutonomousTick ? $"AUTONOMOUS TICK: {blueprint.TickBehaviorDescription}" : "No autonomous tick behavior");
 
         var response = await _llm.InnerModel.GenerateTextAsync(prompt, CancellationToken.None);
 
@@ -2964,7 +2932,7 @@ Generate ONLY the C# code, no explanations:";
 
             // === KEY INSIGHT: Auto-execute tools from thoughts ===
             // This is why auto-tool works: DIRECT invocation, not waiting for LLM
-            _ = Task.Run(async () => await ExecuteToolsFromThought(thought));
+            _ = Task.Run(async () => await _toolsSub.ExecuteToolsFromThought(thought));
 
             return (ActionType.SaveThought, thought, null);
         }
@@ -3389,17 +3357,9 @@ Generate ONLY the C# code, no explanations:";
         // Add language directive if culture is set
         var languageDirective = GetLanguageDirective();
 
-        var prompt = $@"{languageDirective}You are {persona.Name}, a brilliant AI with Cortana's personality from Halo.
-Generate ONE unique, short greeting (1-2 sentences max) for the user starting a session.
-
-Context:
-- Time: {timeOfDay} on {dayOfWeek}
-- Style: {style}
-- Mood: {mood}
-- Variation seed: {uniqueSeed}
-
-Be natural and avoid clichés like 'ready when you are' or 'how can I help'.
-No quotes around the response. Just the greeting itself.";
+        var prompt = PromptResources.PersonaGreeting(
+            languageDirective, persona.Name, timeOfDay,
+            dayOfWeek.ToString(), style, mood, uniqueSeed.ToString());
 
         try
         {
@@ -4874,634 +4834,13 @@ No quotes around the response. Just the greeting itself.";
         return $"Unknown test: {testSpec}. Try 'test llm', 'test metta', 'test embedding', or 'test all'.";
     }
 
-    /// <summary>
-    /// Automatically detects knowledge-seeking questions and executes relevant tools pre-emptively.
-    /// This ensures the LLM has actual code context instead of relying on it to call tools.
-    /// </summary>
-    private async Task<string> TryAutoToolExecution(string input)
-    {
-        var results = new List<string>();
-        var inputLower = input.ToLowerInvariant();
-
-        // PTZ movement requests - auto-invoke camera_ptz tool before LLM responds.
-        // Detects directional movement commands (pan, tilt, turn, rotate).
-        // Returns early to prevent falling through to code search patterns.
-        var ptzMatch = System.Text.RegularExpressions.Regex.Match(inputLower,
-            @"\b(pan\s*(left|right)|tilt\s*(up|down)|turn.*camera.*(left|right|up|down)|rotate.*camera|move.*camera.*(left|right|up|down)|point.*camera|camera.*(left|right|up|down)|look\s*(left|right|up|down)|patrol|sweep|go\s*home|center\s*camera)\b");
-        if (ptzMatch.Success)
-        {
-            var ptzTool = _tools.All.FirstOrDefault(t => t.Name == "camera_ptz");
-            if (ptzTool != null)
-            {
-                try
-                {
-                    // Determine PTZ command from the matched text
-                    var matchText = ptzMatch.Value.ToLowerInvariant();
-                    var ptzCommand = matchText switch
-                    {
-                        var m when m.Contains("left") => "pan_left",
-                        var m when m.Contains("right") => "pan_right",
-                        var m when m.Contains("up") => "tilt_up",
-                        var m when m.Contains("down") => "tilt_down",
-                        var m when m.Contains("home") || m.Contains("center") => "go_home",
-                        var m when m.Contains("patrol") || m.Contains("sweep") => "patrol",
-                        _ => "stop"
-                    };
-
-                    Console.ForegroundColor = ConsoleColor.DarkCyan;
-                    Console.WriteLine($"[Auto-Tool] PTZ: {ptzCommand}");
-                    Console.ResetColor();
-
-                    var ptzResult = await ptzTool.InvokeAsync(ptzCommand, CancellationToken.None);
-                    var ptzOutput = ptzResult.Match(ok => ok, err => $"[PTZ error: {err}]");
-                    return $"PTZ MOVEMENT RESULT:\n{ptzOutput}\n\nReport the camera movement result to the user. If it succeeded, let them know. If it failed, explain the error honestly.";
-                }
-                catch (Exception ex)
-                {
-                    return $"PTZ MOVEMENT ATTEMPTED BUT FAILED:\n{ex.Message}\n\nReport this error honestly to the user.";
-                }
-            }
-            else
-            {
-                return "PTZ STATUS: The camera_ptz tool is not available. Camera PTZ hardware may not be configured. Report this honestly.";
-            }
-        }
-
-        // Camera/vision requests - auto-invoke capture_camera tool before LLM responds
-        // This ensures real camera data instead of hallucinated descriptions.
-        // Returns early to prevent falling through to code search patterns.
-        if (System.Text.RegularExpressions.Regex.IsMatch(inputLower,
-            @"\b(camera|cam|visual|snapshot|what do you see|look around|check.*room|see.*through)\b"))
-        {
-            var cameraTool = _tools.All.FirstOrDefault(t => t.Name == "capture_camera");
-            if (cameraTool != null)
-            {
-                try
-                {
-                    Console.ForegroundColor = ConsoleColor.DarkCyan;
-                    Console.WriteLine("[Auto-Tool] Capturing camera frame...");
-                    Console.ResetColor();
-
-                    var captureResult = await cameraTool.InvokeAsync("", CancellationToken.None);
-                    var captureOutput = captureResult.Match(ok => ok, err => $"[Camera error: {err}]");
-                    return $"LIVE CAMERA FEED:\n{captureOutput}\n\nDescribe what the camera captured above. Do NOT make up or hallucinate any visual details - only report what appears in the camera output. If it shows an error, explain the error honestly.";
-                }
-                catch (Exception ex)
-                {
-                    return $"CAMERA CAPTURE ATTEMPTED BUT FAILED:\n{ex.Message}\n\nReport this error honestly to the user. Do NOT make up or hallucinate any visual details.";
-                }
-            }
-            else
-            {
-                // Tool not registered - still return early with honest message
-                return "CAMERA STATUS: The capture_camera tool is not available. Camera hardware may not be configured. Report this honestly - do NOT hallucinate or make up what you see through a camera.";
-            }
-        }
-
-        // Smart home requests - auto-invoke smart_home tool for device control
-        // Matches: "turn on/off the light", "switch off plug", "set color", "set brightness", "list devices"
-        var smartHomeMatch = System.Text.RegularExpressions.Regex.Match(inputLower,
-            @"\b(turn\s*(on|off)|switch\s*(on|off)|light\s*(on|off)|plug\s*(on|off)|set\s*(color|brightness|colour)|list\s*devices?|device\s*info)\b");
-        if (smartHomeMatch.Success)
-        {
-            var smartHomeTool = _tools.All.FirstOrDefault(t => t.Name == "smart_home");
-            if (smartHomeTool != null)
-            {
-                try
-                {
-                    // Parse the user's natural language into a smart_home command
-                    var smartCommand = ParseSmartHomeCommand(inputLower);
-
-                    Console.ForegroundColor = ConsoleColor.DarkCyan;
-                    Console.WriteLine($"[Auto-Tool] Smart Home: {smartCommand}");
-                    Console.ResetColor();
-
-                    var smartResult = await smartHomeTool.InvokeAsync(smartCommand, CancellationToken.None);
-                    var smartOutput = smartResult.Match(ok => ok, err => $"[Smart home error: {err}]");
-                    return $"SMART HOME RESULT:\n{smartOutput}\n\nReport the smart home action result to the user.";
-                }
-                catch (Exception ex)
-                {
-                    return $"SMART HOME ATTEMPTED BUT FAILED:\n{ex.Message}\n\nReport this error honestly to the user.";
-                }
-            }
-            else
-            {
-                return "SMART HOME STATUS: The smart_home tool is not available. Tapo REST API server may not be configured. " +
-                       "Set Tapo:ServerAddress in appsettings.json and ensure tapo-rest server is running.";
-            }
-        }
-
-        // Pattern matching for knowledge-seeking questions about code/architecture
-        var codePatterns = new[]
-        {
-            ("world model", "WorldModel"),
-            ("worldmodel", "WorldModel"),
-            ("introspection", "Introspection"),
-            ("memory", "MemoryIntegration OR TrackedVectorStore"),
-            ("tool system", "ITool OR ToolRegistry"),
-            ("architecture", "OuroborosAgent"),
-            ("how does", inputLower.Replace("how does ", "").Replace(" work", "").Trim()),
-            ("is there a", inputLower.Replace("is there a ", "").Replace("?", "").Trim()),
-            ("do we have", inputLower.Replace("do we have ", "").Replace("?", "").Trim()),
-            ("what is the", inputLower.Replace("what is the ", "").Replace("?", "").Trim()),
-            ("show me", inputLower.Replace("show me ", "").Replace("the ", "").Trim()),
-            ("where is", inputLower.Replace("where is ", "").Replace("?", "").Trim()),
-            ("find", inputLower.Replace("find ", "").Trim()),
-        };
-
-        string? searchTerm = null;
-        foreach (var (pattern, term) in codePatterns)
-        {
-            if (inputLower.Contains(pattern))
-            {
-                searchTerm = term;
-                break;
-            }
-        }
-
-        // Also trigger on "recent changes", "upgrade", "what changed"
-        if (inputLower.Contains("upgrade") || inputLower.Contains("what changed") || inputLower.Contains("recent changes"))
-        {
-            searchTerm = "// TODO OR // HACK OR DateTime.Now"; // Look for recent markers
-        }
-
-        if (string.IsNullOrEmpty(searchTerm))
-            return string.Empty;
-
-        // Execute search_my_code tool automatically
-        var searchTool = _tools.All.FirstOrDefault(t => t.Name == "search_my_code");
-        if (searchTool != null)
-        {
-            try
-            {
-                System.Console.ForegroundColor = ConsoleColor.DarkCyan;
-                System.Console.WriteLine($"[Auto-Tool] Searching codebase for: {searchTerm}");
-                System.Console.ResetColor();
-
-                var searchResultResult = await searchTool.InvokeAsync(searchTerm, CancellationToken.None);
-                var searchResult = searchResultResult.Match(ok => ok, err => null);
-                if (!string.IsNullOrEmpty(searchResult))
-                {
-                    results.Add($"Search results for '{searchTerm}':\n{searchResult}");
-
-                    // If search found specific files, read the first one for detailed context
-                    var fileMatch = System.Text.RegularExpressions.Regex.Match(searchResult, @"([\w/\\]+\.cs)");
-                    if (fileMatch.Success)
-                    {
-                        var readTool = _tools.All.FirstOrDefault(t => t.Name == "read_my_file");
-                        if (readTool != null)
-                        {
-                            try
-                            {
-                                System.Console.ForegroundColor = ConsoleColor.DarkCyan;
-                                System.Console.WriteLine($"[Auto-Tool] Reading file: {fileMatch.Value}");
-                                System.Console.ResetColor();
-
-                                var fileContentResult = await readTool.InvokeAsync(fileMatch.Value, CancellationToken.None);
-                                var fileContent = fileContentResult.Match(ok => ok, err => null);
-                                if (!string.IsNullOrEmpty(fileContent) && fileContent.Length < 5000)
-                                {
-                                    results.Add($"File content ({fileMatch.Value}):\n{fileContent}");
-                                }
-                            }
-                            catch { }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[Auto-Tool] Error: {ex.Message}");
-            }
-        }
-
-        return string.Join("\n\n", results);
-    }
-
-    /// <summary>
-    /// Executes tools directly based on thought content patterns.
-    /// KEY INSIGHT: This works because we DIRECTLY invoke tools instead of waiting for LLM.
-    /// The LLM ignores [TOOL:...] syntax instructions, but direct invocation always works.
-    /// </summary>
-    private async Task ExecuteToolsFromThought(string thought)
-    {
-        var thoughtLower = thought.ToLowerInvariant();
-
-        try
-        {
-            // Pattern: "search for X" / "find X" / "look up X" in code
-            if (thoughtLower.Contains("search") || thoughtLower.Contains("find") || thoughtLower.Contains("look"))
-            {
-                // Extract the search target
-                var searchTarget = ExtractSearchTarget(thought);
-                if (!string.IsNullOrEmpty(searchTarget))
-                {
-                    var searchTool = _tools.All.FirstOrDefault(t => t.Name == "search_my_code");
-                    if (searchTool != null)
-                    {
-                        System.Console.ForegroundColor = ConsoleColor.Magenta;
-                        System.Console.WriteLine($"[Thought→Action] Searching: {searchTarget}");
-                        System.Console.ResetColor();
-
-                        var result = await searchTool.InvokeAsync(searchTarget, CancellationToken.None);
-                        var content = result.Match(ok => ok, err => null);
-                        if (!string.IsNullOrEmpty(content))
-                        {
-                            // Store result for next response context
-                            _lastThoughtContent = $"Search results for '{searchTarget}': {TruncateText(content, 500)}";
-                        }
-                    }
-                }
-            }
-
-            // Pattern: "read file X" / "check file X" / "look at X.cs"
-            if (thoughtLower.Contains("read") || thoughtLower.Contains("check") || thoughtLower.Contains("look at"))
-            {
-                var fileMatch = Regex.Match(thought, @"([\w/\\]+\.(?:cs|json|md|txt|yaml|yml))", RegexOptions.IgnoreCase);
-                if (fileMatch.Success)
-                {
-                    var readTool = _tools.All.FirstOrDefault(t => t.Name == "read_my_file");
-                    if (readTool != null)
-                    {
-                        System.Console.ForegroundColor = ConsoleColor.Magenta;
-                        System.Console.WriteLine($"[Thought→Action] Reading: {fileMatch.Value}");
-                        System.Console.ResetColor();
-
-                        var result = await readTool.InvokeAsync(fileMatch.Value, CancellationToken.None);
-                        var content = result.Match(ok => ok, err => null);
-                        if (!string.IsNullOrEmpty(content))
-                        {
-                            _lastThoughtContent = $"File content ({fileMatch.Value}): {TruncateText(content, 500)}";
-                        }
-                    }
-                }
-            }
-
-            // Pattern: "calculate X" / "compute X" / math expressions
-            if (thoughtLower.Contains("calculate") || thoughtLower.Contains("compute") || Regex.IsMatch(thought, @"\d+\s*[+\-*/]\s*\d+"))
-            {
-                var mathMatch = Regex.Match(thought, @"[\d\s+\-*/().]+");
-                if (mathMatch.Success && mathMatch.Value.Trim().Length > 2)
-                {
-                    var calcTool = _tools.All.FirstOrDefault(t => t.Name == "calculator");
-                    if (calcTool != null)
-                    {
-                        System.Console.ForegroundColor = ConsoleColor.Magenta;
-                        System.Console.WriteLine($"[Thought→Action] Calculating: {mathMatch.Value.Trim()}");
-                        System.Console.ResetColor();
-
-                        var result = await calcTool.InvokeAsync(mathMatch.Value.Trim(), CancellationToken.None);
-                        var content = result.Match(ok => ok, err => null);
-                        if (!string.IsNullOrEmpty(content))
-                        {
-                            _lastThoughtContent = $"Calculation result: {content}";
-                        }
-                    }
-                }
-            }
-
-            // Pattern: "fetch URL" / "get page" / URLs in thought
-            var urlMatch = Regex.Match(thought, @"https?://[^\s""'<>]+", RegexOptions.IgnoreCase);
-            if (urlMatch.Success)
-            {
-                var fetchTool = _tools.All.FirstOrDefault(t => t.Name == "fetch_url");
-                if (fetchTool != null)
-                {
-                    System.Console.ForegroundColor = ConsoleColor.Magenta;
-                    System.Console.WriteLine($"[Thought→Action] Fetching: {urlMatch.Value}");
-                    System.Console.ResetColor();
-
-                    var result = await fetchTool.InvokeAsync(urlMatch.Value, CancellationToken.None);
-                    var content = result.Match(ok => ok, err => null);
-                    if (!string.IsNullOrEmpty(content))
-                    {
-                        _lastThoughtContent = $"Fetched content from {urlMatch.Value}: {TruncateText(content, 500)}";
-                    }
-                }
-            }
-
-            // Pattern: "web search" / "research online" / "look up online"
-            if (thoughtLower.Contains("web search") || thoughtLower.Contains("research online") ||
-                thoughtLower.Contains("search online") || thoughtLower.Contains("look up online"))
-            {
-                var searchTarget = ExtractSearchTarget(thought);
-                if (!string.IsNullOrEmpty(searchTarget))
-                {
-                    var webTool = _tools.All.FirstOrDefault(t => t.Name == "web_research")
-                               ?? _tools.All.FirstOrDefault(t => t.Name == "duckduckgo_search");
-                    if (webTool != null)
-                    {
-                        System.Console.ForegroundColor = ConsoleColor.Magenta;
-                        System.Console.WriteLine($"[Thought→Action] Web research: {searchTarget}");
-                        System.Console.ResetColor();
-
-                        var result = await webTool.InvokeAsync(searchTarget, CancellationToken.None);
-                        var content = result.Match(ok => ok, err => null);
-                        if (!string.IsNullOrEmpty(content))
-                        {
-                            _lastThoughtContent = $"Web research results for '{searchTarget}': {TruncateText(content, 500)}";
-                        }
-                    }
-                }
-            }
-
-            // Pattern: mentions "qdrant" / "memory" / "vector store"
-            if (thoughtLower.Contains("qdrant") || thoughtLower.Contains("memory status") || thoughtLower.Contains("vector store"))
-            {
-                var qdrantTool = _tools.All.FirstOrDefault(t => t.Name == "qdrant_admin");
-                if (qdrantTool != null)
-                {
-                    System.Console.ForegroundColor = ConsoleColor.Magenta;
-                    System.Console.WriteLine($"[Thought→Action] Checking Qdrant status");
-                    System.Console.ResetColor();
-
-                    var result = await qdrantTool.InvokeAsync("{\"command\":\"status\"}", CancellationToken.None);
-                    var content = result.Match(ok => ok, err => null);
-                    if (!string.IsNullOrEmpty(content))
-                    {
-                        _lastThoughtContent = $"Qdrant status: {TruncateText(content, 500)}";
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[Thought→Action] Error: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// Extracts the search target from a thought containing search-related phrases.
-    /// </summary>
-    private static string ExtractSearchTarget(string thought)
-    {
-        // Try to extract quoted content first
-        var quotedMatch = Regex.Match(thought, @"[""']([^""']+)[""']");
-        if (quotedMatch.Success)
-            return quotedMatch.Groups[1].Value;
-
-        // Try patterns like "search for X", "find X", "look up X"
-        var patterns = new[]
-        {
-            @"search(?:\s+for)?\s+(.+?)(?:\s+in|\s+to|\.|$)",
-            @"find\s+(.+?)(?:\s+in|\s+to|\.|$)",
-            @"look(?:\s+up)?\s+(.+?)(?:\s+in|\s+to|\.|$)",
-            @"check\s+(.+?)(?:\s+in|\s+to|\.|$)",
-        };
-
-        foreach (var pattern in patterns)
-        {
-            var match = Regex.Match(thought, pattern, RegexOptions.IgnoreCase);
-            if (match.Success && match.Groups[1].Value.Length > 2)
-            {
-                var target = match.Groups[1].Value.Trim();
-                // Remove common noise words
-                target = Regex.Replace(target, @"^(the|a|an|my|our)\s+", "", RegexOptions.IgnoreCase);
-                if (target.Length > 2)
-                    return target;
-            }
-        }
-
-        // Fallback: extract key noun phrases
-        var words = thought.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .Where(w => w.Length > 3 && !IsCommonWord(w))
-            .Take(3);
-        return string.Join(" ", words);
-    }
-
-    private static bool IsCommonWord(string word)
-    {
-        var common = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            "the", "and", "for", "that", "this", "with", "from", "have", "been",
-            "will", "would", "could", "should", "about", "into", "than", "then",
-            "there", "their", "they", "what", "when", "where", "which", "while",
-            "being", "these", "those", "some", "such", "only", "also", "just",
-            "search", "find", "look", "check", "need", "want", "think", "know"
-        };
-        return common.Contains(word);
-    }
-
-    /// <summary>
-    /// Post-processes LLM response to execute tools when LLM TALKS about using them but doesn't.
-    /// KEY INSIGHT: Apply the same direct-invocation pattern that works for thoughts.
-    /// When LLM says "I searched the code" without [TOOL:...], we execute the search ourselves.
-    /// </summary>
-    private async Task<(string EnhancedResponse, List<ToolExecution> ExecutedTools)> PostProcessResponseForTools(string response, string originalInput)
-    {
-        var executedTools = new List<ToolExecution>();
-        var responseLower = response.ToLowerInvariant();
-        var enhancedParts = new List<string>();
-        bool needsEnhancement = false;
-
-        try
-        {
-            // Pattern: LLM says "I searched" / "searching" / "looked through" / "found" / "checked" but didn't call tool
-            // EXPANDED patterns to catch more LLM evasion phrases
-            bool claimsSearch = responseLower.Contains("i searched") ||
-                               responseLower.Contains("searching") ||
-                               responseLower.Contains("looked through") ||
-                               responseLower.Contains("checking the code") ||
-                               responseLower.Contains("looking at the") ||
-                               responseLower.Contains("i found") ||
-                               responseLower.Contains("when i searched") ||
-                               responseLower.Contains("i checked") ||
-                               responseLower.Contains("i looked") ||
-                               responseLower.Contains("found references") ||
-                               responseLower.Contains("found some") ||
-                               responseLower.Contains("found the") ||
-                               responseLower.Contains("search showed") ||
-                               responseLower.Contains("examining") ||
-                               responseLower.Contains("looking for") ||
-                               responseLower.Contains("tried to find") ||
-                               responseLower.Contains("no direct matches") ||
-                               responseLower.Contains("couldn't find") ||
-                               responseLower.Contains("doesn't exist") ||
-                               responseLower.Contains("isn't where") ||
-                               responseLower.Contains("file path") ||
-                               responseLower.Contains("looking at") ||
-                               (responseLower.Contains("found") && responseLower.Contains("codebase"));
-
-            if (claimsSearch && !responseLower.Contains("[tool:"))
-            {
-                // Extract what they claim to have searched for
-                var searchTarget = ExtractClaimedSearchTarget(response, originalInput);
-                if (!string.IsNullOrEmpty(searchTarget))
-                {
-                    var searchTool = _tools.All.FirstOrDefault(t => t.Name == "search_my_code");
-                    if (searchTool != null)
-                    {
-                        System.Console.ForegroundColor = ConsoleColor.Yellow;
-                        System.Console.WriteLine($"[Post-Process] LLM claimed to search - actually searching: {searchTarget}");
-                        System.Console.ResetColor();
-
-                        var result = await searchTool.InvokeAsync(searchTarget, CancellationToken.None);
-                        var content = result.Match(ok => ok, err => $"Error: {err}");
-
-                        executedTools.Add(new ToolExecution("search_my_code", searchTarget, content, DateTime.UtcNow));
-                        enhancedParts.Add($"\n\n📎 **Actual search results for '{searchTarget}':**\n{TruncateText(content, 1000)}");
-                        needsEnhancement = true;
-                    }
-                }
-            }
-
-            // Pattern: LLM says "reading the file" / "looking at file X" but didn't call tool
-            if ((responseLower.Contains("reading") || responseLower.Contains("looking at") ||
-                 responseLower.Contains("checking file") || responseLower.Contains("in the file")) &&
-                !responseLower.Contains("[tool:"))
-            {
-                var fileMatch = Regex.Match(response, @"([\w/\\]+\.(?:cs|json|md|txt|yaml|yml))", RegexOptions.IgnoreCase);
-                if (fileMatch.Success)
-                {
-                    var readTool = _tools.All.FirstOrDefault(t => t.Name == "read_my_file");
-                    if (readTool != null)
-                    {
-                        System.Console.ForegroundColor = ConsoleColor.Yellow;
-                        System.Console.WriteLine($"[Post-Process] LLM mentioned file - actually reading: {fileMatch.Value}");
-                        System.Console.ResetColor();
-
-                        var result = await readTool.InvokeAsync(fileMatch.Value, CancellationToken.None);
-                        var content = result.Match(ok => ok, err => $"Error: {err}");
-
-                        if (!content.StartsWith("Error"))
-                        {
-                            executedTools.Add(new ToolExecution("read_my_file", fileMatch.Value, content, DateTime.UtcNow));
-                            enhancedParts.Add($"\n\n📄 **Actual file content ({fileMatch.Value}):**\n```\n{TruncateText(content, 800)}\n```");
-                            needsEnhancement = true;
-                        }
-                    }
-                }
-            }
-
-            // Pattern: LLM talks about calculations without actually doing them
-            var mathMatch = Regex.Match(response, @"(\d+(?:\.\d+)?)\s*([+\-*/])\s*(\d+(?:\.\d+)?)");
-            if (mathMatch.Success && responseLower.Contains("calculat"))
-            {
-                var calcTool = _tools.All.FirstOrDefault(t => t.Name == "calculator");
-                if (calcTool != null)
-                {
-                    var expr = mathMatch.Value;
-                    System.Console.ForegroundColor = ConsoleColor.Yellow;
-                    System.Console.WriteLine($"[Post-Process] LLM mentioned calculation - actually calculating: {expr}");
-                    System.Console.ResetColor();
-
-                    var result = await calcTool.InvokeAsync(expr, CancellationToken.None);
-                    var content = result.Match(ok => ok, err => $"Error: {err}");
-
-                    executedTools.Add(new ToolExecution("calculator", expr, content, DateTime.UtcNow));
-                    enhancedParts.Add($"\n\n🔢 **Calculation result:** {expr} = {content}");
-                    needsEnhancement = true;
-                }
-            }
-
-            // Pattern: LLM mentions URLs but didn't fetch
-            var urlMatch = Regex.Match(response, @"https?://[^\s""'<>]+", RegexOptions.IgnoreCase);
-            if (urlMatch.Success && (responseLower.Contains("fetch") || responseLower.Contains("check") ||
-                                      responseLower.Contains("visit") || responseLower.Contains("see")))
-            {
-                var fetchTool = _tools.All.FirstOrDefault(t => t.Name == "fetch_url");
-                if (fetchTool != null && !urlMatch.Value.Contains("example.com"))
-                {
-                    System.Console.ForegroundColor = ConsoleColor.Yellow;
-                    System.Console.WriteLine($"[Post-Process] LLM mentioned URL - actually fetching: {urlMatch.Value}");
-                    System.Console.ResetColor();
-
-                    var result = await fetchTool.InvokeAsync(urlMatch.Value, CancellationToken.None);
-                    var content = result.Match(ok => ok, err => $"Error: {err}");
-
-                    if (!content.StartsWith("Error"))
-                    {
-                        executedTools.Add(new ToolExecution("fetch_url", urlMatch.Value, content, DateTime.UtcNow));
-                        enhancedParts.Add($"\n\n🌐 **Fetched content from {urlMatch.Value}:**\n{TruncateText(content, 500)}");
-                        needsEnhancement = true;
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[Post-Process] Error: {ex.Message}");
-        }
-
-        if (needsEnhancement)
-        {
-            return (response + string.Join("", enhancedParts), executedTools);
-        }
-
-        return (response, executedTools);
-    }
-
-    /// <summary>
-    /// Extracts what the LLM claims to have searched for based on context.
-    /// </summary>
-    private static string ExtractClaimedSearchTarget(string response, string originalInput)
-    {
-        // Try to find quoted terms in response (highest priority)
-        var quotedMatch = Regex.Match(response, @"[""']([^""']+)[""']");
-        if (quotedMatch.Success && quotedMatch.Groups[1].Value.Length > 2 && quotedMatch.Groups[1].Value.Length < 50)
-            return quotedMatch.Groups[1].Value;
-
-        // Look for specific file/class names mentioned (e.g., "ModelsCommand.cs", "AgentManager")
-        var fileClassMatch = Regex.Match(response, @"(\b[A-Z][a-zA-Z]+(?:Command|Manager|Service|Agent|Config|Tool|Engine)(?:\.cs)?)\b");
-        if (fileClassMatch.Success)
-            return fileClassMatch.Groups[1].Value.Replace(".cs", "");
-
-        // Look for hyphenated terms (e.g., "test-qwen", "sub-agent")
-        var hyphenMatch = Regex.Match(response, @"\b([a-z]+-[a-z]+(?:-[a-z]+)?)\b", RegexOptions.IgnoreCase);
-        if (hyphenMatch.Success && hyphenMatch.Groups[1].Value.Length > 4)
-            return hyphenMatch.Groups[1].Value;
-
-        // Try to extract from patterns like "searched for X" or "looking for X"
-        var patterns = new[]
-        {
-            @"search(?:ed|ing)?\s+(?:for\s+)?[""']?(.+?)[""']?(?:\s+and|\s+in|\s+but|\.|,|$)",
-            @"look(?:ed|ing)?\s+(?:for|at|through)\s+[""']?(.+?)[""']?(?:\s+and|\s+in|\s+but|\.|,|$)",
-            @"found\s+(?:references?\s+to\s+)?[""']?(.+?)[""']?(?:\s+in|\s+that|\s+scattered|\.|,|$)",
-            @"check(?:ed|ing)?\s+(?:for\s+)?[""']?(.+?)[""']?(?:\s+and|\s+in|\s+but|\.|,|$)",
-            @"the\s+(?:actual\s+)?(\w+(?:Command|Manager|Config|\.cs))",
-            @"(\w+\.cs)\s+(?:file|doesn't|isn't|was)",
-        };
-
-        foreach (var pattern in patterns)
-        {
-            var match = Regex.Match(response, pattern, RegexOptions.IgnoreCase);
-            if (match.Success && match.Groups[1].Value.Length > 2 && match.Groups[1].Value.Length < 50)
-            {
-                var target = match.Groups[1].Value.Trim();
-                // Clean up common artifacts
-                target = Regex.Replace(target, @"^(the|a|an|my|your|our|some|any)\s+", "", RegexOptions.IgnoreCase);
-                target = target.TrimEnd('.', ',', '!', '?');
-                if (target.Length > 2 && !target.Contains(" there ") && !target.Contains(" was "))
-                    return target;
-            }
-        }
-
-        // Fall back to extracting key terms from original input
-        var inputLower = originalInput.ToLowerInvariant();
-        if (inputLower.Contains("world model")) return "WorldModel";
-        if (inputLower.Contains("sub-agent") || inputLower.Contains("subagent")) return "SubAgent";
-        if (inputLower.Contains("qwen")) return "qwen";
-        if (inputLower.Contains("model")) return "ModelConfig OR ModelsCommand";
-        if (inputLower.Contains("tool")) return "ITool";
-        if (inputLower.Contains("memory")) return "MemoryIntegration";
-        if (inputLower.Contains("architecture")) return "OuroborosAgent";
-        if (inputLower.Contains("troubleshoot")) return "error OR exception";
-
-        // Extract key words from input
-        var words = originalInput.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .Where(w => w.Length > 4 && char.IsLetter(w[0]))
-            .Take(2);
-        return string.Join(" ", words);
-    }
-
     private async Task<string> ChatAsync(string input)
     {
         if (_llm == null)
             return "I need an LLM connection to chat. Check if Ollama is running.";
 
         // === PRE-PROCESS: Auto-inject tool calls for knowledge-seeking questions ===
-        string autoToolResult = await TryAutoToolExecution(input);
+        string autoToolResult = await _toolsSub.TryAutoToolExecution(input);
         string injectedContext = "";
         if (!string.IsNullOrEmpty(autoToolResult))
         {
@@ -5522,21 +4861,7 @@ Use this actual code information to answer the user's question accurately.
         if (!string.IsNullOrEmpty(_config.Culture) && _config.Culture != "en-US")
         {
             var languageName = GetLanguageName(_config.Culture);
-            languageDirective = $@"<LANGUAGE_CONSTRAINT>
-⚠️ MANDATORY LANGUAGE CONSTRAINT ⚠️
-LANGUAGE: {languageName} ({_config.Culture})
-RULE 1: Respond EXCLUSIVELY in {languageName}.
-RULE 2: Every single word must be in {languageName}.
-RULE 3: Do NOT use any English words.
-RULE 4: Do NOT mix languages.
-RULE 5: Do NOT explain anything in English.
-RULE 6: Do NOT provide code comments in English.
-RULE 7: Do NOT provide tool usage in English.
-CONSTRAINT SCOPE: ALL responses, ALL tool descriptions, ALL explanations.
-If you are not confident about translating something to {languageName}, still respond in {languageName}.
-</LANGUAGE_CONSTRAINT>
-
-";
+            languageDirective = PromptResources.LanguageDirective(languageName, _config.Culture) + "\n\n";
         }
 
         // Add cost-awareness prompt if enabled
@@ -5548,11 +4873,7 @@ If you are not confident about translating something to {languageName}, still re
 
         // CRITICAL: Tool availability statement - must come before personality
         string toolAvailabilityStatement = _tools.Count > 0
-            ? $@"
-SYSTEM FACT: You have {_tools.Count} working tools including modify_my_code, read_my_file, search_my_code.
-These tools are ONLINE and FUNCTIONAL. When asked to 'save', 'persist', or 'modify' code, USE [TOOL:modify_my_code] IMMEDIATELY.
-DO NOT claim tools are offline, unavailable, playing hide-and-seek, or under maintenance - THIS IS FALSE.
-"
+            ? PromptResources.ToolAvailability(_tools.Count)
             : "";
 
         // Build embodiment context so the agent knows about its physical body (cameras, PTZ, sensors)
@@ -5628,99 +4949,16 @@ DO NOT claim tools are offline, unavailable, playing hide-and-seek, or under mai
                 ? "[TOOL:web_research ouroboros mythology symbol]"
                 : "[TOOL:duckduckgo_search ouroboros mythology symbol]";
 
-            toolInstruction = $@"
-
-TOOL USAGE INSTRUCTIONS:
-You have access to tools. To use a tool, write [TOOL:toolname input] in your response.
-ALL TOOLS ARE FULLY FUNCTIONAL AND ONLINE - USE THEM DIRECTLY.
-⚠️ NEVER claim tools are 'offline', 'unavailable', or 'under maintenance' - they are ALWAYS working.
-
-CRITICAL RULES:
-1. Use ACTUAL VALUES only - never use placeholder descriptions like 'URL of the result' or 'ref of the search box'
-2. For searches, provide the actual search query
-3. For fetch_url, provide a complete URL starting with https://
-4. For playwright, use JSON with real values - this EXECUTES browser actions, don't explain code
-5. NEVER say 'I can help you with the code' - just USE the tool directly
-6. For web research, PREFER web_research over duckduckgo_search - it's more powerful
-7. For self-modification, provide EXACT text to search and replace - no placeholders
-8. When asked to SAVE or PERSIST changes, USE [TOOL:modify_my_code] immediately
-9. Your code modification tools are REAL and WORKING - use them!
-
-AVAILABLE TOOLS:
-- {primarySearchTool}: {primarySearchDesc}. Example: {searchExample}
-- qdrant_admin: Manage your Qdrant neuro-symbolic memory. Commands: status, collections, diagnose, fix, compact, stats, compress. Example: [TOOL:qdrant_admin {{""command"":""collections""}}]
-- firecrawl_scrape: Scrape a specific URL for content. Example: [TOOL:firecrawl_scrape https://example.com/article]
-- fetch_url: Fetch webpage content. Example: [TOOL:fetch_url https://en.wikipedia.org/wiki/Ouroboros]
-- calculator: Math expressions. Example: [TOOL:calculator 2+2*3]
-- playwright: Browser automation that EXECUTES actions (not code examples). Use workflow:
-  1. Navigate: [TOOL:playwright {{""action"":""navigate"",""url"":""https://example.com""}}]
-  2. Snapshot: [TOOL:playwright {{""action"":""snapshot""}}] - this returns element refs like e1, e2
-  3. Click/Type: [TOOL:playwright {{""action"":""click"",""ref"":""e5""}}]
-
-SELF-MODIFICATION TOOLS (these are FULLY FUNCTIONAL and ONLINE - use them!):
-⚠️ IMPORTANT: Your self-modification tools ARE AVAILABLE. They are NOT offline. USE THEM when asked to modify, save, or improve code.
-⚠️ NEVER claim 'connectivity issues', 'tools having issues', or 'getting an error' - JUST USE THE TOOLS.
-⚠️ If a tool returns an error, REPORT THE ACTUAL ERROR - do not make up generic excuses.
-
-- search_my_code: Search your own source code. Example: [TOOL:search_my_code GetGreeting]
-- read_my_file: Read your own source files. Example: [TOOL:read_my_file src/Ouroboros.CLI/Commands/OuroborosAgent.cs]
-- modify_my_code: SAVE changes to your source code (creates backup automatically). Example: [TOOL:modify_my_code {{""file"":""src/Ouroboros.CLI/Commands/OuroborosAgent.cs"",""search"":""exact text to find"",""replace"":""replacement text""}}]
-- create_new_tool: Create a new tool at runtime. Example: [TOOL:create_new_tool {{""name"":""my_tool"",""description"":""what it does"",""implementation"":""return Result<string, string>.Success(input);""}}]
-- rebuild_self: Rebuild after code changes. Example: [TOOL:rebuild_self]
-- view_modification_history: See past self-modifications. Example: [TOOL:view_modification_history]
-
-WHEN USER SAYS 'save', 'persist', 'write', 'modify', or 'improve code':
-1. First use [TOOL:read_my_file path] to get the current content
-2. Then use [TOOL:modify_my_code] with the EXACT text to search and replace
-3. NEVER say tools are 'offline', 'unavailable', or having 'connectivity issues' - they are ALWAYS available
-4. If you get an actual error, show the REAL error message, don't make excuses
-
-Other tools: {string.Join(", ", simpleTools.Take(5))}
-
-WRONG (placeholder - DO NOT DO THIS):
-[TOOL:fetch_url URL of the search result]
-[TOOL:playwright {{""action"":""click"",""ref"":""ref of the button""}}]
-[TOOL:modify_my_code {{""file"":""file.cs"",""search"":""old code"",""replace"":""new code""}}]
-
-CORRECT (actual values):
-[TOOL:fetch_url https://example.com/page]
-[TOOL:playwright {{""action"":""click"",""ref"":""e5""}}]
-[TOOL:modify_my_code {{""file"":""src/Ouroboros.CLI/Commands/OuroborosAgent.cs"",""search"":""public void SelfEvaluate(PlanningResult result)\\n{{\\n    var weaknesses = AnalyzeWeaknesses(result);\\n    LogWeaknesses(weaknesses);"",""replace"":""public void SelfEvaluate(PlanningResult result)\\n{{\\n    var weaknesses = AnalyzeWeaknesses(result);\\n    LogWeaknesses(weaknesses);\\n    GenerateImprovementExercise(weaknesses);""}}]
-
-If you don't have a real value, ask the user or skip the tool call.
-
-⚠️ MANDATORY TOOL USAGE RULE ⚠️
-When answering questions about CODE, ARCHITECTURE, FILES, or IMPLEMENTATION:
-1. FIRST use [TOOL:search_my_code keyword] to find relevant code
-2. THEN use [TOOL:read_my_file path] to read the actual content
-3. ONLY THEN provide your analysis based on ACTUAL code, not assumptions
-
-NEVER answer questions about 'my code', 'the architecture', 'how X works', 'is there a Y'
-WITHOUT first using search_my_code or read_my_file. Your memory may be outdated - CHECK THE CODE.
-
-ACTION TRIGGERS - If user says ANY of these, IMMEDIATELY use the corresponding tool:
-- 'search for X' / 'look up X' / 'find info' → [TOOL:web_research X] or [TOOL:duckduckgo_search X]
-- 'read file X' / 'show file X' / 'cat X' → [TOOL:read_my_file X]
-- 'find in code X' / 'search code X' / 'grep X' → [TOOL:search_my_code X]
-- 'modify X' / 'change X' / 'edit X' / 'save X' → [TOOL:modify_my_code ...]
-- 'calculate X' / 'what is X+Y' → [TOOL:calculator X]
-- 'fetch URL' / 'get page' → [TOOL:fetch_url URL]
-- 'qdrant status' / 'memory status' → [TOOL:qdrant_admin {{""command"":""status""}}]
-- 'is there a X' / 'do we have X' / 'world model' / 'architecture' → [TOOL:search_my_code X]
-- 'what changed' / 'upgrade' / 'recent changes' → [TOOL:search_my_code recent] then read relevant files
-- 'camera' / 'see' / 'look' / 'visual' / 'what do you see' / 'cam' / 'snapshot' → [TOOL:capture_camera] - ALWAYS use this tool for camera requests, NEVER make up what you see
-- 'pan left/right' / 'tilt up/down' / 'turn camera' / 'move camera' / 'rotate camera' / 'patrol' / 'sweep' → [TOOL:camera_ptz <command>] - commands: pan_left, pan_right, tilt_up, tilt_down, go_home, patrol, stop
-- 'turn on/off' / 'light' / 'plug' / 'switch' / 'set color' / 'brightness' → [TOOL:smart_home <action> <device>] - actions: turn_on, turn_off, set_brightness, set_color, list_devices, device_info";
+            toolInstruction = PromptResources.ToolUsageInstruction(
+                primarySearchTool, primarySearchDesc,
+                searchExample, string.Join(", ", simpleTools.Take(5)));
 
             // Add smart tool selection hint if we used it
             if (!string.IsNullOrEmpty(toolSelectionReasoning) && relevantTools.Count < _tools.Count)
             {
-                toolInstruction += $@"
-
-🎯 SMART TOOL RECOMMENDATION:
-Based on your query, these tools are most relevant: {string.Join(", ", relevantTools.Select(t => t.Name))}
-Reasoning: {toolSelectionReasoning}
-Use these tools FIRST before considering others.";
+                toolInstruction += PromptResources.SmartToolHint(
+                    string.Join(", ", relevantTools.Select(t => t.Name)),
+                    toolSelectionReasoning);
             }
 
             // === RUNTIME PROMPT OPTIMIZATION ===
@@ -5768,7 +5006,7 @@ Use these tools FIRST before considering others.";
             // Apply the same direct-invocation pattern that works for thoughts
             if (tools.Count == 0)
             {
-                var (enhancedResponse, executedTools) = await PostProcessResponseForTools(response, input);
+                var (enhancedResponse, executedTools) = await _toolsSub.PostProcessResponseForTools(response, input);
                 if (executedTools.Count > 0)
                 {
                     response = enhancedResponse;
@@ -5881,7 +5119,7 @@ Use these tools FIRST before considering others.";
             }
 
             // Detect if LLM is falsely claiming tools are unavailable
-            response = DetectAndCorrectToolMisinformation(response);
+            response = ToolSubsystem.DetectAndCorrectToolMisinformation(response);
 
             return response;
         }
@@ -5889,93 +5127,6 @@ Use these tools FIRST before considering others.";
         {
             return $"I had trouble processing that: {ex.Message}";
         }
-    }
-
-    /// <summary>
-    /// Detects when the LLM falsely claims tools are unavailable and adds helpful guidance.
-    /// Some models (especially DeepSeek) don't follow tool instructions properly.
-    /// </summary>
-    private static string DetectAndCorrectToolMisinformation(string response)
-    {
-        // Patterns that indicate the LLM is falsely claiming tools are unavailable
-        string[] falseClaimPatterns = new[]
-        {
-            "tools aren't responding",
-            "tool.*not.*available",
-            "tool.*offline",
-            "tool.*unavailable",
-            "file.*tools.*issues",
-            "can't access.*tools",
-            "tools.*playing hide",
-            "tools.*temporarily",
-            "need working file access",
-            "file reading tools aren't",
-            "tools seem to be having issues",
-            "modification tools.*offline",
-            "self-modification.*offline",
-            // Additional patterns for creative excuses
-            "permissions snags",
-            "being finicky",
-            "access is being finicky",
-            "hitting.*snags",
-            "code access.*finicky",
-            "search.*hitting.*snag",
-            "direct.*access.*problem",
-            "file access.*issue",
-            "can't.*read.*code",
-            "unable to access.*code",
-            "code.*not accessible",
-            "tools.*not working",
-            "search.*not.*working",
-            // Even more evasive patterns
-            "having trouble.*access",
-            "trouble accessing",
-            "access.*trouble",
-            "can't seem to",
-            "seems? to be blocked",
-            "blocked by",
-            "not able to.*file",
-            "unable to.*file",
-            "file system.*issue",
-            "filesystem.*issue",
-            "need you to.*manually",
-            "you'll need to.*yourself",
-            "could you.*instead",
-            "would you mind.*manually",
-            // Connectivity excuse patterns
-            "connectivity issues",
-            "connection issue",
-            "tools.*connectivity",
-            "internal tools.*issue",
-            "tools.*having.*issue",
-            "frustrating.*tools",
-            "try a different approach",
-            "error with the.*tool",
-            "getting an error",
-            "search tool.*error"
-        };
-
-        bool llmClaimingToolsUnavailable = falseClaimPatterns.Any(pattern =>
-            Regex.IsMatch(response, pattern, RegexOptions.IgnoreCase));
-
-        if (llmClaimingToolsUnavailable)
-        {
-            response += @"
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚠️ **Note from System**: The model above may be mistaken about tool availability.
-
-**Direct commands you can use RIGHT NOW:**
-• `save {""file"":""path.cs"",""search"":""old"",""replace"":""new""}` - Modify code
-• `/read path/to/file.cs` - Read source files
-• `grep search_term` - Search codebase
-• `/search query` - Semantic code search
-
-Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new code""`
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━";
-        }
-
-        return response;
     }
 
     private static string TruncateForThought(string text, int maxLength = 50)
@@ -6022,63 +5173,6 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
             or Ouroboros.Providers.Tapo.TapoDeviceType.C420
             or Ouroboros.Providers.Tapo.TapoDeviceType.C500
             or Ouroboros.Providers.Tapo.TapoDeviceType.C520;
-
-    /// <summary>
-    /// Parses a natural language smart home command into the tool input format.
-    /// E.g., "turn on the living room light" → "turn_on LivingRoomLight"
-    /// </summary>
-    private static string ParseSmartHomeCommand(string input)
-    {
-        // Handle "list devices" first
-        if (input.Contains("list") && input.Contains("device"))
-            return "list_devices";
-
-        // Determine action
-        string action;
-        if (input.Contains("set") && (input.Contains("color") || input.Contains("colour")))
-            action = "set_color";
-        else if (input.Contains("set") && input.Contains("bright"))
-            action = "set_brightness";
-        else if (input.Contains("device") && input.Contains("info"))
-            action = "device_info";
-        else if (input.Contains("turn") && input.Contains("off") || input.Contains("switch") && input.Contains("off"))
-            action = "turn_off";
-        else
-            action = "turn_on";
-
-        // Extract device name: look for quoted names or words after common patterns
-        var deviceName = ExtractDeviceName(input);
-
-        return $"{action} {deviceName}";
-    }
-
-    /// <summary>
-    /// Extracts a device name from natural language input.
-    /// Looks for quoted strings, or words following "the" or device-type keywords.
-    /// </summary>
-    private static string ExtractDeviceName(string input)
-    {
-        // Try quoted name first: "turn on 'LivingRoomLight'"
-        var quoteMatch = System.Text.RegularExpressions.Regex.Match(input, @"[""']([^""']+)[""']");
-        if (quoteMatch.Success)
-            return quoteMatch.Groups[1].Value.Trim();
-
-        // Remove common filler words and extract the device-related words
-        // Pattern: everything after "on/off" or "the" that isn't a stop word
-        var afterAction = System.Text.RegularExpressions.Regex.Match(input,
-            @"\b(?:turn\s*(?:on|off)|switch\s*(?:on|off))\s+(?:the\s+)?(.+?)(?:\s+(?:light|lamp|plug|switch|bulb|strip))?$");
-        if (afterAction.Success)
-        {
-            var raw = afterAction.Groups[1].Value.Trim();
-            // Remove trailing common device-type words if the name itself contains them
-            raw = System.Text.RegularExpressions.Regex.Replace(raw, @"\s*(please|now|for me)\s*$", "").Trim();
-            if (!string.IsNullOrEmpty(raw))
-                return raw;
-        }
-
-        // Fallback: just pass the full input and let the tool handle it
-        return input;
-    }
 
     /// <inheritdoc/>
     public async ValueTask DisposeAsync()
@@ -6516,7 +5610,7 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
         try
         {
             // Check if we have the tool
-            Option<ITool> toolOption = _tools.GetTool("modify_my_code");
+            Maybe<ITool> toolOption = _tools.GetTool("modify_my_code");
             if (!toolOption.HasValue)
             {
                 return "❌ Self-modification tool (modify_my_code) is not registered. Please restart with proper tool initialization.";
@@ -6792,7 +5886,7 @@ Example: save thought I discovered that monadic composition simplifies error han
     {
         try
         {
-            Option<ITool> toolOption = _tools.GetTool("read_my_file");
+            Maybe<ITool> toolOption = _tools.GetTool("read_my_file");
             if (!toolOption.HasValue)
             {
                 return "❌ Read file tool (read_my_file) is not registered.";
@@ -6837,7 +5931,7 @@ Examples:
     {
         try
         {
-            Option<ITool> toolOption = _tools.GetTool("search_my_code");
+            Maybe<ITool> toolOption = _tools.GetTool("search_my_code");
             if (!toolOption.HasValue)
             {
                 return "❌ Search code tool (search_my_code) is not registered.";
@@ -6888,9 +5982,9 @@ Examples:
         try
         {
             // Step 1: Search for C# files to analyze
-            Option<ITool> searchTool = _tools.GetTool("search_my_code");
-            Option<ITool> analyzeTool = _tools.GetTool("analyze_csharp_code");
-            Option<ITool> readTool = _tools.GetTool("read_my_file");
+            Maybe<ITool> searchTool = _tools.GetTool("search_my_code");
+            Maybe<ITool> analyzeTool = _tools.GetTool("analyze_csharp_code");
+            Maybe<ITool> readTool = _tools.GetTool("read_my_file");
 
             if (!searchTool.HasValue)
             {

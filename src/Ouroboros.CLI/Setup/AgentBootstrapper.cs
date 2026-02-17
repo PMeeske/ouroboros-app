@@ -4,8 +4,11 @@
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Ouroboros.Application.Tools;
 using Ouroboros.CLI.Commands;
+using Ouroboros.CLI.Infrastructure;
 using Ouroboros.CLI.Subsystems;
 using Ouroboros.Options;
 
@@ -187,11 +190,44 @@ public static class AgentBootstrapper
     /// Subsystems are resolved from the container and injected into the agent.
     /// </summary>
     /// <param name="config">The configuration to use.</param>
+    /// <param name="hostServices">
+    /// Optional parent <see cref="IServiceProvider"/> from the Host. When provided,
+    /// shared services (IConfiguration, ILoggerFactory, ISpectreConsoleService) are
+    /// forwarded into the child container so both DI worlds share a single instance.
+    /// </param>
     /// <returns>The initialized agent (dispose via the returned ServiceProvider).</returns>
-    public static async Task<(OuroborosAgent Agent, ServiceProvider Provider)> CreateAgentWithDIAsync(OuroborosConfig config)
+    public static async Task<(OuroborosAgent Agent, ServiceProvider Provider)> CreateAgentWithDIAsync(
+        OuroborosConfig config,
+        IServiceProvider? hostServices = null)
     {
         var services = new ServiceCollection();
         services.AddOuroboros(config);
+
+        // ── Bridge host services into the child container ──────────────
+        if (hostServices != null)
+        {
+            // Forward IConfiguration so agent subsystems see the same config as the CLI host
+            var hostConfig = hostServices.GetService<IConfiguration>();
+            if (hostConfig != null)
+                services.AddSingleton(hostConfig);
+
+            // Forward logging so agent log messages appear in the host's log pipeline
+            var loggerFactory = hostServices.GetService<ILoggerFactory>();
+            if (loggerFactory != null)
+            {
+                services.AddSingleton(loggerFactory);
+                services.AddSingleton(typeof(ILogger<>), typeof(Logger<>));
+            }
+
+            // Forward console so subsystems can use the same SpectreConsole instance
+            var console = hostServices.GetService<IConsoleOutput>();
+            if (console != null)
+                services.AddSingleton(console);
+
+            var spectreConsole = hostServices.GetService<ISpectreConsoleService>();
+            if (spectreConsole != null)
+                services.AddSingleton(spectreConsole);
+        }
 
         var provider = services.BuildServiceProvider();
         var agent = provider.GetRequiredService<OuroborosAgent>();

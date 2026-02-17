@@ -170,7 +170,7 @@ public static class PipelineCommands
                 }
             }
 
-            ReasoningStep? last = state.Branch.Events.OfType<ReasoningStep>().LastOrDefault();
+            Ouroboros.Domain.Events.ReasoningStep? last = state.Branch.Events.OfType<Ouroboros.Domain.Events.ReasoningStep>().LastOrDefault();
             if (last is not null)
             {
                 Console.WriteLine("\n=== PIPELINE RESULT ===");

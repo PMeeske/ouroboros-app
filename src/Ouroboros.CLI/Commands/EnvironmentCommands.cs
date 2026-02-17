@@ -298,7 +298,7 @@ public static class EnvironmentCommands
         public ValueTask<Result<Unit>> UpdateAsync(
             EnvironmentState state,
             EnvironmentAction action,
-            Observation observation,
+            Ouroboros.Domain.Environment.Observation observation,
             CancellationToken cancellationToken = default)
         {
             // Random policy doesn't learn

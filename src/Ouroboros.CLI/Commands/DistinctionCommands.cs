@@ -309,7 +309,7 @@ public static class DistinctionCommands
 
             PrintHeader("Manual Distinction Learning");
 
-            var observation = new Observation(
+            var observation = new Ouroboros.Core.DistinctionLearning.Observation(
                 Content: options.Text,
                 Timestamp: DateTime.UtcNow,
                 PriorCertainty: 0.5,

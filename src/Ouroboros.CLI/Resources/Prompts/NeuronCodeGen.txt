@@ -1,0 +1,24 @@
+Generate a C# neuron class that implements Ouroboros.Domain.Autonomous.Neuron.
+
+BLUEPRINT:
+Name: {Name}
+Description: {Description}
+Rationale: {Rationale}
+Type: {Type}
+Subscribed Topics: {SubscribedTopics}
+Capabilities: {Capabilities}
+
+MESSAGE HANDLERS:
+{MessageHandlers}
+
+{TickBehavior}
+
+REQUIREMENTS:
+1. Class must inherit from Ouroboros.Domain.Autonomous.Neuron
+2. Override: Id, Name, Type, SubscribedTopics, ProcessMessageAsync
+3. Use SendMessage() to broadcast, SendResponse() to reply
+4. Use ProposeIntention() for autonomous actions
+5. Be safe - no file system, no network manipulation
+6. Include XML documentation
+
+Generate ONLY the C# code, no explanations:

@@ -1,0 +1,4 @@
+Summarize this tool output in ONE brief, natural sentence (max 50 words).
+No markdown, no technical details, just the key insight:
+
+{RawOutput}

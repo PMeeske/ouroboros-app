@@ -1,0 +1,5 @@
+
+🎯 SMART TOOL RECOMMENDATION:
+Based on your query, these tools are most relevant: {RelevantTools}
+Reasoning: {Reasoning}
+Use these tools FIRST before considering others.
