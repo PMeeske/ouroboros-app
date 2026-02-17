@@ -664,7 +664,7 @@ public class OuroborosCommandOptions
         var persona       = parseResult.GetValue(PersonaOption) ?? "Ouroboros";
 
         // LLM & Model
-        var model         = parseResult.GetValue(ModelOption) ?? "deepseek-v3.1:671b-cloud";
+        var model         = parseResult.GetValue(ModelOption) ?? "llama3:latest";
         var culture       = parseResult.GetValue(CultureOption);
         var endpoint      = parseResult.GetValue(EndpointOption) ?? "http://localhost:11434";
         var apiKey        = parseResult.GetValue(ApiKeyOption);

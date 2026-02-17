@@ -303,13 +303,14 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
     {
         var embedding = ctx.Models.Embedding;
         if (embedding == null) return;
+        var qdrantEndpoint = NormalizeEndpoint(ctx.Config.QdrantEndpoint, "http://localhost:6334");
 
         try
         {
             var dag = new Ouroboros.Network.MerkleDag();
             NetworkProjector = new PersistentNetworkStateProjector(
                 dag,
-                ctx.Config.QdrantEndpoint,
+                qdrantEndpoint,
                 async text => await embedding.CreateEmbeddingsAsync(text));
             await NetworkProjector.InitializeAsync(CancellationToken.None);
             ctx.Output.RecordInit("Network Projector", true,
@@ -319,6 +320,27 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
         {
             Console.WriteLine($"  ⚠ Network Projector: {ex.Message}");
         }
+    }
+
+    private static string NormalizeEndpoint(string? rawEndpoint, string fallbackEndpoint)
+    {
+        var endpoint = (rawEndpoint ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(endpoint))
+        {
+            return fallbackEndpoint;
+        }
+
+        if (!endpoint.Contains("://", StringComparison.Ordinal))
+        {
+            endpoint = $"http://{endpoint}";
+        }
+
+        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) || string.IsNullOrWhiteSpace(uri.Host))
+        {
+            return fallbackEndpoint;
+        }
+
+        return uri.ToString().TrimEnd('/');
     }
 
     private async Task InitializeSelfIndexerCoreAsync(SubsystemInitContext ctx)

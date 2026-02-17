@@ -2870,11 +2870,19 @@ public sealed class PersonalityEngine : IAsyncDisposable
         var consciousness = GetCurrentConsciousnessState();
         var lastSession = _innerDialogEngine.GetLastSession(personaName);
 
+        // Gather background thoughts from recent dialog sessions
+        var recentSessions = _innerDialogEngine.GetSessionHistory(personaName, 5);
+        var backgroundThoughts = recentSessions
+            .SelectMany(s => s.Thoughts)
+            .Where(t => t.IsAutonomous)
+            .TakeLast(20)
+            .ToList();
+
         return new AutonomousInnerState(
             PersonaName: personaName,
             Consciousness: consciousness,
             LastDialogSession: lastSession,
-            BackgroundThoughts: [],
+            BackgroundThoughts: backgroundThoughts,
             PendingAutonomousThoughts: [],
             CurrentMood: profile?.CurrentMood,
             ActiveTraits: profile?.GetActiveTraits(3).Select(t => t.Name!).ToArray() ?? Array.Empty<string>(),

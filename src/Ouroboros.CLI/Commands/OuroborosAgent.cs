@@ -1092,8 +1092,11 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
         // ── Phase 9: Post-init actions ──
         _isInitialized = true;
         _output.FlushInitSummary();
-        if (_config.Verbosity == OutputVerbosity.Verbose)
+        if (_config.Verbosity != OutputVerbosity.Quiet)
+        {
+            Console.WriteLine("\n  ✓ Ouroboros fully initialized\n");
             PrintQuickHelp();
+        }
 
         // AGI warmup - prime the model with examples for autonomous operation
         await PerformAgiWarmupAsync();
@@ -1105,7 +1108,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
         // Start listening for voice input if enabled via CLI
         if (_config.Listen)
         {
-            _output.WriteSystem("Voice listening enabled via --listen flag");
+            _output.WriteSystem("🎤 Voice listening enabled via --listen flag");
             await StartListeningAsync();
         }
     }
@@ -1211,6 +1214,12 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
             return "Tool not found";
         };
 
+        // Seed baseline interests so autonomous learning keeps research/philosophy active.
+        _autonomousMind.AddInterest("research");
+        _autonomousMind.AddInterest("philosophy");
+        _autonomousMind.AddInterest("epistemology");
+        _autonomousMind.AddInterest("self-improvement");
+
         _autonomousMind.VerifyFileExistsFunction = (path) =>
         {
             var absolutePath = Path.IsPathRooted(path) ? path : Path.Combine(Environment.CurrentDirectory, path);
@@ -1279,7 +1288,16 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
             lock (_inputLock) { savedInput = _currentInputBuffer.ToString(); }
             if (!string.IsNullOrEmpty(savedInput))
                 Console.WriteLine();
-            _output.WriteDebug($"💭 {msg}");
+            if (_config.Verbosity == OutputVerbosity.Verbose)
+            {
+                _output.WriteDebug($"💭 {msg}");
+            }
+            else if (_config.Verbosity != OutputVerbosity.Quiet)
+            {
+                Console.ForegroundColor = ConsoleColor.DarkMagenta;
+                Console.WriteLine($"  [inner thought] {msg}");
+                Console.ResetColor();
+            }
             try { await _voice.WhisperAsync(msg); } catch { }
             if (_isInConversationLoop)
             {
@@ -1305,6 +1323,12 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
                 _ => InnerThoughtType.Wandering
             };
             var innerThought = InnerThought.CreateAutonomous(thoughtType, thought.Content, confidence: 0.7);
+
+            // Display autonomous mind thoughts in pink
+            Console.ForegroundColor = ConsoleColor.DarkMagenta;
+            Console.WriteLine($"\n  [inner thought] {thought.Content}");
+            Console.ResetColor();
+
             await PersistThoughtAsync(innerThought, "autonomous_thinking");
         };
     }
@@ -1475,9 +1499,21 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
         };
 
         // Additional events for debugging/diagnostics
-        _autonomousMind.OnDiscovery += (query, fact) =>
+        _autonomousMind.OnDiscovery += async (query, fact) =>
         {
             System.Diagnostics.Debug.WriteLine($"[Discovery] {query}: {fact}");
+            if (_config.Verbosity != OutputVerbosity.Quiet)
+            {
+                Console.ForegroundColor = ConsoleColor.DarkMagenta;
+                Console.WriteLine($"  [inner thought] I discovered from '{query}': {fact}");
+                Console.ResetColor();
+            }
+
+            var discoveryThought = InnerThought.CreateAutonomous(
+                InnerThoughtType.Consolidation,
+                $"Discovered: {fact} (from query: {query})",
+                confidence: 0.8);
+            await PersistThoughtAsync(discoveryThought, "discovery");
         };
 
         _autonomousMind.OnEmotionalChange += (emotion) =>
@@ -2128,6 +2164,13 @@ $synth.Dispose()
     {
         try
         {
+            if (_config.Verbosity != OutputVerbosity.Quiet)
+            {
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.WriteLine("\n  ⏳ Warming up AGI systems...");
+                Console.ResetColor();
+            }
+
             _agiWarmup = new AgiWarmup(
                 thinkFunction: _autonomousMind?.ThinkFunction,
                 searchFunction: _autonomousMind?.SearchFunction,
@@ -2135,9 +2178,13 @@ $synth.Dispose()
                 selfIndexer: _selfIndexer,
                 toolRegistry: _tools);
 
+            if (_autonomousMind != null)
+            {
+                _autonomousMind.Config.ThinkingIntervalSeconds = 15;
+            }
+
             if (_config.Verbosity == OutputVerbosity.Verbose)
             {
-                _output.WriteDebug("Warming up AGI systems...");
                 _agiWarmup.OnProgress += (step, percent) =>
                 {
                     Console.ForegroundColor = ConsoleColor.DarkGray;
@@ -2153,25 +2200,34 @@ $synth.Dispose()
                 Console.WriteLine(); // Clear progress line
 
                 if (result.Success)
-                {
                     _output.WriteDebug($"AGI warmup complete in {result.Duration.TotalSeconds:F1}s");
-
-                    // Print initial thought if available
-                    if (!string.IsNullOrEmpty(result.WarmupThought))
-                    {
-                        var translatedThought = await TranslateThoughtIfNeededAsync(result.WarmupThought);
-                        _output.WriteDebug($"💭 Initial thought: \"{translatedThought}\"");
-                    }
+                else
+                    _output.WriteWarning($"AGI warmup limited: {result.Error ?? "Some features unavailable"}");
+            }
+            else if (_config.Verbosity != OutputVerbosity.Quiet)
+            {
+                if (result.Success)
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.WriteLine("  ✓ Autonomous mind active (inner thoughts every ~15s)");
+                    Console.ResetColor();
                 }
                 else
-                {
                     _output.WriteWarning($"AGI warmup limited: {result.Error ?? "Some features unavailable"}");
-                }
+            }
+
+            // Display initial warmup thought in pink (always, not just verbose)
+            if (result.Success && !string.IsNullOrEmpty(result.WarmupThought))
+            {
+                var translatedThought = await TranslateThoughtIfNeededAsync(result.WarmupThought);
+                Console.ForegroundColor = ConsoleColor.DarkMagenta;
+                Console.WriteLine($"\n  [inner thought] {translatedThought}");
+                Console.ResetColor();
             }
         }
         catch (Exception ex)
         {
-            _output.WriteDebug($"AGI warmup skipped: {ex.Message}");
+            _output.WriteWarning($"AGI warmup skipped: {ex.Message}");
         }
     }
 
@@ -4836,7 +4892,18 @@ $synth.Dispose()
 
     private async Task<string> ChatAsync(string input)
     {
-        if (_llm == null)
+        var activeLlm = _llm;
+        if (activeLlm == null)
+        {
+            var effectiveModel = GetEffectiveChatModel();
+            if (effectiveModel != null)
+            {
+                activeLlm = new ToolAwareChatModel(effectiveModel, _tools);
+                _llm = activeLlm;
+            }
+        }
+
+        if (activeLlm == null)
             return "I need an LLM connection to chat. Check if Ollama is running.";
 
         // === PRE-PROCESS: Auto-inject tool calls for knowledge-seeking questions ===
@@ -4998,7 +5065,7 @@ Use this actual code information to answer the user's question accurately.
             List<ToolExecution> tools;
             using (var spinner = _output.StartSpinner("Thinking..."))
             {
-                (response, tools) = await _llm.GenerateWithToolsAsync(prompt);
+                (response, tools) = await activeLlm.GenerateWithToolsAsync(prompt);
             }
 
             // === POST-PROCESS: Execute tools when LLM TALKS about using them but doesn't ===
