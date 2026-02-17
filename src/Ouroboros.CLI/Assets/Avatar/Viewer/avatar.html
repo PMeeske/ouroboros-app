@@ -40,12 +40,22 @@
     z-index: 0;
   }
 
-  /* ── Avatar container ── */
+  /* ══════════════════════════════════════
+     PORTRAIT MODE (circular bust frame)
+     ══════════════════════════════════════ */
+
   #avatar-stage {
     position: relative;
     width: min(85vh, 85vw);
     height: min(85vh, 85vw);
     z-index: 1;
+    transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Full-body mode overrides */
+  body.fullbody #avatar-stage {
+    width: min(45vw, 60vh);
+    height: min(90vh, 120vw);
   }
 
   /* ── Aura rings ── */
@@ -54,6 +64,7 @@
     inset: -8%;
     border-radius: 50%;
     pointer-events: none;
+    transition: all 0.8s ease;
   }
   .aura-outer {
     background: radial-gradient(ellipse at center,
@@ -72,6 +83,12 @@
     animation-delay: calc(var(--breath-duration) * -0.5);
   }
 
+  /* Full-body: elongated vertical aura */
+  body.fullbody .aura {
+    border-radius: 40% / 50%;
+    inset: -6% -15%;
+  }
+
   @keyframes aura-pulse {
     0%, 100% { transform: scale(1); opacity: 0.6; }
     50% { transform: scale(1.05); opacity: 1; }
@@ -88,6 +105,13 @@
       0 0 40px var(--aura-color),
       0 0 80px rgba(147, 51, 234, 0.15),
       inset 0 0 30px rgba(0, 0, 0, 0.4);
+    transition: border-radius 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Full-body: tall rounded rectangle */
+  body.fullbody #portrait-frame {
+    border-radius: 20px;
+    inset: 3%;
   }
 
   @keyframes breathe {
@@ -111,6 +135,12 @@
     opacity: 1;
   }
 
+  /* Full-body layers */
+  .avatar-layer.fullbody-layer {
+    object-fit: contain;
+    object-position: center center;
+  }
+
   /* ── Eye shimmer overlay ── */
   #eye-shimmer {
     position: absolute;
@@ -126,6 +156,19 @@
     opacity: 0;
     animation: eye-glint 6s ease-in-out infinite;
     pointer-events: none;
+    transition: background 0.8s ease;
+  }
+
+  /* Full-body: reposition eye shimmer higher */
+  body.fullbody #eye-shimmer {
+    background: radial-gradient(
+      ellipse 20% 4% at 45% 18%,
+      rgba(255, 255, 255, 0.10) 0%,
+      transparent 100%),
+    radial-gradient(
+      ellipse 20% 4% at 55% 18%,
+      rgba(255, 255, 255, 0.10) 0%,
+      transparent 100%);
   }
 
   @keyframes eye-glint {
@@ -149,6 +192,15 @@
     transition: opacity 0.08s ease;
   }
 
+  body.fullbody #blink-overlay {
+    background: linear-gradient(
+      to bottom,
+      transparent 14%,
+      rgba(10, 6, 18, 0.7) 17%,
+      rgba(10, 6, 18, 0.7) 20%,
+      transparent 23%);
+  }
+
   /* ── Speaking indicator (subtle mouth glow) ── */
   #speak-glow {
     position: absolute;
@@ -160,6 +212,12 @@
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.3s ease;
+  }
+  body.fullbody #speak-glow {
+    background: radial-gradient(
+      ellipse 18% 5% at 50% 28%,
+      var(--gold-glow) 0%,
+      transparent 100%);
   }
   #speak-glow.active {
     animation: speak-pulse 0.6s ease-in-out infinite alternate;
@@ -180,11 +238,113 @@
     pointer-events: none;
     box-shadow: 0 0 15px var(--gold-glow), inset 0 0 15px var(--gold-glow);
     animation: ring-breathe var(--breath-duration) ease-in-out infinite;
+    transition: border-radius 0.8s cubic-bezier(0.4, 0, 0.2, 1), inset 0.8s ease;
+  }
+
+  body.fullbody #gold-ring {
+    border-radius: 18px;
+    inset: 2.5%;
   }
 
   @keyframes ring-breathe {
     0%, 100% { opacity: 0.3; }
     50% { opacity: 0.6; }
+  }
+
+  /* ══════════════════════════════════════
+     FULL-BODY TURNAROUND: ground glow
+     ══════════════════════════════════════ */
+
+  #ground-glow {
+    display: none;
+    position: absolute;
+    bottom: -5%;
+    left: -10%;
+    right: -10%;
+    height: 25%;
+    background: radial-gradient(
+      ellipse 60% 100% at 50% 100%,
+      var(--aura-color-strong) 0%,
+      var(--aura-color) 40%,
+      transparent 80%);
+    pointer-events: none;
+    animation: ground-pulse var(--breath-duration) ease-in-out infinite;
+    filter: blur(8px);
+  }
+  body.fullbody #ground-glow { display: block; }
+
+  @keyframes ground-pulse {
+    0%, 100% { opacity: 0.4; transform: scaleX(1); }
+    50% { opacity: 0.7; transform: scaleX(1.05); }
+  }
+
+  /* ══════════════════════════════════════
+     TURNAROUND ANGLE INDICATOR
+     ══════════════════════════════════════ */
+
+  #angle-indicator {
+    display: none;
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    pointer-events: none;
+  }
+  body.fullbody #angle-indicator { display: flex; }
+
+  .angle-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin: 0 6px;
+    background: rgba(147, 51, 234, 0.25);
+    border: 1px solid rgba(147, 51, 234, 0.3);
+    transition: all 0.4s ease;
+  }
+  .angle-dot.active {
+    background: var(--gold);
+    border-color: var(--gold);
+    box-shadow: 0 0 8px var(--gold-glow);
+    transform: scale(1.3);
+  }
+
+  .angle-label {
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    color: rgba(192, 160, 255, 0.5);
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  body.fullbody .angle-label { opacity: 1; }
+
+  /* ── Mode toggle button ── */
+  #mode-toggle {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 10;
+    background: rgba(147, 51, 234, 0.15);
+    border: 1px solid rgba(147, 51, 234, 0.3);
+    border-radius: 6px;
+    color: rgba(192, 160, 255, 0.7);
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: inherit;
+    text-transform: uppercase;
+  }
+  #mode-toggle:hover {
+    background: rgba(147, 51, 234, 0.3);
+    color: var(--gold);
+    border-color: var(--gold);
   }
 
   /* ── Status HUD ── */
@@ -291,12 +451,19 @@
   <div class="aura aura-inner"></div>
 
   <div id="portrait-frame">
-    <!-- Avatar layers — one per visual state, crossfaded -->
-    <img class="avatar-layer active" id="layer-idle"        src="idle.png"        alt="" draggable="false">
-    <img class="avatar-layer"        id="layer-listening"   src="listening.png"   alt="" draggable="false">
-    <img class="avatar-layer"        id="layer-thinking"    src="thinking.png"    alt="" draggable="false">
-    <img class="avatar-layer"        id="layer-speaking"    src="speaking.png"    alt="" draggable="false">
-    <img class="avatar-layer"        id="layer-encouraging" src="encouraging.png" alt="" draggable="false">
+    <!-- Portrait mode layers (bust) — crossfaded by state -->
+    <img class="avatar-layer portrait-layer active" id="layer-idle"        src="idle.png"        alt="" draggable="false">
+    <img class="avatar-layer portrait-layer"        id="layer-listening"   src="listening.png"   alt="" draggable="false">
+    <img class="avatar-layer portrait-layer"        id="layer-thinking"    src="thinking.png"    alt="" draggable="false">
+    <img class="avatar-layer portrait-layer"        id="layer-speaking"    src="speaking.png"    alt="" draggable="false">
+    <img class="avatar-layer portrait-layer"        id="layer-encouraging" src="encouraging.png" alt="" draggable="false">
+
+    <!-- Full-body mode layers (turnaround angles) — crossfaded by angle -->
+    <img class="avatar-layer fullbody-layer" id="layer-fb-front"      src="fullbody_front.png"      alt="" draggable="false">
+    <img class="avatar-layer fullbody-layer" id="layer-fb-threequarter" src="fullbody_threequarter.png" alt="" draggable="false">
+    <img class="avatar-layer fullbody-layer" id="layer-fb-side"       src="fullbody_side.png"       alt="" draggable="false">
+    <img class="avatar-layer fullbody-layer" id="layer-fb-back"       src="fullbody_back.png"       alt="" draggable="false">
+    <img class="avatar-layer fullbody-layer" id="layer-fb-sideleft"   src="fullbody_sideleft.png"   alt="" draggable="false">
 
     <div id="eye-shimmer"></div>
     <div id="blink-overlay"></div>
@@ -304,7 +471,20 @@
   </div>
 
   <div id="gold-ring"></div>
+  <div id="ground-glow"></div>
 </div>
+
+<!-- Turnaround angle indicator dots -->
+<div id="angle-indicator">
+  <span class="angle-label" id="angle-name">front</span>
+  <div class="angle-dot active" data-angle="0"></div>
+  <div class="angle-dot" data-angle="1"></div>
+  <div class="angle-dot" data-angle="2"></div>
+  <div class="angle-dot" data-angle="3"></div>
+  <div class="angle-dot" data-angle="4"></div>
+</div>
+
+<button id="mode-toggle">Portrait</button>
 
 <div id="hud">
   <div id="persona-name">Iaret</div>
@@ -317,7 +497,6 @@
   <span id="conn-label">DISCONNECTED</span>
 </div>
 
-<!-- Particle container -->
 <div id="particles"></div>
 
 <script>
@@ -413,9 +592,11 @@ const blinkEl = document.getElementById('blink-overlay');
 function scheduleBlink() {
   const delay = 3000 + Math.random() * 5000;
   setTimeout(() => {
+    // Only blink when showing front-facing images
+    if (isFullbody && currentAngle > 1) { scheduleBlink(); return; }
+
     blinkEl.style.opacity = '1';
     setTimeout(() => { blinkEl.style.opacity = '0'; }, 120);
-    // Occasional double-blink
     if (Math.random() < 0.2) {
       setTimeout(() => {
         blinkEl.style.opacity = '1';
@@ -429,7 +610,109 @@ scheduleBlink();
 
 
 // ═══════════════════════════════════════════════
-//  Avatar state management
+//  View mode management (portrait vs fullbody)
+// ═══════════════════════════════════════════════
+let isFullbody = false;
+const modeToggle = document.getElementById('mode-toggle');
+const portraitLayers = document.querySelectorAll('.portrait-layer');
+const fullbodyLayers = document.querySelectorAll('.fullbody-layer');
+const angleName = document.getElementById('angle-name');
+
+const ANGLES = ['front', '¾ right', 'profile right', 'back', 'profile left'];
+
+function setViewMode(fullbody) {
+  isFullbody = fullbody;
+  document.body.classList.toggle('fullbody', fullbody);
+  modeToggle.textContent = fullbody ? 'Full Body' : 'Portrait';
+
+  // Show/hide appropriate layer sets
+  portraitLayers.forEach(el => {
+    el.style.display = fullbody ? 'none' : '';
+  });
+  fullbodyLayers.forEach(el => {
+    el.style.display = fullbody ? '' : 'none';
+  });
+
+  if (fullbody) {
+    // Hide portrait overlays that don't map well to back views
+    setAngle(currentAngle);
+  } else {
+    // Restore portrait state
+    setAvatarState(currentState);
+  }
+}
+
+// Initialize: hide fullbody layers
+fullbodyLayers.forEach(el => { el.style.display = 'none'; });
+
+modeToggle.addEventListener('click', () => setViewMode(!isFullbody));
+
+
+// ═══════════════════════════════════════════════
+//  Turnaround angle management (fullbody mode)
+// ═══════════════════════════════════════════════
+let currentAngle = 0;
+const fbLayers = {
+  0: document.getElementById('layer-fb-front'),
+  1: document.getElementById('layer-fb-threequarter'),
+  2: document.getElementById('layer-fb-side'),
+  3: document.getElementById('layer-fb-back'),
+  4: document.getElementById('layer-fb-sideleft'),
+};
+const angleDots = document.querySelectorAll('.angle-dot');
+
+function setAngle(angle) {
+  if (angle < 0 || angle > 4) angle = 0;
+  currentAngle = angle;
+
+  // Crossfade fullbody layers
+  for (const [key, el] of Object.entries(fbLayers)) {
+    el.classList.toggle('active', parseInt(key) === angle);
+  }
+
+  // Update indicator dots
+  angleDots.forEach((dot, i) => dot.classList.toggle('active', i === angle));
+  angleName.textContent = ANGLES[angle] || 'front';
+
+  // Disable face effects on back/side views
+  const showFace = angle <= 1;
+  document.getElementById('eye-shimmer').style.display = showFace ? '' : 'none';
+  blinkEl.style.display = showFace ? '' : 'none';
+  document.getElementById('speak-glow').style.display = showFace ? '' : 'none';
+}
+
+// Auto-turnaround: slowly rotate through angles when idle in fullbody mode
+let turnaroundTimer = null;
+let turnaroundPaused = false;
+
+function startTurnaround() {
+  stopTurnaround();
+  turnaroundTimer = setInterval(() => {
+    if (turnaroundPaused || !isFullbody) return;
+    setAngle((currentAngle + 1) % 5);
+  }, 4000);
+}
+
+function stopTurnaround() {
+  if (turnaroundTimer) { clearInterval(turnaroundTimer); turnaroundTimer = null; }
+}
+
+// Start turnaround on idle, pause when active
+function updateTurnaroundForState(state) {
+  if (!isFullbody) return;
+  if (state === 'Idle') {
+    turnaroundPaused = false;
+    if (!turnaroundTimer) startTurnaround();
+  } else {
+    // When speaking/listening/thinking, face front
+    turnaroundPaused = true;
+    setAngle(state === 'Listening' ? 1 : 0);
+  }
+}
+
+
+// ═══════════════════════════════════════════════
+//  Avatar state management (portrait mode)
 // ═══════════════════════════════════════════════
 const layers = {
   Idle:        document.getElementById('layer-idle'),
@@ -441,7 +724,7 @@ const layers = {
 
 const speakGlow = document.getElementById('speak-glow');
 const statusText = document.getElementById('status-text');
-const personaName = document.getElementById('persona-name');
+const personaNameEl = document.getElementById('persona-name');
 const moodFill = document.getElementById('mood-fill');
 const connDot = document.getElementById('conn-dot');
 const connLabel = document.getElementById('conn-label');
@@ -458,14 +741,16 @@ const STATE_STATUS = {
 
 function setAvatarState(state) {
   if (!layers[state]) state = 'Idle';
-  if (state === currentState) return;
+  if (state === currentState && !isFullbody) return;
 
-  // Crossfade layers
-  for (const [key, el] of Object.entries(layers)) {
-    el.classList.toggle('active', key === state);
+  if (!isFullbody) {
+    // Crossfade portrait layers
+    for (const [key, el] of Object.entries(layers)) {
+      el.classList.toggle('active', key === state);
+    }
   }
 
-  // Speaking glow
+  // Speaking glow (works in both modes for front-facing)
   speakGlow.classList.toggle('active', state === 'Speaking');
 
   // Breathing speed varies by state
@@ -478,6 +763,9 @@ function setAvatarState(state) {
   }
 
   currentState = state;
+
+  // In fullbody mode, state influences angle
+  updateTurnaroundForState(state);
 }
 
 function applySnapshot(snap) {
@@ -490,7 +778,7 @@ function applySnapshot(snap) {
   setAvatarState(visualName);
 
   // Update HUD
-  if (snap.PersonaName) personaName.textContent = snap.PersonaName;
+  if (snap.PersonaName) personaNameEl.textContent = snap.PersonaName;
   statusText.textContent = snap.StatusText
     ? `${snap.Mood || ''} — ${snap.StatusText}`.replace(/^ — /, '')
     : (snap.Mood || STATE_STATUS[visualName] || '');
@@ -553,22 +841,23 @@ connectWs();
 
 
 // ═══════════════════════════════════════════════
-//  Idle ambient state cycling (when no WebSocket input)
+//  Idle ambient state cycling
 // ═══════════════════════════════════════════════
 let lastUpdateTime = Date.now();
 
 setInterval(() => {
-  // If no update for 30s and idle, add subtle life
   if (Date.now() - lastUpdateTime > 30000 && currentState === 'Idle') {
-    // Micro-expression: briefly shift to encouraging and back
     if (Math.random() < 0.3) {
-      setAvatarState('Encouraging');
-      setTimeout(() => setAvatarState('Idle'), 2500);
+      if (isFullbody) {
+        // In fullbody idle, the turnaround handles ambient motion
+      } else {
+        setAvatarState('Encouraging');
+        setTimeout(() => setAvatarState('Idle'), 2500);
+      }
     }
   }
 }, 15000);
 
-// Track last ws update
 const origApply = applySnapshot;
 applySnapshot = function(snap) {
   lastUpdateTime = Date.now();
@@ -577,15 +866,36 @@ applySnapshot = function(snap) {
 
 
 // ═══════════════════════════════════════════════
-//  Keyboard shortcuts for manual testing
+//  Keyboard shortcuts
 // ═══════════════════════════════════════════════
 document.addEventListener('keydown', (e) => {
   switch(e.key) {
+    // State shortcuts (portrait mode)
     case '1': setAvatarState('Idle'); break;
     case '2': setAvatarState('Listening'); break;
     case '3': setAvatarState('Thinking'); break;
     case '4': setAvatarState('Speaking'); break;
     case '5': setAvatarState('Encouraging'); break;
+
+    // Angle shortcuts (fullbody mode)
+    case 'q': if (isFullbody) { turnaroundPaused = true; setAngle(0); } break;
+    case 'w': if (isFullbody) { turnaroundPaused = true; setAngle(1); } break;
+    case 'e': if (isFullbody) { turnaroundPaused = true; setAngle(2); } break;
+    case 'r': if (isFullbody) { turnaroundPaused = true; setAngle(3); } break;
+    case 't': if (isFullbody) { turnaroundPaused = true; setAngle(4); } break;
+
+    // Arrow keys rotate in fullbody
+    case 'ArrowLeft':
+      if (isFullbody) { turnaroundPaused = true; setAngle((currentAngle + 4) % 5); }
+      break;
+    case 'ArrowRight':
+      if (isFullbody) { turnaroundPaused = true; setAngle((currentAngle + 1) % 5); }
+      break;
+
+    // Toggle view mode
+    case 'f': setViewMode(!isFullbody); break;
+    // Resume auto-turnaround
+    case ' ': if (isFullbody) { turnaroundPaused = false; startTurnaround(); } break;
   }
 });
 </script>
