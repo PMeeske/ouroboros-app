@@ -28,7 +28,7 @@ public static class MultiModelPresets
             new ModelSlotConfig
             {
                 Role = "general",
-                ModelName = "claude-sonnet-4-20250514",
+                ModelName = "claude-opus-4-6",
                 ProviderType = "anthropic",
                 Endpoint = "https://api.anthropic.com/v1",
                 ApiKeyEnvVar = "ANTHROPIC_API_KEY",
@@ -40,7 +40,7 @@ public static class MultiModelPresets
             new ModelSlotConfig
             {
                 Role = "coder",
-                ModelName = "deepseek-coder:33b",
+                ModelName = "deepseek-v3.1:671b-cloud",
                 ProviderType = "ollama",
                 Endpoint = "http://localhost:11434",
                 Temperature = 0.2,
@@ -51,7 +51,7 @@ public static class MultiModelPresets
             new ModelSlotConfig
             {
                 Role = "reasoner",
-                ModelName = "deepseek-r1:32b",
+                ModelName = "deepseek-v3.1:671b-cloud",
                 ProviderType = "ollama",
                 Endpoint = "http://localhost:11434",
                 Temperature = 0.3,
@@ -62,7 +62,7 @@ public static class MultiModelPresets
             new ModelSlotConfig
             {
                 Role = "summarizer",
-                ModelName = "llama3",
+                ModelName = "deepseek-v3.1:671b-cloud",
                 ProviderType = "ollama",
                 Endpoint = "http://localhost:11434",
                 Temperature = 0.3,
