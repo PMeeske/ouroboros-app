@@ -5,9 +5,10 @@
 using System.Diagnostics;
 using Ouroboros.Agent.MetaAI;
 using Ouroboros.Agent.MetaAI.SelfModel;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using Ouroboros.WebApi.Models;
 using Ouroboros.WebApi.Services;
+using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
