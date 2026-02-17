@@ -211,10 +211,3 @@ public static class DirectoryIngestionService
         }
     }
 }
-
-public record DirectoryIngestionResult
-{
-    public required IReadOnlyList<string> VectorIds { get; init; }
-    public required DirectoryIngestionStats Stats { get; init; }
-}
-

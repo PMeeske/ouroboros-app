@@ -7,16 +7,6 @@ namespace Ouroboros.Application.Tools.CaptchaResolver;
 using Ouroboros.Providers;
 
 /// <summary>
-/// Semantic analysis result for CAPTCHA content.
-/// </summary>
-public record SemanticCaptchaAnalysis(
-    bool IsCaptcha,
-    string CaptchaType,
-    string? ChallengeDescription,
-    string? SuggestedApproach,
-    double Confidence);
-
-/// <summary>
 /// Decorator that adds semantic analysis capabilities to any CAPTCHA resolver strategy.
 /// Uses an LLM to understand CAPTCHA challenges and provide intelligent resolution guidance.
 /// </summary>

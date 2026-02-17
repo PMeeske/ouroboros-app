@@ -47,11 +47,3 @@ public interface IConsoleOutput
 
     void WriteWelcome(string personaName, string model, string? mood = null);
 }
-
-/// <summary>
-/// Handle returned by <see cref="IConsoleOutput.StartSpinner"/>.
-/// </summary>
-public interface ISpinnerHandle : IDisposable
-{
-    void UpdateLabel(string label);
-}

@@ -275,30 +275,3 @@ public sealed class CognitiveProcessor
             WorkspaceAverageAttention: workspaceStats.AverageAttentionWeight);
     }
 }
-
-/// <summary>
-/// Configuration for cognitive processor.
-/// </summary>
-public sealed record CognitiveProcessorConfig(
-    double BroadcastThreshold,
-    double ConsciousExperienceLifetimeMinutes)
-{
-    /// <summary>
-    /// Gets the default configuration.
-    /// </summary>
-    public static CognitiveProcessorConfig Default() => new(
-        BroadcastThreshold: 0.5,        // Only broadcast moderately salient experiences
-        ConsciousExperienceLifetimeMinutes: 5.0);  // Conscious experiences decay after 5 minutes
-}
-
-/// <summary>
-/// Statistics about cognitive processing.
-/// </summary>
-public sealed record CognitiveProcessingStats(
-    int TotalWorkspaceItems,
-    int ConsciousExperiencesInWorkspace,
-    double CurrentArousal,
-    double CurrentValence,
-    double CurrentAwareness,
-    int ActiveAssociations,
-    double WorkspaceAverageAttention);

@@ -372,26 +372,3 @@ You provide intelligent code completion, error recovery, and guidance.";
         return sb.ToString();
     }
 }
-
-/// <summary>
-/// Represents a DSL suggestion with explanation.
-/// </summary>
-public class DslSuggestion
-{
-    public string Token { get; set; } = string.Empty;
-    public string Explanation { get; set; } = string.Empty;
-    public double Confidence { get; set; } = 1.0;
-}
-
-/// <summary>
-/// Result of DSL validation with errors and suggested fixes.
-/// </summary>
-public class DslValidationResult
-{
-    public bool IsValid { get; set; }
-    public List<string> Errors { get; set; } = new List<string>();
-    public List<string> Warnings { get; set; } = new List<string>();
-    public List<string> Suggestions { get; set; } = new List<string>();
-    public string? FixedDsl { get; set; }
-}
-

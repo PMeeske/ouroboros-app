@@ -5,22 +5,6 @@
 namespace Ouroboros.Application.Tools.CaptchaResolver;
 
 /// <summary>
-/// Represents the result of a CAPTCHA detection check.
-/// </summary>
-public record CaptchaDetectionResult(
-    bool IsCaptcha,
-    string CaptchaType,
-    string? ChallengeText = null);
-
-/// <summary>
-/// Represents the result of a CAPTCHA resolution attempt.
-/// </summary>
-public record CaptchaResolutionResult(
-    bool Success,
-    string? ResolvedContent = null,
-    string? ErrorMessage = null);
-
-/// <summary>
 /// Strategy interface for detecting and resolving CAPTCHAs encountered during web searches.
 /// </summary>
 public interface ICaptchaResolverStrategy

@@ -10,30 +10,6 @@ using Ouroboros.Application.Tools;
 using Ouroboros.Tools.MeTTa;
 
 /// <summary>
-/// Manages skills, personality, MeTTa reasoning, neural memory, thought persistence,
-/// conversation memory, and self-persistence.
-/// </summary>
-public interface IMemorySubsystem : IAgentSubsystem
-{
-    ISkillRegistry? Skills { get; }
-    PersonalityEngine? PersonalityEngine { get; }
-    PersonalityProfile? Personality { get; }
-    IValenceMonitor? ValenceMonitor { get; }
-    IMeTTaEngine? MeTTaEngine { get; }
-    ThoughtPersistenceService? ThoughtPersistence { get; }
-    List<InnerThought> PersistentThoughts { get; }
-    string? LastThoughtContent { get; set; }
-    QdrantNeuralMemory? NeuralMemory { get; }
-    List<string> ConversationHistory { get; }
-
-    // Persistent conversation memory (cross-session recall)
-    PersistentConversationMemory? ConversationMemory { get; }
-
-    // Self-persistence (mind state storage in Qdrant)
-    SelfPersistence? SelfPersistence { get; }
-}
-
-/// <summary>
 /// Memory subsystem implementation owning skills, personality, symbolic reasoning, and persistence.
 /// </summary>
 public sealed class MemorySubsystem : IMemorySubsystem
