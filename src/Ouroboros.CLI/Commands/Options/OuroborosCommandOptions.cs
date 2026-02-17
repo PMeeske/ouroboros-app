@@ -512,7 +512,7 @@ public class OuroborosCommandOptions
     public System.CommandLine.Option<bool> AvatarOption { get; } = new("--avatar")
     {
         Description = "Launch interactive avatar viewer (auto-opens browser)",
-        DefaultValueFactory = _ => false
+        DefaultValueFactory = _ => true
     };
 
     public System.CommandLine.Option<int> AvatarPortOption { get; } = new("--avatar-port")
