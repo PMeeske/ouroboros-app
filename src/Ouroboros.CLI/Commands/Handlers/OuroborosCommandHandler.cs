@@ -32,12 +32,7 @@ public sealed class OuroborosCommandHandler
     {
         try
         {
-            await _console.Status().StartAsync("Initializing Ouroboros agent...", async ctx =>
-            {
-                ctx.Status = $"Starting {config.Persona} ({config.Model})...";
-                await _agentService.RunAgentAsync(config, cancellationToken);
-            });
-
+            await _agentService.RunAgentAsync(config, cancellationToken);
             return 0;
         }
         catch (Exception ex)
