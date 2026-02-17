@@ -1,0 +1,340 @@
+// <copyright file="WebAvatarRenderer.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
+// </copyright>
+
+using System.Diagnostics;
+using System.Net;
+using System.Net.WebSockets;
+using System.Reactive.Disposables;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Ouroboros.Application.Avatar;
+
+namespace Ouroboros.CLI.Avatar;
+
+/// <summary>
+/// Serves the avatar viewer HTML and relays state over WebSocket.
+/// Opens the user's default browser to show the living avatar alongside the CLI.
+/// </summary>
+public sealed class WebAvatarRenderer : IAvatarRenderer
+{
+    private readonly int _port;
+    private readonly string _assetDirectory;
+    private HttpListener? _listener;
+    private CancellationTokenSource? _cts;
+    private Task? _serverTask;
+    private readonly List<WebSocket> _clients = new();
+    private readonly SemaphoreSlim _clientLock = new(1, 1);
+    private bool _disposed;
+
+    private static readonly JsonSerializerOptions JsonOpts = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Converters = { new JsonStringEnumConverter() },
+    };
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="WebAvatarRenderer"/> class.
+    /// </summary>
+    /// <param name="port">Port for the local HTTP/WebSocket server.</param>
+    /// <param name="assetDirectory">Directory containing avatar images and viewer HTML.</param>
+    public WebAvatarRenderer(int port = 9471, string? assetDirectory = null)
+    {
+        _port = port;
+        _assetDirectory = assetDirectory ?? ResolveDefaultAssetPath();
+    }
+
+    /// <inheritdoc/>
+    public bool IsActive => _listener?.IsListening == true;
+
+    /// <inheritdoc/>
+    public async Task StartAsync(CancellationToken ct = default)
+    {
+        _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+
+        _listener = new HttpListener();
+        _listener.Prefixes.Add($"http://localhost:{_port}/");
+
+        try
+        {
+            _listener.Start();
+        }
+        catch (HttpListenerException ex) when (ex.ErrorCode == 48 || ex.ErrorCode == 98)
+        {
+            // Port already in use — try the next one
+            Console.Error.WriteLine($"  [Avatar] Port {_port} busy, trying {_port + 1}");
+            _listener.Prefixes.Clear();
+            _listener.Prefixes.Add($"http://localhost:{_port + 1}/");
+            _listener.Start();
+        }
+
+        _serverTask = Task.Run(() => ServerLoop(_cts.Token), _cts.Token);
+
+        // Open browser
+        var url = $"http://localhost:{_port}/avatar.html?port={_port}";
+        OpenBrowser(url);
+
+        Console.ForegroundColor = ConsoleColor.DarkMagenta;
+        Console.WriteLine($"\n  ☥ Iaret avatar viewer: {url}");
+        Console.ResetColor();
+
+        await Task.CompletedTask;
+    }
+
+    /// <inheritdoc/>
+    public async Task UpdateStateAsync(AvatarStateSnapshot state, CancellationToken ct = default)
+    {
+        var json = JsonSerializer.Serialize(state, JsonOpts);
+        var bytes = Encoding.UTF8.GetBytes(json);
+        var segment = new ArraySegment<byte>(bytes);
+
+        await _clientLock.WaitAsync(ct);
+        try
+        {
+            var dead = new List<WebSocket>();
+            foreach (var ws in _clients)
+            {
+                if (ws.State == WebSocketState.Open)
+                {
+                    try
+                    {
+                        await ws.SendAsync(segment, WebSocketMessageType.Text, true, ct);
+                    }
+                    catch
+                    {
+                        dead.Add(ws);
+                    }
+                }
+                else
+                {
+                    dead.Add(ws);
+                }
+            }
+
+            foreach (var ws in dead)
+            {
+                _clients.Remove(ws);
+                ws.Dispose();
+            }
+        }
+        finally
+        {
+            _clientLock.Release();
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task StopAsync(CancellationToken ct = default)
+    {
+        _cts?.Cancel();
+        _listener?.Stop();
+
+        if (_serverTask != null)
+        {
+            try { await _serverTask; } catch (OperationCanceledException) { }
+        }
+    }
+
+    /// <inheritdoc/>
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        await StopAsync();
+        _listener?.Close();
+        _cts?.Dispose();
+
+        await _clientLock.WaitAsync();
+        try
+        {
+            foreach (var ws in _clients) ws.Dispose();
+            _clients.Clear();
+        }
+        finally
+        {
+            _clientLock.Release();
+            _clientLock.Dispose();
+        }
+    }
+
+    // ── Server loop ──
+
+    private async Task ServerLoop(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested && _listener!.IsListening)
+        {
+            try
+            {
+                var context = await _listener.GetContextAsync();
+
+                if (context.Request.IsWebSocketRequest)
+                {
+                    _ = HandleWebSocket(context, ct);
+                }
+                else
+                {
+                    HandleHttpRequest(context);
+                }
+            }
+            catch (HttpListenerException) when (ct.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (ObjectDisposedException)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"  [Avatar] Server error: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task HandleWebSocket(HttpListenerContext context, CancellationToken ct)
+    {
+        WebSocketContext wsContext;
+        try
+        {
+            wsContext = await context.AcceptWebSocketAsync(null);
+        }
+        catch
+        {
+            context.Response.StatusCode = 500;
+            context.Response.Close();
+            return;
+        }
+
+        var ws = wsContext.WebSocket;
+
+        await _clientLock.WaitAsync(ct);
+        try { _clients.Add(ws); }
+        finally { _clientLock.Release(); }
+
+        // Keep alive until closed
+        var buffer = new byte[256];
+        try
+        {
+            while (ws.State == WebSocketState.Open && !ct.IsCancellationRequested)
+            {
+                await ws.ReceiveAsync(new ArraySegment<byte>(buffer), ct);
+            }
+        }
+        catch (WebSocketException) { }
+        catch (OperationCanceledException) { }
+        finally
+        {
+            await _clientLock.WaitAsync(CancellationToken.None);
+            try { _clients.Remove(ws); }
+            finally { _clientLock.Release(); }
+
+            if (ws.State == WebSocketState.Open)
+            {
+                try { await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None); }
+                catch { }
+            }
+
+            ws.Dispose();
+        }
+    }
+
+    private void HandleHttpRequest(HttpListenerContext context)
+    {
+        var path = context.Request.Url?.AbsolutePath?.TrimStart('/') ?? "";
+        if (string.IsNullOrEmpty(path)) path = "avatar.html";
+
+        // Serve from viewer directory first, then from avatar images directory
+        var viewerDir = Path.Combine(_assetDirectory, "Viewer");
+        var filePath = Path.Combine(viewerDir, path);
+
+        if (!File.Exists(filePath))
+        {
+            // Try avatar images directory (for idle.png, etc.)
+            filePath = Path.Combine(_assetDirectory, path);
+        }
+
+        if (!File.Exists(filePath))
+        {
+            context.Response.StatusCode = 404;
+            context.Response.Close();
+            return;
+        }
+
+        var ext = Path.GetExtension(filePath).ToLowerInvariant();
+        context.Response.ContentType = ext switch
+        {
+            ".html" => "text/html; charset=utf-8",
+            ".css" => "text/css; charset=utf-8",
+            ".js" => "application/javascript; charset=utf-8",
+            ".png" => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
+            ".svg" => "image/svg+xml",
+            ".json" => "application/json",
+            _ => "application/octet-stream",
+        };
+
+        context.Response.Headers.Add("Cache-Control", "no-cache");
+        context.Response.Headers.Add("Access-Control-Allow-Origin", "*");
+
+        try
+        {
+            using var fs = File.OpenRead(filePath);
+            fs.CopyTo(context.Response.OutputStream);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"  [Avatar] File serve error: {ex.Message}");
+        }
+
+        context.Response.Close();
+    }
+
+    // ── Helpers ──
+
+    private static string ResolveDefaultAssetPath()
+    {
+        // Walk up from the executing assembly to find the Assets directory
+        var baseDir = AppContext.BaseDirectory;
+
+        // In development: src/Ouroboros.CLI/bin/Debug/net10.0/
+        // Assets at:       src/Ouroboros.CLI/Assets/Avatar/Iaret/
+        var candidates = new[]
+        {
+            Path.Combine(baseDir, "Assets", "Avatar", "Iaret"),
+            Path.Combine(baseDir, "..", "..", "..", "Assets", "Avatar", "Iaret"),
+            Path.Combine(baseDir, "..", "..", "..", "..", "Ouroboros.CLI", "Assets", "Avatar", "Iaret"),
+        };
+
+        foreach (var c in candidates)
+        {
+            var full = Path.GetFullPath(c);
+            if (Directory.Exists(full)) return full;
+        }
+
+        // Fallback: create in temp
+        var tempPath = Path.Combine(Path.GetTempPath(), "ouroboros-avatar");
+        Directory.CreateDirectory(tempPath);
+        return tempPath;
+    }
+
+    private static void OpenBrowser(string url)
+    {
+        try
+        {
+            if (OperatingSystem.IsWindows())
+                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            else if (OperatingSystem.IsMacOS())
+                Process.Start("open", url);
+            else
+                Process.Start("xdg-open", url);
+        }
+        catch
+        {
+            // Browser launch is best-effort
+        }
+    }
+}
