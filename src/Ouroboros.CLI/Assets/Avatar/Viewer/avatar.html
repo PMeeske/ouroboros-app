@@ -1271,7 +1271,7 @@ function applySnapshot(snap) {
 // ═══════════════════════════════════════════════
 //  WebSocket connection
 // ═══════════════════════════════════════════════
-const WS_PORT = new URLSearchParams(window.location.search).get('port') || '9471';
+const WS_PORT = window.location.port || '9471';
 let ws = null;
 let reconnectDelay = 1000;
 

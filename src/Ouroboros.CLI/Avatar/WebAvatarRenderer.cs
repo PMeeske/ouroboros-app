@@ -64,7 +64,7 @@ public sealed class WebAvatarRenderer : IAvatarRenderer
         _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
         // Prepare holographic assets from character sheet (if needed)
-        AvatarAssetPreparer.PrepareIaretHolographics(_assetDirectory);
+        AvatarAssetPreparer.PrepareIaretHolographics(Path.Combine(_assetDirectory, "Iaret"));
 
         _listener = new HttpListener();
         _port = StartOnAvailablePort(_listener, _port);
@@ -72,7 +72,7 @@ public sealed class WebAvatarRenderer : IAvatarRenderer
         _serverTask = Task.Run(() => ServerLoop(_cts.Token), _cts.Token);
 
         // Always auto-open browser when avatar is launched
-        var url = $"http://localhost:{_port}/avatar.html?port={_port}";
+        var url = $"http://localhost:{_port}/avatar.html";
         OpenBrowser(url);
 
         Console.ForegroundColor = ConsoleColor.DarkMagenta;
@@ -297,7 +297,7 @@ public sealed class WebAvatarRenderer : IAvatarRenderer
         if (!File.Exists(filePath))
         {
             // Try avatar images directory (for idle.png, etc.)
-            filePath = Path.Combine(_assetDirectory, path);
+            filePath = Path.Combine(_assetDirectory, "Iaret", path);
         }
 
         if (!File.Exists(filePath))
@@ -346,12 +346,12 @@ public sealed class WebAvatarRenderer : IAvatarRenderer
         var baseDir = AppContext.BaseDirectory;
 
         // In development: src/Ouroboros.CLI/bin/Debug/net10.0/
-        // Assets at:       src/Ouroboros.CLI/Assets/Avatar/Iaret/
+        // Assets at:       src/Ouroboros.CLI/Assets/Avatar/
         var candidates = new[]
         {
-            Path.Combine(baseDir, "Assets", "Avatar", "Iaret"),
-            Path.Combine(baseDir, "..", "..", "..", "Assets", "Avatar", "Iaret"),
-            Path.Combine(baseDir, "..", "..", "..", "..", "Ouroboros.CLI", "Assets", "Avatar", "Iaret"),
+            Path.Combine(baseDir, "Assets", "Avatar"),
+            Path.Combine(baseDir, "..", "..", "..", "Assets", "Avatar"),
+            Path.Combine(baseDir, "..", "..", "..", "..", "Ouroboros.CLI", "Assets", "Avatar"),
         };
 
         foreach (var c in candidates)
