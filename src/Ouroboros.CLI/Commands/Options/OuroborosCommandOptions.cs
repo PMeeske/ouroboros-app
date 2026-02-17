@@ -505,6 +505,22 @@ public class OuroborosCommandOptions
         DefaultValueFactory = _ => false
     };
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // INTERACTIVE AVATAR
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    public System.CommandLine.Option<bool> AvatarOption { get; } = new("--avatar")
+    {
+        Description = "Launch interactive avatar viewer (auto-opens browser)",
+        DefaultValueFactory = _ => false
+    };
+
+    public System.CommandLine.Option<int> AvatarPortOption { get; } = new("--avatar-port")
+    {
+        Description = "Override avatar viewer port (default: auto-assign from 9471)",
+        DefaultValueFactory = _ => 0
+    };
+
     /// <summary>
     /// Adds all ouroboros command options to the given command.
     /// </summary>
@@ -613,5 +629,9 @@ public class OuroborosCommandOptions
         command.Add(EvalCriteriaOption);
         command.Add(ShowElectionOption);
         command.Add(ShowOptimizationOption);
+
+        // Interactive Avatar
+        command.Add(AvatarOption);
+        command.Add(AvatarPortOption);
     }
 }
