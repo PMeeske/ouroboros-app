@@ -301,22 +301,3 @@ public sealed class LlmToVoiceBridge : IDisposable
         _disposables.Dispose();
     }
 }
-
-/// <summary>
-/// Extension methods for LlmToVoiceBridge.
-/// </summary>
-public static class LlmToVoiceBridgeExtensions
-{
-    /// <summary>
-    /// Creates a bridge from the given components.
-    /// </summary>
-    public static LlmToVoiceBridge CreateBridge(
-        this InteractionStream stream,
-        IStreamingChatModel llm,
-        IStreamingTtsService tts,
-        AgentPresenceController presence,
-        TextToSpeechOptions? options = null)
-    {
-        return new LlmToVoiceBridge(stream, llm, tts, presence, options);
-    }
-}

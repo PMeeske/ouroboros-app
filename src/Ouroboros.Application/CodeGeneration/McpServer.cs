@@ -1,6 +1,5 @@
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using Ouroboros.Application.GitHub;
 
 namespace Ouroboros.Application.CodeGeneration;
@@ -751,43 +750,3 @@ public class McpServer
         return null;
     }
 }
-
-/// <summary>
-/// MCP response with available tools.
-/// </summary>
-public class McpResponse
-{
-    [JsonPropertyName("tools")]
-    public List<McpTool> Tools { get; set; } = new List<McpTool>();
-}
-
-/// <summary>
-/// MCP tool definition.
-/// </summary>
-public class McpTool
-{
-    [JsonPropertyName("name")]
-    public string Name { get; set; } = string.Empty;
-
-    [JsonPropertyName("description")]
-    public string Description { get; set; } = string.Empty;
-
-    [JsonPropertyName("inputSchema")]
-    public object? InputSchema { get; set; }
-}
-
-/// <summary>
-/// Result of MCP tool execution.
-/// </summary>
-public class McpToolResult
-{
-    [JsonPropertyName("success")]
-    public bool Success { get; set; }
-
-    [JsonPropertyName("data")]
-    public object? Data { get; set; }
-
-    [JsonPropertyName("error")]
-    public string? Error { get; set; }
-}
-

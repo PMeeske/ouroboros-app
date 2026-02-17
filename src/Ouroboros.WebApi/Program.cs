@@ -8,7 +8,6 @@ using Ouroboros.Agent.MetaAI.SelfModel;
 using Microsoft.OpenApi;
 using Ouroboros.WebApi.Models;
 using Ouroboros.WebApi.Services;
-using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -323,13 +322,6 @@ app.MapPost("/api/self/explain", async (SelfExplainRequest request, ISelfModelSe
 app.Run();
 
 // Mock chat model for self-model initialization
-internal sealed class MockChatModel : IChatCompletionModel
-{
-    public Task<string> GenerateTextAsync(string prompt, CancellationToken ct = default)
-    {
-        return Task.FromResult("Mock response");
-    }
-}
 
 // Make Program class accessible for WebApplicationFactory testing
 public partial class Program

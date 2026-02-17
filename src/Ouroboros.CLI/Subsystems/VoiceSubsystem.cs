@@ -7,18 +7,6 @@ using Ouroboros.CLI.Infrastructure;
 using Ouroboros.CLI.Services;
 
 /// <summary>
-/// Manages all voice-related capabilities: TTS, STT, voice channels, and listening services.
-/// </summary>
-public interface IVoiceSubsystem : IAgentSubsystem
-{
-    VoiceModeService Service { get; }
-    VoiceModeServiceV2? V2 { get; }
-    VoiceSideChannel? SideChannel { get; }
-    EnhancedListeningService? Listener { get; }
-    bool IsListening { get; }
-}
-
-/// <summary>
 /// Voice subsystem implementation owning voice services, speech processes, and listening.
 /// </summary>
 public sealed class VoiceSubsystem : IVoiceSubsystem

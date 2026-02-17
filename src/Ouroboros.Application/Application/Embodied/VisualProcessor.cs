@@ -231,27 +231,3 @@ public sealed class VisualProcessor
         return features;
     }
 }
-
-/// <summary>
-/// Represents a detected object in visual observation.
-/// </summary>
-/// <param name="Label">Object class label</param>
-/// <param name="Confidence">Detection confidence score (0-1)</param>
-/// <param name="BoundingBox">Bounding box coordinates</param>
-public sealed record DetectedObject(
-    string Label,
-    float Confidence,
-    BoundingBox BoundingBox);
-
-/// <summary>
-/// Represents a bounding box for object detection.
-/// </summary>
-/// <param name="X">X coordinate of top-left corner</param>
-/// <param name="Y">Y coordinate of top-left corner</param>
-/// <param name="Width">Width of bounding box</param>
-/// <param name="Height">Height of bounding box</param>
-public sealed record BoundingBox(
-    int X,
-    int Y,
-    int Width,
-    int Height);

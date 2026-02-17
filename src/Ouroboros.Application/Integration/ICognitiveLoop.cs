@@ -49,38 +49,3 @@ public interface ICognitiveLoop
     /// <returns>Result containing cycle outcome or error message.</returns>
     Task<Result<CycleOutcome, string>> ExecuteSingleCycleAsync(CancellationToken ct = default);
 }
-
-/// <summary>
-/// Configuration for the cognitive loop.
-/// </summary>
-public sealed record CognitiveLoopConfig(
-    TimeSpan CycleInterval = default,
-    bool EnablePerception = true,
-    bool EnableReasoning = true,
-    bool EnableAction = true,
-    int MaxCyclesPerRun = -1,
-    double AttentionThreshold = 0.5)
-{
-    /// <summary>Gets the default cognitive loop configuration.</summary>
-    public static CognitiveLoopConfig Default => new(TimeSpan.FromSeconds(1));
-}
-
-/// <summary>
-/// Represents the current state of the cognitive loop.
-/// </summary>
-public sealed record CognitiveState(
-    bool IsRunning,
-    int CyclesCompleted,
-    DateTime LastCycleTime,
-    string CurrentPhase,
-    List<string> RecentActions);
-
-/// <summary>
-/// Represents the outcome of a single cognitive cycle.
-/// </summary>
-public sealed record CycleOutcome(
-    bool Success,
-    string Phase,
-    TimeSpan Duration,
-    List<string> ActionsPerformed,
-    Dictionary<string, object> Metrics);

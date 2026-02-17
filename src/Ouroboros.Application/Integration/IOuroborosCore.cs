@@ -7,7 +7,6 @@ namespace Ouroboros.Application.Integration;
 using Ouroboros.Agent.MetaAI;
 using Ouroboros.Agent.MetaAI.WorldModel;
 using Ouroboros.Core.Learning;
-using Ouroboros.Core.LawsOfForm;
 using Ouroboros.Core.Monads;
 using Ouroboros.Core.Reasoning;
 using Ouroboros.Core.Synthesis;
@@ -16,10 +15,8 @@ using Ouroboros.Domain.Embodied;
 using Ouroboros.Domain.MetaLearning;
 using Ouroboros.Domain.MultiAgent;
 using Ouroboros.Domain.Reflection;
-using Ouroboros.Pipeline.Branches;
 using Ouroboros.Pipeline.Memory;
 using Ouroboros.Tools.MeTTa;
-using Plan = Ouroboros.Agent.MetaAI.Plan;
 using Episode = Ouroboros.Pipeline.Memory.Episode;
 
 /// <summary>
@@ -108,83 +105,3 @@ public interface IOuroborosCore
         ReasoningConfig config,
         CancellationToken ct = default);
 }
-
-/// <summary>
-/// Configuration for goal execution.
-/// </summary>
-public sealed record ExecutionConfig(
-    bool UseEpisodicMemory = true,
-    bool UseCausalReasoning = true,
-    bool UseHierarchicalPlanning = true,
-    bool UseWorldModel = false,
-    int MaxPlanningDepth = 10,
-    TimeSpan Timeout = default)
-{
-    /// <summary>Gets the default execution configuration.</summary>
-    public static ExecutionConfig Default => new();
-}
-
-/// <summary>
-/// Configuration for learning from experience.
-/// </summary>
-public sealed record LearningConfig(
-    bool ConsolidateMemories = true,
-    bool UpdateAdapters = true,
-    bool ExtractRules = true,
-    ConsolidationStrategy ConsolidationStrategy = ConsolidationStrategy.Abstract)
-{
-    /// <summary>Gets the default learning configuration.</summary>
-    public static LearningConfig Default => new();
-}
-
-/// <summary>
-/// Configuration for reasoning operations.
-/// </summary>
-public sealed record ReasoningConfig(
-    bool UseSymbolicReasoning = true,
-    bool UseCausalInference = true,
-    bool UseAbduction = true,
-    int MaxInferenceSteps = 100)
-{
-    /// <summary>Gets the default reasoning configuration.</summary>
-    public static ReasoningConfig Default => new();
-}
-
-/// <summary>
-/// Result of goal execution.
-/// </summary>
-public sealed record PlanExecutionResult(
-    bool Success,
-    string Output,
-    PipelineBranch ReasoningTrace,
-    Plan? ExecutedPlan,
-    List<Episode> GeneratedEpisodes,
-    TimeSpan Duration);
-
-/// <summary>
-/// Result of learning from experience.
-/// </summary>
-public sealed record LearningResult(
-    int EpisodesProcessed,
-    int RulesLearned,
-    int AdaptersUpdated,
-    double PerformanceImprovement,
-    List<Insight> Insights);
-
-/// <summary>
-/// Represents an insight learned from experience.
-/// </summary>
-public sealed record Insight(
-    string Description,
-    double Confidence,
-    List<Episode> SupportingEpisodes);
-
-/// <summary>
-/// Result of reasoning operations.
-/// </summary>
-public sealed record ReasoningResult(
-    string Answer,
-    Form Certainty,
-    List<Fact> SupportingFacts,
-    ProofTrace? Proof,
-    CausalGraph? RelevantCauses);

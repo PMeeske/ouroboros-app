@@ -38,35 +38,3 @@ public static class DefaultIngestionSettings
     /// <summary>Reduced binary preview size for streaming operations (32 KB).</summary>
     public const int StreamingBinaryMaxBytes = 32 * 1024;
 }
-
-/// <summary>
-/// Default settings for RAG operations.
-/// </summary>
-public static class RagDefaults
-{
-    /// <summary>Default group size for divide-and-conquer RAG.</summary>
-    public const int GroupSize = 6;
-    
-    /// <summary>Default number of sub-questions for decompose-and-aggregate RAG.</summary>
-    public const int SubQuestions = 4;
-    
-    /// <summary>Default number of documents per sub-question.</summary>
-    public const int DocumentsPerSubQuestion = 6;
-}
-
-/// <summary>
-/// Standard keys used in pipeline state and chain values.
-/// </summary>
-public static class StateKeys
-{
-    public const string Text = "text";
-    public const string Context = "context";
-    public const string Question = "question";
-    public const string Prompt = "prompt";
-    public const string Topic = "topic";
-    public const string Query = "query";
-    public const string Input = "input";
-    public const string Output = "output";
-    public const string Documents = "documents";
-}
-
