@@ -231,6 +231,10 @@ static Command CreateOuroborosCommand(IHost host, System.CommandLine.Option<bool
         var showElection  = parseResult.GetValue(options.ShowElectionOption);
         var showOptimization = parseResult.GetValue(options.ShowOptimizationOption);
 
+        // Interactive Avatar
+        var avatar        = parseResult.GetValue(options.AvatarOption);
+        var avatarPort    = parseResult.GetValue(options.AvatarPortOption);
+
         // ── Build OuroborosConfig (mirrors AgentBootstrapper.CreateConfig logic) ─
         var azureKey = azureSpeechKey ?? Environment.GetEnvironmentVariable("AZURE_SPEECH_KEY");
         var useAzureTts = localTts ? false : (azureTts && !string.IsNullOrEmpty(azureKey));
@@ -302,7 +306,9 @@ static Command CreateOuroborosCommand(IHost host, System.CommandLine.Option<bool
             MasterModel: masterModel,
             EvaluationCriteria: evalCriteria,
             ShowElection: showElection,
-            ShowOptimization: showOptimization
+            ShowOptimization: showOptimization,
+            Avatar: avatar,
+            AvatarPort: avatarPort
         );
 
         // ── Run the agent ───────────────────────────────────────────────
