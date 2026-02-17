@@ -491,7 +491,7 @@ public sealed record OuroborosConfig(
     bool ShowElection = false,
     bool ShowOptimization = false,
     // Interactive Avatar
-    bool Avatar = false,
+    bool Avatar = true,
     int AvatarPort = 9471);
 
 /// <summary>

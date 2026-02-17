@@ -228,8 +228,8 @@ public sealed class OuroborosOptions : IVoiceOptions
     // INTERACTIVE AVATAR
     // ═══════════════════════════════════════════════════════════════════════════
 
-    [Option("avatar", Required = false, HelpText = "Launch interactive avatar viewer (auto-opens browser on default port)", Default = false)]
-    public bool Avatar { get; set; }
+    [Option("avatar", Required = false, HelpText = "Launch interactive avatar viewer (auto-opens browser on default port)", Default = true)]
+    public bool Avatar { get; set; } = true;
 
     [Option("avatar-port", Required = false, HelpText = "Override avatar viewer port (default: auto-assign from 9471)", Default = 0)]
     public int AvatarPort { get; set; }
