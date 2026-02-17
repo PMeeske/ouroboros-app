@@ -47,11 +47,16 @@ public sealed class VoiceSubsystem : IVoiceSubsystem
     /// <summary>Delegate: agent provides its SpeakWithSapiAsync for voice side channel.</summary>
     public Func<string, Ouroboros.Domain.Autonomous.PersonaVoice, CancellationToken, Task>? SpeakWithSapiFunc { get; set; }
 
+    // Cross-subsystem context (set during InitializeAsync)
+    internal SubsystemInitContext Ctx { get; private set; } = null!;
+
     public void MarkInitialized() => IsInitialized = true;
 
     /// <inheritdoc/>
     public async Task InitializeAsync(SubsystemInitContext ctx)
     {
+        Ctx = ctx;
+
         // Voice side channel
         if (ctx.Config.VoiceChannel)
         {

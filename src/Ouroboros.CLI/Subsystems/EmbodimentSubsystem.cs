@@ -2,11 +2,13 @@
 namespace Ouroboros.CLI.Subsystems;
 
 using Ouroboros.Application.Services;
+using Ouroboros.Application.Tools;
 using Ouroboros.CLI.Commands;
 using Ouroboros.Core.EmbodiedInteraction;
 
 /// <summary>
-/// Manages physical embodiment: sensors, actuators, presence detection, and IoT devices.
+/// Manages physical embodiment: sensors, actuators, presence detection, IoT devices,
+/// avatar, perception tools, and vision service.
 /// </summary>
 public interface IEmbodimentSubsystem : IAgentSubsystem
 {
@@ -19,6 +21,12 @@ public interface IEmbodimentSubsystem : IAgentSubsystem
     AgiWarmup? AgiWarmup { get; }
     bool UserWasPresent { get; set; }
     DateTime LastGreetingTime { get; set; }
+
+    // Interactive avatar
+    Application.Avatar.InteractiveAvatarService? AvatarService { get; }
+
+    // Vision
+    VisionService? VisionService { get; }
 }
 
 /// <summary>
@@ -44,11 +52,22 @@ public sealed class EmbodimentSubsystem : IEmbodimentSubsystem
     public bool UserWasPresent { get; set; } = true; // Assume present at startup
     public DateTime LastGreetingTime { get; set; } = DateTime.MinValue;
 
+    // Interactive avatar
+    public Application.Avatar.InteractiveAvatarService? AvatarService { get; set; }
+
+    // Vision
+    public VisionService? VisionService { get; set; }
+
+    // Cross-subsystem context (set during InitializeAsync)
+    internal SubsystemInitContext Ctx { get; private set; } = null!;
+
     public void MarkInitialized() => IsInitialized = true;
 
     /// <inheritdoc/>
     public async Task InitializeAsync(SubsystemInitContext ctx)
     {
+        Ctx = ctx;
+
         // ── Embodiment (VirtualSelf, BodySchema, Controller) ──
         if (ctx.Config.EnableEmbodiment)
             await InitializeEmbodimentCoreAsync(ctx);
@@ -57,6 +76,12 @@ public sealed class EmbodimentSubsystem : IEmbodimentSubsystem
 
         // ── Presence Detection ──
         await InitializePresenceDetectorCoreAsync(ctx);
+
+        // ── Perception Tools + Vision ──
+        InitializePerceptionAndVisionCore(ctx);
+
+        // ── Interactive Avatar ──
+        await InitializeAvatarCoreAsync(ctx);
 
         MarkInitialized();
     }
@@ -194,6 +219,48 @@ public sealed class EmbodimentSubsystem : IEmbodimentSubsystem
         }
     }
 
+    private void InitializePerceptionAndVisionCore(SubsystemInitContext ctx)
+    {
+        try
+        {
+            // Register perception tools for proactive screen/camera monitoring
+            var perceptionTools = PerceptionTools.CreateAllTools().ToList();
+            foreach (var tool in perceptionTools)
+                ctx.Tools.Tools = ctx.Tools.Tools.WithTool(tool);
+
+            // Vision service for AI-powered visual understanding
+            VisionService = new VisionService(new VisionConfig
+            {
+                OllamaEndpoint = ctx.Config.Endpoint,
+                OllamaVisionModel = "qwen3-vl:235b-cloud",
+            });
+            PerceptionTools.VisionService = VisionService;
+
+            ctx.Output.RecordInit("Perception", true,
+                $"{perceptionTools.Count} perception tools + vision");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"  ⚠ Perception/Vision: {ex.Message}");
+        }
+    }
+
+    private async Task InitializeAvatarCoreAsync(SubsystemInitContext ctx)
+    {
+        if (!ctx.Config.Avatar) return;
+
+        try
+        {
+            AvatarService = await Avatar.AvatarIntegration.CreateAndStartAsync(
+                ctx.Config.Persona, ctx.Config.AvatarPort, ct: CancellationToken.None);
+            ctx.Output.RecordInit("Avatar", true, $"port {ctx.Config.AvatarPort}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"  ⚠ Avatar: {ex.Message}");
+        }
+    }
+
     public async ValueTask DisposeAsync()
     {
         // Stop presence detector
@@ -212,6 +279,10 @@ public sealed class EmbodimentSubsystem : IEmbodimentSubsystem
 
         // Dispose virtual self
         VirtualSelf?.Dispose();
+
+        // Dispose avatar
+        if (AvatarService != null)
+            await AvatarService.DisposeAsync();
 
         IsInitialized = false;
     }

@@ -64,11 +64,16 @@ public sealed class ModelSubsystem : IModelSubsystem
     // Cost tracking
     public LlmCostTracker? CostTracker { get; set; }
 
+    // Cross-subsystem context (set during InitializeAsync)
+    internal SubsystemInitContext Ctx { get; private set; } = null!;
+
     public void MarkInitialized() => IsInitialized = true;
 
     /// <inheritdoc/>
     public async Task InitializeAsync(SubsystemInitContext ctx)
     {
+        Ctx = ctx;
+
         // ── LLM ──
         await InitializeLlmCoreAsync(ctx);
 

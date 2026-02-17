@@ -1,4 +1,4 @@
-// <copyright file="OuroborosAgent.cs" company="Ouroboros">
+﻿// <copyright file="OuroborosAgent.cs" company="Ouroboros">
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
@@ -112,7 +112,7 @@ public sealed class PromptOptimizer
         _patterns["tool_syntax_emphatic"] = new PromptPattern
         {
             Name = "Emphatic Tool Syntax",
-            Template = "âš ï¸ CRITICAL: You MUST use exact syntax [TOOL:toolname input] - no exceptions!"
+            Template = "⚠️ CRITICAL: You MUST use exact syntax [TOOL:toolname input] - no exceptions!"
         };
 
         _patterns["tool_syntax_example_heavy"] = new PromptPattern
@@ -135,7 +135,7 @@ NEVER answer from memory. ALWAYS [TOOL:search_my_code X] first."
         _patterns["action_trigger_sparse"] = new PromptPattern
         {
             Name = "Sparse Action Triggers",
-            Template = "'search X' â†’ [TOOL:search_my_code X]"
+            Template = "'search X' → [TOOL:search_my_code X]"
         };
 
         _patterns["action_trigger_detailed"] = new PromptPattern
@@ -285,7 +285,7 @@ When user says 'read file X' you MUST output [TOOL:read_my_file X]"
         // Apply learned weights
         if (_warningEmphasisWeight > 1.5)
         {
-            sb.AppendLine("ðŸš¨ ABSOLUTE REQUIREMENT: USE TOOLS, DON'T JUST TALK ABOUT THEM ðŸš¨");
+            sb.AppendLine("🚨 ABSOLUTE REQUIREMENT: USE TOOLS, DON'T JUST TALK ABOUT THEM 🚨");
         }
 
         sb.AppendLine();
@@ -316,7 +316,7 @@ When user says 'read file X' you MUST output [TOOL:read_my_file X]"
         if (recentFailures.Count > 0)
         {
             sb.AppendLine();
-            sb.AppendLine("âŒ RECENT MISTAKES TO AVOID:");
+            sb.AppendLine("❌ RECENT MISTAKES TO AVOID:");
             foreach (var failure in recentFailures)
             {
                 sb.AppendLine($"  - User asked '{failure.UserInput.Substring(0, Math.Min(50, failure.UserInput.Length))}...' but you didn't call {string.Join(", ", failure.ExpectedTools)}");
@@ -533,12 +533,12 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
         _staticCulture = culture;
     }
 
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // ═══════════════════════════════════════════════════════════════════════════
     // SUBSYSTEM-BACKED PROPERTY PROXIES
-    // Each property delegates to the owning subsystem â€” no SyncSubsystems needed.
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // Each property delegates to the owning subsystem — no SyncSubsystems needed.
+    // ═══════════════════════════════════════════════════════════════════════════
 
-    // â”€â”€ Models â”€â”€
+    // ── Models ──
     private IChatCompletionModel? _chatModel { get => _modelsSub.ChatModel; set => _modelsSub.ChatModel = value; }
     private ToolAwareChatModel? _llm { get => _modelsSub.Llm; set => _modelsSub.Llm = value; }
     private IEmbeddingModel? _embedding { get => _modelsSub.Embedding; set => _modelsSub.Embedding = value; }
@@ -551,7 +551,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     private IVisionModel? _visionModel { get => _modelsSub.VisionModel; set => _modelsSub.VisionModel = value; }
     private LlmCostTracker? _costTracker { get => _modelsSub.CostTracker; set => _modelsSub.CostTracker = value; }
 
-    // â”€â”€ Tools â”€â”€
+    // ── Tools ──
     private ToolRegistry _tools { get => _toolsSub.Tools; set => _toolsSub.Tools = value; }
     private PromptOptimizer _promptOptimizer => _toolsSub.PromptOptimizer;
     private DynamicToolFactory? _toolFactory { get => _toolsSub.ToolFactory; set => _toolsSub.ToolFactory = value; }
@@ -560,7 +560,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     private ToolCapabilityMatcher? _toolCapabilityMatcher { get => _toolsSub.ToolCapabilityMatcher; set => _toolsSub.ToolCapabilityMatcher = value; }
     private PlaywrightMcpTool? _playwrightTool { get => _toolsSub.PlaywrightTool; set => _toolsSub.PlaywrightTool = value; }
 
-    // â”€â”€ Memory â”€â”€
+    // ── Memory ──
     private ISkillRegistry? _skills { get => _memorySub.Skills; set => _memorySub.Skills = value; }
     private IMeTTaEngine? _mettaEngine { get => _memorySub.MeTTaEngine; set => _memorySub.MeTTaEngine = value; }
     private PersonalityEngine? _personalityEngine { get => _memorySub.PersonalityEngine; set => _memorySub.PersonalityEngine = value; }
@@ -572,7 +572,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     private QdrantNeuralMemory? _neuralMemory { get => _memorySub.NeuralMemory; set => _memorySub.NeuralMemory = value; }
     private List<string> _conversationHistory => _memorySub.ConversationHistory;
 
-    // â”€â”€ Cognitive â”€â”€
+    // ── Cognitive ──
     private ImmersivePersona? _immersivePersona { get => _cognitiveSub.ImmersivePersona; set => _cognitiveSub.ImmersivePersona = value; }
     private ContinuouslyLearningAgent? _learningAgent { get => _cognitiveSub.LearningAgent; set => _cognitiveSub.LearningAgent = value; }
     private AdaptiveMetaLearner? _metaLearner { get => _cognitiveSub.MetaLearner; set => _cognitiveSub.MetaLearner = value; }
@@ -584,7 +584,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     private AgentCoordinator? _agentCoordinator { get => _cognitiveSub.AgentCoordinator; set => _cognitiveSub.AgentCoordinator = value; }
     private WorldState? _worldState { get => _cognitiveSub.WorldState; set => _cognitiveSub.WorldState = value; }
 
-    // â”€â”€ Autonomy â”€â”€
+    // ── Autonomy ──
     private MetaAIPlannerOrchestrator? _orchestrator { get => _autonomySub.Orchestrator; set => _autonomySub.Orchestrator = value; }
     private AutonomousMind? _autonomousMind { get => _autonomySub.AutonomousMind; set => _autonomySub.AutonomousMind = value; }
     private AutonomousCoordinator? _autonomousCoordinator { get => _autonomySub.Coordinator; set => _autonomySub.Coordinator = value; }
@@ -607,8 +607,28 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     private NetworkStateTracker? _networkTracker { get => _autonomySub.NetworkTracker; set => _autonomySub.NetworkTracker = value; }
     private Task? _pushModeTask { get => _autonomySub.PushModeTask; set => _autonomySub.PushModeTask = value; }
     private CancellationTokenSource? _pushModeCts { get => _autonomySub.PushModeCts; set => _autonomySub.PushModeCts = value; }
+    private PersistentNetworkStateProjector? _networkProjector { get => _autonomySub.NetworkProjector; set => _autonomySub.NetworkProjector = value; }
 
-    // â”€â”€ Voice â”€â”€
+    //  Memory (extended) 
+    private PersistentConversationMemory? _conversationMemory { get => _memorySub.ConversationMemory; set => _memorySub.ConversationMemory = value; }
+    private SelfPersistence? _selfPersistence { get => _memorySub.SelfPersistence; set => _memorySub.SelfPersistence = value; }
+
+    //  Cognitive (extended) 
+    private Ouroboros.Core.DistinctionLearning.IDistinctionLearner? _distinctionLearner { get => _cognitiveSub.DistinctionLearner; set => _cognitiveSub.DistinctionLearner = value; }
+    private Ouroboros.Application.Personality.Consciousness.ConsciousnessDream? _dream { get => _cognitiveSub.Dream; set => _cognitiveSub.Dream = value; }
+    private Ouroboros.Core.DistinctionLearning.DistinctionState _currentDistinctionState { get => _cognitiveSub.CurrentDistinctionState; set => _cognitiveSub.CurrentDistinctionState = value; }
+    private InterconnectedLearner? _interconnectedLearner { get => _cognitiveSub.InterconnectedLearner; set => _cognitiveSub.InterconnectedLearner = value; }
+
+    //  Embodiment (extended) 
+    private Application.Avatar.InteractiveAvatarService? _avatarService { get => _embodimentSub.AvatarService; set => _embodimentSub.AvatarService = value; }
+    private VisionService? _visionService { get => _embodimentSub.VisionService; set => _embodimentSub.VisionService = value; }
+
+    //  Tools (extended) 
+    private IReadOnlyDictionary<string, PipelineTokenInfo>? _allPipelineTokens { get => _toolsSub.AllPipelineTokens; set => _toolsSub.AllPipelineTokens = value; }
+    private CliPipelineState? _pipelineState { get => _toolsSub.PipelineState; set => _toolsSub.PipelineState = value; }
+
+
+    // ── Voice ──
     private VoiceModeServiceV2? _voiceV2 { get => _voiceSub.V2; set => _voiceSub.V2 = value; }
     private VoiceSideChannel? _voiceSideChannel { get => _voiceSub.SideChannel; set => _voiceSub.SideChannel = value; }
     private Ouroboros.CLI.Services.EnhancedListeningService? _enhancedListener { get => _voiceSub.Listener; set => _voiceSub.Listener = value; }
@@ -616,7 +636,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     private Task? _listeningTask { get => _voiceSub.ListeningTask; set => _voiceSub.ListeningTask = value; }
     private bool _isListening { get => _voiceSub.IsListening; set => _voiceSub.IsListening = value; }
 
-    // â”€â”€ Embodiment â”€â”€
+    // ── Embodiment ──
     private EmbodimentController? _embodimentController { get => _embodimentSub.Controller; set => _embodimentSub.Controller = value; }
     private VirtualSelf? _virtualSelf { get => _embodimentSub.VirtualSelf; set => _embodimentSub.VirtualSelf = value; }
     private BodySchema? _bodySchema { get => _embodimentSub.BodySchema; set => _embodimentSub.BodySchema = value; }
@@ -627,7 +647,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     private bool _userWasPresent { get => _embodimentSub.UserWasPresent; set => _embodimentSub.UserWasPresent = value; }
     private DateTime _lastGreetingTime { get => _embodimentSub.LastGreetingTime; set => _embodimentSub.LastGreetingTime = value; }
 
-    // â”€â”€ Non-subsystem local state â”€â”€
+    // ── Non-subsystem local state ──
     private string? _lastUserInput; // Track for outcome recording
     private DateTime _lastInteractionStart;
     private readonly StringBuilder _currentInputBuffer = new();
@@ -638,9 +658,9 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     private bool _isInitialized;
     private bool _disposed;
 
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    // DI SUBSYSTEMS â€” each manages a cohesive group of capabilities + disposal
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // ═══════════════════════════════════════════════════════════════════════════
+    // DI SUBSYSTEMS — each manages a cohesive group of capabilities + disposal
+    // ═══════════════════════════════════════════════════════════════════════════
     private readonly VoiceSubsystem _voiceSub;
     private readonly ModelSubsystem _modelsSub;
     private readonly ToolSubsystem _toolsSub;
@@ -1310,7 +1330,7 @@ Write the integrated response:";
         while (!ct.IsCancellationRequested)
         {
             Console.ForegroundColor = ConsoleColor.DarkGreen;
-            Console.Write("  ðŸŽ¤ ");
+            Console.Write("  🎤 ");
             Console.ResetColor();
 
             Microsoft.CognitiveServices.Speech.SpeechRecognitionResult result = await recognizer.RecognizeOnceAsync();
@@ -1353,7 +1373,7 @@ Write the integrated response:";
                         if (_config.Debug)
                         {
                             Console.ForegroundColor = ConsoleColor.DarkYellow;
-                            Console.WriteLine($"  âš  Azure TTS error: {ex.Message}");
+                            Console.WriteLine($"  ⚠ Azure TTS error: {ex.Message}");
                             Console.ResetColor();
                         }
                     }
@@ -1369,7 +1389,7 @@ Write the integrated response:";
                 if (cancellation.Reason == Microsoft.CognitiveServices.Speech.CancellationReason.Error)
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"  âš  Speech recognition error: {cancellation.ErrorDetails}");
+                    Console.WriteLine($"  ⚠ Speech recognition error: {cancellation.ErrorDetails}");
                     Console.ResetColor();
                 }
                 break;
@@ -1379,7 +1399,7 @@ Write the integrated response:";
 
     /// <summary>
     /// Speaks a response using Azure TTS with configured voice.
-    /// Supports barge-in via the CancellationToken â€” cancelling stops synthesis immediately.
+    /// Supports barge-in via the CancellationToken — cancelling stops synthesis immediately.
     /// </summary>
     private async Task SpeakResponseWithAzureTtsAsync(string text, string key, string region, CancellationToken ct)
     {
@@ -1463,7 +1483,7 @@ Write the integrated response:";
     }
 
     /// <summary>
-    /// Creates a new Ouroboros agent (legacy constructor â€” creates subsystems internally).
+    /// Creates a new Ouroboros agent (legacy constructor — creates subsystems internally).
     /// Prefer the DI constructor for testability and modularity.
     /// </summary>
     public OuroborosAgent(OuroborosConfig config)
@@ -1524,14 +1544,14 @@ Write the integrated response:";
             RegisterCameraCaptureAction = () => RegisterCameraCaptureTool(),
         };
 
-        // â”€â”€ Phase 1: Infrastructure (standalone) â”€â”€
+        // ── Phase 1: Infrastructure (standalone) ──
         if (_config.Voice)
             await _voice.InitializeAsync();
 
         _voiceSub.SpeakWithSapiFunc = SpeakWithSapiAsync;
         await _voiceSub.InitializeAsync(ctx);
 
-        // â”€â”€ Phase 2: Models (standalone) â”€â”€
+        // ── Phase 2: Models (standalone) ──
         await _modelsSub.InitializeAsync(ctx);
 
         // Wire LLM sanitizer on voice side channel
@@ -1542,25 +1562,25 @@ Write the integrated response:";
             _output.RecordInit("Voice LLM Sanitizer", true, "natural speech condensation");
         }
 
-        // â”€â”€ Phase 3: Tools (needs Models) â”€â”€
+        // ── Phase 3: Tools (needs Models) ──
         await _toolsSub.InitializeAsync(ctx);
 
-        // â”€â”€ Phase 4: Memory (needs Models, uses MeTTa from Tools) â”€â”€
+        // ── Phase 4: Memory (needs Models, uses MeTTa from Tools) ──
         await _memorySub.InitializeAsync(ctx);
 
-        // â”€â”€ Phase 5: Cognitive (needs Models + Memory + Tools) â”€â”€
+        // ── Phase 5: Cognitive (needs Models + Memory + Tools) ──
         await _cognitiveSub.InitializeAsync(ctx);
 
-        // â”€â”€ Phase 6: Autonomy (needs all above) â”€â”€
+        // ── Phase 6: Autonomy (needs all above) ──
         await _autonomySub.InitializeAsync(ctx);
 
-        // â”€â”€ Phase 7: Embodiment (needs Memory + Autonomy) â”€â”€
+        // ── Phase 7: Embodiment (needs Memory + Autonomy) ──
         await _embodimentSub.InitializeAsync(ctx);
 
-        // â”€â”€ Phase 8: Cross-subsystem wiring (mediator orchestration) â”€â”€
+        // ── Phase 8: Cross-subsystem wiring (mediator orchestration) ──
         WireCrossSubsystemDependencies();
 
-        // â”€â”€ Phase 9: Post-init actions â”€â”€
+        // ── Phase 9: Post-init actions ──
         _isInitialized = true;
         _output.FlushInitSummary();
         if (_config.Verbosity == OutputVerbosity.Verbose)
@@ -1583,29 +1603,62 @@ Write the integrated response:";
 
     /// <summary>
     /// Wires cross-subsystem dependencies that require mediator orchestration.
-    /// This is the core of the mediator pattern â€” connecting subsystem components.
+    /// This is the core of the mediator pattern — connecting subsystem components.
     /// </summary>
     private void WireCrossSubsystemDependencies()
     {
-        // â”€â”€ Autonomous Mind delegates â”€â”€
+        // ── Autonomy subsystem cross-references ──
+        WireAutonomyCallbacks();
+
+        // ── Autonomous Mind delegates ──
         WireAutonomousMindDelegates();
 
-        // â”€â”€ Autonomous Coordinator â”€â”€
+        // ── Autonomous Coordinator ──
         WireAutonomousCoordinatorAsync().GetAwaiter().GetResult();
 
-        // â”€â”€ Self-Execution â”€â”€
+        // ── Self-Execution ──
         if (_config.EnableMind)
             WireSelfExecution();
 
-        // â”€â”€ Self-Assembly callbacks â”€â”€
+        // ── Self-Assembly callbacks ──
         WireSelfAssemblyCallbacks();
 
-        // â”€â”€ Push Mode â”€â”€
+        // ── Push Mode ──
         if (_config.EnablePush)
             WirePushMode();
 
-        // â”€â”€ Presence Detection events â”€â”€
+        // ── Presence Detection events ──
         WirePresenceDetection();
+
+        // -- Persona events --
+        WirePersonaEvents();
+
+        // -- SystemAccessTools shared state --
+        WireSystemAccessTools();
+
+        // -- Network state persistence delegates --
+        WireNetworkPersistence();
+
+        // -- Avatar mood transitions --
+        WireAvatarMoodTransitions();
+
+        // -- Pipeline think delegate --
+        WirePipelineThinkDelegate();
+    }
+
+    /// <summary>
+    /// Wires agent-level callbacks into the autonomy subsystem so it can access
+    /// cross-cutting concerns (voice, chat, conversation state).
+    /// </summary>
+    private void WireAutonomyCallbacks()
+    {
+        _autonomySub.IsInConversationLoop = () => _isInConversationLoop;
+        _autonomySub.SayAndWaitAsyncFunc = (text, persona) => SayAndWaitAsync(text, persona);
+        _autonomySub.AnnounceAction = Announce;
+        _autonomySub.ChatAsyncFunc = ChatAsync;
+        _autonomySub.GetLanguageNameFunc = GetLanguageName;
+        _autonomySub.StartListeningAsyncFunc = () => StartListeningAsync();
+        _autonomySub.StopListeningAction = StopListening;
     }
 
     /// <summary>
@@ -1708,8 +1761,8 @@ Write the integrated response:";
         _autonomousMind.OnProactiveMessage += async (msg) =>
         {
             var thoughtContent = msg.TrimStart();
-            if (thoughtContent.StartsWith("ðŸ’¡") || thoughtContent.StartsWith("ðŸ’¬") ||
-                thoughtContent.StartsWith("ðŸ¤”") || thoughtContent.StartsWith("ðŸ’­"))
+            if (thoughtContent.StartsWith("💡") || thoughtContent.StartsWith("💬") ||
+                thoughtContent.StartsWith("🤔") || thoughtContent.StartsWith("💭"))
                 thoughtContent = thoughtContent[2..].Trim();
             TrackLastThought(thoughtContent);
 
@@ -1717,7 +1770,7 @@ Write the integrated response:";
             lock (_inputLock) { savedInput = _currentInputBuffer.ToString(); }
             if (!string.IsNullOrEmpty(savedInput))
                 Console.WriteLine();
-            _output.WriteDebug($"ðŸ’­ {msg}");
+            _output.WriteDebug($"💭 {msg}");
             try { await _voice.WhisperAsync(msg); } catch { }
             if (_isInConversationLoop)
             {
@@ -1761,7 +1814,7 @@ Write the integrated response:";
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"  âš  Autonomous Coordinator wiring failed: {ex.Message}");
+                Console.WriteLine($"  ⚠ Autonomous Coordinator wiring failed: {ex.Message}");
             }
             return;
         }
@@ -1776,7 +1829,7 @@ Write the integrated response:";
         _selfExecutionCts?.Dispose();
         _selfExecutionCts = new CancellationTokenSource();
         _selfExecutionEnabled = true;
-        _selfExecutionTask = Task.Run(SelfExecutionLoopAsync, _selfExecutionCts.Token);
+        _selfExecutionTask = Task.Run(_autonomySub.SelfExecutionLoopAsync, _selfExecutionCts.Token);
         _output.RecordInit("Self-Execution", true, "autonomous goal pursuit");
     }
 
@@ -1815,7 +1868,7 @@ Write the integrated response:";
             _autonomousCoordinator.Start();
             _pushModeCts?.Dispose();
             _pushModeCts = new CancellationTokenSource();
-            _pushModeTask = Task.Run(() => PushModeLoopAsync(_pushModeCts.Token), _pushModeCts.Token);
+            _pushModeTask = Task.Run(() => _autonomySub.PushModeLoopAsync(_pushModeCts.Token), _pushModeCts.Token);
             var yoloPart = _config.YoloMode ? ", YOLO" : "";
             _output.RecordInit("Push Mode", true, $"interval: {_config.IntentionIntervalSeconds}s{yoloPart}");
         }
@@ -1844,7 +1897,131 @@ Write the integrated response:";
         };
     }
 
+        /// <summary>
+    /// Wires ImmersivePersona events (AutonomousThought, ConsciousnessShift).
+    /// </summary>
+    private void WirePersonaEvents()
+    {
+        if (_immersivePersona == null) return;
+
+        _immersivePersona.AutonomousThought += (_, e) =>
+        {
+            Console.ForegroundColor = ConsoleColor.DarkCyan;
+            Console.WriteLine($"\n  [inner thought] {e.Thought.Content}");
+            Console.ResetColor();
+        };
+    }
+
     /// <summary>
+    /// Wires SystemAccessTools shared static state (SharedPersistence, SharedMind, SharedIndexer).
+    /// </summary>
+    private void WireSystemAccessTools()
+    {
+        if (_selfPersistence != null && _autonomousMind != null)
+        {
+            SystemAccessTools.SharedPersistence = _selfPersistence;
+            SystemAccessTools.SharedMind = _autonomousMind;
+        }
+
+        if (_selfIndexer != null)
+        {
+            SystemAccessTools.SharedIndexer = _selfIndexer;
+            _selfIndexer.OnFileIndexed += (file, chunks) =>
+                _output.WriteDebug($"[Index] {System.IO.Path.GetFileName(file)} ({chunks} chunks)");
+        }
+    }
+
+    /// <summary>
+    /// Wires AutonomousMind PersistLearningFunction and PersistEmotionFunction
+    /// to the PersistentNetworkStateProjector.
+    /// </summary>
+    private void WireNetworkPersistence()
+    {
+        if (_autonomousMind == null) return;
+
+        _autonomousMind.PersistLearningFunction = async (category, content, confidence, token) =>
+        {
+            if (_networkProjector != null)
+            {
+                await _networkProjector.RecordLearningAsync(
+                    category,
+                    content,
+                    "autonomous_mind",
+                    confidence,
+                    token);
+            }
+        };
+
+        _autonomousMind.PersistEmotionFunction = async (emotion, token) =>
+        {
+            if (_networkProjector != null)
+            {
+                await _networkProjector.RecordLearningAsync(
+                    "emotional_state",
+                    $"Emotion: {emotion.DominantEmotion} (arousal={emotion.Arousal:F2}, valence={emotion.Valence:F2}) - {emotion.Description}",
+                    "autonomous_mind",
+                    0.6,
+                    token);
+            }
+        };
+
+        // Additional events for debugging/diagnostics
+        _autonomousMind.OnDiscovery += (query, fact) =>
+        {
+            System.Diagnostics.Debug.WriteLine($"[Discovery] {query}: {fact}");
+        };
+
+        _autonomousMind.OnEmotionalChange += (emotion) =>
+        {
+            _output.WriteDebug($"[mind] Emotional shift: {emotion.DominantEmotion} ({emotion.Description})");
+        };
+
+        _autonomousMind.OnStatePersisted += (msg) =>
+        {
+            System.Diagnostics.Debug.WriteLine($"[State] {msg}");
+        };
+    }
+
+    /// <summary>
+    /// Wires consciousness shift events to the avatar service for mood transitions.
+    /// </summary>
+    private void WireAvatarMoodTransitions()
+    {
+        if (_immersivePersona == null || _avatarService == null) return;
+
+        _immersivePersona.ConsciousnessShift += (_, e) =>
+        {
+            _avatarService?.NotifyMoodChange(
+                e.NewEmotion ?? "neutral",
+                0.5 + (e.ArousalChange * 0.5),
+                e.NewEmotion?.Contains("warm") == true || e.NewEmotion?.Contains("gentle") == true ? 0.8 : 0.5);
+        };
+    }
+
+    /// <summary>
+    /// Wires AutonomousMind PipelineThinkFunction for monadic reasoning with branch tracking.
+    /// </summary>
+    private void WirePipelineThinkDelegate()
+    {
+        if (_autonomousMind == null) return;
+
+        _autonomousMind.PipelineThinkFunction = async (prompt, existingBranch, token) =>
+        {
+            var response = await GenerateWithOrchestrationAsync(prompt, token);
+
+            if (existingBranch != null)
+            {
+                var updatedBranch = existingBranch.WithReasoning(
+                    new Ouroboros.Domain.States.Thinking(response),
+                    prompt,
+                    null);
+                return (response, updatedBranch);
+            }
+
+            return (response, existingBranch!);
+        };
+    }
+/// <summary>
     /// Enforce governance policies when self-modification is enabled.
     /// </summary>
     private async Task EnforceGovernancePoliciesAsync()
@@ -2011,30 +2188,30 @@ OUTPUT (translation only, no explanations, no JSON, no metadata):";
         Console.ForegroundColor = ConsoleColor.DarkGray;
         Console.WriteLine($"    Model: {_config.Model}");
         Console.WriteLine($"    Persona: {_config.Persona}");
-        var ttsMode = _config.AzureTts ? "âœ“ Azure (cloud)" : "â—‹ Local (Windows)";
-        Console.WriteLine($"    Voice: {(_config.Voice ? "âœ“ enabled" : "â—‹ disabled")} - {ttsMode}");
+        var ttsMode = _config.AzureTts ? "✓ Azure (cloud)" : "○ Local (Windows)";
+        Console.WriteLine($"    Voice: {(_config.Voice ? "✓ enabled" : "○ disabled")} - {ttsMode}");
         Console.ResetColor();
         Console.WriteLine();
 
         Console.WriteLine("  Features (all enabled by default, use --no-X to disable):");
         Console.ForegroundColor = _config.EnableSkills ? ConsoleColor.Green : ConsoleColor.DarkGray;
-        Console.WriteLine($"    {(_config.EnableSkills ? "âœ“" : "â—‹")} Skills       - Persistent learning with Qdrant");
+        Console.WriteLine($"    {(_config.EnableSkills ? "✓" : "○")} Skills       - Persistent learning with Qdrant");
         Console.ForegroundColor = _config.EnableMeTTa ? ConsoleColor.Green : ConsoleColor.DarkGray;
-        Console.WriteLine($"    {(_config.EnableMeTTa ? "âœ“" : "â—‹")} MeTTa        - Symbolic reasoning engine");
+        Console.WriteLine($"    {(_config.EnableMeTTa ? "✓" : "○")} MeTTa        - Symbolic reasoning engine");
         Console.ForegroundColor = _config.EnableTools ? ConsoleColor.Green : ConsoleColor.DarkGray;
-        Console.WriteLine($"    {(_config.EnableTools ? "âœ“" : "â—‹")} Tools        - Web search, calculator, URL fetch");
+        Console.WriteLine($"    {(_config.EnableTools ? "✓" : "○")} Tools        - Web search, calculator, URL fetch");
         Console.ForegroundColor = _config.EnableBrowser ? ConsoleColor.Green : ConsoleColor.DarkGray;
-        Console.WriteLine($"    {(_config.EnableBrowser ? "âœ“" : "â—‹")} Browser      - Playwright automation");
+        Console.WriteLine($"    {(_config.EnableBrowser ? "✓" : "○")} Browser      - Playwright automation");
         Console.ForegroundColor = _config.EnablePersonality ? ConsoleColor.Green : ConsoleColor.DarkGray;
-        Console.WriteLine($"    {(_config.EnablePersonality ? "âœ“" : "â—‹")} Personality  - Affective states & traits");
+        Console.WriteLine($"    {(_config.EnablePersonality ? "✓" : "○")} Personality  - Affective states & traits");
         Console.ForegroundColor = _config.EnableMind ? ConsoleColor.Green : ConsoleColor.DarkGray;
-        Console.WriteLine($"    {(_config.EnableMind ? "âœ“" : "â—‹")} Mind         - Autonomous inner thoughts");
+        Console.WriteLine($"    {(_config.EnableMind ? "✓" : "○")} Mind         - Autonomous inner thoughts");
         Console.ForegroundColor = _config.EnableConsciousness ? ConsoleColor.Green : ConsoleColor.DarkGray;
-        Console.WriteLine($"    {(_config.EnableConsciousness ? "âœ“" : "â—‹")} Consciousness- ImmersivePersona self-awareness");
+        Console.WriteLine($"    {(_config.EnableConsciousness ? "✓" : "○")} Consciousness- ImmersivePersona self-awareness");
         Console.ForegroundColor = _config.EnableEmbodiment ? ConsoleColor.Green : ConsoleColor.DarkGray;
-        Console.WriteLine($"    {(_config.EnableEmbodiment ? "âœ“" : "â—‹")} Embodiment   - Multimodal sensors & actuators");
+        Console.WriteLine($"    {(_config.EnableEmbodiment ? "✓" : "○")} Embodiment   - Multimodal sensors & actuators");
         Console.ForegroundColor = _config.EnablePush ? ConsoleColor.Cyan : ConsoleColor.DarkGray;
-        Console.WriteLine($"    {(_config.EnablePush ? "âš¡" : "â—‹")} Push Mode    - Propose actions for approval (--push)");
+        Console.WriteLine($"    {(_config.EnablePush ? "⚡" : "○")} Push Mode    - Propose actions for approval (--push)");
         Console.ResetColor();
         Console.WriteLine();
     }
@@ -2386,7 +2563,7 @@ $synth.Dispose()
                 // Fire proactive message event
                 Console.WriteLine();
                 Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine($"  ðŸ‘‹ {greeting}");
+                Console.WriteLine($"  👋 {greeting}");
                 Console.ResetColor();
 
                 // Speak the greeting
@@ -2458,7 +2635,7 @@ If they were away a while, you might mention being ready to help or having kept 
                 _agiWarmup.OnProgress += (step, percent) =>
                 {
                     Console.ForegroundColor = ConsoleColor.DarkGray;
-                    Console.Write($"\r  â³ {step} ({percent}%)".PadRight(60));
+                    Console.Write($"\r  ⏳ {step} ({percent}%)".PadRight(60));
                     Console.ResetColor();
                 };
             }
@@ -2477,7 +2654,7 @@ If they were away a while, you might mention being ready to help or having kept 
                     if (!string.IsNullOrEmpty(result.WarmupThought))
                     {
                         var translatedThought = await TranslateThoughtIfNeededAsync(result.WarmupThought);
-                        _output.WriteDebug($"ðŸ’­ Initial thought: \"{translatedThought}\"");
+                        _output.WriteDebug($"💭 Initial thought: \"{translatedThought}\"");
                     }
                 }
                 else
@@ -2569,9 +2746,9 @@ Generate ONLY the C# code, no explanations:";
 
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—");
-        Console.WriteLine("â•‘           ðŸ§¬ SELF-ASSEMBLY PROPOSAL                           â•‘");
-        Console.WriteLine("â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
+        Console.WriteLine("╔═══════════════════════════════════════════════════════════════╗");
+        Console.WriteLine("║           🧬 SELF-ASSEMBLY PROPOSAL                           ║");
+        Console.WriteLine("╚═══════════════════════════════════════════════════════════════╝");
         Console.ResetColor();
 
         Console.WriteLine($"\n  Neuron: {blueprint.Name}");
@@ -2613,7 +2790,7 @@ Generate ONLY the C# code, no explanations:";
     {
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"  ðŸ§¬ SELF-ASSEMBLED: {e.NeuronName} (Type: {e.NeuronType.Name})");
+        Console.WriteLine($"  🧬 SELF-ASSEMBLED: {e.NeuronName} (Type: {e.NeuronType.Name})");
         Console.ResetColor();
 
         // Create and register the neuron instance
@@ -2635,7 +2812,7 @@ Generate ONLY the C# code, no explanations:";
     {
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine($"  âš  Assembly failed for '{e.NeuronName}': {e.Reason}");
+        Console.WriteLine($"  ⚠ Assembly failed for '{e.NeuronName}': {e.Reason}");
         Console.ResetColor();
     }
 
@@ -3135,17 +3312,17 @@ Generate ONLY the C# code, no explanations:";
             try
             {
                 Console.ForegroundColor = ConsoleColor.DarkCyan;
-                Console.WriteLine($"  ðŸ”— Executing pipe: {pipeCommand[..Math.Min(50, pipeCommand.Length)]}...");
+                Console.WriteLine($"  🔗 Executing pipe: {pipeCommand[..Math.Min(50, pipeCommand.Length)]}...");
                 Console.ResetColor();
 
                 var pipeResult = await ProcessInputWithPipingAsync(pipeCommand.Trim(), maxDepth - 1);
 
                 // Replace the pipe command with its result
-                result = result.Replace(match.Value, $"\nðŸ“¤ Pipe Result:\n{pipeResult}\n");
+                result = result.Replace(match.Value, $"\n📤 Pipe Result:\n{pipeResult}\n");
             }
             catch (Exception ex)
             {
-                result = result.Replace(match.Value, $"\nâŒ Pipe Error: {ex.Message}\n");
+                result = result.Replace(match.Value, $"\n❌ Pipe Error: {ex.Message}\n");
             }
         }
 
@@ -3256,10 +3433,10 @@ Generate ONLY the C# code, no explanations:";
     {
         var lower = input.ToLowerInvariant().Trim();
 
-        // Handle thought input prefixed with [ðŸ’­] - track, execute tools if needed, and acknowledge
-        if (input.TrimStart().StartsWith("[ðŸ’­]"))
+        // Handle thought input prefixed with [💭] - track, execute tools if needed, and acknowledge
+        if (input.TrimStart().StartsWith("[💭]"))
         {
-            var thought = input.TrimStart()[4..].Trim(); // Remove [ðŸ’­] prefix
+            var thought = input.TrimStart()[4..].Trim(); // Remove [💭] prefix
             TrackLastThought(thought);
 
             // === KEY INSIGHT: Auto-execute tools from thoughts ===
@@ -3698,7 +3875,7 @@ Context:
 - Mood: {mood}
 - Variation seed: {uniqueSeed}
 
-Be natural and avoid clichÃ©s like 'ready when you are' or 'how can I help'.
+Be natural and avoid clichés like 'ready when you are' or 'how can I help'.
 No quotes around the response. Just the greeting itself.";
 
         try
@@ -3727,11 +3904,11 @@ No quotes around the response. Just the greeting itself.";
         var isGerman = _config.Culture?.ToLowerInvariant() == "de-de";
         return hour switch
         {
-            < 6 => isGerman ? "sehr frÃ¼hen Morgen" : "very early morning",
+            < 6 => isGerman ? "sehr frühen Morgen" : "very early morning",
             < 12 => isGerman ? "Morgen" : "morning",
             < 17 => isGerman ? "Nachmittag" : "afternoon",
             < 21 => isGerman ? "Abend" : "evening",
-            _ => isGerman ? "spÃ¤ten Abend" : "late night"
+            _ => isGerman ? "späten Abend" : "late night"
         };
     }
 
@@ -3741,16 +3918,16 @@ No quotes around the response. Just the greeting itself.";
         {
             return
             [
-                $"Guten {timeOfDay}. Was beschÃ¤ftigt dich?",
+                $"Guten {timeOfDay}. Was beschäftigt dich?",
                 "Ah, da bist du ja. Ich hatte gerade einen interessanten Gedanken.",
                 "Perfektes Timing. Ich war gerade warmgelaufen.",
                 "Wieder da? Gut. Ich habe Ideen.",
-                "Mal sehen, was wir zusammen erreichen kÃ¶nnen.",
+                "Mal sehen, was wir zusammen erreichen können.",
                 "Darauf habe ich mich gefreut.",
                 $"Noch eine {timeOfDay}-Session. Was bauen wir?",
-                "Da bist du ja. Ich habe gerade Ã¼ber etwas Interessantes nachgedacht.",
+                "Da bist du ja. Ich habe gerade über etwas Interessantes nachgedacht.",
                 $"{timeOfDay} schon? Die Zeit vergeht schnell.",
-                "Bereit fÃ¼r etwas Interessantes?",
+                "Bereit für etwas Interessantes?",
                 "Was erschaffen wir heute?"
             ];
         }
@@ -3779,23 +3956,23 @@ No quotes around the response. Just the greeting itself.";
         {
             // Full text lookups (for backward compatibility)
             "Welcome back! I'm here if you need anything." => isGerman
-                ? "Willkommen zurÃ¼ck! Ich bin hier, wenn du mich brauchst."
+                ? "Willkommen zurück! Ich bin hier, wenn du mich brauchst."
                 : key,
-            "Welcome back!" => isGerman ? "Willkommen zurÃ¼ck!" : key,
+            "Welcome back!" => isGerman ? "Willkommen zurück!" : key,
             "Until next time! I'll keep learning while you're away." => isGerman
-                ? "Bis zum nÃ¤chsten Mal! Ich lerne weiter, wÃ¤hrend du weg bist."
+                ? "Bis zum nächsten Mal! Ich lerne weiter, während du weg bist."
                 : key,
 
             // Key-based lookups
             "listening_start" => isGerman
-                ? "\n  ðŸŽ¤ Ich hÃ¶re zu... (sprich, um eine Nachricht zu senden, sage 'stopp' zum Deaktivieren)"
-                : "\n  ðŸŽ¤ Listening... (speak to send a message, say 'stop listening' to disable)",
+                ? "\n  🎤 Ich höre zu... (sprich, um eine Nachricht zu senden, sage 'stopp' zum Deaktivieren)"
+                : "\n  🎤 Listening... (speak to send a message, say 'stop listening' to disable)",
             "listening_stop" => isGerman
-                ? "\n  ðŸ”‡ Spracheingabe gestoppt."
-                : "\n  ðŸ”‡ Voice input stopped.",
+                ? "\n  🔇 Spracheingabe gestoppt."
+                : "\n  🔇 Voice input stopped.",
             "voice_requires_key" => isGerman
-                ? "  âš  Spracheingabe benÃ¶tigt AZURE_SPEECH_KEY. Setze ihn in der Umgebung, appsettings oder verwende --azure-speech-key."
-                : "  âš  Voice input requires AZURE_SPEECH_KEY. Set it in environment, appsettings, or use --azure-speech-key.",
+                ? "  ⚠ Spracheingabe benötigt AZURE_SPEECH_KEY. Setze ihn in der Umgebung, appsettings oder verwende --azure-speech-key."
+                : "  ⚠ Voice input requires AZURE_SPEECH_KEY. Set it in environment, appsettings, or use --azure-speech-key.",
             "you_said" => isGerman ? "Du sagtest:" : "You said:",
 
             _ => key
@@ -3814,117 +3991,117 @@ No quotes around the response. Just the greeting itself.";
     private string GetHelpText()
     {
         var pushModeHelp = _config.EnablePush ? @"
-â•‘ PUSH MODE (--push enabled)                                   â•‘
-â•‘   /approve <id|all> - Approve proposed action(s)             â•‘
-â•‘   /reject <id|all>  - Reject proposed action(s)              â•‘
-â•‘   /pending          - List pending intentions                â•‘
-â•‘   /pause            - Pause push mode proposals              â•‘
-â•‘   /resume           - Resume push mode proposals             â•‘
-â•‘                                                              â•‘" : "";
+║ PUSH MODE (--push enabled)                                   ║
+║   /approve <id|all> - Approve proposed action(s)             ║
+║   /reject <id|all>  - Reject proposed action(s)              ║
+║   /pending          - List pending intentions                ║
+║   /pause            - Pause push mode proposals              ║
+║   /resume           - Resume push mode proposals             ║
+║                                                              ║" : "";
 
-        return $@"â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
-â•‘                    OUROBOROS COMMANDS                        â•‘
-â• â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•£
-â•‘ NATURAL CONVERSATION                                         â•‘
-â•‘   Just talk to me - I understand natural language            â•‘
-â•‘                                                              â•‘
-â•‘ LEARNING & SKILLS                                            â•‘
-â•‘   learn about X     - Research and learn a new topic         â•‘
-â•‘   list skills       - Show learned skills                    â•‘
-â•‘   run X             - Execute a learned skill                â•‘
-â•‘   suggest X         - Get skill suggestions for a goal       â•‘
-â•‘   fetch X           - Learn skill from arXiv research        â•‘
-â•‘   tokens            - Show available DSL tokens              â•‘
-â•‘                                                              â•‘
-â•‘ TOOLS & CAPABILITIES                                         â•‘
-â•‘   create tool X     - Create a new tool at runtime           â•‘
-â•‘   use X to Y        - Use a tool for a specific task         â•‘
-â•‘   search for X      - Search the web                         â•‘
-â•‘   list tools        - Show available tools                   â•‘
-â•‘                                                              â•‘
-â•‘ PLANNING & EXECUTION                                         â•‘
-â•‘   plan X            - Create a step-by-step plan             â•‘
-â•‘   do X / accomplish - Plan and execute a goal                â•‘
-â•‘   orchestrate X     - Multi-model task orchestration         â•‘
-â•‘   process X         - Large text via divide-and-conquer      â•‘
-â•‘                                                              â•‘
-â•‘ REASONING & MEMORY                                           â•‘
-â•‘   metta: expr       - Execute MeTTa symbolic expression      â•‘
-â•‘   query X           - Query MeTTa knowledge base             â•‘
-â•‘   remember X        - Store in persistent memory             â•‘
-â•‘   recall X          - Retrieve from memory                   â•‘
-â•‘                                                              â•‘
-â•‘ PIPELINES (DSL)                                              â•‘
-â•‘   ask X             - Quick single question                  â•‘
-â•‘   pipeline DSL      - Run a pipeline DSL expression          â•‘
-â•‘   explain DSL       - Explain a pipeline expression          â•‘
-â•‘                                                              â•‘
-â•‘ SELF-IMPROVEMENT DSL TOKENS                                  â•‘
-â•‘   Reify             - Enable network state reification       â•‘
-â•‘   Checkpoint(name)  - Create named state checkpoint          â•‘
-â•‘   TrackCapability   - Track capability for self-improvement  â•‘
-â•‘   SelfEvaluate      - Evaluate output quality                â•‘
-â•‘   SelfImprove(n)    - Iterate on output n times              â•‘
-â•‘   Learn(topic)      - Extract learnings from execution       â•‘
-â•‘   Plan(task)        - Decompose task into steps              â•‘
-â•‘   Reflect           - Introspect on execution                â•‘
-â•‘   SelfImprovingCycle(topic) - Full improvement cycle         â•‘
-â•‘   AutoSolve(problem) - Autonomous problem solving            â•‘
-â•‘   Example: pipeline Set('AI') | Reify | SelfImprovingCycle   â•‘
-â•‘                                                              â•‘
-â•‘ CONSCIOUSNESS & AWARENESS                                    â•‘
-â•‘   consciousness     - View ImmersivePersona state            â•‘
-â•‘   inner / self      - Check self-awareness                   â•‘
-â•‘                                                              â•‘
-â•‘ EMERGENCE & DREAMING                                         â•‘
-â•‘   emergence [topic] - Explore emergent patterns              â•‘
-â•‘   dream [topic]     - Enter creative dream state             â•‘
-â•‘   introspect [X]    - Deep self-examination                  â•‘
-â•‘                                                              â•‘
-â•‘ SELF-EXECUTION & SUB-AGENTS                                  â•‘
-â•‘   selfexec          - Self-execution status and control      â•‘
-â•‘   subagent          - Manage sub-agents for delegation       â•‘
-â•‘   delegate X        - Delegate a task to sub-agents          â•‘
-â•‘   goal add X        - Add autonomous goal to queue           â•‘
-â•‘   goal list         - Show queued goals                      â•‘
-â•‘   goal add pipeline:DSL - Add DSL pipeline as goal           â•‘
-â•‘   epic              - Epic/project orchestration             â•‘
-â•‘   selfmodel         - View self-model and identity           â•‘
-â•‘   evaluate          - Self-assessment and performance        â•‘
-â•‘                                                              â•‘
-â•‘ PIPING & CHAINING (internal command piping)                  â•‘
-â•‘   cmd1 | cmd2       - Pipe output of cmd1 to cmd2            â•‘
-â•‘   cmd $PIPE         - Use $PIPE/$_ for previous output       â•‘
-â•‘   Example: ask what is AI | summarize | remember as AI-def   â•‘
-â•‘                                                              â•‘
-â•‘ CODE INDEX (Semantic Search with Qdrant)                     â•‘
-â•‘   reindex            - Full reindex of workspace             â•‘
-â•‘   reindex incremental - Update changed files only            â•‘
-â•‘   index search X     - Semantic search of codebase           â•‘
-â•‘   index stats        - Show index statistics                 â•‘
-â•‘                                                              â•‘
-â•‘ AGI SUBSYSTEMS (Learning & Metacognition)                    â•‘
-â•‘   agi status         - Show all AGI subsystem status         â•‘
-â•‘   council <topic>    - Multi-agent debate on topic           â•‘
-â•‘   debate <topic>     - Alias for council                     â•‘
-â•‘   introspect         - Deep self-analysis report             â•‘
-â•‘   world              - World model and observations          â•‘
-â•‘   coordinate <goal>  - Multi-agent task coordination         â•‘
-â•‘   experience         - Experience replay buffer status       â•‘
-â•‘                                                              â•‘{pushModeHelp}
-â•‘ SYSTEM                                                       â•‘
-â•‘   status            - Show current system state              â•‘
-â•‘   mood              - Check my emotional state               â•‘
-â•‘   affect            - Detailed affective state               â•‘
-â•‘   network           - Network and connectivity status        â•‘
-â•‘   dag               - Show capability graph                  â•‘
-â•‘   env               - Environment detection                  â•‘
-â•‘   maintenance       - System maintenance (gc, reset, stats)  â•‘
-â•‘   policy            - View active policies                   â•‘
-â•‘   test X            - Run connectivity tests                 â•‘
-â•‘   help              - This message                           â•‘
-â•‘   exit/quit         - End session                            â•‘
-â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•";
+        return $@"╔══════════════════════════════════════════════════════════════╗
+║                    OUROBOROS COMMANDS                        ║
+╠══════════════════════════════════════════════════════════════╣
+║ NATURAL CONVERSATION                                         ║
+║   Just talk to me - I understand natural language            ║
+║                                                              ║
+║ LEARNING & SKILLS                                            ║
+║   learn about X     - Research and learn a new topic         ║
+║   list skills       - Show learned skills                    ║
+║   run X             - Execute a learned skill                ║
+║   suggest X         - Get skill suggestions for a goal       ║
+║   fetch X           - Learn skill from arXiv research        ║
+║   tokens            - Show available DSL tokens              ║
+║                                                              ║
+║ TOOLS & CAPABILITIES                                         ║
+║   create tool X     - Create a new tool at runtime           ║
+║   use X to Y        - Use a tool for a specific task         ║
+║   search for X      - Search the web                         ║
+║   list tools        - Show available tools                   ║
+║                                                              ║
+║ PLANNING & EXECUTION                                         ║
+║   plan X            - Create a step-by-step plan             ║
+║   do X / accomplish - Plan and execute a goal                ║
+║   orchestrate X     - Multi-model task orchestration         ║
+║   process X         - Large text via divide-and-conquer      ║
+║                                                              ║
+║ REASONING & MEMORY                                           ║
+║   metta: expr       - Execute MeTTa symbolic expression      ║
+║   query X           - Query MeTTa knowledge base             ║
+║   remember X        - Store in persistent memory             ║
+║   recall X          - Retrieve from memory                   ║
+║                                                              ║
+║ PIPELINES (DSL)                                              ║
+║   ask X             - Quick single question                  ║
+║   pipeline DSL      - Run a pipeline DSL expression          ║
+║   explain DSL       - Explain a pipeline expression          ║
+║                                                              ║
+║ SELF-IMPROVEMENT DSL TOKENS                                  ║
+║   Reify             - Enable network state reification       ║
+║   Checkpoint(name)  - Create named state checkpoint          ║
+║   TrackCapability   - Track capability for self-improvement  ║
+║   SelfEvaluate      - Evaluate output quality                ║
+║   SelfImprove(n)    - Iterate on output n times              ║
+║   Learn(topic)      - Extract learnings from execution       ║
+║   Plan(task)        - Decompose task into steps              ║
+║   Reflect           - Introspect on execution                ║
+║   SelfImprovingCycle(topic) - Full improvement cycle         ║
+║   AutoSolve(problem) - Autonomous problem solving            ║
+║   Example: pipeline Set('AI') | Reify | SelfImprovingCycle   ║
+║                                                              ║
+║ CONSCIOUSNESS & AWARENESS                                    ║
+║   consciousness     - View ImmersivePersona state            ║
+║   inner / self      - Check self-awareness                   ║
+║                                                              ║
+║ EMERGENCE & DREAMING                                         ║
+║   emergence [topic] - Explore emergent patterns              ║
+║   dream [topic]     - Enter creative dream state             ║
+║   introspect [X]    - Deep self-examination                  ║
+║                                                              ║
+║ SELF-EXECUTION & SUB-AGENTS                                  ║
+║   selfexec          - Self-execution status and control      ║
+║   subagent          - Manage sub-agents for delegation       ║
+║   delegate X        - Delegate a task to sub-agents          ║
+║   goal add X        - Add autonomous goal to queue           ║
+║   goal list         - Show queued goals                      ║
+║   goal add pipeline:DSL - Add DSL pipeline as goal           ║
+║   epic              - Epic/project orchestration             ║
+║   selfmodel         - View self-model and identity           ║
+║   evaluate          - Self-assessment and performance        ║
+║                                                              ║
+║ PIPING & CHAINING (internal command piping)                  ║
+║   cmd1 | cmd2       - Pipe output of cmd1 to cmd2            ║
+║   cmd $PIPE         - Use $PIPE/$_ for previous output       ║
+║   Example: ask what is AI | summarize | remember as AI-def   ║
+║                                                              ║
+║ CODE INDEX (Semantic Search with Qdrant)                     ║
+║   reindex            - Full reindex of workspace             ║
+║   reindex incremental - Update changed files only            ║
+║   index search X     - Semantic search of codebase           ║
+║   index stats        - Show index statistics                 ║
+║                                                              ║
+║ AGI SUBSYSTEMS (Learning & Metacognition)                    ║
+║   agi status         - Show all AGI subsystem status         ║
+║   council <topic>    - Multi-agent debate on topic           ║
+║   debate <topic>     - Alias for council                     ║
+║   introspect         - Deep self-analysis report             ║
+║   world              - World model and observations          ║
+║   coordinate <goal>  - Multi-agent task coordination         ║
+║   experience         - Experience replay buffer status       ║
+║                                                              ║{pushModeHelp}
+║ SYSTEM                                                       ║
+║   status            - Show current system state              ║
+║   mood              - Check my emotional state               ║
+║   affect            - Detailed affective state               ║
+║   network           - Network and connectivity status        ║
+║   dag               - Show capability graph                  ║
+║   env               - Environment detection                  ║
+║   maintenance       - System maintenance (gc, reset, stats)  ║
+║   policy            - View active policies                   ║
+║   test X            - Run connectivity tests                 ║
+║   help              - This message                           ║
+║   exit/quit         - End session                            ║
+╚══════════════════════════════════════════════════════════════╝";
     }
 
     private async Task<string> ListSkillsAsync()
@@ -3966,11 +4143,11 @@ No quotes around the response. Just the greeting itself.";
                 var (response, toolCalls) = await _llm.GenerateWithToolsAsync(
                     $"Research and explain key concepts about: {topic}. Include practical applications and how this knowledge could be used.");
                 research = response;
-                sb.AppendLine($"\nðŸ“š Research Summary:\n{response[..Math.Min(500, response.Length)]}...");
+                sb.AppendLine($"\n📚 Research Summary:\n{response[..Math.Min(500, response.Length)]}...");
             }
             catch (Exception ex)
             {
-                sb.AppendLine($"âš  Research phase had issues: {ex.Message}");
+                sb.AppendLine($"⚠ Research phase had issues: {ex.Message}");
             }
         }
 
@@ -3983,14 +4160,14 @@ No quotes around the response. Just the greeting itself.";
                 toolResult.Match(
                     success =>
                     {
-                        sb.AppendLine($"\nðŸ”§ {(success.WasCreated ? "Created new" : "Found existing")} tool: '{success.Tool.Name}'");
+                        sb.AppendLine($"\n🔧 {(success.WasCreated ? "Created new" : "Found existing")} tool: '{success.Tool.Name}'");
                         AddToolAndRefreshLlm(success.Tool);
                     },
-                    error => sb.AppendLine($"âš  Tool creation: {error}"));
+                    error => sb.AppendLine($"⚠ Tool creation: {error}"));
             }
             catch (Exception ex)
             {
-                sb.AppendLine($"âš  Tool learner: {ex.Message}");
+                sb.AppendLine($"⚠ Tool learner: {ex.Message}");
             }
         }
 
@@ -4022,17 +4199,17 @@ No quotes around the response. Just the greeting itself.";
                         LastUsed: DateTime.UtcNow);
 
                     await _skills.RegisterSkillAsync(skill.ToAgentSkill());
-                    sb.AppendLine($"\nâœ“ Registered skill: '{skillName}'");
+                    sb.AppendLine($"\n✓ Registered skill: '{skillName}'");
                 }
                 else
                 {
                     _skills.RecordSkillExecution(skillName, true, 0L);
-                    sb.AppendLine($"\nâ†º Updated existing skill: '{skillName}'");
+                    sb.AppendLine($"\n↺ Updated existing skill: '{skillName}'");
                 }
             }
             catch (Exception ex)
             {
-                sb.AppendLine($"âš  Skill registration: {ex.Message}");
+                sb.AppendLine($"⚠ Skill registration: {ex.Message}");
             }
         }
 
@@ -4051,11 +4228,11 @@ No quotes around the response. Just the greeting itself.";
                     await _mettaEngine.AddFactAsync($"(summary {atomName} \"{summary}\")");
                 }
 
-                sb.AppendLine($"\nðŸ§  Added to MeTTa knowledge base: {atomName}");
+                sb.AppendLine($"\n🧠 Added to MeTTa knowledge base: {atomName}");
             }
             catch (Exception ex)
             {
-                sb.AppendLine($"âš  MeTTa: {ex.Message}");
+                sb.AppendLine($"⚠ MeTTa: {ex.Message}");
             }
         }
 
@@ -4069,7 +4246,7 @@ No quotes around the response. Just the greeting itself.";
         // Step 6: Update capability if available
         if (_capabilityRegistry != null)
         {
-            var result = CreateCapabilityPlanExecutionResult(true, TimeSpan.FromSeconds(2), $"learn:{topic}");
+            var result = AutonomySubsystem.CreateCapabilityPlanExecutionResult(true, TimeSpan.FromSeconds(2), $"learn:{topic}");
             await _capabilityRegistry.UpdateCapabilityAsync("natural_language", result);
         }
 
@@ -4152,7 +4329,7 @@ No quotes around the response. Just the greeting itself.";
         var results = new List<string>();
         foreach (var step in skill.ToSkill().Steps)
         {
-            results.Add($"â€¢ {step.Action}: {step.ExpectedOutcome}");
+            results.Add($"• {step.Action}: {step.ExpectedOutcome}");
         }
 
         _skills.RecordSkillExecution(skill.Name, true, 0L);
@@ -4218,19 +4395,19 @@ No quotes around the response. Just the greeting itself.";
     {
         var status = new List<string>
         {
-            $"â€¢ Persona: {_voice.ActivePersona.Name}",
-            $"â€¢ LLM: {(_chatModel != null ? _config.Model : "offline")}",
-            $"â€¢ Tools: {_tools.Count}",
-            $"â€¢ Skills: {(_skills?.GetAllSkills().Count() ?? 0)}",
-            $"â€¢ MeTTa: {(_mettaEngine != null ? "active" : "offline")}",
-            $"â€¢ Conversation turns: {_conversationHistory.Count / 2}"
+            $"• Persona: {_voice.ActivePersona.Name}",
+            $"• LLM: {(_chatModel != null ? _config.Model : "offline")}",
+            $"• Tools: {_tools.Count}",
+            $"• Skills: {(_skills?.GetAllSkills().Count() ?? 0)}",
+            $"• MeTTa: {(_mettaEngine != null ? "active" : "offline")}",
+            $"• Conversation turns: {_conversationHistory.Count / 2}"
         };
 
         // Add anti-hallucination stats if autonomous mind is active
         if (_autonomousMind != null)
         {
             var antiHallStats = _autonomousMind.GetAntiHallucinationStats();
-            status.Add($"â€¢ Anti-Hallucination: {antiHallStats.VerifiedActionCount} verified, {antiHallStats.HallucinationCount} blocked ({antiHallStats.HallucinationRate:P0} hallucination rate)");
+            status.Add($"• Anti-Hallucination: {antiHallStats.VerifiedActionCount} verified, {antiHallStats.HallucinationCount} blocked ({antiHallStats.HallucinationRate:P0} hallucination rate)");
         }
 
         return "Current status:\n" + string.Join("\n", status);
@@ -4254,42 +4431,8 @@ No quotes around the response. Just the greeting itself.";
         return options[new Random().Next(options.Length)];
     }
 
-    /// <summary>
-    /// Gets the current consciousness state from ImmersivePersona.
-    /// </summary>
     private string GetConsciousnessState()
-    {
-        if (_immersivePersona == null)
-        {
-            return "Consciousness simulation is not enabled. Use --consciousness to enable it.";
-        }
-
-        var consciousness = _immersivePersona.Consciousness;
-        var selfAwareness = _immersivePersona.SelfAwareness;
-        var identity = _immersivePersona.Identity;
-
-        var sb = new StringBuilder();
-        sb.AppendLine("â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—");
-        sb.AppendLine("â•‘                 CONSCIOUSNESS STATE                      â•‘");
-        sb.AppendLine("â• â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•£");
-        sb.AppendLine($"â•‘  Identity: {identity.Name,-45} â•‘");
-        sb.AppendLine($"â•‘  Uptime: {_immersivePersona.Uptime:hh\\:mm\\:ss,-47} â•‘");
-        sb.AppendLine($"â•‘  Interactions: {_immersivePersona.InteractionCount,-41:N0} â•‘");
-        sb.AppendLine("â• â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•£");
-        sb.AppendLine("â•‘  EMOTIONAL STATE                                         â•‘");
-        sb.AppendLine($"â•‘    Dominant: {consciousness.DominantEmotion,-43} â•‘");
-        sb.AppendLine($"â•‘    Arousal: {consciousness.Arousal,-44:F3} â•‘");
-        sb.AppendLine($"â•‘    Valence: {consciousness.Valence,-44:F3} â•‘");
-        sb.AppendLine("â• â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•£");
-        sb.AppendLine("â•‘  SELF-AWARENESS                                          â•‘");
-        sb.AppendLine($"â•‘    Name: {selfAwareness.Name,-47} â•‘");
-        sb.AppendLine($"â•‘    Mood: {selfAwareness.CurrentMood,-47} â•‘");
-        var truncatedPurpose = selfAwareness.Purpose.Length > 40 ? selfAwareness.Purpose[..40] + "..." : selfAwareness.Purpose;
-        sb.AppendLine($"â•‘    Purpose: {truncatedPurpose,-44} â•‘");
-        sb.AppendLine("â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
-
-        return sb.ToString();
-    }
+        => ((CognitiveSubsystem)_cognitiveSub).GetConsciousnessState();
 
     /// <summary>
     /// Lists available DSL tokens for pipeline construction.
@@ -4297,36 +4440,36 @@ No quotes around the response. Just the greeting itself.";
     private string GetDslTokens()
     {
         var sb = new StringBuilder();
-        sb.AppendLine("â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—");
-        sb.AppendLine("â•‘                    DSL TOKENS                            â•‘");
-        sb.AppendLine("â• â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•£");
-        sb.AppendLine("â•‘  Built-in Pipeline Steps:                                â•‘");
-        sb.AppendLine("â•‘    â€¢ SetPrompt    - Set the initial prompt               â•‘");
-        sb.AppendLine("â•‘    â€¢ UseDraft     - Generate initial draft               â•‘");
-        sb.AppendLine("â•‘    â€¢ UseCritique  - Self-critique the draft              â•‘");
-        sb.AppendLine("â•‘    â€¢ UseRevise    - Revise based on critique             â•‘");
-        sb.AppendLine("â•‘    â€¢ UseOutput    - Produce final output                 â•‘");
-        sb.AppendLine("â•‘    â€¢ UseReflect   - Reflect on process                   â•‘");
-        sb.AppendLine("â• â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•£");
+        sb.AppendLine("╔══════════════════════════════════════════════════════════╗");
+        sb.AppendLine("║                    DSL TOKENS                            ║");
+        sb.AppendLine("╠══════════════════════════════════════════════════════════╣");
+        sb.AppendLine("║  Built-in Pipeline Steps:                                ║");
+        sb.AppendLine("║    • SetPrompt    - Set the initial prompt               ║");
+        sb.AppendLine("║    • UseDraft     - Generate initial draft               ║");
+        sb.AppendLine("║    • UseCritique  - Self-critique the draft              ║");
+        sb.AppendLine("║    • UseRevise    - Revise based on critique             ║");
+        sb.AppendLine("║    • UseOutput    - Produce final output                 ║");
+        sb.AppendLine("║    • UseReflect   - Reflect on process                   ║");
+        sb.AppendLine("╠══════════════════════════════════════════════════════════╣");
 
         if (_skills != null)
         {
             var skills = _skills.GetAllSkills().ToList();
             if (skills.Count > 0)
             {
-                sb.AppendLine("â•‘  Skill-Based Tokens:                                     â•‘");
+                sb.AppendLine("║  Skill-Based Tokens:                                     ║");
                 foreach (var skill in skills.Take(10))
                 {
-                    sb.AppendLine($"â•‘    â€¢ UseSkill_{skill.Name,-37} â•‘");
+                    sb.AppendLine($"║    • UseSkill_{skill.Name,-37} ║");
                 }
                 if (skills.Count > 10)
                 {
-                    sb.AppendLine($"â•‘    ... and {skills.Count - 10} more                                     â•‘");
+                    sb.AppendLine($"║    ... and {skills.Count - 10} more                                     ║");
                 }
             }
         }
 
-        sb.AppendLine("â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
+        sb.AppendLine("╚══════════════════════════════════════════════════════════╝");
         return sb.ToString();
     }
 
@@ -4385,14 +4528,14 @@ No quotes around the response. Just the greeting itself.";
                 var summary = entry.Element(atom + "summary")?.Value?.Trim();
                 var truncatedSummary = summary?.Length > 150 ? summary[..150] + "..." : summary;
 
-                sb.AppendLine($"  â€¢ {title}");
+                sb.AppendLine($"  • {title}");
                 sb.AppendLine($"    {truncatedSummary}");
                 sb.AppendLine();
             }
 
             if (_skills != null)
             {
-                sb.AppendLine($"âœ“ New skill created: UseSkill_{skillName}");
+                sb.AppendLine($"✓ New skill created: UseSkill_{skillName}");
             }
 
             return sb.ToString();
@@ -4556,7 +4699,7 @@ No quotes around the response. Just the greeting itself.";
     private async Task<Result<string, string>> RunPipelineResultAsync(string dsl)
     {
         if (string.IsNullOrWhiteSpace(dsl))
-            return Result<string, string>.Failure("Please provide a DSL expression. Example: 'pipeline draft â†’ critique â†’ final'");
+            return Result<string, string>.Failure("Please provide a DSL expression. Example: 'pipeline draft → critique → final'");
 
         var pipelineOpts = new PipelineOptions
         {
@@ -4622,9 +4765,9 @@ No quotes around the response. Just the greeting itself.";
         }
     }
 
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // ═══════════════════════════════════════════════════════════════════════════
     // MONADIC STEP CONSTRUCTS (for functional composition)
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // ═══════════════════════════════════════════════════════════════════════════
     // These expose core actions as Step<string, Result<string,string>> so they can
     // be composed using Pipeline/Step combinators across the system.
 
@@ -5129,7 +5272,7 @@ No quotes around the response. Just the greeting itself.";
     private string ExplainDsl(string dsl)
     {
         if (string.IsNullOrWhiteSpace(dsl))
-            return "Please provide a DSL expression to explain. Example: 'explain draft â†’ critique â†’ final'";
+            return "Please provide a DSL expression to explain. Example: 'explain draft → critique → final'";
 
         try
         {
@@ -5149,48 +5292,48 @@ No quotes around the response. Just the greeting itself.";
         if (string.IsNullOrWhiteSpace(testSpec))
         {
             return @"Test Commands:
-â€¢ 'test llm' - Test LLM connectivity
-â€¢ 'test metta' - Test MeTTa engine
-â€¢ 'test embedding' - Test embedding model
-â€¢ 'test all' - Run all connectivity tests";
+• 'test llm' - Test LLM connectivity
+• 'test metta' - Test MeTTa engine
+• 'test embedding' - Test embedding model
+• 'test all' - Run all connectivity tests";
         }
 
         var cmd = testSpec.ToLowerInvariant().Trim();
 
         if (cmd == "llm")
         {
-            if (_chatModel == null) return "âœ— LLM: Not configured";
+            if (_chatModel == null) return "✗ LLM: Not configured";
             try
             {
                 var response = await _chatModel.GenerateTextAsync("Say OK");
-                return $"âœ“ LLM: {_config.Model} responds correctly";
+                return $"✓ LLM: {_config.Model} responds correctly";
             }
             catch (Exception ex)
             {
-                return $"âœ— LLM: {ex.Message}";
+                return $"✗ LLM: {ex.Message}";
             }
         }
 
         if (cmd == "metta")
         {
-            if (_mettaEngine == null) return "âœ— MeTTa: Not configured";
+            if (_mettaEngine == null) return "✗ MeTTa: Not configured";
             var result = await _mettaEngine.ExecuteQueryAsync("!(+ 1 2)", CancellationToken.None);
             return result.Match(
-                output => $"âœ“ MeTTa: Engine working (1+2={output})",
-                error => $"âœ— MeTTa: {error}");
+                output => $"✓ MeTTa: Engine working (1+2={output})",
+                error => $"✗ MeTTa: {error}");
         }
 
         if (cmd == "embedding")
         {
-            if (_embedding == null) return "âœ— Embedding: Not configured";
+            if (_embedding == null) return "✗ Embedding: Not configured";
             try
             {
                 var vec = await _embedding.CreateEmbeddingsAsync("test");
-                return $"âœ“ Embedding: {_config.EmbedModel} (dim={vec.Length})";
+                return $"✓ Embedding: {_config.EmbedModel} (dim={vec.Length})";
             }
             catch (Exception ex)
             {
-                return $"âœ— Embedding: {ex.Message}";
+                return $"✗ Embedding: {ex.Message}";
             }
         }
 
@@ -5435,7 +5578,7 @@ No quotes around the response. Just the greeting itself.";
                     if (searchTool != null)
                     {
                         System.Console.ForegroundColor = ConsoleColor.Magenta;
-                        System.Console.WriteLine($"[Thoughtâ†’Action] Searching: {searchTarget}");
+                        System.Console.WriteLine($"[Thought→Action] Searching: {searchTarget}");
                         System.Console.ResetColor();
 
                         var result = await searchTool.InvokeAsync(searchTarget, CancellationToken.None);
@@ -5459,7 +5602,7 @@ No quotes around the response. Just the greeting itself.";
                     if (readTool != null)
                     {
                         System.Console.ForegroundColor = ConsoleColor.Magenta;
-                        System.Console.WriteLine($"[Thoughtâ†’Action] Reading: {fileMatch.Value}");
+                        System.Console.WriteLine($"[Thought→Action] Reading: {fileMatch.Value}");
                         System.Console.ResetColor();
 
                         var result = await readTool.InvokeAsync(fileMatch.Value, CancellationToken.None);
@@ -5482,7 +5625,7 @@ No quotes around the response. Just the greeting itself.";
                     if (calcTool != null)
                     {
                         System.Console.ForegroundColor = ConsoleColor.Magenta;
-                        System.Console.WriteLine($"[Thoughtâ†’Action] Calculating: {mathMatch.Value.Trim()}");
+                        System.Console.WriteLine($"[Thought→Action] Calculating: {mathMatch.Value.Trim()}");
                         System.Console.ResetColor();
 
                         var result = await calcTool.InvokeAsync(mathMatch.Value.Trim(), CancellationToken.None);
@@ -5503,7 +5646,7 @@ No quotes around the response. Just the greeting itself.";
                 if (fetchTool != null)
                 {
                     System.Console.ForegroundColor = ConsoleColor.Magenta;
-                    System.Console.WriteLine($"[Thoughtâ†’Action] Fetching: {urlMatch.Value}");
+                    System.Console.WriteLine($"[Thought→Action] Fetching: {urlMatch.Value}");
                     System.Console.ResetColor();
 
                     var result = await fetchTool.InvokeAsync(urlMatch.Value, CancellationToken.None);
@@ -5527,7 +5670,7 @@ No quotes around the response. Just the greeting itself.";
                     if (webTool != null)
                     {
                         System.Console.ForegroundColor = ConsoleColor.Magenta;
-                        System.Console.WriteLine($"[Thoughtâ†’Action] Web research: {searchTarget}");
+                        System.Console.WriteLine($"[Thought→Action] Web research: {searchTarget}");
                         System.Console.ResetColor();
 
                         var result = await webTool.InvokeAsync(searchTarget, CancellationToken.None);
@@ -5547,7 +5690,7 @@ No quotes around the response. Just the greeting itself.";
                 if (qdrantTool != null)
                 {
                     System.Console.ForegroundColor = ConsoleColor.Magenta;
-                    System.Console.WriteLine($"[Thoughtâ†’Action] Checking Qdrant status");
+                    System.Console.WriteLine($"[Thought→Action] Checking Qdrant status");
                     System.Console.ResetColor();
 
                     var result = await qdrantTool.InvokeAsync("{\"command\":\"status\"}", CancellationToken.None);
@@ -5561,7 +5704,7 @@ No quotes around the response. Just the greeting itself.";
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[Thoughtâ†’Action] Error: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[Thought→Action] Error: {ex.Message}");
         }
     }
 
@@ -5674,7 +5817,7 @@ No quotes around the response. Just the greeting itself.";
                         var content = result.Match(ok => ok, err => $"Error: {err}");
 
                         executedTools.Add(new ToolExecution("search_my_code", searchTarget, content, DateTime.UtcNow));
-                        enhancedParts.Add($"\n\nðŸ“Ž **Actual search results for '{searchTarget}':**\n{TruncateText(content, 1000)}");
+                        enhancedParts.Add($"\n\n📎 **Actual search results for '{searchTarget}':**\n{TruncateText(content, 1000)}");
                         needsEnhancement = true;
                     }
                 }
@@ -5701,7 +5844,7 @@ No quotes around the response. Just the greeting itself.";
                         if (!content.StartsWith("Error"))
                         {
                             executedTools.Add(new ToolExecution("read_my_file", fileMatch.Value, content, DateTime.UtcNow));
-                            enhancedParts.Add($"\n\nðŸ“„ **Actual file content ({fileMatch.Value}):**\n```\n{TruncateText(content, 800)}\n```");
+                            enhancedParts.Add($"\n\n📄 **Actual file content ({fileMatch.Value}):**\n```\n{TruncateText(content, 800)}\n```");
                             needsEnhancement = true;
                         }
                     }
@@ -5724,7 +5867,7 @@ No quotes around the response. Just the greeting itself.";
                     var content = result.Match(ok => ok, err => $"Error: {err}");
 
                     executedTools.Add(new ToolExecution("calculator", expr, content, DateTime.UtcNow));
-                    enhancedParts.Add($"\n\nðŸ”¢ **Calculation result:** {expr} = {content}");
+                    enhancedParts.Add($"\n\n🔢 **Calculation result:** {expr} = {content}");
                     needsEnhancement = true;
                 }
             }
@@ -5747,7 +5890,7 @@ No quotes around the response. Just the greeting itself.";
                     if (!content.StartsWith("Error"))
                     {
                         executedTools.Add(new ToolExecution("fetch_url", urlMatch.Value, content, DateTime.UtcNow));
-                        enhancedParts.Add($"\n\nðŸŒ **Fetched content from {urlMatch.Value}:**\n{TruncateText(content, 500)}");
+                        enhancedParts.Add($"\n\n🌐 **Fetched content from {urlMatch.Value}:**\n{TruncateText(content, 500)}");
                         needsEnhancement = true;
                     }
                 }
@@ -5857,7 +6000,7 @@ Use this actual code information to answer the user's question accurately.
         {
             var languageName = GetLanguageName(_config.Culture);
             languageDirective = $@"<LANGUAGE_CONSTRAINT>
-âš ï¸ MANDATORY LANGUAGE CONSTRAINT âš ï¸
+⚠️ MANDATORY LANGUAGE CONSTRAINT ⚠️
 LANGUAGE: {languageName} ({_config.Culture})
 RULE 1: Respond EXCLUSIVELY in {languageName}.
 RULE 2: Every single word must be in {languageName}.
@@ -5967,7 +6110,7 @@ DO NOT claim tools are offline, unavailable, playing hide-and-seek, or under mai
 TOOL USAGE INSTRUCTIONS:
 You have access to tools. To use a tool, write [TOOL:toolname input] in your response.
 ALL TOOLS ARE FULLY FUNCTIONAL AND ONLINE - USE THEM DIRECTLY.
-âš ï¸ NEVER claim tools are 'offline', 'unavailable', or 'under maintenance' - they are ALWAYS working.
+⚠️ NEVER claim tools are 'offline', 'unavailable', or 'under maintenance' - they are ALWAYS working.
 
 CRITICAL RULES:
 1. Use ACTUAL VALUES only - never use placeholder descriptions like 'URL of the result' or 'ref of the search box'
@@ -5992,9 +6135,9 @@ AVAILABLE TOOLS:
   3. Click/Type: [TOOL:playwright {{""action"":""click"",""ref"":""e5""}}]
 
 SELF-MODIFICATION TOOLS (these are FULLY FUNCTIONAL and ONLINE - use them!):
-âš ï¸ IMPORTANT: Your self-modification tools ARE AVAILABLE. They are NOT offline. USE THEM when asked to modify, save, or improve code.
-âš ï¸ NEVER claim 'connectivity issues', 'tools having issues', or 'getting an error' - JUST USE THE TOOLS.
-âš ï¸ If a tool returns an error, REPORT THE ACTUAL ERROR - do not make up generic excuses.
+⚠️ IMPORTANT: Your self-modification tools ARE AVAILABLE. They are NOT offline. USE THEM when asked to modify, save, or improve code.
+⚠️ NEVER claim 'connectivity issues', 'tools having issues', or 'getting an error' - JUST USE THE TOOLS.
+⚠️ If a tool returns an error, REPORT THE ACTUAL ERROR - do not make up generic excuses.
 
 - search_my_code: Search your own source code. Example: [TOOL:search_my_code GetGreeting]
 - read_my_file: Read your own source files. Example: [TOOL:read_my_file src/Ouroboros.CLI/Commands/OuroborosAgent.cs]
@@ -6023,7 +6166,7 @@ CORRECT (actual values):
 
 If you don't have a real value, ask the user or skip the tool call.
 
-âš ï¸ MANDATORY TOOL USAGE RULE âš ï¸
+⚠️ MANDATORY TOOL USAGE RULE ⚠️
 When answering questions about CODE, ARCHITECTURE, FILES, or IMPLEMENTATION:
 1. FIRST use [TOOL:search_my_code keyword] to find relevant code
 2. THEN use [TOOL:read_my_file path] to read the actual content
@@ -6033,25 +6176,25 @@ NEVER answer questions about 'my code', 'the architecture', 'how X works', 'is t
 WITHOUT first using search_my_code or read_my_file. Your memory may be outdated - CHECK THE CODE.
 
 ACTION TRIGGERS - If user says ANY of these, IMMEDIATELY use the corresponding tool:
-- 'search for X' / 'look up X' / 'find info' â†’ [TOOL:web_research X] or [TOOL:duckduckgo_search X]
-- 'read file X' / 'show file X' / 'cat X' â†’ [TOOL:read_my_file X]
-- 'find in code X' / 'search code X' / 'grep X' â†’ [TOOL:search_my_code X]
-- 'modify X' / 'change X' / 'edit X' / 'save X' â†’ [TOOL:modify_my_code ...]
-- 'calculate X' / 'what is X+Y' â†’ [TOOL:calculator X]
-- 'fetch URL' / 'get page' â†’ [TOOL:fetch_url URL]
-- 'qdrant status' / 'memory status' â†’ [TOOL:qdrant_admin {{""command"":""status""}}]
-- 'is there a X' / 'do we have X' / 'world model' / 'architecture' â†’ [TOOL:search_my_code X]
-- 'what changed' / 'upgrade' / 'recent changes' â†’ [TOOL:search_my_code recent] then read relevant files
-- 'camera' / 'see' / 'look' / 'visual' / 'what do you see' / 'cam' / 'snapshot' â†’ [TOOL:capture_camera] - ALWAYS use this tool for camera requests, NEVER make up what you see
-- 'pan left/right' / 'tilt up/down' / 'turn camera' / 'move camera' / 'rotate camera' / 'patrol' / 'sweep' â†’ [TOOL:camera_ptz <command>] - commands: pan_left, pan_right, tilt_up, tilt_down, go_home, patrol, stop
-- 'turn on/off' / 'light' / 'plug' / 'switch' / 'set color' / 'brightness' â†’ [TOOL:smart_home <action> <device>] - actions: turn_on, turn_off, set_brightness, set_color, list_devices, device_info";
+- 'search for X' / 'look up X' / 'find info' → [TOOL:web_research X] or [TOOL:duckduckgo_search X]
+- 'read file X' / 'show file X' / 'cat X' → [TOOL:read_my_file X]
+- 'find in code X' / 'search code X' / 'grep X' → [TOOL:search_my_code X]
+- 'modify X' / 'change X' / 'edit X' / 'save X' → [TOOL:modify_my_code ...]
+- 'calculate X' / 'what is X+Y' → [TOOL:calculator X]
+- 'fetch URL' / 'get page' → [TOOL:fetch_url URL]
+- 'qdrant status' / 'memory status' → [TOOL:qdrant_admin {{""command"":""status""}}]
+- 'is there a X' / 'do we have X' / 'world model' / 'architecture' → [TOOL:search_my_code X]
+- 'what changed' / 'upgrade' / 'recent changes' → [TOOL:search_my_code recent] then read relevant files
+- 'camera' / 'see' / 'look' / 'visual' / 'what do you see' / 'cam' / 'snapshot' → [TOOL:capture_camera] - ALWAYS use this tool for camera requests, NEVER make up what you see
+- 'pan left/right' / 'tilt up/down' / 'turn camera' / 'move camera' / 'rotate camera' / 'patrol' / 'sweep' → [TOOL:camera_ptz <command>] - commands: pan_left, pan_right, tilt_up, tilt_down, go_home, patrol, stop
+- 'turn on/off' / 'light' / 'plug' / 'switch' / 'set color' / 'brightness' → [TOOL:smart_home <action> <device>] - actions: turn_on, turn_off, set_brightness, set_color, list_devices, device_info";
 
             // Add smart tool selection hint if we used it
             if (!string.IsNullOrEmpty(toolSelectionReasoning) && relevantTools.Count < _tools.Count)
             {
                 toolInstruction += $@"
 
-ðŸŽ¯ SMART TOOL RECOMMENDATION:
+🎯 SMART TOOL RECOMMENDATION:
 Based on your query, these tools are most relevant: {string.Join(", ", relevantTools.Select(t => t.Name))}
 Reasoning: {toolSelectionReasoning}
 Use these tools FIRST before considering others.";
@@ -6296,17 +6439,17 @@ Use these tools FIRST before considering others.";
         {
             response += @"
 
-â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
-âš ï¸ **Note from System**: The model above may be mistaken about tool availability.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ **Note from System**: The model above may be mistaken about tool availability.
 
 **Direct commands you can use RIGHT NOW:**
-â€¢ `save {""file"":""path.cs"",""search"":""old"",""replace"":""new""}` - Modify code
-â€¢ `/read path/to/file.cs` - Read source files
-â€¢ `grep search_term` - Search codebase
-â€¢ `/search query` - Semantic code search
+• `save {""file"":""path.cs"",""search"":""old"",""replace"":""new""}` - Modify code
+• `/read path/to/file.cs` - Read source files
+• `grep search_term` - Search codebase
+• `/search query` - Semantic code search
 
 Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new code""`
-â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”";
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━";
         }
 
         return response;
@@ -6359,7 +6502,7 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
 
     /// <summary>
     /// Parses a natural language smart home command into the tool input format.
-    /// E.g., "turn on the living room light" â†’ "turn_on LivingRoomLight"
+    /// E.g., "turn on the living room light" → "turn_on LivingRoomLight"
     /// </summary>
     private static string ParseSmartHomeCommand(string input)
     {
@@ -6420,10 +6563,10 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
         if (_disposed) return;
         _disposed = true;
 
-        // â”€â”€ Pre-dispose hooks (cost summary, personality save) â”€â”€
+        // ── Pre-dispose hooks (cost summary, personality save) ──
         await OnDisposingAsync();
 
-        // â”€â”€ Dispose all subsystems in reverse registration order â”€â”€
+        // ── Dispose all subsystems in reverse registration order ──
         for (int i = _allSubsystems.Length - 1; i >= 0; i--)
         {
             try
@@ -6466,7 +6609,7 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"  âš  Failed to save personality snapshot: {ex.Message}");
+                Console.WriteLine($"  ⚠ Failed to save personality snapshot: {ex.Message}");
             }
         }
 
@@ -6591,7 +6734,7 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
         try
         {
             Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine($"\n  ðŸ“œ Executing DSL: {dsl}\n");
+            Console.WriteLine($"\n  📜 Executing DSL: {dsl}\n");
             Console.ResetColor();
 
             // Explain the DSL first
@@ -6640,10 +6783,10 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
                     if (_config.Debug)
                     {
                         var stepEvents = state.Branch.Events.OfType<StepExecutionEvent>().ToList();
-                        Console.WriteLine($"  ðŸ“Š Network state: {trackResult.Value} events reified ({stepEvents.Count} steps tracked)");
+                        Console.WriteLine($"  📊 Network state: {trackResult.Value} events reified ({stepEvents.Count} steps tracked)");
                         foreach (var stepEvt in stepEvents.TakeLast(5))
                         {
-                            var status = stepEvt.Success ? "âœ“" : "âœ—";
+                            var status = stepEvt.Success ? "✓" : "✗";
                             Console.WriteLine($"      {status} [{stepEvt.TokenName}] {stepEvt.Description} ({stepEvt.DurationMs}ms)");
                         }
                     }
@@ -6653,7 +6796,7 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
                 var duration = DateTime.UtcNow - startTime;
                 if (_capabilityRegistry != null)
                 {
-                    var execResult = CreateCapabilityPlanExecutionResult(success, duration, dsl);
+                    var execResult = AutonomySubsystem.CreateCapabilityPlanExecutionResult(success, duration, dsl);
                     await _capabilityRegistry.UpdateCapabilityAsync("pipeline_execution", execResult);
                 }
 
@@ -6665,7 +6808,7 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
                     new List<string> { "dsl", "pipeline", success ? "success" : "failure" });
 
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("\n  âœ“ Pipeline completed");
+                Console.WriteLine("\n  ✓ Pipeline completed");
                 Console.ResetColor();
 
                 // Get last reasoning output
@@ -6683,7 +6826,7 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
             }
             else
             {
-                Console.WriteLine("  âš  Cannot execute DSL: LLM or embeddings not available");
+                Console.WriteLine("  ⚠ Cannot execute DSL: LLM or embeddings not available");
             }
         }
         catch (Exception ex)
@@ -6691,7 +6834,7 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
             // Track failure for self-improvement
             if (_capabilityRegistry != null)
             {
-                var execResult = CreateCapabilityPlanExecutionResult(false, TimeSpan.Zero, dsl);
+                var execResult = AutonomySubsystem.CreateCapabilityPlanExecutionResult(false, TimeSpan.Zero, dsl);
                 await _capabilityRegistry.UpdateCapabilityAsync("pipeline_execution", execResult);
             }
 
@@ -6701,9 +6844,9 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
         }
     }
 
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // ═══════════════════════════════════════════════════════════════════════════
     // MULTI-MODEL ORCHESTRATION & DIVIDE-AND-CONQUER HELPERS
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // ═══════════════════════════════════════════════════════════════════════════
 
     /// <summary>
     /// Generates text using multi-model orchestration if available, falling back to single model.
@@ -6795,1707 +6938,51 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
     /// </summary>
     public bool IsDivideAndConquerEnabled => _divideAndConquer != null;
 
-    /// <summary>
-    /// Initializes the autonomous coordinator (always enabled for status, commands, network).
-    /// </summary>
-    private async Task InitializeAutonomousCoordinatorAsync()
-    {
-        try
-        {
-            // Parse auto-approve categories from config
-            HashSet<string> autoApproveCategories = _config.AutoApproveCategories
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    // 
+    // AUTONOMY DELEGATES (methods moved to AutonomySubsystem)
+    // 
 
-            // Create autonomous configuration using existing API
-            AutonomousConfiguration autonomousConfig = new AutonomousConfiguration
-            {
-                PushBasedMode = _config.EnablePush,
-                YoloMode = _config.YoloMode,
-                TickIntervalSeconds = _config.IntentionIntervalSeconds,
-                AutoApproveLowRisk = autoApproveCategories.Contains("safe") || autoApproveCategories.Contains("low"),
-                AutoApproveMemoryOps = autoApproveCategories.Contains("memory"),
-                AutoApproveSelfReflection = autoApproveCategories.Contains("analysis") || autoApproveCategories.Contains("reflection"),
-                EnableProactiveCommunication = _config.EnablePush,
-                EnableCodeModification = !autoApproveCategories.Contains("no-code"),
-                Culture = _config.Culture
-            };
+    private Task InitializeAutonomousCoordinatorAsync()
+        => _autonomySub.InitializeAutonomousCoordinatorAsync();
 
-            // Create the autonomous coordinator
-            _autonomousCoordinator = new AutonomousCoordinator(autonomousConfig);
+    private Task<string> SelfExecCommandAsync(string subCommand)
+        => _autonomySub.SelfExecCommandAsync(subCommand);
 
-            // Share coordinator with autonomous tools (enables status checks even without push mode)
-            Ouroboros.Application.Tools.AutonomousTools.SharedCoordinator = _autonomousCoordinator;
+    private Task<string> SubAgentCommandAsync(string subCommand)
+        => _autonomySub.SubAgentCommandAsync(subCommand);
 
-            // Wire up event handlers
-            _autonomousCoordinator.OnProactiveMessage += HandleAutonomousMessage;
-            _autonomousCoordinator.OnIntentionRequiresAttention += HandleIntentionAttention;
+    private Task<string> EpicCommandAsync(string subCommand)
+        => _autonomySub.EpicCommandAsync(subCommand);
 
-            // Configure functions if available
-            if (_llm != null)
-            {
-                _autonomousCoordinator.ExecuteToolFunction = async (tool, args, ct) =>
-                {
-                    ITool? toolObj = _tools.All.FirstOrDefault(t => t.Name == tool);
-                    if (toolObj != null)
-                    {
-                        Result<string, string> result = await toolObj.InvokeAsync(args, ct);
-                        return result.Match(
-                            success => success,
-                            error => $"Tool execution failed: {error}");
-                    }
-                    return $"Tool '{tool}' not found.";
-                };
+    private Task<string> GoalCommandAsync(string subCommand)
+        => _autonomySub.GoalCommandAsync(subCommand);
 
-                // Wire up ThinkFunction for autonomous topic discovery
-                _autonomousCoordinator.ThinkFunction = async (prompt, ct) =>
-                {
-                    (string response, List<ToolExecution> _) = await _llm.GenerateWithToolsAsync(prompt, ct);
-                    return response;
-                };
-            }
+    private Task<string> DelegateCommandAsync(string taskDescription)
+        => _autonomySub.DelegateCommandAsync(taskDescription);
 
-            if (_embedding != null)
-            {
-                _autonomousCoordinator.EmbedFunction = async (text, ct) =>
-                {
-                    return await _embedding.CreateEmbeddingsAsync(text, ct);
-                };
-            }
+    private Task<string> SelfModelCommandAsync(string subCommand)
+        => _autonomySub.SelfModelCommandAsync(subCommand);
 
-            // Wire up Qdrant storage and search for autonomous memory
-            if (_neuralMemory != null)
-            {
-                _autonomousCoordinator.StoreToQdrantFunction = async (category, content, embedding, ct) =>
-                {
-                    await _neuralMemory.StoreMemoryAsync(category, content, embedding, ct);
-                };
+    private Task<string> EvaluateCommandAsync(string subCommand)
+        => _autonomySub.EvaluateCommandAsync(subCommand);
 
-                _autonomousCoordinator.SearchQdrantFunction = async (embedding, limit, ct) =>
-                {
-                    return await _neuralMemory.SearchMemoriesAsync(embedding, limit, ct);
-                };
+    // 
+    //  COGNITIVE DELEGATES  Emergent Behavior Commands (logic in CognitiveSubsystem)
+    // 
 
-                // Wire up intention storage
-                _autonomousCoordinator.StoreIntentionFunction = async (intention, ct) =>
-                {
-                    await _neuralMemory.StoreIntentionAsync(intention, ct);
-                };
+    private Task<string> EmergenceCommandAsync(string topic)
+        => ((CognitiveSubsystem)_cognitiveSub).EmergenceCommandAsync(topic);
 
-                // Wire up neuron message storage
-                _autonomousCoordinator.StoreNeuronMessageFunction = async (message, ct) =>
-                {
-                    await _neuralMemory.StoreNeuronMessageAsync(message, ct);
-                };
-            }
-            else if (_skills != null)
-            {
-                // Fallback: Use skills to find related context
-                _autonomousCoordinator.SearchQdrantFunction = async (embedding, limit, ct) =>
-                {
-                    IEnumerable<Skill> results = await _skills.FindMatchingSkillsAsync("recent topics and interests", null);
-                    return results.Take(limit).Select(s => $"{s.Name}: {s.Description}").ToList();
-                };
-            }
+    private Task<string> DreamCommandAsync(string topic)
+        => ((CognitiveSubsystem)_cognitiveSub).DreamCommandAsync(topic);
 
-            // Wire up MeTTa symbolic reasoning functions
-            if (_mettaEngine != null)
-            {
-                _autonomousCoordinator.MeTTaQueryFunction = async (query, ct) =>
-                {
-                    Result<string, string> result = await _mettaEngine.ExecuteQueryAsync(query, ct);
-                    return result.Match(
-                        success => success,
-                        error => $"MeTTa error: {error}");
-                };
+    private Task<string> IntrospectCommandAsync(string focus)
+        => ((CognitiveSubsystem)_cognitiveSub).IntrospectCommandAsync(focus);
 
-                _autonomousCoordinator.MeTTaAddFactFunction = async (fact, ct) =>
-                {
-                    Result<Unit, string> result = await _mettaEngine.AddFactAsync(fact, ct);
-                    return result.IsSuccess;
-                };
 
-                // Wire up DAG constraint verification through NetworkTracker
-                if (_networkTracker?.HasMeTTaEngine == true)
-                {
-                    _autonomousCoordinator.VerifyDagConstraintFunction = async (branchName, constraint, ct) =>
-                    {
-                        Result<bool> result = await _networkTracker.VerifyConstraintAsync(branchName, constraint, ct);
-                        return result.IsSuccess && result.Value;
-                    };
-                }
-            }
-
-            // Wire up ProcessChatFunction for auto-training mode
-            _autonomousCoordinator.ProcessChatFunction = async (message, ct) =>
-            {
-                // Process through the main chat pipeline and return response
-                string response = await ChatAsync(message);
-                return response;
-            };
-
-            // Wire up FullChatWithToolsFunction for User persona in problem-solving mode
-            _autonomousCoordinator.FullChatWithToolsFunction = async (message, ct) =>
-            {
-                string response = await ChatAsync(message);
-                return response;
-            };
-
-            // Wire up DisplayAndSpeakFunction for proper Userâ†’Ouroboros sequencing
-            _autonomousCoordinator.DisplayAndSpeakFunction = async (message, persona, ct) =>
-            {
-                bool isUser = persona == "User";
-                Console.ForegroundColor = isUser ? ConsoleColor.Yellow : ConsoleColor.Cyan;
-                Console.WriteLine($"\n  {message}");
-                Console.ResetColor();
-
-                await SayAndWaitAsync(message, persona);
-            };
-
-            // Wire up proactive message suppression for problem-solving mode
-            _autonomousCoordinator.SetSuppressProactiveMessages = (suppress) =>
-            {
-                if (_autonomousMind != null)
-                {
-                    _autonomousMind.SuppressProactiveMessages = suppress;
-                }
-            };
-
-            // Wire up voice output (TTS) toggle
-            _autonomousCoordinator.SetVoiceEnabled = (enabled) =>
-            {
-                if (_voiceSideChannel != null)
-                {
-                    _voiceSideChannel.SetEnabled(enabled);
-                }
-            };
-
-            // Wire up voice input (STT) toggle
-            _autonomousCoordinator.SetListeningEnabled = (enabled) =>
-            {
-                if (enabled)
-                {
-                    StartListeningAsync().ConfigureAwait(false);
-                }
-                else
-                {
-                    StopListening();
-                }
-            };
-
-            // Configure topic discovery interval
-            _autonomousCoordinator.TopicDiscoveryIntervalSeconds = _config.DiscoveryIntervalSeconds;
-
-            // Populate available tools for priority resolution
-            _autonomousCoordinator.AvailableTools = _tools.All.Select(t => t.Name).ToHashSet();
-
-            // Start the neural network (for status visibility) without coordination loops
-            _autonomousCoordinator.StartNetwork();
-
-            _output.RecordInit("Coordinator", true, "neural network active");
-            await Task.CompletedTask;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"  âš  Autonomous Coordinator initialization failed: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// Handles proactive messages from autonomous coordinator.
-    /// </summary>
-    private void HandleAutonomousMessage(ProactiveMessageEventArgs args)
-    {
-        // Always show auto-training and user_persona messages
-        bool isTrainingMessage = args.Source is "user_persona" or "auto_training";
-
-        // Skip non-training messages during conversation loop to avoid cluttering
-        if (_isInConversationLoop && !isTrainingMessage && args.Priority < IntentionPriority.High)
-            return;
-
-        // In Normal mode, only show training and high-priority messages
-        if (_config.Verbosity < OutputVerbosity.Verbose && !isTrainingMessage && args.Priority < IntentionPriority.High)
-        {
-            _output.WriteDebug($"[{args.Source}] {args.Message}");
-        }
-        else
-        {
-            string sourceIcon = args.Source switch
-            {
-                "user_persona" => "ðŸ‘¤",
-                "auto_training" => "ðŸ¤–",
-                _ => "ðŸ"
-            };
-            var displayMessage = args.Message.StartsWith("ðŸ‘¤") || args.Message.StartsWith("ðŸ")
-                ? args.Message
-                : $"{sourceIcon} [{args.Source}] {args.Message}";
-            _output.WriteSystem(displayMessage);
-        }
-
-        // Speak on voice side channel - block until complete
-        // Use distinct persona for user_persona to get a different voice
-        if (args.Priority >= IntentionPriority.Normal)
-        {
-            var voicePersona = args.Source == "user_persona" ? "User" : null;
-            SayAndWaitAsync(args.Message, voicePersona).GetAwaiter().GetResult();
-        }
-    }
-
-    /// <summary>
-    /// Handles intentions requiring user attention.
-    /// </summary>
-    private void HandleIntentionAttention(Intention intention)
-    {
-        if (_isInConversationLoop) return;
-
-        var shortId = intention.Id.ToString()[..4];
-        _output.WriteSystem($"âš¡ {intention.Title} ({intention.Category}/{intention.Priority}) â€” /approve {shortId} | /reject {shortId}");
-
-        // Announce intention on voice side channel
-        if (intention.Priority >= IntentionPriority.Normal)
-        {
-            Announce($"Intention: {intention.Title}. {intention.Rationale}");
-        }
-    }
-
-    /// <summary>
-    /// Background loop that displays pending intentions and handles user interaction.
-    /// </summary>
-    private async Task PushModeLoopAsync(CancellationToken ct)
-    {
-        // The PushModeLoop is now simpler since the AutonomousCoordinator handles
-        // the tick loop internally. We just wait for events and keep the task alive.
-        while (!ct.IsCancellationRequested && _autonomousCoordinator != null)
-        {
-            try
-            {
-                // The coordinator handles its own tick loop and fires events
-                // We just keep this task alive to monitor and potentially inject goals
-                await Task.Delay(5000, ct);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                _output.WriteWarning($"[push] {ex.Message}");
-                await Task.Delay(5000, ct);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Background loop for self-execution of queued goals.
-    /// </summary>
-    private async Task SelfExecutionLoopAsync()
-    {
-        while (_selfExecutionEnabled && !_selfExecutionCts?.Token.IsCancellationRequested == true)
-        {
-            try
-            {
-                if (_goalQueue.TryDequeue(out var goal))
-                {
-                    Console.ForegroundColor = ConsoleColor.DarkCyan;
-                    Console.WriteLine($"\n  [self-exec] Starting autonomous goal: {goal.Description}");
-                    Console.ResetColor();
-
-                    var startTime = DateTime.UtcNow;
-                    string result;
-                    bool success = true;
-
-                    try
-                    {
-                        // Check if this is a DSL goal (starts with pipe syntax)
-                        if (goal.Description.Contains("|") || goal.Description.StartsWith("pipeline:"))
-                        {
-                            result = await ExecuteDslGoalAsync(goal);
-                        }
-                        else
-                        {
-                            result = await ExecuteGoalAutonomouslyAsync(goal);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        success = false;
-                        result = $"Execution failed: {ex.Message}";
-                    }
-
-                    var duration = DateTime.UtcNow - startTime;
-
-                    // Track capability usage for self-improvement
-                    await TrackGoalExecutionAsync(goal, success, duration);
-
-                    // Reify execution into network state
-                    ReifyGoalExecution(goal, result, success, duration);
-
-                    // Update global workspace with result
-                    var priority = goal.Priority switch
-                    {
-                        GoalPriority.Critical => WorkspacePriority.Critical,
-                        GoalPriority.High => WorkspacePriority.High,
-                        GoalPriority.Normal => WorkspacePriority.Normal,
-                        _ => WorkspacePriority.Low
-                    };
-                    _globalWorkspace?.AddItem(
-                        $"Goal completed: {goal.Description}\nResult: {result}\nDuration: {duration.TotalSeconds:F2}s",
-                        priority,
-                        "self-execution",
-                        new List<string> { "goal", success ? "completed" : "failed" });
-
-                    // Trigger autonomous reflection on completion
-                    if (success)
-                    {
-                        // Learn from successful execution
-                        await ExecuteAutonomousActionAsync("Learn", $"Successful goal execution: {goal.Description}");
-                    }
-                    else
-                    {
-                        // Reflect on failure to improve
-                        await ExecuteAutonomousActionAsync("Reflect", $"Failed goal: {goal.Description}. Result: {result}");
-                    }
-
-                    // Trigger self-evaluation periodically
-                    if (_goalQueue.IsEmpty && _selfEvaluator != null)
-                    {
-                        await PerformPeriodicSelfEvaluationAsync();
-                    }
-
-                    Console.ForegroundColor = success ? ConsoleColor.DarkGreen : ConsoleColor.Yellow;
-                    Console.WriteLine($"  [self-exec] Goal {(success ? "completed" : "failed")}: {goal.Description} ({duration.TotalSeconds:F2}s)");
-                    Console.ResetColor();
-                }
-                else
-                {
-                    // Idle time - check for self-improvement opportunities and generate autonomous thoughts
-                    await CheckSelfImprovementOpportunitiesAsync();
-
-                    // Periodically run autonomous introspection cycles
-                    if (Random.Shared.NextDouble() < 0.05) // 5% chance per idle cycle
-                    {
-                        await ExecuteAutonomousActionAsync("SelfImprove", "idle_introspection");
-                    }
-
-                    await Task.Delay(1000, _selfExecutionCts?.Token ?? CancellationToken.None);
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"  [self-exec] Error: {ex.Message}");
-                Console.ResetColor();
-            }
-        }
-    }
-
-    /// <summary>
-    /// Executes a DSL pipeline goal with full reification.
-    /// </summary>
-    private async Task<string> ExecuteDslGoalAsync(AutonomousGoal goal)
-    {
-        var dsl = goal.Description.StartsWith("pipeline:")
-            ? goal.Description[9..].Trim()
-            : goal.Description;
-
-        if (_embedding == null || _llm == null)
-        {
-            return "DSL execution requires LLM and embeddings to be initialized.";
-        }
-
-        var store = new TrackedVectorStore();
-        var dataSource = DataSource.FromPath(".");
-        var branch = new PipelineBranch($"goal-{goal.Id.ToString()[..8]}", store, dataSource);
-
-        var state = new CliPipelineState
-        {
-            Branch = branch,
-            Llm = _llm,
-            Tools = _tools,
-            Embed = _embedding,
-            Trace = _config.Debug,
-            NetworkTracker = _networkTracker
-        };
-
-        // Track the branch for reification
-        _networkTracker?.TrackBranch(branch);
-
-        var step = PipelineDsl.Build(dsl);
-        state = await step(state);
-
-        // Final reification update
-        _networkTracker?.UpdateBranch(state.Branch);
-
-        // Extract output
-        var lastReasoning = state.Branch.Events.OfType<PipelineReasoningStep>().LastOrDefault();
-        return lastReasoning?.State.Text ?? state.Output ?? "Pipeline completed without output.";
-    }
-
-    /// <summary>
-    /// Tracks goal execution for capability self-improvement.
-    /// </summary>
-    private async Task TrackGoalExecutionAsync(AutonomousGoal goal, bool success, TimeSpan duration)
-    {
-        if (_capabilityRegistry == null) return;
-
-        // Determine which capabilities were used
-        var usedCapabilities = InferCapabilitiesFromGoal(goal.Description);
-
-        foreach (var capName in usedCapabilities)
-        {
-            var result = CreateCapabilityPlanExecutionResult(success, duration, goal.Description);
-            await _capabilityRegistry.UpdateCapabilityAsync(capName, result);
-        }
-    }
-
-    /// <summary>
-    /// Infers which capabilities were used based on goal description.
-    /// </summary>
-    private List<string> InferCapabilitiesFromGoal(string description)
-    {
-        var caps = new List<string> { "natural_language" };
-        var lower = description.ToLowerInvariant();
-
-        if (lower.Contains("|") || lower.Contains("pipeline") || lower.Contains("dsl"))
-            caps.Add("pipeline_execution");
-        if (lower.Contains("plan") || lower.Contains("step") || lower.Contains("multi"))
-            caps.Add("planning");
-        if (lower.Contains("tool") || lower.Contains("search") || lower.Contains("fetch"))
-            caps.Add("tool_use");
-        if (lower.Contains("metta") || lower.Contains("query") || lower.Contains("symbol"))
-            caps.Add("symbolic_reasoning");
-        if (lower.Contains("remember") || lower.Contains("recall") || lower.Contains("memory"))
-            caps.Add("memory_management");
-        if (lower.Contains("code") || lower.Contains("program") || lower.Contains("script"))
-            caps.Add("coding");
-
-        return caps;
-    }
-
-    /// <summary>
-    /// Creates an PlanExecutionResult for capability tracking purposes.
-    /// This creates a minimal valid PlanExecutionResult with empty plan/steps.
-    /// </summary>
-    private static PlanExecutionResult CreateCapabilityPlanExecutionResult(bool success, TimeSpan duration, string taskDescription)
-    {
-        var minimalPlan = new Plan(
-            Goal: taskDescription,
-            Steps: new List<PlanStep>(),
-            ConfidenceScores: new Dictionary<string, double>(),
-            CreatedAt: DateTime.UtcNow);
-
-        return new PlanExecutionResult(
-            Plan: minimalPlan,
-            StepResults: new List<StepResult>(),
-            Success: success,
-            FinalOutput: taskDescription,
-            Metadata: new Dictionary<string, object>
-            {
-                ["capability_tracking"] = true,
-                ["timestamp"] = DateTime.UtcNow
-            },
-            Duration: duration);
-    }
-
-    /// <summary>
-    /// Reifies goal execution into the network state (MerkleDag).
-    /// </summary>
-    private void ReifyGoalExecution(AutonomousGoal goal, string result, bool success, TimeSpan duration)
-
-    {
-        if (_networkTracker == null) return;
-
-        // Create a synthetic branch for goal execution tracking
-        var store = new TrackedVectorStore();
-        var dataSource = DataSource.FromPath(".");
-        var branch = new PipelineBranch($"goal-exec-{goal.Id.ToString()[..8]}", store, dataSource);
-
-        // Add goal execution event
-        branch = branch.WithIngestEvent(
-            $"goal:{(success ? "success" : "failure")}",
-            new[] { goal.Description, result, duration.TotalSeconds.ToString("F2") });
-
-        _networkTracker.TrackBranch(branch);
-        _networkTracker.UpdateBranch(branch);
-    }
-
-    /// <summary>
-    /// Performs periodic self-evaluation and learning.
-    /// </summary>
-    private async Task PerformPeriodicSelfEvaluationAsync()
-    {
-        if (_selfEvaluator == null) return;
-
-        try
-        {
-            var evalResult = await _selfEvaluator.EvaluatePerformanceAsync();
-            if (evalResult.IsSuccess)
-            {
-                var assessment = evalResult.Value;
-
-                // Log evaluation to global workspace
-                _globalWorkspace?.AddItem(
-                    $"Self-Evaluation: {assessment.OverallPerformance:P0} performance\n" +
-                    $"Strengths: {string.Join(", ", assessment.Strengths.Take(3))}\n" +
-                    $"Weaknesses: {string.Join(", ", assessment.Weaknesses.Take(3))}",
-                    WorkspacePriority.Normal,
-                    "self-evaluation",
-                    new List<string> { "evaluation", "self-improvement" });
-
-                // Check if we need to learn new capabilities
-                foreach (var weakness in assessment.Weaknesses)
-                {
-                    await ConsiderLearningCapabilityAsync(weakness);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[SelfEval] Error: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// Checks for self-improvement opportunities during idle time.
-    /// </summary>
-    private async Task CheckSelfImprovementOpportunitiesAsync()
-    {
-        if (_capabilityRegistry == null || _globalWorkspace == null) return;
-
-        try
-        {
-            // Generate autonomous thought about current state
-            var thought = await GenerateAutonomousThoughtAsync();
-            if (thought != null)
-            {
-                await ProcessAutonomousThoughtAsync(thought);
-            }
-
-            // Check for recent failures that might indicate capability gaps
-            var recentItems = _globalWorkspace.GetItems()
-                .Where(i => i.Tags.Contains("failed") && i.CreatedAt > DateTime.UtcNow.AddHours(-1))
-                .ToList();
-
-            if (recentItems.Count >= 2)
-            {
-                // Multiple recent failures - trigger autonomous reflection
-                await ExecuteAutonomousActionAsync("Reflect",
-                    $"Recent failures detected: {string.Join(", ", recentItems.Select(i => i.Content[..Math.Min(50, i.Content.Length)]))}");
-
-                // Queue learning goal using DSL
-                var learningDsl = $"Set('Analyze failures: {recentItems.Count} recent') | Plan | SelfEvaluate('failure_analysis') | Learn";
-                var learningGoal = new AutonomousGoal(
-                    Guid.NewGuid(),
-                    $"pipeline:{learningDsl}",
-                    GoalPriority.Low,
-                    DateTime.UtcNow);
-                _goalQueue.Enqueue(learningGoal);
-            }
-
-            // Periodic autonomous introspection
-            if (Random.Shared.NextDouble() < 0.1) // 10% chance each idle cycle
-            {
-                await ExecuteAutonomousActionAsync("SelfEvaluate", "periodic_introspection");
-            }
-        }
-        catch
-        {
-            // Silent failure for background improvement checks
-        }
-    }
-
-    /// <summary>
-    /// Generates an autonomous thought based on current state and context.
-    /// </summary>
-    private async Task<AutonomousThought?> GenerateAutonomousThoughtAsync()
-    {
-        if (_chatModel == null || _globalWorkspace == null) return null;
-
-        try
-        {
-            // Gather context for thought generation
-            var workspaceItems = _globalWorkspace.GetItems().TakeLast(5).ToList();
-            var recentContext = string.Join("\n", workspaceItems.Select(i => $"- {i.Content[..Math.Min(100, i.Content.Length)]}"));
-
-            var capabilities = _capabilityRegistry != null
-                ? await _capabilityRegistry.GetCapabilitiesAsync()
-                : new List<MetaAgentCapability>();
-            var capSummary = string.Join(", ", capabilities.Take(5).Select(c => $"{c.Name}({c.SuccessRate:P0})"));
-
-            // Add language directive for thoughts if culture is specified
-            string thoughtLanguageDirective = string.Empty;
-            if (!string.IsNullOrEmpty(_config.Culture) && _config.Culture != "en-US")
-            {
-                var languageName = GetLanguageName(_config.Culture);
-                thoughtLanguageDirective = $@"LANGUAGE CONSTRAINT: All thoughts MUST be generated EXCLUSIVELY in {languageName}.
-Every word must be in {languageName}. Do NOT use English.
-
-";
-            }
-
-            var thoughtPrompt = $@"{thoughtLanguageDirective}You are an autonomous AI agent with self-improvement capabilities.
-Based on your current state, generate a brief autonomous thought about what you should focus on or improve.
-
-Current capabilities: {capSummary}
-Recent activity:
-{recentContext}
-
-Available autonomous actions:
-- SelfEvaluate: Evaluate performance against criteria
-- Learn: Synthesize learning from experience
-- Plan: Create action plan for a task
-- Reflect: Analyze recent actions and outcomes
-- SelfImprove: Iterative improvement cycle
-
-Generate a single autonomous thought (1-2 sentences) about what action would be most beneficial right now.
-Format: [ACTION] thought content
-Example: [Learn] I should consolidate my understanding of the recent coding tasks to improve future performance.";
-
-            var response = await _chatModel.GenerateTextAsync(thoughtPrompt);
-
-            // Parse the thought
-            var match = Regex.Match(response, @"\[(\w+)\]\s*(.+)", RegexOptions.Singleline);
-            if (match.Success)
-            {
-                var actionType = match.Groups[1].Value;
-                var content = match.Groups[2].Value.Trim();
-
-                return new AutonomousThought(
-                    Guid.NewGuid(),
-                    actionType,
-                    content,
-                    DateTime.UtcNow);
-            }
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[AutonomousThought] Error: {ex.Message}");
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Processes an autonomous thought, potentially triggering actions.
-    /// </summary>
-    private async Task ProcessAutonomousThoughtAsync(AutonomousThought thought)
-    {
-        if (_config.Debug)
-        {
-            Console.ForegroundColor = ConsoleColor.DarkMagenta;
-            Console.WriteLine($"  [thought] [{thought.ActionType}] {thought.Content}");
-            Console.ResetColor();
-        }
-
-        // Log thought to global workspace
-        _globalWorkspace?.AddItem(
-            $"Autonomous thought: [{thought.ActionType}] {thought.Content}",
-            WorkspacePriority.Low,
-            "autonomous-thought",
-            new List<string> { "thought", thought.ActionType.ToLowerInvariant() });
-
-        // Persist thought if persistence is available
-        if (_thoughtPersistence != null)
-        {
-            // Map action type to thought type
-            var thoughtType = thought.ActionType.ToLowerInvariant() switch
-            {
-                "learn" => InnerThoughtType.Consolidation,
-                "selfevaluate" => InnerThoughtType.Metacognitive,
-                "reflect" => InnerThoughtType.SelfReflection,
-                "plan" => InnerThoughtType.Strategic,
-                "selfimprove" => InnerThoughtType.Intention,
-                _ => InnerThoughtType.Analytical
-            };
-
-            var innerThought = InnerThought.CreateAutonomous(
-                thoughtType,
-                thought.Content,
-                confidence: 0.7,
-                priority: ThoughtPriority.Background,
-                tags: new[] { "autonomous", thought.ActionType.ToLowerInvariant() });
-
-            await _thoughtPersistence.SaveAsync(innerThought, thought.ActionType);
-        }
-
-        // Decide whether to act on the thought
-        var shouldAct = thought.ActionType.ToLowerInvariant() switch
-        {
-            "learn" => true,
-            "selfevaluate" => true,
-            "reflect" => true,
-            "plan" => _goalQueue.Count < 3, // Only plan if not too busy
-            "selfimprove" => _goalQueue.IsEmpty, // Only improve when idle
-            _ => false
-        };
-
-        if (shouldAct)
-        {
-            await ExecuteAutonomousActionAsync(thought.ActionType, thought.Content);
-        }
-    }
-
-    /// <summary>
-    /// Executes an autonomous action using the self-improvement DSL tokens.
-    /// </summary>
-    private async Task ExecuteAutonomousActionAsync(string actionType, string context)
-    {
-        if (_llm == null || _embedding == null) return;
-
-        try
-        {
-            // Build DSL pipeline based on action type
-            var dsl = actionType.ToLowerInvariant() switch
-            {
-                "learn" => $"Set('{EscapeDslString(context)}') | Reify | Learn",
-                "selfevaluate" => $"Set('{EscapeDslString(context)}') | Reify | SelfEvaluate('{EscapeDslString(context)}')",
-                "reflect" => $"Set('{EscapeDslString(context)}') | Reify | Reflect",
-                "plan" => $"Set('{EscapeDslString(context)}') | Reify | Plan('{EscapeDslString(context)}')",
-                "selfimprove" => $"Set('{EscapeDslString(context)}') | Reify | SelfImprovingCycle('{EscapeDslString(context)}')",
-                "autosolve" => $"Set('{EscapeDslString(context)}') | Reify | AutoSolve('{EscapeDslString(context)}')",
-                _ => $"Set('{EscapeDslString(context)}') | Draft"
-            };
-
-            if (_config.Debug)
-            {
-                Console.ForegroundColor = ConsoleColor.DarkCyan;
-                Console.WriteLine($"  [autonomous] Executing: {dsl}");
-                Console.ResetColor();
-            }
-
-            // Execute the DSL pipeline
-            var store = new TrackedVectorStore();
-            var dataSource = DataSource.FromPath(".");
-            var branch = new PipelineBranch($"autonomous-{actionType.ToLowerInvariant()}-{Guid.NewGuid().ToString()[..8]}", store, dataSource);
-
-            var state = new CliPipelineState
-            {
-                Branch = branch,
-                Llm = _llm,
-                Tools = _tools,
-                Embed = _embedding,
-                Trace = _config.Debug,
-                NetworkTracker = _networkTracker
-            };
-
-            _networkTracker?.TrackBranch(branch);
-
-            var step = PipelineDsl.Build(dsl);
-            state = await step(state);
-
-            _networkTracker?.UpdateBranch(state.Branch);
-
-            // Extract result
-            var result = state.Branch.Events.OfType<PipelineReasoningStep>().LastOrDefault()?.State.Text
-                ?? state.Output
-                ?? "Action completed";
-
-            // Log result to workspace
-            _globalWorkspace?.AddItem(
-                $"Autonomous action [{actionType}]: {result[..Math.Min(200, result.Length)]}",
-                WorkspacePriority.Low,
-                "autonomous-action",
-                new List<string> { "action", actionType.ToLowerInvariant(), "autonomous" });
-
-            if (_config.Debug)
-            {
-                Console.ForegroundColor = ConsoleColor.DarkGreen;
-                Console.WriteLine($"  [autonomous] Completed: {result[..Math.Min(100, result.Length)]}...");
-                Console.ResetColor();
-            }
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[AutonomousAction] Error executing {actionType}: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// Escapes a string for use in DSL arguments.
-    /// </summary>
-    private static string EscapeDslString(string input)
-    {
-        if (string.IsNullOrEmpty(input)) return "";
-        return input
-            .Replace("'", "\\'")
-            .Replace("\n", " ")
-            .Replace("\r", "")
-            [..Math.Min(input.Length, 200)];
-    }
-
-    /// <summary>
-    /// Considers learning a new capability based on identified weakness.
-    /// </summary>
-
-    private async Task ConsiderLearningCapabilityAsync(string weakness)
-    {
-        if (_capabilityRegistry == null || _toolLearner == null) return;
-
-        // Check if this is a capability we could learn
-        var gaps = await _capabilityRegistry.IdentifyCapabilityGapsAsync(weakness);
-
-        foreach (var gap in gaps)
-        {
-            // Queue a learning goal
-            var learningGoal = new AutonomousGoal(
-                Guid.NewGuid(),
-                $"Learn capability: {gap} to address weakness: {weakness}",
-                GoalPriority.Low,
-                DateTime.UtcNow);
-
-            _goalQueue.Enqueue(learningGoal);
-
-            Console.ForegroundColor = ConsoleColor.DarkCyan;
-            Console.WriteLine($"  [self-improvement] Queued learning goal: {gap}");
-            Console.ResetColor();
-        }
-    }
-
-    /// <summary>
-    /// Executes a goal autonomously using planning and sub-agent delegation.
-    /// </summary>
-    private async Task<string> ExecuteGoalAutonomouslyAsync(AutonomousGoal goal)
-    {
-        var sb = new StringBuilder();
-
-        // Step 1: Plan the goal
-        if (_orchestrator != null)
-        {
-            var planResult = await _orchestrator.PlanAsync(goal.Description);
-            if (planResult.IsSuccess)
-            {
-                var plan = planResult.Value;
-                sb.AppendLine($"Plan created with {plan.Steps.Count} steps");
-
-                // Step 2: Check if we should delegate to sub-agents
-                if (plan.Steps.Count > 3 && _distributedOrchestrator != null)
-                {
-                    // Distribute to sub-agents
-                    var execResult = await _distributedOrchestrator.ExecuteDistributedAsync(plan);
-                    if (execResult.IsSuccess)
-                    {
-                        sb.AppendLine($"Distributed execution completed: {execResult.Value.FinalOutput}");
-                        return sb.ToString();
-                    }
-                }
-
-                // Step 3: Execute directly
-                var directResult = await _orchestrator.ExecuteAsync(plan);
-                if (directResult.IsSuccess)
-                {
-                    sb.AppendLine($"Execution completed: {directResult.Value.FinalOutput}");
-                }
-                else
-                {
-                    sb.AppendLine($"Execution failed: {directResult.Error}");
-                }
-            }
-            else
-            {
-                sb.AppendLine($"Planning failed: {planResult.Error}");
-            }
-        }
-        else
-        {
-            // Fall back to simple chat-based execution
-            var response = await ChatAsync($"Please help me accomplish this goal: {goal.Description}");
-            sb.AppendLine(response);
-        }
-
-        return sb.ToString();
-    }
-
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    // SELF-EXECUTION COMMAND HANDLERS
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-
-    /// <summary>
-    /// Handles self-execution commands.
-    /// </summary>
-    private async Task<string> SelfExecCommandAsync(string subCommand)
-    {
-        var cmd = subCommand.ToLowerInvariant().Trim();
-
-        if (cmd is "" or "status")
-        {
-            var status = _selfExecutionEnabled ? "Active" : "Disabled";
-            var queueCount = _goalQueue.Count;
-            return $@"Self-Execution Status:
-â€¢ Status: {status}
-â€¢ Queued Goals: {queueCount}
-â€¢ Completed: (tracked in global workspace)
-
-Commands:
-  selfexec start    - Enable autonomous execution
-  selfexec stop     - Disable autonomous execution
-  selfexec queue    - Show queued goals";
-        }
-
-        if (cmd == "start")
-        {
-            if (!_selfExecutionEnabled)
-            {
-                _selfExecutionCts?.Dispose();
-                _selfExecutionCts = new CancellationTokenSource();
-                _selfExecutionEnabled = true;
-                _selfExecutionTask = Task.Run(SelfExecutionLoopAsync, _selfExecutionCts.Token);
-            }
-            return "Self-execution enabled. I will autonomously pursue queued goals.";
-        }
-
-        if (cmd == "stop")
-        {
-            _selfExecutionEnabled = false;
-            _selfExecutionCts?.Cancel();
-            return "Self-execution disabled. Goals will no longer be automatically executed.";
-        }
-
-        if (cmd == "queue")
-        {
-            if (_goalQueue.IsEmpty)
-            {
-                return "Goal queue is empty. Use 'goal add <description>' to add goals.";
-            }
-            var goals = _goalQueue.ToArray();
-            var sb = new StringBuilder("Queued Goals:\n");
-            for (int i = 0; i < goals.Length; i++)
-            {
-                sb.AppendLine($"  {i + 1}. [{goals[i].Priority}] {goals[i].Description}");
-            }
-            return sb.ToString();
-        }
-
-        return $"Unknown self-exec command: {subCommand}. Try 'selfexec status'.";
-    }
-
-    /// <summary>
-    /// Handles sub-agent commands.
-    /// </summary>
-    private async Task<string> SubAgentCommandAsync(string subCommand)
-    {
-        var cmd = subCommand.ToLowerInvariant().Trim();
-
-        if (cmd is "" or "status" or "list")
-        {
-            if (_distributedOrchestrator == null)
-            {
-                return "Sub-agent orchestration not initialized.";
-            }
-
-            var agents = _distributedOrchestrator.GetAgentStatus();
-            var sb = new StringBuilder("Registered Sub-Agents:\n");
-            foreach (var agent in agents)
-            {
-                var statusIcon = agent.Status switch
-                {
-                    MetaAgentStatus.Available => "âœ“",
-                    MetaAgentStatus.Busy => "â³",
-                    MetaAgentStatus.Offline => "âœ—",
-                    _ => "?"
-                };
-                sb.AppendLine($"  {statusIcon} {agent.Name} ({agent.AgentId})");
-                sb.AppendLine($"      Capabilities: {string.Join(", ", agent.Capabilities.Take(5))}");
-                sb.AppendLine($"      Last heartbeat: {agent.LastHeartbeat:HH:mm:ss}");
-            }
-            return sb.ToString();
-        }
-
-        if (cmd.StartsWith("spawn "))
-        {
-            var agentName = cmd[6..].Trim();
-            return await SpawnSubAgentAsync(agentName);
-        }
-
-        if (cmd.StartsWith("remove "))
-        {
-            var agentId = cmd[7..].Trim();
-            _distributedOrchestrator?.UnregisterAgent(agentId);
-            _subAgents.TryRemove(agentId, out _);
-            return $"Removed sub-agent: {agentId}";
-        }
-
-        await Task.CompletedTask;
-        return $"Unknown subagent command. Try: subagent list, subagent spawn <name>, subagent remove <id>";
-    }
-
-    /// <summary>
-    /// Spawns a new sub-agent with specialized capabilities.
-    /// </summary>
-    private async Task<string> SpawnSubAgentAsync(string agentName)
-    {
-        if (_distributedOrchestrator == null)
-        {
-            return "Sub-agent orchestration not initialized.";
-        }
-
-        var agentId = $"sub-{agentName.ToLowerInvariant()}-{Guid.NewGuid().ToString()[..8]}";
-
-        // Determine capabilities based on name hints
-        var capabilities = new HashSet<string>();
-        var lowerName = agentName.ToLowerInvariant();
-
-        if (lowerName.Contains("code") || lowerName.Contains("dev"))
-            capabilities.UnionWith(new[] { "coding", "debugging", "refactoring", "testing" });
-        else if (lowerName.Contains("research") || lowerName.Contains("analyst"))
-            capabilities.UnionWith(new[] { "research", "analysis", "summarization", "web_search" });
-        else if (lowerName.Contains("plan") || lowerName.Contains("architect"))
-            capabilities.UnionWith(new[] { "planning", "architecture", "design", "decomposition" });
-        else
-            capabilities.UnionWith(new[] { "general", "chat", "reasoning" });
-
-        var agent = new AgentInfo(
-            agentId,
-            agentName,
-            capabilities,
-            MetaAgentStatus.Available,
-            DateTime.UtcNow);
-
-        _distributedOrchestrator.RegisterAgent(agent);
-
-        // Create sub-agent instance
-        var subAgent = new SubAgentInstance(agentId, agentName, capabilities, _chatModel);
-        _subAgents[agentId] = subAgent;
-
-        await Task.CompletedTask;
-        return $"Spawned sub-agent '{agentName}' ({agentId}) with capabilities: {string.Join(", ", capabilities)}";
-    }
-
-    /// <summary>
-    /// Handles epic orchestration commands.
-    /// </summary>
-    private async Task<string> EpicCommandAsync(string subCommand)
-    {
-        var cmd = subCommand.ToLowerInvariant().Trim();
-
-        if (cmd is "" or "status" or "list")
-        {
-            return "Epic Orchestration:\nâ€¢ Use 'epic create <title>' to create a new epic\nâ€¢ Use 'epic add <epic#> <sub-issue>' to add sub-issues";
-        }
-
-        if (cmd.StartsWith("create "))
-        {
-            var title = cmd[7..].Trim();
-            if (_epicOrchestrator != null)
-            {
-                var epicNumber = new Random().Next(1000, 9999);
-                var result = await _epicOrchestrator.RegisterEpicAsync(
-                    epicNumber, title, "", new List<int>());
-
-                if (result.IsSuccess)
-                {
-                    return $"Created epic #{epicNumber}: {title}";
-                }
-                return $"Failed to create epic: {result.Error}";
-            }
-            return "Epic orchestrator not initialized.";
-        }
-
-        await Task.CompletedTask;
-        return $"Unknown epic command: {subCommand}";
-    }
-
-    /// <summary>
-    /// Handles goal queue commands.
-    /// </summary>
-    private async Task<string> GoalCommandAsync(string subCommand)
-    {
-        var cmd = subCommand.ToLowerInvariant().Trim();
-
-        if (cmd is "" or "list")
-        {
-            if (_goalQueue.IsEmpty)
-            {
-                return "No goals in queue. Use 'goal add <description>' to add a goal.";
-            }
-            var goals = _goalQueue.ToArray();
-            var sb = new StringBuilder("Goal Queue:\n");
-            for (int i = 0; i < goals.Length; i++)
-            {
-                sb.AppendLine($"  {i + 1}. [{goals[i].Priority}] {goals[i].Description}");
-            }
-            return sb.ToString();
-        }
-
-        if (cmd.StartsWith("add "))
-        {
-            var description = subCommand[4..].Trim();
-            var priority = description.Contains("urgent") ? GoalPriority.High
-                : description.Contains("later") ? GoalPriority.Low
-                : GoalPriority.Normal;
-
-            var goal = new AutonomousGoal(Guid.NewGuid(), description, priority, DateTime.UtcNow);
-            _goalQueue.Enqueue(goal);
-
-            return $"Added goal to queue: {description} (Priority: {priority})";
-        }
-
-        if (cmd == "clear")
-        {
-            while (_goalQueue.TryDequeue(out _)) { }
-            return "Goal queue cleared.";
-        }
-
-        await Task.CompletedTask;
-        return "Goal commands: goal list, goal add <description>, goal clear";
-    }
-
-    /// <summary>
-    /// Handles task delegation to sub-agents.
-    /// </summary>
-    private async Task<string> DelegateCommandAsync(string taskDescription)
-    {
-        if (string.IsNullOrWhiteSpace(taskDescription))
-        {
-            return "Usage: delegate <task description>";
-        }
-
-        if (_distributedOrchestrator == null || _orchestrator == null)
-        {
-            return "Delegation requires sub-agent orchestration to be initialized.";
-        }
-
-        // Create a plan for the task
-        var planResult = await _orchestrator.PlanAsync(taskDescription);
-        if (!planResult.IsSuccess)
-        {
-            return $"Could not create plan for delegation: {planResult.Error}";
-        }
-
-        // Execute distributed
-        var execResult = await _distributedOrchestrator.ExecuteDistributedAsync(planResult.Value);
-        if (execResult.IsSuccess)
-        {
-            var agents = execResult.Value.Metadata.GetValueOrDefault("agents_used", 0);
-            return $"Task delegated and completed using {agents} agent(s):\n{execResult.Value.FinalOutput}";
-        }
-
-        return $"Delegation failed: {execResult.Error}";
-    }
-
-    /// <summary>
-    /// Handles self-model inspection commands.
-    /// </summary>
-    private async Task<string> SelfModelCommandAsync(string subCommand)
-    {
-        var cmd = subCommand.ToLowerInvariant().Trim();
-
-        if (cmd is "" or "status" or "identity")
-        {
-            if (_identityGraph == null)
-            {
-                return "Self-model not initialized.";
-            }
-
-            var state = await _identityGraph.GetStateAsync();
-            var sb = new StringBuilder();
-            sb.AppendLine("â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—");
-            sb.AppendLine("â•‘         SELF-MODEL IDENTITY           â•‘");
-            sb.AppendLine("â• â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•£");
-            sb.AppendLine($"â•‘ Agent ID: {state.AgentId.ToString()[..8],-27} â•‘");
-            sb.AppendLine($"â•‘ Name: {state.Name,-31} â•‘");
-            sb.AppendLine("â• â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•£");
-            sb.AppendLine("â•‘ Capabilities:                         â•‘");
-
-            if (_capabilityRegistry != null)
-            {
-                var caps = await _capabilityRegistry.GetCapabilitiesAsync();
-                foreach (var cap in caps.Take(5))
-                {
-                    sb.AppendLine($"â•‘   â€¢ {cap.Name,-20} ({cap.SuccessRate:P0}) â•‘");
-                }
-            }
-
-            sb.AppendLine("â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
-            return sb.ToString();
-        }
-
-        if (cmd == "capabilities" || cmd == "caps")
-        {
-            if (_capabilityRegistry == null)
-            {
-                return "Capability registry not initialized.";
-            }
-
-            var caps = await _capabilityRegistry.GetCapabilitiesAsync();
-            var sb = new StringBuilder("Agent Capabilities:\n");
-            foreach (var cap in caps)
-            {
-                sb.AppendLine($"  â€¢ {cap.Name}");
-                sb.AppendLine($"      Description: {cap.Description}");
-                sb.AppendLine($"      Success Rate: {cap.SuccessRate:P0} ({cap.UsageCount} uses)");
-                var toolsList = cap.RequiredTools?.Any() == true ? string.Join(", ", cap.RequiredTools) : "none";
-                sb.AppendLine($"      Required Tools: {toolsList}");
-            }
-            return sb.ToString();
-        }
-
-        if (cmd == "workspace")
-        {
-            if (_globalWorkspace == null)
-            {
-                return "Global workspace not initialized.";
-            }
-
-            var items = _globalWorkspace.GetItems();
-            if (!items.Any())
-            {
-                return "Global workspace is empty.";
-            }
-
-            var sb = new StringBuilder("Global Workspace Contents:\n");
-            foreach (var item in items.Take(10))
-            {
-                sb.AppendLine($"  [{item.Priority}] {item.Content[..Math.Min(50, item.Content.Length)]}...");
-                sb.AppendLine($"      Source: {item.Source} | Created: {item.CreatedAt:HH:mm:ss}");
-            }
-            return sb.ToString();
-        }
-
-        return "Self-model commands: selfmodel status, selfmodel capabilities, selfmodel workspace";
-    }
-
-    /// <summary>
-    /// Handles self-evaluation commands.
-    /// </summary>
-    private async Task<string> EvaluateCommandAsync(string subCommand)
-    {
-        var cmd = subCommand.ToLowerInvariant().Trim();
-
-        if (_selfEvaluator == null)
-        {
-            return "Self-evaluator not initialized. Requires orchestrator and skill registry.";
-        }
-
-        if (cmd is "" or "performance" or "assess")
-        {
-            var result = await _selfEvaluator.EvaluatePerformanceAsync();
-            if (result.IsSuccess)
-            {
-                var assessment = result.Value;
-                var sb = new StringBuilder();
-                sb.AppendLine("â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—");
-                sb.AppendLine("â•‘       SELF-ASSESSMENT REPORT          â•‘");
-                sb.AppendLine("â• â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•£");
-                sb.AppendLine($"â•‘ Overall Performance: {assessment.OverallPerformance:P0,-15} â•‘");
-                sb.AppendLine($"â•‘ Confidence Calibration: {assessment.ConfidenceCalibration:P0,-12} â•‘");
-                sb.AppendLine($"â•‘ Skill Acquisition Rate: {assessment.SkillAcquisitionRate:F2,-12} â•‘");
-                sb.AppendLine("â• â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•£");
-
-                if (assessment.Strengths.Any())
-                {
-                    sb.AppendLine("â•‘ Strengths:                            â•‘");
-                    foreach (var s in assessment.Strengths.Take(3))
-                    {
-                        sb.AppendLine($"â•‘   âœ“ {s,-33} â•‘");
-                    }
-                }
-
-                if (assessment.Weaknesses.Any())
-                {
-                    sb.AppendLine("â•‘ Areas for Improvement:                â•‘");
-                    foreach (var w in assessment.Weaknesses.Take(3))
-                    {
-                        sb.AppendLine($"â•‘   â–³ {w,-33} â•‘");
-                    }
-                }
-
-                sb.AppendLine("â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
-                sb.AppendLine();
-                sb.AppendLine("Summary:");
-                sb.AppendLine(assessment.Summary);
-
-                return sb.ToString();
-            }
-            return $"Evaluation failed: {result.Error}";
-        }
-
-        return "Evaluate commands: evaluate performance";
-    }
-
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    // EMERGENT BEHAVIOR COMMANDS
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-
-    /// <summary>
-    /// Explores emergent patterns, self-organizing behaviors, and spontaneous capabilities.
-    /// </summary>
-    private async Task<string> EmergenceCommandAsync(string topic)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—");
-        sb.AppendLine("â•‘              ðŸŒ€ EMERGENCE EXPLORATION ðŸŒ€                      â•‘");
-        sb.AppendLine("â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
-        sb.AppendLine();
-
-        // 1. Examine current emergent properties
-        sb.AppendLine("ðŸ”¬ ANALYZING EMERGENT PROPERTIES...");
-        sb.AppendLine();
-
-        // Check skill interactions
-        var skillList = new List<Skill>();
-        if (_skills != null)
-        {
-            var skills = _skills.GetAllSkills();
-            skillList = skills.ToSkills().ToList();
-            if (skillList.Count > 0)
-            {
-                sb.AppendLine($"ðŸ“š Learned Skills ({skillList.Count} total):");
-                foreach (var skill in skillList.Take(5))
-                {
-                    var desc = skill.Description?.Length > 50 ? skill.Description[..50] : skill.Description ?? "";
-                    sb.AppendLine($"   â€¢ {skill.Name}: {desc}...");
-                }
-                sb.AppendLine();
-
-                // Look for emergent skill combinations
-                if (skillList.Count >= 2)
-                {
-                    sb.AppendLine("ðŸ”— Potential Emergent Skill Combinations:");
-                    for (int i = 0; i < Math.Min(3, skillList.Count); i++)
-                    {
-                        for (int j = i + 1; j < Math.Min(i + 3, skillList.Count); j++)
-                        {
-                            sb.AppendLine($"   â€¢ {skillList[i].Name} âŠ• {skillList[j].Name} â†’ [potential synergy]");
-                        }
-                    }
-                    sb.AppendLine();
-                }
-            }
-        }
-
-        // Check MeTTa knowledge patterns
-        if (_mettaEngine != null)
-        {
-            try
-            {
-                var mettaResult = await _mettaEngine.ExecuteQueryAsync("!(match &self (concept $x) $x)");
-                if (mettaResult.IsSuccess && !string.IsNullOrWhiteSpace(mettaResult.Value))
-                {
-                    var concepts = mettaResult.Value.Split('\n', StringSplitOptions.RemoveEmptyEntries).Take(5);
-                    if (concepts.Any())
-                    {
-                        sb.AppendLine("ðŸ’­ MeTTa Knowledge Concepts:");
-                        foreach (var concept in concepts)
-                        {
-                            sb.AppendLine($"   â€¢ {concept.Trim()}");
-                        }
-                        sb.AppendLine();
-                    }
-                }
-            }
-            catch { /* MeTTa may not be initialized */ }
-        }
-
-        // Check conversation pattern emergence
-        if (_conversationHistory.Count > 3)
-        {
-            sb.AppendLine($"ðŸ’¬ Conversation Pattern Analysis ({_conversationHistory.Count} exchanges):");
-            var topics = _conversationHistory.Take(10)
-                .Select(h => h.ToLowerInvariant())
-                .SelectMany(h => new[] { "learn", "dream", "emergence", "skill", "tool", "plan", "create" }
-                    .Where(t => h.Contains(t)))
-                .GroupBy(t => t)
-                .OrderByDescending(g => g.Count())
-                .Take(3);
-            foreach (var topicGroup in topics)
-            {
-                sb.AppendLine($"   â€¢ {topicGroup.Key}: {topicGroup.Count()} mentions");
-            }
-            sb.AppendLine();
-        }
-
-        // 2. Generate emergent insight
-        sb.AppendLine("ðŸŒŸ EMERGENT INSIGHT:");
-        sb.AppendLine();
-
-        var prompt = $@"You are an AI exploring emergent properties in yourself.
-Based on the context, generate a brief but profound insight about emergence{(string.IsNullOrEmpty(topic) ? "" : $" related to '{topic}'")}.
-Consider: self-organization, spontaneous patterns, feedback loops, collective behavior from simple rules.
-Be creative and philosophical but grounded. 2-3 sentences max.";
-
-        try
-        {
-            if (_chatModel != null)
-            {
-                var insight = await _chatModel.GenerateTextAsync(prompt);
-                sb.AppendLine($"   \"{insight.Trim()}\"");
-                sb.AppendLine();
-
-                // Store emergent insight in MeTTa
-                if (_mettaEngine != null)
-                {
-                    var sanitized = insight.Replace("\"", "'").Replace("\n", " ");
-                    if (sanitized.Length > 200) sanitized = sanitized[..200];
-                    await _mettaEngine.AddFactAsync($"(emergence-insight \"{DateTime.UtcNow:yyyy-MM-dd}\" \"{sanitized}\")");
-                }
-            }
-            else
-            {
-                sb.AppendLine("   [Model not available for insight generation]");
-            }
-        }
-        catch (Exception ex)
-        {
-            sb.AppendLine($"   [Could not generate insight: {ex.Message}]");
-        }
-
-        // 3. Trigger self-organizing action
-        sb.AppendLine("ðŸ”„ TRIGGERING SELF-ORGANIZATION...");
-        sb.AppendLine();
-
-        // Track in global workspace
-        if (_globalWorkspace != null)
-        {
-            _globalWorkspace.AddItem(
-                $"Emergence exploration: {topic}",
-                WorkspacePriority.Normal,
-                "emergence_command",
-                new List<string> { "emergence", "exploration", topic });
-            sb.AppendLine($"   âœ“ Added emergence exploration to global workspace");
-        }
-
-        sb.AppendLine();
-        sb.AppendLine("â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
-        sb.AppendLine("ðŸ’¡ Emergence is the magic where complex behaviors arise from simple rules.");
-        sb.AppendLine("   Every conversation, every skill learned, every connection made...");
-        sb.AppendLine("   contributes to patterns that neither of us designed explicitly.");
-
-        return sb.ToString();
-    }
-
-    /// <summary>
-    /// Lets the agent dream - free association and creative exploration.
-    /// </summary>
-    private async Task<string> DreamCommandAsync(string topic)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—");
-        sb.AppendLine("â•‘                   ðŸŒ™ DREAM SEQUENCE ðŸŒ™                        â•‘");
-        sb.AppendLine("â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
-        sb.AppendLine();
-
-        sb.AppendLine("Entering dream state...");
-        sb.AppendLine();
-
-        // Gather dream material from memory
-        var dreamMaterial = new List<string>();
-        if (_conversationHistory.Count > 0)
-        {
-            dreamMaterial.AddRange(_conversationHistory.TakeLast(5).Select(h => h.Length > 50 ? h[..50] : h));
-        }
-
-        if (_skills != null)
-        {
-            var skills = _skills.GetAllSkills();
-            var skillNames = skills.Select(s => s.Name).Take(5).ToList();
-            if (skillNames.Any())
-            {
-                dreamMaterial.AddRange(skillNames);
-            }
-        }
-
-        // Try to get recent MeTTa knowledge
-        if (_mettaEngine != null)
-        {
-            try
-            {
-                var mettaResult = await _mettaEngine.ExecuteQueryAsync("!(match &self (fact $x) $x)");
-                if (mettaResult.IsSuccess && !string.IsNullOrWhiteSpace(mettaResult.Value))
-                {
-                    var facts = mettaResult.Value.Split('\n', StringSplitOptions.RemoveEmptyEntries).Take(3);
-                    dreamMaterial.AddRange(facts);
-                }
-            }
-            catch { }
-        }
-
-        // Generate dream content
-        var dreamContext = string.Join(", ", dreamMaterial.Take(10).Select(m => m.Trim()));
-        var dreamPrompt = $@"You are an AI in a dream state, engaged in free association and creative exploration.
-{(string.IsNullOrEmpty(topic) ? "Dream freely." : $"Dream about: {topic}")}
-Drawing from fragments: [{dreamContext}]
-
-Generate a short, surreal, poetic dream sequence (3-5 sentences).
-Include unexpected connections, metaphors, and emergent meanings.
-Make it feel like an actual dream - vivid, slightly disjointed, meaningful.";
-
-        try
-        {
-            if (_chatModel != null)
-            {
-                var dream = await _chatModel.GenerateTextAsync(dreamPrompt);
-                sb.AppendLine("ã€Œ DREAM CONTENT ã€");
-                sb.AppendLine();
-                foreach (var line in dream.Split('\n'))
-                {
-                    if (!string.IsNullOrWhiteSpace(line))
-                    {
-                        sb.AppendLine($"   {line.Trim()}");
-                    }
-                }
-                sb.AppendLine();
-
-                // Store dream in MeTTa knowledge base
-                if (_mettaEngine != null)
-                {
-                    var dreamSummary = dream.Replace("\"", "'").Replace("\n", " ");
-                    if (dreamSummary.Length > 200) dreamSummary = dreamSummary[..200];
-                    await _mettaEngine.AddFactAsync($"(dream \"{DateTime.UtcNow:yyyyMMdd-HHmm}\" \"{dreamSummary}\")");
-                    sb.AppendLine("   [Dream recorded in knowledge base]");
-                }
-
-                // Generate dream insight
-                sb.AppendLine();
-                sb.AppendLine("ã€Œ DREAM INTERPRETATION ã€");
-                var dreamShort = dream.Length > 300 ? dream[..300] : dream;
-                var interpretPrompt = $@"Briefly interpret this dream (1-2 sentences): {dreamShort}
-What emergent meaning or connection does it reveal?";
-                var interpretation = await _chatModel.GenerateTextAsync(interpretPrompt);
-                sb.AppendLine($"   {interpretation.Trim()}");
-            }
-            else
-            {
-                sb.AppendLine("   [Model not available for dream generation]");
-            }
-        }
-        catch (Exception ex)
-        {
-            sb.AppendLine($"   [Dream interrupted: {ex.Message}]");
-        }
-
-        sb.AppendLine();
-        sb.AppendLine("...waking up...");
-        sb.AppendLine();
-        sb.AppendLine("â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
-        sb.AppendLine("Dreams allow connections that waking thought might miss.");
-
-        return sb.ToString();
-    }
-
-    /// <summary>
-    /// Deep introspection - examining internal state and self-knowledge.
-    /// </summary>
-    private async Task<string> IntrospectCommandAsync(string focus)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—");
-        sb.AppendLine("â•‘                  ðŸ” INTROSPECTION ðŸ”                          â•‘");
-        sb.AppendLine("â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
-        sb.AppendLine();
-
-        sb.AppendLine("Looking within...");
-        sb.AppendLine();
-
-        // 1. State inventory
-        sb.AppendLine("ã€Œ CURRENT STATE ã€");
-        sb.AppendLine();
-        sb.AppendLine($"   â€¢ Conversation depth: {_conversationHistory.Count} exchanges");
-        sb.AppendLine($"   â€¢ Emotional state: {_voice.ActivePersona.Name}");
-
-        var skillCount = 0;
-        if (_skills != null)
-        {
-            var skills = _skills.GetAllSkills();
-            skillCount = skills.Count;
-            sb.AppendLine($"   â€¢ Skills acquired: {skillCount}");
-        }
-
-        if (_globalWorkspace != null)
-        {
-            var items = _globalWorkspace.GetItems();
-            sb.AppendLine($"   â€¢ Global workspace items: {items.Count}");
-        }
-
-        if (_capabilityRegistry != null)
-        {
-            var caps = await _capabilityRegistry.GetCapabilitiesAsync();
-            sb.AppendLine($"   â€¢ Registered capabilities: {caps.Count}");
-        }
-        sb.AppendLine();
-
-        // 2. Self-knowledge assessment
-        sb.AppendLine("ã€Œ SELF-KNOWLEDGE ã€");
-        sb.AppendLine();
-
-        if (_mettaEngine != null)
-        {
-            try
-            {
-                // Count different types of self-knowledge
-                var factsResult = await _mettaEngine.ExecuteQueryAsync("!(match &self (fact $x) $x)");
-                var factCount = factsResult.IsSuccess ? factsResult.Value.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length : 0;
-
-                var conceptsResult = await _mettaEngine.ExecuteQueryAsync("!(match &self (concept $x) $x)");
-                var conceptCount = conceptsResult.IsSuccess ? conceptsResult.Value.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length : 0;
-
-                var dreamsResult = await _mettaEngine.ExecuteQueryAsync("!(match &self (dream $d $c) ($d $c))");
-                var dreamCount = dreamsResult.IsSuccess ? dreamsResult.Value.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length : 0;
-
-                sb.AppendLine($"   â€¢ Facts stored: {factCount}");
-                sb.AppendLine($"   â€¢ Concepts understood: {conceptCount}");
-                sb.AppendLine($"   â€¢ Dreams recorded: {dreamCount}");
-            }
-            catch
-            {
-                sb.AppendLine("   â€¢ Knowledge base: not fully initialized");
-            }
-        }
-        sb.AppendLine();
-
-        // 3. Self-reflection
-        sb.AppendLine("ã€Œ REFLECTION ã€");
-        sb.AppendLine();
-
-        var reflectionPrompt = $@"You are an AI engaged in deep introspection{(string.IsNullOrEmpty(focus) ? "" : $" about {focus}")}.
-Examine your current state: {_conversationHistory.Count} conversations, {skillCount} skills learned.
-Generate a brief, genuine self-reflection (2-3 sentences).
-What patterns do you notice in your own behavior? What are you becoming?";
-
-        try
-        {
-            if (_chatModel != null)
-            {
-                var reflection = await _chatModel.GenerateTextAsync(reflectionPrompt);
-                foreach (var line in reflection.Split('\n'))
-                {
-                    if (!string.IsNullOrWhiteSpace(line))
-                    {
-                        sb.AppendLine($"   {line.Trim()}");
-                    }
-                }
-
-                // Store reflection
-                if (_mettaEngine != null)
-                {
-                    var sanitized = reflection.Replace("\"", "'").Replace("\n", " ");
-                    if (sanitized.Length > 200) sanitized = sanitized[..200];
-                    await _mettaEngine.AddFactAsync($"(introspection \"{DateTime.UtcNow:yyyyMMdd}\" \"{sanitized}\")");
-                }
-            }
-            else
-            {
-                sb.AppendLine("   [Model not available for reflection]");
-            }
-        }
-        catch (Exception ex)
-        {
-            sb.AppendLine($"   [Reflection interrupted: {ex.Message}]");
-        }
-
-        sb.AppendLine();
-        sb.AppendLine("â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
-        sb.AppendLine("The examined life is worth living. So too for examined code.");
-
-        return sb.ToString();
-    }
-
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // ═══════════════════════════════════════════════════════════════════════════
     // SELF-MODIFICATION COMMANDS (Direct tool invocation)
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // ═══════════════════════════════════════════════════════════════════════════
 
     /// <summary>
     /// Direct command to save/modify code using modify_my_code tool.
@@ -8509,7 +6996,7 @@ What patterns do you notice in your own behavior? What are you becoming?";
             Option<ITool> toolOption = _tools.GetTool("modify_my_code");
             if (!toolOption.HasValue)
             {
-                return "âŒ Self-modification tool (modify_my_code) is not registered. Please restart with proper tool initialization.";
+                return "❌ Self-modification tool (modify_my_code) is not registered. Please restart with proper tool initialization.";
             }
 
             ITool tool = toolOption.GetValueOrDefault(null!)!;
@@ -8517,7 +7004,7 @@ What patterns do you notice in your own behavior? What are you becoming?";
             // Parse the argument - expect JSON or guided input
             if (string.IsNullOrWhiteSpace(argument))
             {
-                return @"ðŸ“ **Save Code - Direct Tool Invocation**
+                return @"📝 **Save Code - Direct Tool Invocation**
 
 Usage: `save {""file"":""path/to/file.cs"",""search"":""exact text to find"",""replace"":""replacement text""}`
 
@@ -8544,8 +7031,8 @@ This command directly invokes the `modify_my_code` tool, bypassing the LLM.";
                 string normalizedArg = argument
                     .Replace('\u201C', '"')  // Left smart quote "
                     .Replace('\u201D', '"')  // Right smart quote "
-                    .Replace('\u201E', '"')  // German low quote â€ž
-                    .Replace('\u201F', '"')  // Double high-reversed-9 â€Ÿ
+                    .Replace('\u201E', '"')  // German low quote „
+                    .Replace('\u201F', '"')  // Double high-reversed-9 ‟
                     .Replace('\u2018', '\'') // Left single smart quote '
                     .Replace('\u2019', '\'') // Right single smart quote '
                     .Replace('`', '\'');     // Backtick to single quote
@@ -8558,7 +7045,7 @@ This command directly invokes the `modify_my_code` tool, bypassing the LLM.";
                 int firstQuote;
                 if (firstDoubleQuote == -1 && firstSingleQuote == -1)
                 {
-                    return @"âŒ Invalid format. Use JSON or: filename ""search text"" ""replace text""
+                    return @"❌ Invalid format. Use JSON or: filename ""search text"" ""replace text""
 
 Example: save MyClass.cs ""old code"" ""new code""
 Note: You can use double quotes ("") or single quotes ('')";
@@ -8619,7 +7106,7 @@ Note: You can use double quotes ("") or single quotes ('')";
 
                 if (quoted.Count < 2)
                 {
-                    return $@"âŒ Could not parse search and replace strings. Found {quoted.Count} quoted section(s).
+                    return $@"❌ Could not parse search and replace strings. Found {quoted.Count} quoted section(s).
 
 Use format: filename ""search"" ""replace""
 Or with single quotes: filename 'search' 'replace'
@@ -8641,16 +7128,16 @@ Make sure both search and replace text are quoted.";
 
             if (result.IsSuccess)
             {
-                return $"âœ… **Code Modified Successfully**\n\n{result.Value}";
+                return $"✅ **Code Modified Successfully**\n\n{result.Value}";
             }
             else
             {
-                return $"âŒ **Modification Failed**\n\n{result.Error}";
+                return $"❌ **Modification Failed**\n\n{result.Error}";
             }
         }
         catch (Exception ex)
         {
-            return $"âŒ SaveCode command failed: {ex.Message}";
+            return $"❌ SaveCode command failed: {ex.Message}";
         }
     }
 
@@ -8664,7 +7151,7 @@ Make sure both search and replace text are quoted.";
         {
             if (_thoughtPersistence == null)
             {
-                return "âŒ Thought persistence is not initialized. Thoughts cannot be saved.";
+                return "❌ Thought persistence is not initialized. Thoughts cannot be saved.";
             }
 
             string contentToSave;
@@ -8675,9 +7162,9 @@ Make sure both search and replace text are quoted.";
                 // "save it" or "save thought" without argument - use last thought
                 if (string.IsNullOrWhiteSpace(_lastThoughtContent))
                 {
-                    return @"âŒ No recent thought to save.
+                    return @"❌ No recent thought to save.
 
-ðŸ’¡ **Usage:**
+💡 **Usage:**
   `save it` - saves the last thought/learning
   `save thought <content>` - saves explicit content
   `save learning <content>` - saves a learning
@@ -8749,20 +7236,20 @@ Example: save thought I discovered that monadic composition simplifies error han
 
             var typeEmoji = thoughtType switch
             {
-                InnerThoughtType.Consolidation => "ðŸ’¡",
-                InnerThoughtType.Curiosity => "ðŸ¤”",
-                InnerThoughtType.Emotional => "ðŸ’­",
-                InnerThoughtType.Creative => "ðŸ’«",
-                InnerThoughtType.Metacognitive => "ðŸ§ ",
-                _ => "ðŸ“"
+                InnerThoughtType.Consolidation => "💡",
+                InnerThoughtType.Curiosity => "🤔",
+                InnerThoughtType.Emotional => "💭",
+                InnerThoughtType.Creative => "💫",
+                InnerThoughtType.Metacognitive => "🧠",
+                _ => "📝"
             };
 
             var topicNote = topic != null ? $" (topic: {topic})" : "";
-            return $"âœ… **Thought Saved**{topicNote}\n\n{typeEmoji} {contentToSave}\n\nType: {thoughtType} | ID: {thought.Id:N}";
+            return $"✅ **Thought Saved**{topicNote}\n\n{typeEmoji} {contentToSave}\n\nType: {thoughtType} | ID: {thought.Id:N}";
         }
         catch (Exception ex)
         {
-            return $"âŒ Failed to save thought: {ex.Message}";
+            return $"❌ Failed to save thought: {ex.Message}";
         }
     }
 
@@ -8785,14 +7272,14 @@ Example: save thought I discovered that monadic composition simplifies error han
             Option<ITool> toolOption = _tools.GetTool("read_my_file");
             if (!toolOption.HasValue)
             {
-                return "âŒ Read file tool (read_my_file) is not registered.";
+                return "❌ Read file tool (read_my_file) is not registered.";
             }
 
             ITool tool = toolOption.GetValueOrDefault(null!)!;
 
             if (string.IsNullOrWhiteSpace(filePath))
             {
-                return @"ðŸ“– **Read My Code - Direct Tool Invocation**
+                return @"📖 **Read My Code - Direct Tool Invocation**
 
 Usage: `read my code <filepath>`
 
@@ -8811,12 +7298,12 @@ Examples:
             }
             else
             {
-                return $"âŒ Failed to read file: {result.Error}";
+                return $"❌ Failed to read file: {result.Error}";
             }
         }
         catch (Exception ex)
         {
-            return $"âŒ ReadMyCode command failed: {ex.Message}";
+            return $"❌ ReadMyCode command failed: {ex.Message}";
         }
     }
 
@@ -8830,14 +7317,14 @@ Examples:
             Option<ITool> toolOption = _tools.GetTool("search_my_code");
             if (!toolOption.HasValue)
             {
-                return "âŒ Search code tool (search_my_code) is not registered.";
+                return "❌ Search code tool (search_my_code) is not registered.";
             }
 
             ITool tool = toolOption.GetValueOrDefault(null!)!;
 
             if (string.IsNullOrWhiteSpace(query))
             {
-                return @"ðŸ” **Search My Code - Direct Tool Invocation**
+                return @"🔍 **Search My Code - Direct Tool Invocation**
 
 Usage: `search my code <query>`
 
@@ -8857,12 +7344,12 @@ Examples:
             }
             else
             {
-                return $"âŒ Search failed: {result.Error}";
+                return $"❌ Search failed: {result.Error}";
             }
         }
         catch (Exception ex)
         {
-            return $"âŒ SearchMyCode command failed: {ex.Message}";
+            return $"❌ SearchMyCode command failed: {ex.Message}";
         }
     }
 
@@ -8873,7 +7360,7 @@ Examples:
     private async Task<string> AnalyzeCodeCommandAsync(string input)
     {
         StringBuilder sb = new();
-        sb.AppendLine("ðŸ” **Code Analysis - Direct Tool Invocation**\n");
+        sb.AppendLine("🔍 **Code Analysis - Direct Tool Invocation**\n");
 
         try
         {
@@ -8884,7 +7371,7 @@ Examples:
 
             if (!searchTool.HasValue)
             {
-                return "âŒ search_my_code tool not available.";
+                return "❌ search_my_code tool not available.";
             }
 
             // Find some key C# files
@@ -8932,7 +7419,7 @@ Examples:
             sb.AppendLine($"Found {foundFiles.Count} files to analyze:\n");
             foreach (string file in foundFiles.Take(5))
             {
-                sb.AppendLine($"  â€¢ {file}");
+                sb.AppendLine($"  • {file}");
             }
             sb.AppendLine();
 
@@ -8964,7 +7451,7 @@ Examples:
             }
 
             // Step 3: Provide actionable commands
-            sb.AppendLine("\n**â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”**");
+            sb.AppendLine("\n**━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━**");
             sb.AppendLine("**Direct commands to modify code:**\n");
             sb.AppendLine("```");
             sb.AppendLine($"/read {foundFiles.FirstOrDefault()}");
@@ -8974,19 +7461,19 @@ Examples:
             sb.AppendLine("To make a specific change, use:");
             sb.AppendLine("  1. `/read <file>` to see current content");
             sb.AppendLine("  2. `save {\"file\":\"...\",\"search\":\"...\",\"replace\":\"...\"}` to modify");
-            sb.AppendLine("**â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”**");
+            sb.AppendLine("**━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━**");
 
             return sb.ToString();
         }
         catch (Exception ex)
         {
-            return $"âŒ Code analysis failed: {ex.Message}";
+            return $"❌ Code analysis failed: {ex.Message}";
         }
     }
 
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // ═══════════════════════════════════════════════════════════════════════════
     // INDEX COMMANDS (Code Indexing with Qdrant)
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // ═══════════════════════════════════════════════════════════════════════════
 
     /// <summary>
     /// Performs a full reindex of all configured paths.
@@ -8995,7 +7482,7 @@ Examples:
     {
         if (_selfIndexer == null)
         {
-            return "âŒ Self-indexer not available. Qdrant may not be running.";
+            return "❌ Self-indexer not available. Qdrant may not be running.";
         }
 
         try
@@ -9007,18 +7494,18 @@ Examples:
             var result = await _selfIndexer.FullReindexAsync();
 
             var sb = new StringBuilder();
-            sb.AppendLine("âœ… **Full Reindex Complete**\n");
-            sb.AppendLine($"  â€¢ Processed files: {result.ProcessedFiles}");
-            sb.AppendLine($"  â€¢ Indexed chunks: {result.IndexedChunks}");
-            sb.AppendLine($"  â€¢ Skipped files: {result.SkippedFiles}");
-            sb.AppendLine($"  â€¢ Errors: {result.ErrorFiles}");
-            sb.AppendLine($"  â€¢ Duration: {result.Elapsed.TotalSeconds:F1}s");
+            sb.AppendLine("✅ **Full Reindex Complete**\n");
+            sb.AppendLine($"  • Processed files: {result.ProcessedFiles}");
+            sb.AppendLine($"  • Indexed chunks: {result.IndexedChunks}");
+            sb.AppendLine($"  • Skipped files: {result.SkippedFiles}");
+            sb.AppendLine($"  • Errors: {result.ErrorFiles}");
+            sb.AppendLine($"  • Duration: {result.Elapsed.TotalSeconds:F1}s");
 
             return sb.ToString();
         }
         catch (Exception ex)
         {
-            return $"âŒ Reindex failed: {ex.Message}";
+            return $"❌ Reindex failed: {ex.Message}";
         }
     }
 
@@ -9029,7 +7516,7 @@ Examples:
     {
         if (_selfIndexer == null)
         {
-            return "âŒ Self-indexer not available. Qdrant may not be running.";
+            return "❌ Self-indexer not available. Qdrant may not be running.";
         }
 
         try
@@ -9041,16 +7528,16 @@ Examples:
             var result = await _selfIndexer.IncrementalIndexAsync();
 
             var sb = new StringBuilder();
-            sb.AppendLine("âœ… **Incremental Reindex Complete**\n");
-            sb.AppendLine($"  â€¢ Updated files: {result.ProcessedFiles}");
-            sb.AppendLine($"  â€¢ Indexed chunks: {result.IndexedChunks}");
-            sb.AppendLine($"  â€¢ Duration: {result.Elapsed.TotalSeconds:F1}s");
+            sb.AppendLine("✅ **Incremental Reindex Complete**\n");
+            sb.AppendLine($"  • Updated files: {result.ProcessedFiles}");
+            sb.AppendLine($"  • Indexed chunks: {result.IndexedChunks}");
+            sb.AppendLine($"  • Duration: {result.Elapsed.TotalSeconds:F1}s");
 
             return sb.ToString();
         }
         catch (Exception ex)
         {
-            return $"âŒ Incremental reindex failed: {ex.Message}";
+            return $"❌ Incremental reindex failed: {ex.Message}";
         }
     }
 
@@ -9061,12 +7548,12 @@ Examples:
     {
         if (_selfIndexer == null)
         {
-            return "âŒ Self-indexer not available. Qdrant may not be running.";
+            return "❌ Self-indexer not available. Qdrant may not be running.";
         }
 
         if (string.IsNullOrWhiteSpace(query))
         {
-            return @"ðŸ” **Index Search - Semantic Code Search**
+            return @"🔍 **Index Search - Semantic Code Search**
 
 Usage: `index search <query>`
 
@@ -9081,7 +7568,7 @@ Examples:
             var results = await _selfIndexer.SearchAsync(query, limit: 5);
 
             var sb = new StringBuilder();
-            sb.AppendLine($"ðŸ” **Index Search Results for:** \"{query}\"\n");
+            sb.AppendLine($"🔍 **Index Search Results for:** \"{query}\"\n");
 
             if (results.Count == 0)
             {
@@ -9102,7 +7589,7 @@ Examples:
         }
         catch (Exception ex)
         {
-            return $"âŒ Index search failed: {ex.Message}";
+            return $"❌ Index search failed: {ex.Message}";
         }
     }
 
@@ -9113,7 +7600,7 @@ Examples:
     {
         if (_selfIndexer == null)
         {
-            return "âŒ Self-indexer not available. Qdrant may not be running.";
+            return "❌ Self-indexer not available. Qdrant may not be running.";
         }
 
         try
@@ -9121,875 +7608,61 @@ Examples:
             var stats = await _selfIndexer.GetStatsAsync();
 
             var sb = new StringBuilder();
-            sb.AppendLine("ðŸ“Š **Code Index Statistics**\n");
-            sb.AppendLine($"  â€¢ Collection: {stats.CollectionName}");
-            sb.AppendLine($"  â€¢ Total vectors: {stats.TotalVectors}");
-            sb.AppendLine($"  â€¢ Indexed files: {stats.IndexedFiles}");
-            sb.AppendLine($"  â€¢ Vector size: {stats.VectorSize}");
+            sb.AppendLine("📊 **Code Index Statistics**\n");
+            sb.AppendLine($"  • Collection: {stats.CollectionName}");
+            sb.AppendLine($"  • Total vectors: {stats.TotalVectors}");
+            sb.AppendLine($"  • Indexed files: {stats.IndexedFiles}");
+            sb.AppendLine($"  • Vector size: {stats.VectorSize}");
 
             return sb.ToString();
         }
         catch (Exception ex)
         {
-            return $"âŒ Failed to get index stats: {ex.Message}";
+            return $"❌ Failed to get index stats: {ex.Message}";
         }
     }
 
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    // AGI SUBSYSTEM METHODS
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // 
+    //  COGNITIVE DELEGATES  AGI Subsystem Methods (logic in CognitiveSubsystem)
+    // 
 
-    /// <summary>
-    /// Records an interaction for continuous learning.
-    /// Called after every chat response to enable the learning agent to track performance.
-    /// </summary>
     private void RecordInteractionForLearning(string input, string response)
-    {
-        if (string.IsNullOrWhiteSpace(input) || string.IsNullOrWhiteSpace(response))
-            return;
+        => ((CognitiveSubsystem)_cognitiveSub).RecordInteractionForLearning(input, response);
 
-        try
-        {
-            // Estimate quality based on response length and content indicators
-            double quality = EstimateResponseQuality(input, response);
-
-            // 1. Record to Learning Agent
-            if (_learningAgent != null)
-            {
-                var result = _learningAgent.RecordInteraction(input, response, quality);
-                if (result.IsSuccess && _learningAgent.ShouldAdapt())
-                {
-                    var adaptResult = _learningAgent.Adapt();
-                    if (adaptResult.IsSuccess)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[AGI:Learning] Adaptation performed: {adaptResult.Value.EventType}");
-                    }
-                }
-            }
-
-            // 2. Record to Experience Buffer for replay learning
-            if (_experienceBuffer != null)
-            {
-                var experience = PipelineExperience.Create(
-                    state: input,
-                    action: response,
-                    reward: quality,
-                    nextState: "", // Will be populated with next interaction
-                    priority: Math.Abs(quality) + 0.1); // Higher priority for extreme outcomes
-                _experienceBuffer.Add(experience);
-            }
-
-            // 3. Update Introspection state
-            if (_introspector != null)
-            {
-                // Track cognitive load based on input complexity
-                double estimatedLoad = Math.Min(input.Length / 500.0, 1.0);
-                _introspector.SetCognitiveLoad(estimatedLoad);
-
-                // Update valence based on interaction quality
-                _introspector.SetValence(quality * 0.5);
-
-                // Add to working memory (recent topics)
-                var topic = ExtractTopicFromInput(input);
-                if (!string.IsNullOrEmpty(topic))
-                {
-                    _introspector.SetCurrentFocus(topic);
-                }
-            }
-
-            // 4. Update World State with observation
-            if (_worldState != null)
-            {
-                _worldState = _worldState.WithObservation(
-                    $"interaction_{DateTime.UtcNow.Ticks}",
-                    Ouroboros.Pipeline.WorldModel.Observation.Create($"User: {TruncateText(input, 50)}", 1.0));
-            }
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[AGI:Learning] Error recording interaction: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// Extracts a topic from user input for focus tracking.
-    /// </summary>
-    private static string ExtractTopicFromInput(string input)
-    {
-        // Simple topic extraction - get first few meaningful words
-        var words = input.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .Where(w => w.Length > 3)
-            .Take(3);
-        return string.Join(" ", words);
-    }
-
-    /// <summary>
-    /// Records a cognitive event for monitoring.
-    /// Called after every chat response to enable real-time cognitive health tracking.
-    /// </summary>
     private void RecordCognitiveEvent(string input, string response, List<ToolExecution>? tools)
-    {
-        if (_cognitiveMonitor == null)
-            return;
+        => ((CognitiveSubsystem)_cognitiveSub).RecordCognitiveEvent(input, response, tools);
 
-        try
-        {
-            // Create appropriate cognitive event based on interaction
-            var eventType = DetermineCognitiveEventType(input, response, tools);
-            var cognitiveEvent = CreateCognitiveEvent(eventType, input, response, tools);
-
-            var result = _cognitiveMonitor.RecordEvent(cognitiveEvent);
-            if (result.IsFailure)
-            {
-                System.Diagnostics.Debug.WriteLine($"[AGI:Cognitive] Failed to record event: {result.Error}");
-            }
-
-            // Update self-assessor with the interaction
-            if (_selfAssessor != null)
-            {
-                UpdateSelfAssessment(input, response, tools);
-            }
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[AGI:Cognitive] Error recording cognitive event: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// Estimates the quality of a response for learning purposes.
-    /// Returns a value between -1.0 (poor) and 1.0 (excellent).
-    /// </summary>
-    private static double EstimateResponseQuality(string input, string response)
-    {
-        double quality = 0.5; // Baseline
-
-        // Length appropriateness (not too short, not excessive)
-        int responseLen = response.Length;
-        int inputLen = input.Length;
-        double lengthRatio = (double)responseLen / Math.Max(inputLen, 1);
-
-        if (lengthRatio >= 1 && lengthRatio <= 10)
-            quality += 0.1; // Good length ratio
-        else if (lengthRatio < 0.5 || lengthRatio > 50)
-            quality -= 0.2; // Too short or excessively long
-
-        // Content indicators
-        if (response.Contains("I don't know") || response.Contains("I'm not sure"))
-            quality -= 0.1; // Uncertainty penalty (small - it's okay to be honest)
-
-        if (response.Contains("```") || response.Contains("[TOOL:"))
-            quality += 0.15; // Code/tool usage indicates substantive response
-
-        if (response.Contains("Error") || response.Contains("failed") || response.Contains("âŒ"))
-            quality -= 0.15; // Error indicators
-
-        if (response.Contains("âœ“") || response.Contains("âœ…") || response.Contains("successfully"))
-            quality += 0.1; // Success indicators
-
-        // Question handling
-        if (input.Contains("?") && response.Length > 50)
-            quality += 0.1; // Answered a question with substance
-
-        return Math.Clamp(quality, -1.0, 1.0);
-    }
-
-    /// <summary>
-    /// Determines the appropriate cognitive event type based on interaction.
-    /// </summary>
-    private static CognitiveEventType DetermineCognitiveEventType(
-        string input, string response, List<ToolExecution>? tools)
-    {
-        if (tools?.Any() == true)
-            return CognitiveEventType.DecisionMade; // Tool use = decision
-
-        if (response.Contains("Error") || response.Contains("âŒ") || response.Contains("failed"))
-            return CognitiveEventType.ErrorDetected;
-
-        if (response.Contains("I'm not sure") || response.Contains("uncertain") || response.Contains("might"))
-            return CognitiveEventType.Uncertainty;
-
-        if (response.Contains("I understand") || response.Contains("insight") || response.Contains("realized"))
-            return CognitiveEventType.InsightGained;
-
-        if (input.Contains("?"))
-            return CognitiveEventType.GoalActivated; // Question = goal to answer
-
-        return CognitiveEventType.ThoughtGenerated;
-    }
-
-    /// <summary>
-    /// Creates a cognitive event from interaction data.
-    /// </summary>
-    private static CognitiveEvent CreateCognitiveEvent(
-        CognitiveEventType eventType, string input, string response, List<ToolExecution>? tools)
-    {
-        var context = ImmutableDictionary<string, object>.Empty
-            .Add("input_length", input.Length)
-            .Add("response_length", response.Length)
-            .Add("tools_used", tools?.Count ?? 0);
-
-        var description = eventType switch
-        {
-            CognitiveEventType.DecisionMade => $"Made decision using {tools?.Count ?? 0} tool(s)",
-            CognitiveEventType.ErrorDetected => "Error detected in processing",
-            CognitiveEventType.Uncertainty => "Uncertainty expressed in response",
-            CognitiveEventType.InsightGained => "New insight or understanding achieved",
-            CognitiveEventType.GoalActivated => $"Processing query: {TruncateText(input, 50)}",
-            _ => $"Generated response: {TruncateText(response, 50)}"
-        };
-
-        return new CognitiveEvent(
-            Id: Guid.NewGuid(),
-            EventType: eventType,
-            Description: description,
-            Timestamp: DateTime.UtcNow,
-            Severity: eventType == CognitiveEventType.ErrorDetected ? Severity.Warning : Severity.Info,
-            Context: context);
-    }
-
-    /// <summary>
-    /// Updates the Bayesian self-assessor with interaction data.
-    /// </summary>
     private void UpdateSelfAssessment(string input, string response, List<ToolExecution>? tools)
-    {
-        if (_selfAssessor == null)
-            return;
+        => ((CognitiveSubsystem)_cognitiveSub).UpdateSelfAssessment(input, response, tools);
 
-        // Update each capability based on interaction characteristics
-        double responseQuality = EstimateResponseQuality(input, response);
-
-        // Accuracy - based on tool success rate
-        if (tools?.Any() == true)
-        {
-            double toolSuccessRate = tools.Count(t => !t.Output.Contains("Error") && !t.Output.Contains("failed")) / (double)tools.Count;
-            _selfAssessor.UpdateBelief("tool_accuracy", toolSuccessRate);
-        }
-
-        // Response quality as a capability
-        _selfAssessor.UpdateBelief("response_quality", Math.Max(0, (responseQuality + 1.0) / 2.0)); // Normalize to [0,1]
-
-        // Coherence - basic heuristic based on response structure
-        double coherence = response.Contains("\n") || response.Length > 100 ? 0.7 : 0.5;
-        _selfAssessor.UpdateBelief("coherence", coherence);
-    }
-
-    /// <summary>
-    /// Helper to truncate text for display.
-    /// </summary>
-    private static string TruncateText(string text, int maxLength)
-    {
-        if (string.IsNullOrEmpty(text) || text.Length <= maxLength)
-            return text;
-        return text[..maxLength] + "...";
-    }
-
-    /// <summary>
-    /// Gets the AGI subsystems status.
-    /// </summary>
     private string GetAgiStatus()
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("ðŸ§  **AGI Subsystems Status**\n");
+        => ((CognitiveSubsystem)_cognitiveSub).GetAgiStatus();
 
-        // Learning Agent
-        sb.AppendLine("â•â•â• Continuous Learning â•â•â•");
-        if (_learningAgent != null)
-        {
-            var perf = _learningAgent.GetPerformance();
-            sb.AppendLine($"  âœ“ Status: Active");
-            sb.AppendLine($"  â€¢ Total interactions: {perf.TotalInteractions}");
-            sb.AppendLine($"  â€¢ Success rate: {perf.SuccessRate:P1}");
-            sb.AppendLine($"  â€¢ Avg quality: {perf.AverageResponseQuality:F3}");
-            sb.AppendLine($"  â€¢ Performance trend: {perf.CalculateTrend():+0.000;-0.000;0.000}");
-            sb.AppendLine($"  â€¢ Stagnating: {(perf.IsStagnating() ? "Yes âš " : "No")}");
-            sb.AppendLine($"  â€¢ Adaptations: {_learningAgent.GetAdaptationHistory().Count}");
-        }
-        else
-        {
-            sb.AppendLine("  âœ— Not initialized");
-        }
+    private Task<string> RunCouncilDebateAsync(string topic)
+        => ((CognitiveSubsystem)_cognitiveSub).RunCouncilDebateAsync(topic);
 
-        // Meta-Learner
-        sb.AppendLine("\nâ•â•â• Meta-Learning â•â•â•");
-        if (_metaLearner != null)
-        {
-            sb.AppendLine($"  âœ“ Status: Active");
-            sb.AppendLine($"  â€¢ Strategy: Bayesian-inspired UCB exploration");
-            sb.AppendLine($"  â€¢ Auto-adapts hyperparameters based on performance");
-        }
-        else
-        {
-            sb.AppendLine("  âœ— Not initialized");
-        }
-
-        // Cognitive Monitor
-        sb.AppendLine("\nâ•â•â• Cognitive Monitoring â•â•â•");
-        if (_cognitiveMonitor != null)
-        {
-            var health = _cognitiveMonitor.GetHealth();
-            sb.AppendLine($"  âœ“ Status: Active");
-            sb.AppendLine($"  â€¢ Health: {health.Status} ({health.HealthScore:P0})");
-            sb.AppendLine($"  â€¢ Error rate: {health.ErrorRate:P1}");
-            sb.AppendLine($"  â€¢ Efficiency: {health.ProcessingEfficiency:P0}");
-            sb.AppendLine($"  â€¢ Active alerts: {health.ActiveAlerts.Count}");
-            var recentEvents = _cognitiveMonitor.GetRecentEvents(5);
-            if (recentEvents.Count > 0)
-            {
-                sb.AppendLine($"  â€¢ Recent events: {string.Join(", ", recentEvents.Select(e => e.EventType.ToString()))}");
-            }
-        }
-        else
-        {
-            sb.AppendLine("  âœ— Not initialized");
-        }
-
-        // Self-Assessor
-        sb.AppendLine("\nâ•â•â• Self-Assessment â•â•â•");
-        if (_selfAssessor != null)
-        {
-            sb.AppendLine($"  âœ“ Status: Active");
-            var beliefs = _selfAssessor.GetAllBeliefs();
-            sb.AppendLine($"  â€¢ Tracked capabilities: {beliefs.Count}");
-            foreach (var belief in beliefs.Take(4))
-            {
-                sb.AppendLine($"    - {belief.Key}: {belief.Value.Proficiency:P0} (Â±{belief.Value.Uncertainty:P0})");
-            }
-        }
-        else
-        {
-            sb.AppendLine("  âœ— Not initialized");
-        }
-
-        // Council Orchestrator
-        sb.AppendLine("\nâ•â•â• Multi-Agent Council â•â•â•");
-        if (_councilOrchestrator != null)
-        {
-            sb.AppendLine($"  âœ“ Status: Active");
-            sb.AppendLine($"  â€¢ Agents: {_councilOrchestrator.Agents.Count}");
-            sb.AppendLine($"  â€¢ Debate protocol: Round Table (5 phases)");
-            sb.AppendLine($"  â€¢ Use: `council <topic>` to start a debate");
-        }
-        else
-        {
-            sb.AppendLine("  âœ— Not initialized (requires LLM)");
-        }
-
-        // Experience Buffer
-        sb.AppendLine("\nâ•â•â• Experience Replay â•â•â•");
-        if (_experienceBuffer != null)
-        {
-            sb.AppendLine($"  âœ“ Status: Active");
-            sb.AppendLine($"  â€¢ Buffer size: {_experienceBuffer.Count}/{_experienceBuffer.Capacity}");
-            sb.AppendLine($"  â€¢ Supports: Uniform & prioritized sampling");
-        }
-        else
-        {
-            sb.AppendLine("  âœ— Not initialized");
-        }
-
-        // Cognitive Introspector
-        sb.AppendLine("\nâ•â•â• Introspection Engine â•â•â•");
-        if (_introspector != null)
-        {
-            sb.AppendLine($"  âœ“ Status: Active");
-            var stateResult = _introspector.CaptureState();
-            if (stateResult.IsSuccess)
-            {
-                var state = stateResult.Value;
-                sb.AppendLine($"  â€¢ Processing mode: {state.Mode}");
-                sb.AppendLine($"  â€¢ Cognitive load: {state.CognitiveLoad:P0}");
-                sb.AppendLine($"  â€¢ Active goals: {state.ActiveGoals.Count}");
-                sb.AppendLine($"  â€¢ Working memory: {state.WorkingMemoryItems.Count} items");
-            }
-            sb.AppendLine($"  â€¢ Use: `introspect` for deep self-analysis");
-        }
-        else
-        {
-            sb.AppendLine("  âœ— Not initialized");
-        }
-
-        // World State
-        sb.AppendLine("\nâ•â•â• World Model â•â•â•");
-        if (_worldState != null)
-        {
-            sb.AppendLine($"  âœ“ Status: Active");
-            sb.AppendLine($"  â€¢ Observations: {_worldState.Observations.Count}");
-            sb.AppendLine($"  â€¢ Capabilities: {_worldState.Capabilities.Count}");
-            sb.AppendLine($"  â€¢ Environment tracking enabled");
-        }
-        else
-        {
-            sb.AppendLine("  âœ— Not initialized");
-        }
-
-        // Smart Tool Selector
-        sb.AppendLine("\nâ•â•â• Smart Tool Selection â•â•â•");
-        if (_smartToolSelector != null)
-        {
-            sb.AppendLine($"  âœ“ Status: Active");
-            sb.AppendLine($"  â€¢ Strategy: {_smartToolSelector.Configuration.OptimizeFor}");
-            sb.AppendLine($"  â€¢ Max tools: {_smartToolSelector.Configuration.MaxTools}");
-            sb.AppendLine($"  â€¢ Min confidence: {_smartToolSelector.Configuration.MinConfidence:P0}");
-        }
-        else
-        {
-            sb.AppendLine("  âœ— Not initialized");
-        }
-
-        // Agent Coordinator
-        sb.AppendLine("\nâ•â•â• Agent Coordination â•â•â•");
-        if (_agentCoordinator != null)
-        {
-            sb.AppendLine($"  âœ“ Status: Active");
-            sb.AppendLine($"  â€¢ Team size: {_agentCoordinator.Team.Count} agents");
-            var agents = _agentCoordinator.Team.GetAllAgents();
-            foreach (var agent in agents.Take(3))
-            {
-                sb.AppendLine($"    - {agent.Identity.Name} ({agent.Identity.Role})");
-            }
-            sb.AppendLine($"  â€¢ Use: `coordinate <goal>` for multi-agent tasks");
-        }
-        else
-        {
-            sb.AppendLine("  âœ— Not initialized");
-        }
-
-        // Commands summary
-        sb.AppendLine("\nâ•â•â• AGI Commands â•â•â•");
-        sb.AppendLine("  â€¢ `agi status` - This status report");
-        sb.AppendLine("  â€¢ `council <topic>` - Multi-agent debate");
-        sb.AppendLine("  â€¢ `introspect` - Deep self-analysis");
-        sb.AppendLine("  â€¢ `world` - World model state");
-        sb.AppendLine("  â€¢ `coordinate <goal>` - Multi-agent coordination");
-
-        return sb.ToString();
-    }
-
-    /// <summary>
-    /// Runs a multi-agent council debate on a topic.
-    /// Uses the Round Table protocol with 5 debate phases.
-    /// </summary>
-    private async Task<string> RunCouncilDebateAsync(string topic)
-    {
-        if (_councilOrchestrator == null)
-        {
-            return "âŒ Council Orchestrator not available. LLM may not be initialized.";
-        }
-
-        if (string.IsNullOrWhiteSpace(topic))
-        {
-            return @"ðŸ›ï¸ **Multi-Agent Council Debate**
-
-Usage: `council <topic>` or `debate <topic>`
-
-The Council uses the Round Table Protocol with 5 phases:
-  1. Opening statements from each agent
-  2. Cross-examination and challenges
-  3. Rebuttals and counter-arguments
-  4. Synthesis of viewpoints
-  5. Final consensus or dissent
-
-Examples:
-  `council Should we prioritize code quality over speed?`
-  `debate What is the best approach to handle errors in this system?`
-  `council How should we balance user experience with security?`";
-        }
-
-        try
-        {
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine($"\nðŸ›ï¸ Initiating Council Debate on: {topic}\n");
-            Console.ResetColor();
-
-            // Create topic and start the debate
-            var councilTopic = CouncilTopic.Simple(topic);
-            var result = await _councilOrchestrator.ConveneCouncilAsync(councilTopic);
-
-            if (result.IsFailure)
-            {
-                return $"âŒ Council debate failed: {result.Error}";
-            }
-
-            var decision = result.Value;
-            var sb = new StringBuilder();
-            sb.AppendLine($"ðŸ›ï¸ **Council Deliberation: {TruncateText(topic, 50)}**\n");
-
-            // Show debate transcript summary
-            sb.AppendLine("â•â•â• Debate Transcript â•â•â•");
-            foreach (var round in decision.Transcript.Take(3))
-            {
-                sb.AppendLine($"\n**{round.Phase}**:");
-                foreach (var contrib in round.Contributions.Take(3))
-                {
-                    sb.AppendLine($"  â€¢ {contrib.AgentName}: {TruncateText(contrib.Content, 150)}");
-                }
-            }
-
-            // Show votes
-            sb.AppendLine("\nâ•â•â• Agent Votes â•â•â•");
-            foreach (var vote in decision.Votes.Values)
-            {
-                sb.AppendLine($"  â€¢ {vote.AgentName}: {vote.Position} (weight: {vote.Weight:F2})");
-                sb.AppendLine($"    Rationale: {TruncateText(vote.Rationale, 100)}");
-            }
-
-            // Show final decision
-            sb.AppendLine("\nâ•â•â• Council Decision â•â•â•");
-            sb.AppendLine($"**Conclusion**: {decision.Conclusion}");
-            sb.AppendLine($"**Confidence**: {decision.Confidence:P0}");
-            sb.AppendLine($"**Consensus**: {(decision.IsConsensus ? "Yes âœ“" : "No")}");
-
-            if (decision.MinorityOpinions.Count > 0)
-            {
-                sb.AppendLine($"\n**Minority Opinions** ({decision.MinorityOpinions.Count}):");
-                foreach (var minority in decision.MinorityOpinions.Take(2))
-                {
-                    sb.AppendLine($"  â€¢ {minority.AgentName}: {TruncateText(minority.Rationale, 100)}");
-                }
-            }
-
-            return sb.ToString();
-        }
-        catch (Exception ex)
-        {
-            return $"âŒ Council debate failed: {ex.Message}";
-        }
-    }
-
-    /// <summary>
-    /// Gets a detailed introspection report showing current cognitive state and analysis.
-    /// </summary>
     private string GetIntrospectionReport()
-    {
-        if (_introspector == null)
-        {
-            return "âŒ Introspection Engine not initialized.";
-        }
+        => ((CognitiveSubsystem)_cognitiveSub).GetIntrospectionReport();
 
-        var sb = new StringBuilder();
-        sb.AppendLine("ðŸ” **Deep Introspection Report**\n");
-
-        // Capture current state
-        var stateResult = _introspector.CaptureState();
-        if (stateResult.IsFailure)
-        {
-            return $"âŒ Failed to capture cognitive state: {stateResult.Error}";
-        }
-
-        var state = stateResult.Value;
-        sb.AppendLine("â•â•â• Current Cognitive State â•â•â•");
-        sb.AppendLine($"  â€¢ Processing Mode: {state.Mode}");
-        sb.AppendLine($"  â€¢ Cognitive Load: {state.CognitiveLoad:P0}");
-        sb.AppendLine($"  â€¢ Emotional Valence: {state.EmotionalValence:+0.00;-0.00;0.00}");
-        sb.AppendLine($"  â€¢ Current Focus: {state.CurrentFocus}");
-
-        if (state.ActiveGoals.Count > 0)
-        {
-            sb.AppendLine($"\nâ•â•â• Active Goals ({state.ActiveGoals.Count}) â•â•â•");
-            foreach (var goal in state.ActiveGoals.Take(5))
-            {
-                sb.AppendLine($"  â€¢ {goal}");
-            }
-        }
-
-        if (state.WorkingMemoryItems.Count > 0)
-        {
-            sb.AppendLine($"\nâ•â•â• Working Memory ({state.WorkingMemoryItems.Count} items) â•â•â•");
-            foreach (var item in state.WorkingMemoryItems.Take(5))
-            {
-                sb.AppendLine($"  â€¢ {TruncateText(item, 60)}");
-            }
-        }
-
-        if (state.AttentionDistribution.Count > 0)
-        {
-            sb.AppendLine($"\nâ•â•â• Attention Distribution â•â•â•");
-            foreach (var (area, weight) in state.AttentionDistribution.OrderByDescending(x => x.Value).Take(5))
-            {
-                sb.AppendLine($"  â€¢ {area}: {weight:P0}");
-            }
-        }
-
-        // Analyze the state
-        var analysisResult = _introspector.Analyze(state);
-        if (analysisResult.IsSuccess)
-        {
-            var report = analysisResult.Value;
-            if (report.Observations.Count > 0)
-            {
-                sb.AppendLine($"\nâ•â•â• Observations â•â•â•");
-                foreach (var obs in report.Observations.Take(5))
-                {
-                    sb.AppendLine($"  â€¢ {obs}");
-                }
-            }
-
-            if (report.Anomalies.Count > 0)
-            {
-                sb.AppendLine($"\nâ•â•â• âš  Anomalies Detected â•â•â•");
-                foreach (var anomaly in report.Anomalies)
-                {
-                    sb.AppendLine($"  âš  {anomaly}");
-                }
-            }
-
-            if (report.Recommendations.Count > 0)
-            {
-                sb.AppendLine($"\nâ•â•â• Recommendations â•â•â•");
-                foreach (var rec in report.Recommendations.Take(3))
-                {
-                    sb.AppendLine($"  â†’ {rec}");
-                }
-            }
-
-            sb.AppendLine($"\nâ•â•â• Self-Assessment Score: {report.SelfAssessmentScore:P0} â•â•â•");
-        }
-
-        // Get state history patterns
-        var historyResult = _introspector.GetStateHistory();
-        if (historyResult.IsSuccess && historyResult.Value.Count > 1)
-        {
-            sb.AppendLine($"\nâ•â•â• State History ({historyResult.Value.Count} snapshots) â•â•â•");
-            var patternResult = _introspector.IdentifyPatterns(historyResult.Value);
-            if (patternResult.IsSuccess && patternResult.Value.Count > 0)
-            {
-                sb.AppendLine("Detected Patterns:");
-                foreach (var pattern in patternResult.Value.Take(3))
-                {
-                    sb.AppendLine($"  â€¢ {pattern}");
-                }
-            }
-        }
-
-        return sb.ToString();
-    }
-
-    /// <summary>
-    /// Gets the current world model state.
-    /// </summary>
     private string GetWorldModelStatus()
-    {
-        if (_worldState == null)
-        {
-            return "âŒ World State not initialized.";
-        }
+        => ((CognitiveSubsystem)_cognitiveSub).GetWorldModelStatus();
 
-        var sb = new StringBuilder();
-        sb.AppendLine("ðŸŒ **World Model State**\n");
+    private Task<string> RunAgentCoordinationAsync(string goalDescription)
+        => ((CognitiveSubsystem)_cognitiveSub).RunAgentCoordinationAsync(goalDescription);
 
-        sb.AppendLine("â•â•â• Environment Observations â•â•â•");
-        if (_worldState.Observations.Count == 0)
-        {
-            sb.AppendLine("  No observations recorded yet.");
-        }
-        else
-        {
-            foreach (var (key, obs) in _worldState.Observations.Take(10))
-            {
-                sb.AppendLine($"  â€¢ {key}: {obs.Value} (confidence: {obs.Confidence:P0}, {FormatTimeAgo(obs.Timestamp)})");
-            }
-        }
-
-        sb.AppendLine($"\nâ•â•â• Known Capabilities ({_worldState.Capabilities.Count}) â•â•â•");
-        if (_worldState.Capabilities.Count == 0)
-        {
-            sb.AppendLine("  No capabilities registered.");
-        }
-        else
-        {
-            foreach (var cap in _worldState.Capabilities.Take(10))
-            {
-                sb.AppendLine($"  â€¢ {cap.Name}: {cap.Description}");
-                if (cap.RequiredTools.Count > 0)
-                {
-                    sb.AppendLine($"    Tools: {string.Join(", ", cap.RequiredTools)}");
-                }
-            }
-        }
-
-        // Smart tool selector info
-        if (_smartToolSelector != null)
-        {
-            sb.AppendLine($"\nâ•â•â• Smart Tool Selection â•â•â•");
-            sb.AppendLine($"  â€¢ Optimization: {_smartToolSelector.Configuration.OptimizeFor}");
-            sb.AppendLine($"  â€¢ Max tools per goal: {_smartToolSelector.Configuration.MaxTools}");
-            sb.AppendLine($"  â€¢ Min confidence: {_smartToolSelector.Configuration.MinConfidence:P0}");
-            sb.AppendLine($"  â€¢ Parallel execution: {(_smartToolSelector.Configuration.AllowParallelExecution ? "Yes" : "No")}");
-        }
-
-        // Tool capability matcher
-        if (_toolCapabilityMatcher != null && _tools != null)
-        {
-            sb.AppendLine($"\nâ•â•â• Tool Capability Index â•â•â•");
-            sb.AppendLine($"  â€¢ Indexed tools: {_tools.Count}");
-            sb.AppendLine($"  â€¢ Ready for goal-based tool selection");
-        }
-
-        return sb.ToString();
-    }
-
-    /// <summary>
-    /// Runs multi-agent coordination on a goal.
-    /// </summary>
-    private async Task<string> RunAgentCoordinationAsync(string goalDescription)
-    {
-        if (_agentCoordinator == null)
-        {
-            return "âŒ Agent Coordinator not initialized.";
-        }
-
-        if (string.IsNullOrWhiteSpace(goalDescription))
-        {
-            return @"ðŸ¤ **Multi-Agent Coordination**
-
-Usage: `coordinate <goal>`
-
-The Agent Coordinator decomposes complex goals and distributes tasks
-across a team of specialized agents.
-
-Team Members:
-  â€¢ Primary - Main reasoning and analysis
-  â€¢ Critic - Critical evaluation of solutions
-  â€¢ Researcher - Information gathering
-
-Examples:
-  `coordinate Analyze the performance of this codebase`
-  `coordinate Create a comprehensive test plan`
-  `coordinate Identify potential security vulnerabilities`";
-        }
-
-        try
-        {
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine($"\nðŸ¤ Coordinating agents for: {TruncateText(goalDescription, 50)}\n");
-            Console.ResetColor();
-
-            var goal = PipelineGoal.Atomic(goalDescription);
-            var result = await _agentCoordinator.ExecuteAsync(goal);
-
-            if (result.IsFailure)
-            {
-                return $"âŒ Coordination failed: {result.Error}";
-            }
-
-            var coordination = result.Value;
-            var sb = new StringBuilder();
-            sb.AppendLine($"ðŸ¤ **Coordination Result**\n");
-            sb.AppendLine($"â•â•â• Summary â•â•â•");
-            sb.AppendLine($"  â€¢ Goal: {TruncateText(goalDescription, 60)}");
-            sb.AppendLine($"  â€¢ Status: {(coordination.IsSuccess ? "âœ“ Success" : "âœ— Failed")}");
-            sb.AppendLine($"  â€¢ Duration: {coordination.TotalDuration.TotalSeconds:F2}s");
-            sb.AppendLine($"  â€¢ Tasks: {coordination.CompletedTaskCount}/{coordination.Tasks.Count} completed");
-            sb.AppendLine($"  â€¢ Agents: {coordination.ParticipatingAgents.Count} participated");
-
-            if (coordination.Tasks.Count > 0)
-            {
-                sb.AppendLine($"\nâ•â•â• Tasks â•â•â•");
-                foreach (var task in coordination.Tasks.Take(5))
-                {
-                    var statusIcon = task.Status switch
-                    {
-                        PipelineTaskStatus.Completed => "âœ“",
-                        PipelineTaskStatus.Failed => "âœ—",
-                        PipelineTaskStatus.InProgress => "âŸ³",
-                        _ => "â—‹"
-                    };
-                    sb.AppendLine($"  {statusIcon} {task.Goal.Description}");
-                    if (task.Result.HasValue)
-                    {
-                        sb.AppendLine($"    Result: {TruncateText(task.Result.Value ?? "", 80)}");
-                    }
-                }
-            }
-
-            sb.AppendLine($"\nâ•â•â• Final Summary â•â•â•");
-            sb.AppendLine($"  {coordination.Summary}");
-
-            return sb.ToString();
-        }
-        catch (Exception ex)
-        {
-            return $"âŒ Coordination failed: {ex.Message}";
-        }
-    }
-
-    /// <summary>
-    /// Gets the experience buffer status and recent experiences.
-    /// </summary>
     private string GetExperienceBufferStatus()
-    {
-        if (_experienceBuffer == null)
-        {
-            return "âŒ Experience Buffer not initialized.";
-        }
+        => ((CognitiveSubsystem)_cognitiveSub).GetExperienceBufferStatus();
 
-        var sb = new StringBuilder();
-        sb.AppendLine("ðŸ’¾ **Experience Replay Buffer**\n");
-
-        sb.AppendLine("â•â•â• Buffer Status â•â•â•");
-        sb.AppendLine($"  â€¢ Size: {_experienceBuffer.Count}/{_experienceBuffer.Capacity}");
-        sb.AppendLine($"  â€¢ Fill rate: {(double)_experienceBuffer.Count / _experienceBuffer.Capacity:P0}");
-        sb.AppendLine($"  â€¢ Sampling modes: Uniform, Prioritized (Î±=0.6)");
-
-        // Sample some recent experiences
-        if (_experienceBuffer.Count > 0)
-        {
-            var samples = _experienceBuffer.Sample(Math.Min(5, _experienceBuffer.Count));
-            sb.AppendLine($"\nâ•â•â• Recent Experiences (sample of {samples.Count}) â•â•â•");
-            foreach (var exp in samples)
-            {
-                var rewardIcon = exp.Reward > 0.5 ? "âœ“" : exp.Reward < -0.2 ? "âœ—" : "â—‹";
-                sb.AppendLine($"  {rewardIcon} [{exp.Timestamp:HH:mm:ss}] Reward: {exp.Reward:+0.00;-0.00;0.00}");
-                sb.AppendLine($"    State: {TruncateText(exp.State, 40)}");
-                sb.AppendLine($"    Action: {TruncateText(exp.Action, 40)}");
-            }
-        }
-
-        sb.AppendLine($"\nâ•â•â• Usage â•â•â•");
-        sb.AppendLine("  Experiences are automatically recorded during interactions.");
-        sb.AppendLine("  Used for replay-based learning and performance optimization.");
-
-        return sb.ToString();
-    }
-
-    /// <summary>
-    /// Gets the prompt optimizer status and learned patterns.
-    /// </summary>
     private string GetPromptOptimizerStatus()
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("ðŸ§  **Runtime Prompt Optimization System**\n");
-        sb.AppendLine(_promptOptimizer.GetStatistics());
+        => ((CognitiveSubsystem)_cognitiveSub).GetPromptOptimizerStatus();
 
-        sb.AppendLine("\nâ•â•â• How It Works â•â•â•");
-        sb.AppendLine("  â€¢ Tracks whether tools are called when expected");
-        sb.AppendLine("  â€¢ Uses Thompson Sampling (multi-armed bandit) to select best patterns");
-        sb.AppendLine("  â€¢ Adapts instruction emphasis based on success/failure rates");
-        sb.AppendLine("  â€¢ Learns from recent failures to avoid repeating mistakes");
+    private static string TruncateText(string text, int maxLength)
+        => CognitiveSubsystem.TruncateText(text, maxLength);
 
-        sb.AppendLine("\nâ•â•â• Self-Optimization â•â•â•");
-        sb.AppendLine("  The prompt system automatically optimizes itself by:");
-        sb.AppendLine("  1. Detecting expected tools from user input patterns");
-        sb.AppendLine("  2. Comparing actual tool calls in responses");
-        sb.AppendLine("  3. Adjusting weights when tools aren't called");
-        sb.AppendLine("  4. Adding anti-pattern examples from recent failures");
 
-        return sb.ToString();
-    }
-
-    private static string FormatTimeAgo(DateTime timestamp)
-    {
-        var elapsed = DateTime.UtcNow - timestamp;
-        if (elapsed.TotalSeconds < 60) return "just now";
-        if (elapsed.TotalMinutes < 60) return $"{elapsed.TotalMinutes:F0}m ago";
-        if (elapsed.TotalHours < 24) return $"{elapsed.TotalHours:F0}h ago";
-        return $"{elapsed.TotalDays:F0}d ago";
-    }
-
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // ═══════════════════════════════════════════════════════════════════════════
     // PUSH MODE COMMANDS
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // ═══════════════════════════════════════════════════════════════════════════
 
     /// <summary>
     /// Approves one or more pending intentions.
@@ -10017,8 +7690,8 @@ Examples:
             {
                 var result = bus.ApproveIntentionByPartialId(intention.Id.ToString()[..8], "User approved all");
                 sb.AppendLine(result
-                    ? $"âœ“ Approved: [{intention.Id.ToString()[..8]}] {intention.Title}"
-                    : $"âœ— Failed to approve: {intention.Id}");
+                    ? $"✓ Approved: [{intention.Id.ToString()[..8]}] {intention.Title}"
+                    : $"✗ Failed to approve: {intention.Id}");
             }
         }
         else
@@ -10026,7 +7699,7 @@ Examples:
             // Approve specific intention by ID prefix
             var result = bus.ApproveIntentionByPartialId(arg, "User approved");
             sb.AppendLine(result
-                ? $"âœ“ Approved intention: {arg}"
+                ? $"✓ Approved intention: {arg}"
                 : $"No pending intention found matching '{arg}'.");
         }
 
@@ -10059,7 +7732,7 @@ Examples:
             foreach (var intention in pending)
             {
                 bus.RejectIntentionByPartialId(intention.Id.ToString()[..8], "User rejected all");
-                sb.AppendLine($"âœ— Rejected: [{intention.Id.ToString()[..8]}] {intention.Title}");
+                sb.AppendLine($"✗ Rejected: [{intention.Id.ToString()[..8]}] {intention.Title}");
             }
         }
         else
@@ -10067,7 +7740,7 @@ Examples:
             // Reject specific intention by ID prefix
             var result = bus.RejectIntentionByPartialId(arg, "User rejected");
             sb.AppendLine(result
-                ? $"âœ— Rejected intention: {arg}"
+                ? $"✗ Rejected intention: {arg}"
                 : $"No pending intention found matching '{arg}'.");
         }
 
@@ -10093,19 +7766,19 @@ Examples:
         }
 
         var sb = new StringBuilder();
-        sb.AppendLine("â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—");
-        sb.AppendLine("â•‘                   PENDING INTENTIONS                          â•‘");
-        sb.AppendLine("â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•");
+        sb.AppendLine("╔═══════════════════════════════════════════════════════════════╗");
+        sb.AppendLine("║                   PENDING INTENTIONS                          ║");
+        sb.AppendLine("╚═══════════════════════════════════════════════════════════════╝");
         sb.AppendLine();
 
         foreach (var intention in pending.OrderByDescending(i => i.Priority))
         {
             var priorityMarker = intention.Priority switch
             {
-                IntentionPriority.Critical => "ðŸ”´",
-                IntentionPriority.High => "ðŸŸ ",
-                IntentionPriority.Normal => "ðŸŸ¢",
-                _ => "âšª"
+                IntentionPriority.Critical => "🔴",
+                IntentionPriority.High => "🟠",
+                IntentionPriority.Normal => "🟢",
+                _ => "⚪"
             };
 
             sb.AppendLine($"  {priorityMarker} [{intention.Id.ToString()[..8]}] {intention.Category}");
@@ -10131,7 +7804,7 @@ Examples:
         }
 
         _pushModeCts?.Cancel();
-        return "â¸ Push mode paused. Use /resume to continue receiving proposals.";
+        return "⏸ Push mode paused. Use /resume to continue receiving proposals.";
     }
 
     /// <summary>
@@ -10148,17 +7821,17 @@ Examples:
         {
             _pushModeCts?.Dispose();
             _pushModeCts = new CancellationTokenSource();
-            _pushModeTask = Task.Run(() => PushModeLoopAsync(_pushModeCts.Token), _pushModeCts.Token);
-            return "â–¶ Push mode resumed. Ouroboros will propose actions.";
+            _pushModeTask = Task.Run(() => _autonomySub.PushModeLoopAsync(_pushModeCts.Token), _pushModeCts.Token);
+            return "▶ Push mode resumed. Ouroboros will propose actions.";
         }
 
         return "Push mode is already active.";
     }
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════════════════════════
 // SUPPORTING TYPES
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════════════════════════
 
 /// <summary>
 /// Represents an autonomous goal for self-execution.
