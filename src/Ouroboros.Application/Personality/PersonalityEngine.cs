@@ -2822,26 +2822,6 @@ public sealed class PersonalityEngine : IAsyncDisposable
     }
 
     /// <summary>
-    /// Starts autonomous background thinking for a persona.
-    /// The AI will periodically generate self-initiated thoughts.
-    /// </summary>
-    /// <param name="personaName">The persona name.</param>
-    /// <param name="interval">Time between autonomous thoughts (default 30s).</param>
-    public void StartAutonomousThinking(string personaName, TimeSpan interval = default)
-    {
-        _profiles.TryGetValue(personaName, out var profile);
-        _innerDialogEngine.StartAutonomousThinking(profile, _selfAwareness, interval);
-    }
-
-    /// <summary>
-    /// Stops autonomous background thinking.
-    /// </summary>
-    public async Task StopAutonomousThinkingAsync()
-    {
-        await _innerDialogEngine.StopAutonomousThinkingAsync();
-    }
-
-    /// <summary>
     /// Conducts an autonomous inner dialog session without external input.
     /// The AI will think about topics based on its personality and interests.
     /// </summary>
@@ -2856,26 +2836,6 @@ public sealed class PersonalityEngine : IAsyncDisposable
     {
         _profiles.TryGetValue(personaName, out var profile);
         return await _innerDialogEngine.ConductAutonomousDialogAsync(profile, _selfAwareness, config, ct);
-    }
-
-    /// <summary>
-    /// Gets pending autonomous thoughts that have accumulated in the background.
-    /// </summary>
-    /// <returns>List of autonomous thoughts.</returns>
-    public List<InnerThought> GetPendingAutonomousThoughts()
-    {
-        return _innerDialogEngine.DrainAutonomousThoughts();
-    }
-
-    /// <summary>
-    /// Gets recent background thoughts for a persona.
-    /// </summary>
-    /// <param name="personaName">The persona name.</param>
-    /// <param name="limit">Maximum number to return.</param>
-    /// <returns>List of background thoughts.</returns>
-    public List<InnerThought> GetBackgroundThoughts(string personaName, int limit = 10)
-    {
-        return _innerDialogEngine.GetBackgroundThoughts(personaName, limit);
     }
 
     /// <summary>
@@ -2909,15 +2869,13 @@ public sealed class PersonalityEngine : IAsyncDisposable
 
         var consciousness = GetCurrentConsciousnessState();
         var lastSession = _innerDialogEngine.GetLastSession(personaName);
-        var backgroundThoughts = _innerDialogEngine.GetBackgroundThoughts(personaName, 5);
-        var pendingThoughts = _innerDialogEngine.DrainAutonomousThoughts();
 
         return new AutonomousInnerState(
             PersonaName: personaName,
             Consciousness: consciousness,
             LastDialogSession: lastSession,
-            BackgroundThoughts: backgroundThoughts,
-            PendingAutonomousThoughts: pendingThoughts,
+            BackgroundThoughts: [],
+            PendingAutonomousThoughts: [],
             CurrentMood: profile?.CurrentMood,
             ActiveTraits: profile?.GetActiveTraits(3).Select(t => t.Name!).ToArray() ?? Array.Empty<string>(),
             Timestamp: DateTime.UtcNow);

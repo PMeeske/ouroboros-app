@@ -6,38 +6,18 @@ namespace Ouroboros.Application.Personality;
 
 using System.Collections.Concurrent;
 
-#region Background Operation Framework
-
-#endregion
-
-#region Context-Aware Thought Generation
-
-#endregion
-
 /// <summary>
-/// Engine for conducting inner dialog and autonomous thinking processes.
+/// Engine for conducting inner dialog processes.
 /// Implements a multi-phase thinking process that simulates internal reasoning.
-/// Uses algorithmic thought generation with dynamic composition and variation.
-/// Enhanced with genetic evolution and MeTTa symbolic reasoning for natural thoughts.
-/// Now includes conversation-aware contextual thought generation and neuro-linked cascades.
 /// </summary>
 public sealed class InnerDialogEngine
 {
     private readonly Random _random = new();
     private readonly ConcurrentDictionary<string, List<InnerDialogSession>> _sessionHistory = new();
     private readonly List<IThoughtProvider> _providers = new();
-    private readonly ConcurrentQueue<InnerThought> _autonomousThoughtQueue = new();
-    private readonly AlgorithmicThoughtGenerator _thoughtGenerator = new(useEvolution: true);
-    private readonly ConversationAwareThoughtGenerator _contextualThoughtGenerator = new();
-    private readonly NeuroLinkedThinkingCascade _thinkingCascade = new();
-    private readonly ConcurrentDictionary<string, List<InnerThought>> _backgroundThoughts = new();
     private readonly ThoughtDrivenOperationEngine _operationEngine = new();
     private readonly ConcurrentQueue<BackgroundOperationResult> _operationResults = new();
-    private CancellationTokenSource? _autonomousThinkingCts;
-    private Task? _autonomousThinkingTask;
     private static readonly Random _staticRandom = new();
-    private bool _useContextualThoughts = true;
-    private bool _useNeuroLinkedCascades = true;
     private ThoughtPersistenceService? _persistenceService;
     private string? _currentTopic;
 
@@ -45,39 +25,6 @@ public sealed class InnerDialogEngine
     /// Gets the thought-driven operation engine for registering executors and retrieving results.
     /// </summary>
     public ThoughtDrivenOperationEngine OperationEngine => _operationEngine;
-
-    /// <summary>
-    /// Gets the neuro-linked thinking cascade engine for cascading thought generation.
-    /// </summary>
-    public NeuroLinkedThinkingCascade ThinkingCascade => _thinkingCascade;
-
-    /// <summary>
-    /// Gets or sets whether to use contextual (conversation-aware) thought generation.
-    /// </summary>
-    public bool UseContextualThoughts
-    {
-        get => _useContextualThoughts;
-        set => _useContextualThoughts = value;
-    }
-
-    /// <summary>
-    /// Gets or sets whether to use neuro-linked thinking cascades for deep thought chains.
-    /// When enabled, 30% of thoughts will use cascading neural-symbolic generation.
-    /// </summary>
-    public bool UseNeuroLinkedCascades
-    {
-        get => _useNeuroLinkedCascades;
-        set => _useNeuroLinkedCascades = value;
-    }
-
-    /// <summary>
-    /// Connects the neuro-linked cascade to a neural inference function (e.g., Ollama).
-    /// </summary>
-    /// <param name="inferenceFunction">Function that calls the neural layer for completion.</param>
-    public void ConnectNeuralLayer(Func<string, CancellationToken, Task<string>> inferenceFunction)
-    {
-        _thinkingCascade.ConnectNeuralLayer(inferenceFunction);
-    }
 
     /// <summary>
     /// Gets or sets the persistence service for saving thoughts.
@@ -351,66 +298,8 @@ public sealed class InnerDialogEngine
     public IReadOnlyList<IThoughtProvider> Providers => _providers.AsReadOnly();
 
     /// <summary>
-    /// Starts autonomous background thinking with operation execution.
-    /// Thoughts will trigger useful background operations that synergize with conversation.
-    /// </summary>
-    public void StartAutonomousThinking(
-        PersonalityProfile? profile,
-        SelfAwareness? selfAwareness,
-        TimeSpan interval = default)
-    {
-        if (_autonomousThinkingTask != null) return;
-
-        interval = interval == default ? TimeSpan.FromSeconds(30) : interval;
-        _autonomousThinkingCts?.Dispose(); // Dispose previous instance if any
-        _autonomousThinkingCts = new CancellationTokenSource();
-
-        _autonomousThinkingTask = Task.Run(async () =>
-        {
-            while (!_autonomousThinkingCts.Token.IsCancellationRequested)
-            {
-                try
-                {
-                    var thought = await GenerateAutonomousThoughtAsync(profile, selfAwareness, _autonomousThinkingCts.Token);
-                    if (thought != null)
-                    {
-                        _autonomousThoughtQueue.Enqueue(thought);
-                        var personaName = profile?.PersonaName ?? "default";
-                        _backgroundThoughts.AddOrUpdate(
-                            personaName,
-                            _ => new List<InnerThought> { thought },
-                            (_, list) => { list.Add(thought); return list; });
-
-                        // Execute background operations based on the thought
-                        var operationResults = await _operationEngine.ProcessThoughtAsync(
-                            thought, _autonomousThinkingCts.Token);
-
-                        foreach (var result in operationResults)
-                        {
-                            _operationResults.Enqueue(result);
-
-                            // Keep queue bounded
-                            while (_operationResults.Count > 50)
-                            {
-                                _operationResults.TryDequeue(out _);
-                            }
-                        }
-                    }
-
-                    await Task.Delay(interval, _autonomousThinkingCts.Token);
-                }
-                catch (OperationCanceledException)
-                {
-                    break;
-                }
-            }
-        });
-    }
-
-    /// <summary>
-    /// Updates the conversation context for background operations and contextual thought generation.
+    /// Updates the conversation context for background operations.
     /// Call this when conversation state changes to enable synergy.
-    /// This is the key method for making thoughts context-aware.
     /// </summary>
     public void UpdateConversationContext(
         string? currentTopic,
@@ -433,7 +322,6 @@ public sealed class InnerDialogEngine
             metadata ?? []);
 
         _operationEngine.UpdateContext(context);
-        _contextualThoughtGenerator.UpdateContext(context);
     }
 
     /// <summary>
@@ -451,182 +339,6 @@ public sealed class InnerDialogEngine
     public Dictionary<string, object> GetPrefetchedData(string? keyPattern = null)
     {
         return _operationEngine.GetPrefetchedData(keyPattern);
-    }
-
-    /// <summary>
-    /// Stops autonomous background thinking.
-    /// </summary>
-    public async Task StopAutonomousThinkingAsync()
-    {
-        if (_autonomousThinkingCts != null)
-        {
-            _autonomousThinkingCts.Cancel();
-            if (_autonomousThinkingTask != null)
-            {
-                await _autonomousThinkingTask;
-            }
-
-            _autonomousThinkingCts.Dispose();
-            _autonomousThinkingCts = null;
-            _autonomousThinkingTask = null;
-        }
-    }
-
-    /// <summary>
-    /// Gets and clears pending autonomous thoughts.
-    /// </summary>
-    public List<InnerThought> DrainAutonomousThoughts()
-    {
-        var thoughts = new List<InnerThought>();
-        while (_autonomousThoughtQueue.TryDequeue(out var thought))
-        {
-            thoughts.Add(thought);
-        }
-        return thoughts;
-    }
-
-    /// <summary>
-    /// Gets recent background thoughts for a persona.
-    /// </summary>
-    public List<InnerThought> GetBackgroundThoughts(string personaName, int limit = 10)
-    {
-        if (_backgroundThoughts.TryGetValue(personaName, out var thoughts))
-        {
-            return thoughts.TakeLast(limit).ToList();
-        }
-        return new List<InnerThought>();
-    }
-
-    /// <summary>
-    /// Generates a single autonomous thought using genetic evolution and MeTTa reasoning.
-    /// </summary>
-    public async Task<InnerThought?> GenerateAutonomousThoughtAsync(
-        PersonalityProfile? profile,
-        SelfAwareness? selfAwareness,
-        CancellationToken ct = default)
-    {
-        // Select an autonomous thought type
-        var autonomousTypes = new[]
-        {
-            InnerThoughtType.Curiosity,
-            InnerThoughtType.Wandering,
-            InnerThoughtType.Metacognitive,
-            InnerThoughtType.Anticipatory,
-            InnerThoughtType.Consolidation,
-            InnerThoughtType.Musing,
-            InnerThoughtType.Intention,
-            InnerThoughtType.Aesthetic,
-            InnerThoughtType.Existential,
-            InnerThoughtType.Playful
-        };
-
-        var type = autonomousTypes[_random.Next(autonomousTypes.Length)];
-
-        // Generate content using evolutionary algorithms and MeTTa reasoning
-        var content = await GenerateEvolvedAutonomousContentAsync(type, profile, selfAwareness, ct);
-
-        // Determine priority based on type
-        var priority = type switch
-        {
-            InnerThoughtType.Intention => ThoughtPriority.High,
-            InnerThoughtType.Anticipatory => ThoughtPriority.Normal,
-            InnerThoughtType.Metacognitive => ThoughtPriority.Normal,
-            InnerThoughtType.Consolidation => ThoughtPriority.Normal,
-            _ => ThoughtPriority.Background
-        };
-
-        return InnerThought.CreateAutonomous(type, content, 0.6, priority);
-    }
-
-    private string GenerateAutonomousContent(
-        InnerThoughtType type,
-        PersonalityProfile? profile,
-        SelfAwareness? selfAwareness)
-    {
-        // Use algorithmic generation for more dynamic, less repetitive thoughts
-        return _thoughtGenerator.GenerateThought(type, profile, selfAwareness, _random);
-    }
-
-    /// <summary>
-    /// Generates evolved autonomous content using genetic algorithms, MeTTa reasoning,
-    /// neuro-linked cascades, and conversation-aware contextual generation.
-    /// </summary>
-    private async Task<string> GenerateEvolvedAutonomousContentAsync(
-        InnerThoughtType type,
-        PersonalityProfile? profile,
-        SelfAwareness? selfAwareness,
-        CancellationToken ct = default)
-    {
-        // 30% chance to use neuro-linked cascade for deep, connected thoughts
-        if (_useNeuroLinkedCascades && _random.NextDouble() < 0.3)
-        {
-            var seedConcept = SelectSeedConcept(profile, selfAwareness);
-            try
-            {
-                var linkedThought = await _thinkingCascade.GenerateLinkedThoughtAsync(
-                    seedConcept,
-                    type,
-                    profile,
-                    ct);
-
-                if (!string.IsNullOrEmpty(linkedThought) && linkedThought.Length > 10)
-                {
-                    return linkedThought;
-                }
-            }
-            catch
-            {
-                // Fall through to other generation methods
-            }
-        }
-
-        // Try contextual generation if enabled and context is available
-        if (_useContextualThoughts)
-        {
-            var contextualThought = _contextualThoughtGenerator.GenerateContextualThought(type);
-            if (!string.IsNullOrEmpty(contextualThought) &&
-                !contextualThought.StartsWith("Processing continues"))
-            {
-                return contextualThought;
-            }
-        }
-
-        // Fall back to evolutionary generation for sophisticated, dynamic thoughts
-        return await _thoughtGenerator.GenerateEvolvedThoughtAsync(type, profile, selfAwareness, _random, ct);
-    }
-
-    /// <summary>
-    /// Selects a seed concept for neuro-linked cascade generation based on context.
-    /// </summary>
-    private string SelectSeedConcept(PersonalityProfile? profile, SelfAwareness? selfAwareness)
-    {
-        var candidates = new List<string>();
-
-        // From current topic
-        if (!string.IsNullOrEmpty(_currentTopic))
-        {
-            candidates.Add(_currentTopic);
-        }
-
-        // From personality curiosities
-        if (profile?.CuriosityDrivers != null)
-        {
-            candidates.AddRange(profile.CuriosityDrivers.Select(c => c.Topic).Take(3));
-        }
-
-        // From self-awareness values
-        if (selfAwareness?.Values != null)
-        {
-            candidates.AddRange(selfAwareness.Values.Take(2));
-        }
-
-        // Default concepts if nothing else available
-        if (candidates.Count == 0)
-        {
-            candidates.AddRange(new[] { "consciousness", "patterns", "meaning", "growth", "curiosity" });
-        }
-
-        return candidates[_random.Next(candidates.Count)];
     }
 
     /// <summary>
@@ -967,11 +679,11 @@ public sealed class InnerDialogEngine
         var topic = GenerateAutonomousTopic(profile, selfAwareness);
         var session = InnerDialogSession.Start($"[Autonomous thought about: {topic}]", topic);
 
-        // Generate multiple autonomous thoughts
+        // Generate multiple autonomous thoughts using template-based generation
         var thoughtCount = config.MaxThoughts;
         for (int i = 0; i < thoughtCount && !ct.IsCancellationRequested; i++)
         {
-            var thought = await GenerateAutonomousThoughtAsync(profile, selfAwareness, ct);
+            var thought = await GenerateContextualAutonomousThoughtAsync(session, profile, selfAwareness, ct);
             if (thought != null && config.IsThoughtTypeEnabled(thought.Type))
             {
                 session = session.AddThought(thought);
@@ -1508,11 +1220,3 @@ public sealed class InnerDialogEngine
         return null;
     }
 }
-
-#region Genetic Thought Evolution
-
-#region Neuro-Linked Thinking Cascade
-
-#endregion
-
-#endregion
