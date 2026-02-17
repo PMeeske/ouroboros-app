@@ -3,8 +3,10 @@
 // </copyright>
 
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Ouroboros.Application.Tools;
 using Ouroboros.CLI.Commands;
+using Ouroboros.CLI.Subsystems;
 using Ouroboros.Options;
 
 namespace Ouroboros.CLI.Setup;
@@ -178,5 +180,23 @@ public static class AgentBootstrapper
         var agent = new OuroborosAgent(config);
         await agent.InitializeAsync();
         return agent;
+    }
+
+    /// <summary>
+    /// Creates and initializes an OuroborosAgent via full DI container.
+    /// Subsystems are resolved from the container and injected into the agent.
+    /// </summary>
+    /// <param name="config">The configuration to use.</param>
+    /// <returns>The initialized agent (dispose via the returned ServiceProvider).</returns>
+    public static async Task<(OuroborosAgent Agent, ServiceProvider Provider)> CreateAgentWithDIAsync(OuroborosConfig config)
+    {
+        var services = new ServiceCollection();
+        services.AddOuroboros(config);
+
+        var provider = services.BuildServiceProvider();
+        var agent = provider.GetRequiredService<OuroborosAgent>();
+        await agent.InitializeAsync();
+
+        return (agent, provider);
     }
 }

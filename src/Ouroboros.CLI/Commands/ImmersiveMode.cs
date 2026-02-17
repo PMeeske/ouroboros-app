@@ -167,6 +167,47 @@ public static class ImmersiveMode
         };
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // SUBSYSTEM INTEGRATION — when configured, uses shared subsystem instances
+    // instead of creating parallel static state.
+    // ═══════════════════════════════════════════════════════════════════════════
+    private static Subsystems.IModelSubsystem? _modelsSub;
+    private static Subsystems.IToolSubsystem? _toolsSub;
+    private static Subsystems.IMemorySubsystem? _memorySub;
+    private static Subsystems.IAutonomySubsystem? _autonomySub;
+
+    /// <summary>
+    /// Configures ImmersiveMode to use shared subsystem instances from an OuroborosAgent.
+    /// When configured, initialization skips creating duplicate models, tools, and memory.
+    /// </summary>
+    public static void ConfigureSubsystems(
+        Subsystems.IModelSubsystem models,
+        Subsystems.IToolSubsystem tools,
+        Subsystems.IMemorySubsystem memory,
+        Subsystems.IAutonomySubsystem autonomy)
+    {
+        _modelsSub = models;
+        _toolsSub = tools;
+        _memorySub = memory;
+        _autonomySub = autonomy;
+
+        // Wire shared instances from subsystems
+        _orchestratedModel = models.OrchestratedModel;
+        _divideAndConquer = models.DivideAndConquer;
+        _baseModel = models.ChatModel;
+        _skillRegistry = memory.Skills;
+        _dynamicToolFactory = tools.ToolFactory;
+        _toolLearner = tools.ToolLearner;
+        _selfIndexer = autonomy.SelfIndexer;
+        _autonomousMind = autonomy.AutonomousMind;
+        if (tools.Tools.Count > 0) _dynamicTools = tools.Tools;
+    }
+
+    /// <summary>
+    /// Returns true if subsystems have been configured via <see cref="ConfigureSubsystems"/>.
+    /// </summary>
+    public static bool HasSubsystems => _modelsSub != null;
+
     // Skill registry for this session
     private static ISkillRegistry? _skillRegistry;
     private static DynamicToolFactory? _dynamicToolFactory;
@@ -943,6 +984,17 @@ public static class ImmersiveMode
 
     private static async Task<IChatCompletionModel> CreateChatModelAsync(IVoiceOptions options)
     {
+        // If subsystems are configured, return the pre-initialized effective model
+        if (HasSubsystems && _modelsSub != null)
+        {
+            var effective = _modelsSub.GetEffectiveModel();
+            if (effective != null)
+            {
+                Console.WriteLine("  [OK] Using LLM from agent subsystem");
+                return effective;
+            }
+        }
+
         var settings = new ChatRuntimeSettings(0.8, 1024, 120, false);
 
         // Try remote CHAT_ENDPOINT if configured
@@ -1811,6 +1863,16 @@ User: goodbye
         IEmbeddingModel? embeddingModel,
         IMeTTaEngine mettaEngine)
     {
+        // Skip heavy initialization if subsystems already provide these
+        if (HasSubsystems)
+        {
+            Console.WriteLine("  [OK] Skills and tools provided by agent subsystems");
+            // Still need pipeline tokens and state for DSL commands
+            _allTokens = SkillCliSteps.GetAllPipelineTokens();
+            Console.WriteLine($"  [OK] Discovered {_allTokens.Count} pipeline tokens");
+            return;
+        }
+
         try
         {
             // Initialize skill registry with Qdrant persistence if available
