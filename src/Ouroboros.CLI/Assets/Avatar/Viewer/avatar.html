@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Iaret — Living Avatar</title>
+<style>
+  :root {
+    --aura-color: rgba(147, 51, 234, 0.35);
+    --aura-color-strong: rgba(147, 51, 234, 0.6);
+    --gold: #d4a843;
+    --gold-glow: rgba(212, 168, 67, 0.5);
+    --violet: #9333ea;
+    --violet-deep: #581c87;
+    --cosmic-bg: #0a0612;
+    --energy: 0.5;
+    --positivity: 0.5;
+    --breath-duration: 4.5s;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--cosmic-bg);
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    cursor: default;
+    user-select: none;
+  }
+
+  /* ── Cosmic background ── */
+  #cosmos {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+  }
+
+  /* ── Avatar container ── */
+  #avatar-stage {
+    position: relative;
+    width: min(85vh, 85vw);
+    height: min(85vh, 85vw);
+    z-index: 1;
+  }
+
+  /* ── Aura rings ── */
+  .aura {
+    position: absolute;
+    inset: -8%;
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  .aura-outer {
+    background: radial-gradient(ellipse at center,
+      transparent 50%,
+      var(--aura-color) 70%,
+      transparent 85%);
+    animation: aura-pulse var(--breath-duration) ease-in-out infinite;
+  }
+  .aura-inner {
+    inset: 2%;
+    background: radial-gradient(ellipse at center,
+      transparent 55%,
+      var(--aura-color-strong) 72%,
+      transparent 80%);
+    animation: aura-pulse var(--breath-duration) ease-in-out infinite;
+    animation-delay: calc(var(--breath-duration) * -0.5);
+  }
+
+  @keyframes aura-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.6; }
+    50% { transform: scale(1.05); opacity: 1; }
+  }
+
+  /* ── Portrait frame ── */
+  #portrait-frame {
+    position: absolute;
+    inset: 5%;
+    border-radius: 50%;
+    overflow: hidden;
+    animation: breathe var(--breath-duration) ease-in-out infinite;
+    box-shadow:
+      0 0 40px var(--aura-color),
+      0 0 80px rgba(147, 51, 234, 0.15),
+      inset 0 0 30px rgba(0, 0, 0, 0.4);
+  }
+
+  @keyframes breathe {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.012); }
+  }
+
+  /* ── Avatar images (layered for crossfade) ── */
+  .avatar-layer {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+    opacity: 0;
+    transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: opacity;
+  }
+  .avatar-layer.active {
+    opacity: 1;
+  }
+
+  /* ── Eye shimmer overlay ── */
+  #eye-shimmer {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      ellipse 30% 8% at 42% 35%,
+      rgba(255, 255, 255, 0.12) 0%,
+      transparent 100%),
+    radial-gradient(
+      ellipse 30% 8% at 58% 35%,
+      rgba(255, 255, 255, 0.12) 0%,
+      transparent 100%);
+    opacity: 0;
+    animation: eye-glint 6s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  @keyframes eye-glint {
+    0%, 85%, 100% { opacity: 0; }
+    90% { opacity: 1; }
+    95% { opacity: 0; }
+  }
+
+  /* ── Blink overlay ── */
+  #blink-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to bottom,
+      transparent 28%,
+      rgba(10, 6, 18, 0.7) 33%,
+      rgba(10, 6, 18, 0.7) 37%,
+      transparent 42%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.08s ease;
+  }
+
+  /* ── Speaking indicator (subtle mouth glow) ── */
+  #speak-glow {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      ellipse 25% 12% at 50% 68%,
+      var(--gold-glow) 0%,
+      transparent 100%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  #speak-glow.active {
+    animation: speak-pulse 0.6s ease-in-out infinite alternate;
+  }
+
+  @keyframes speak-pulse {
+    0% { opacity: 0.15; }
+    100% { opacity: 0.45; }
+  }
+
+  /* ── Gold ring border ── */
+  #gold-ring {
+    position: absolute;
+    inset: 4.5%;
+    border-radius: 50%;
+    border: 2px solid var(--gold);
+    opacity: 0.4;
+    pointer-events: none;
+    box-shadow: 0 0 15px var(--gold-glow), inset 0 0 15px var(--gold-glow);
+    animation: ring-breathe var(--breath-duration) ease-in-out infinite;
+  }
+
+  @keyframes ring-breathe {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.6; }
+  }
+
+  /* ── Status HUD ── */
+  #hud {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    text-align: center;
+    pointer-events: none;
+  }
+
+  #persona-name {
+    font-size: 1.3rem;
+    font-weight: 300;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--gold);
+    text-shadow: 0 0 20px var(--gold-glow);
+    margin-bottom: 6px;
+  }
+
+  #status-text {
+    font-size: 0.8rem;
+    letter-spacing: 0.15em;
+    color: rgba(192, 160, 255, 0.7);
+    transition: all 0.6s ease;
+  }
+
+  #mood-bar {
+    margin-top: 8px;
+    height: 2px;
+    width: 200px;
+    background: rgba(147, 51, 234, 0.2);
+    border-radius: 1px;
+    overflow: hidden;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  #mood-fill {
+    height: 100%;
+    width: 50%;
+    background: linear-gradient(90deg, var(--violet), var(--gold));
+    border-radius: 1px;
+    transition: width 1.5s ease, background 1.5s ease;
+  }
+
+  /* ── Connection indicator ── */
+  #connection {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.7rem;
+    color: rgba(192, 160, 255, 0.5);
+    letter-spacing: 0.1em;
+  }
+
+  #conn-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #555;
+    transition: background 0.5s ease;
+  }
+  #conn-dot.connected { background: #4ade80; box-shadow: 0 0 8px rgba(74, 222, 128, 0.5); }
+  #conn-dot.reconnecting { background: #facc15; animation: blink-dot 1s infinite; }
+
+  @keyframes blink-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* ── Floating particles (ankh / star motifs) ── */
+  .particle {
+    position: fixed;
+    color: var(--gold);
+    opacity: 0;
+    pointer-events: none;
+    font-size: 14px;
+    animation: float-up linear infinite;
+    will-change: transform, opacity;
+  }
+
+  @keyframes float-up {
+    0%   { transform: translateY(0) rotate(0deg) scale(0.5); opacity: 0; }
+    15%  { opacity: 0.6; }
+    85%  { opacity: 0.3; }
+    100% { transform: translateY(-100vh) rotate(360deg) scale(0.2); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="cosmos"></canvas>
+
+<div id="avatar-stage">
+  <div class="aura aura-outer"></div>
+  <div class="aura aura-inner"></div>
+
+  <div id="portrait-frame">
+    <!-- Avatar layers — one per visual state, crossfaded -->
+    <img class="avatar-layer active" id="layer-idle"        src="idle.png"        alt="" draggable="false">
+    <img class="avatar-layer"        id="layer-listening"   src="listening.png"   alt="" draggable="false">
+    <img class="avatar-layer"        id="layer-thinking"    src="thinking.png"    alt="" draggable="false">
+    <img class="avatar-layer"        id="layer-speaking"    src="speaking.png"    alt="" draggable="false">
+    <img class="avatar-layer"        id="layer-encouraging" src="encouraging.png" alt="" draggable="false">
+
+    <div id="eye-shimmer"></div>
+    <div id="blink-overlay"></div>
+    <div id="speak-glow"></div>
+  </div>
+
+  <div id="gold-ring"></div>
+</div>
+
+<div id="hud">
+  <div id="persona-name">Iaret</div>
+  <div id="status-text">Awakening...</div>
+  <div id="mood-bar"><div id="mood-fill"></div></div>
+</div>
+
+<div id="connection">
+  <span id="conn-dot"></span>
+  <span id="conn-label">DISCONNECTED</span>
+</div>
+
+<!-- Particle container -->
+<div id="particles"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  Cosmic background — star field on canvas
+// ═══════════════════════════════════════════════
+const cosmos = document.getElementById('cosmos');
+const ctx = cosmos.getContext('2d');
+let stars = [];
+
+function resizeCosmos() {
+  cosmos.width = window.innerWidth;
+  cosmos.height = window.innerHeight;
+  initStars();
+}
+
+function initStars() {
+  stars = [];
+  const count = Math.floor((cosmos.width * cosmos.height) / 3000);
+  for (let i = 0; i < count; i++) {
+    stars.push({
+      x: Math.random() * cosmos.width,
+      y: Math.random() * cosmos.height,
+      r: Math.random() * 1.5 + 0.3,
+      a: Math.random(),
+      speed: Math.random() * 0.0008 + 0.0002,
+      phase: Math.random() * Math.PI * 2,
+    });
+  }
+}
+
+function drawCosmos(t) {
+  ctx.clearRect(0, 0, cosmos.width, cosmos.height);
+
+  // Nebula gradient
+  const grd = ctx.createRadialGradient(
+    cosmos.width * 0.5, cosmos.height * 0.45, 0,
+    cosmos.width * 0.5, cosmos.height * 0.45, cosmos.width * 0.7
+  );
+  grd.addColorStop(0, 'rgba(88, 28, 135, 0.08)');
+  grd.addColorStop(0.5, 'rgba(59, 7, 100, 0.04)');
+  grd.addColorStop(1, 'transparent');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, 0, cosmos.width, cosmos.height);
+
+  // Stars
+  for (const s of stars) {
+    const twinkle = 0.4 + 0.6 * Math.sin(t * s.speed * 1000 + s.phase);
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(210, 190, 255, ${s.a * twinkle})`;
+    ctx.fill();
+  }
+
+  requestAnimationFrame(drawCosmos);
+}
+
+window.addEventListener('resize', resizeCosmos);
+resizeCosmos();
+requestAnimationFrame(drawCosmos);
+
+
+// ═══════════════════════════════════════════════
+//  Floating particles — ankh motifs
+// ═══════════════════════════════════════════════
+const particlesEl = document.getElementById('particles');
+const SYMBOLS = ['☥', '✦', '◆', '✧', '⟐', '◇'];
+
+function spawnParticle() {
+  const el = document.createElement('div');
+  el.className = 'particle';
+  el.textContent = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+  el.style.left = (Math.random() * 100) + 'vw';
+  el.style.fontSize = (10 + Math.random() * 12) + 'px';
+  el.style.animationDuration = (8 + Math.random() * 12) + 's';
+  el.style.animationDelay = '0s';
+  el.style.color = Math.random() > 0.5
+    ? 'rgba(212, 168, 67, 0.4)'
+    : 'rgba(192, 160, 255, 0.3)';
+  particlesEl.appendChild(el);
+  setTimeout(() => el.remove(), 20000);
+}
+
+setInterval(spawnParticle, 1200);
+for (let i = 0; i < 8; i++) setTimeout(spawnParticle, i * 300);
+
+
+// ═══════════════════════════════════════════════
+//  Blink simulation
+// ═══════════════════════════════════════════════
+const blinkEl = document.getElementById('blink-overlay');
+
+function scheduleBlink() {
+  const delay = 3000 + Math.random() * 5000;
+  setTimeout(() => {
+    blinkEl.style.opacity = '1';
+    setTimeout(() => { blinkEl.style.opacity = '0'; }, 120);
+    // Occasional double-blink
+    if (Math.random() < 0.2) {
+      setTimeout(() => {
+        blinkEl.style.opacity = '1';
+        setTimeout(() => { blinkEl.style.opacity = '0'; }, 100);
+      }, 250);
+    }
+    scheduleBlink();
+  }, delay);
+}
+scheduleBlink();
+
+
+// ═══════════════════════════════════════════════
+//  Avatar state management
+// ═══════════════════════════════════════════════
+const layers = {
+  Idle:        document.getElementById('layer-idle'),
+  Listening:   document.getElementById('layer-listening'),
+  Thinking:    document.getElementById('layer-thinking'),
+  Speaking:    document.getElementById('layer-speaking'),
+  Encouraging: document.getElementById('layer-encouraging'),
+};
+
+const speakGlow = document.getElementById('speak-glow');
+const statusText = document.getElementById('status-text');
+const personaName = document.getElementById('persona-name');
+const moodFill = document.getElementById('mood-fill');
+const connDot = document.getElementById('conn-dot');
+const connLabel = document.getElementById('conn-label');
+
+let currentState = 'Idle';
+
+const STATE_STATUS = {
+  Idle:        'Watchful stillness',
+  Listening:   'Listening...',
+  Thinking:    'Contemplating...',
+  Speaking:    'Speaking',
+  Encouraging: 'With warmth',
+};
+
+function setAvatarState(state) {
+  if (!layers[state]) state = 'Idle';
+  if (state === currentState) return;
+
+  // Crossfade layers
+  for (const [key, el] of Object.entries(layers)) {
+    el.classList.toggle('active', key === state);
+  }
+
+  // Speaking glow
+  speakGlow.classList.toggle('active', state === 'Speaking');
+
+  // Breathing speed varies by state
+  const root = document.documentElement;
+  switch (state) {
+    case 'Listening': root.style.setProperty('--breath-duration', '3.5s'); break;
+    case 'Thinking':  root.style.setProperty('--breath-duration', '5.5s'); break;
+    case 'Speaking':  root.style.setProperty('--breath-duration', '2.8s'); break;
+    default:          root.style.setProperty('--breath-duration', '4.5s'); break;
+  }
+
+  currentState = state;
+}
+
+function applySnapshot(snap) {
+  // snap: { VisualState, Mood, Energy, Positivity, StatusText, PersonaName }
+  const stateNames = ['Idle', 'Listening', 'Thinking', 'Speaking', 'Encouraging'];
+  const visualName = typeof snap.VisualState === 'number'
+    ? (stateNames[snap.VisualState] || 'Idle')
+    : snap.VisualState;
+
+  setAvatarState(visualName);
+
+  // Update HUD
+  if (snap.PersonaName) personaName.textContent = snap.PersonaName;
+  statusText.textContent = snap.StatusText
+    ? `${snap.Mood || ''} — ${snap.StatusText}`.replace(/^ — /, '')
+    : (snap.Mood || STATE_STATUS[visualName] || '');
+
+  // Mood bar = positivity
+  const positivity = Math.max(0, Math.min(1, snap.Positivity || 0.5));
+  moodFill.style.width = (positivity * 100) + '%';
+
+  // Aura intensity from energy
+  const energy = Math.max(0, Math.min(1, snap.Energy || 0.5));
+  const auraAlpha = 0.2 + energy * 0.5;
+  document.documentElement.style.setProperty(
+    '--aura-color', `rgba(147, 51, 234, ${auraAlpha})`);
+  document.documentElement.style.setProperty(
+    '--aura-color-strong', `rgba(147, 51, 234, ${auraAlpha + 0.15})`);
+}
+
+
+// ═══════════════════════════════════════════════
+//  WebSocket connection to CLI host
+// ═══════════════════════════════════════════════
+const WS_PORT = new URLSearchParams(window.location.search).get('port') || '9471';
+let ws = null;
+let reconnectDelay = 1000;
+
+function connectWs() {
+  connDot.className = 'reconnecting';
+  connLabel.textContent = 'CONNECTING';
+
+  ws = new WebSocket(`ws://localhost:${WS_PORT}/avatar`);
+
+  ws.onopen = () => {
+    reconnectDelay = 1000;
+    connDot.className = 'connected';
+    connLabel.textContent = 'LINKED';
+    statusText.textContent = 'Connected to Ouroboros';
+  };
+
+  ws.onmessage = (ev) => {
+    try {
+      const snap = JSON.parse(ev.data);
+      applySnapshot(snap);
+    } catch (e) {
+      console.warn('Invalid avatar state:', e);
+    }
+  };
+
+  ws.onclose = () => {
+    connDot.className = '';
+    connLabel.textContent = 'DISCONNECTED';
+    statusText.textContent = 'Awaiting reconnection...';
+    setTimeout(connectWs, reconnectDelay);
+    reconnectDelay = Math.min(reconnectDelay * 1.5, 8000);
+  };
+
+  ws.onerror = () => ws.close();
+}
+
+connectWs();
+
+
+// ═══════════════════════════════════════════════
+//  Idle ambient state cycling (when no WebSocket input)
+// ═══════════════════════════════════════════════
+let lastUpdateTime = Date.now();
+
+setInterval(() => {
+  // If no update for 30s and idle, add subtle life
+  if (Date.now() - lastUpdateTime > 30000 && currentState === 'Idle') {
+    // Micro-expression: briefly shift to encouraging and back
+    if (Math.random() < 0.3) {
+      setAvatarState('Encouraging');
+      setTimeout(() => setAvatarState('Idle'), 2500);
+    }
+  }
+}, 15000);
+
+// Track last ws update
+const origApply = applySnapshot;
+applySnapshot = function(snap) {
+  lastUpdateTime = Date.now();
+  origApply(snap);
+};
+
+
+// ═══════════════════════════════════════════════
+//  Keyboard shortcuts for manual testing
+// ═══════════════════════════════════════════════
+document.addEventListener('keydown', (e) => {
+  switch(e.key) {
+    case '1': setAvatarState('Idle'); break;
+    case '2': setAvatarState('Listening'); break;
+    case '3': setAvatarState('Thinking'); break;
+    case '4': setAvatarState('Speaking'); break;
+    case '5': setAvatarState('Encouraging'); break;
+  }
+});
+</script>
+</body>
+</html>

@@ -228,6 +228,13 @@ public sealed class OuroborosCommandOptions
     public Option<string?> ExecOption { get; } = new("--exec", "-e") { Description = "Execute a single command and exit (supports | piping syntax)" };
 
     // ═══════════════════════════════════════════════════════════════════════
+    // INTERACTIVE AVATAR
+    // ═══════════════════════════════════════════════════════════════════════
+
+    public Option<bool> AvatarOption { get; } = new("--avatar") { Description = "Launch interactive avatar viewer alongside CLI", DefaultValueFactory = _ => false };
+    public Option<int> AvatarPortOption { get; } = new("--avatar-port") { Description = "Port for avatar viewer WebSocket server", DefaultValueFactory = _ => 9471 };
+
+    // ═══════════════════════════════════════════════════════════════════════
     // DEBUG & OUTPUT
     // ═══════════════════════════════════════════════════════════════════════
 
@@ -343,6 +350,10 @@ public sealed class OuroborosCommandOptions
         command.Add(ExitOnErrorOption);
         command.Add(ExecOption);
 
+        // Interactive Avatar
+        command.Add(AvatarOption);
+        command.Add(AvatarPortOption);
+
         // Debug & Output
         command.Add(DebugOption);
         command.Add(TraceOption);
@@ -448,6 +459,10 @@ public sealed class OuroborosCommandOptions
         var exitOnError   = parseResult.GetValue(ExitOnErrorOption);
         var exec          = parseResult.GetValue(ExecOption);
 
+        // Interactive Avatar
+        var avatar        = parseResult.GetValue(AvatarOption);
+        var avatarPort    = parseResult.GetValue(AvatarPortOption);
+
         // Debug & Output
         var debug         = parseResult.GetValue(DebugOption);
         var stream        = parseResult.GetValue(StreamOption);
@@ -539,7 +554,9 @@ public sealed class OuroborosCommandOptions
             MasterModel: masterModel,
             EvaluationCriteria: evalCriteria,
             ShowElection: showElection,
-            ShowOptimization: showOptimization
+            ShowOptimization: showOptimization,
+            Avatar: avatar,
+            AvatarPort: avatarPort
         );
     }
 }
