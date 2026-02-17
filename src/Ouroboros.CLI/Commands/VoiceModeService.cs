@@ -141,7 +141,7 @@ public sealed class VoiceModeService : IDisposable
     public VoiceModeService(VoiceModeConfig config)
     {
         _config = config;
-        _persona = Personas.GetValueOrDefault(config.Persona) ?? Personas["Ouroboros"];
+        _persona = Personas.GetValueOrDefault(config.Persona) ?? Personas.Values.First();
         _stream = new InteractionStream();
         _presence = new AgentPresenceController(_stream);
 
