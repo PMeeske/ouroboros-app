@@ -23,6 +23,7 @@ using static Ouroboros.Application.Tools.AutonomousTools;
 using IEmbeddingModel = Ouroboros.Domain.IEmbeddingModel;
 using Ouroboros.Options;
 using Ouroboros.CLI.Abstractions;
+using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Core.EmbodiedInteraction;
 using Ouroboros.Pipeline.Learning;
 using Ouroboros.Pipeline.Metacognition;
@@ -395,6 +396,19 @@ When user says 'read file X' you MUST output [TOOL:read_my_file X]"
 #endregion
 
 /// <summary>
+/// Controls how much output the CLI produces.
+/// </summary>
+public enum OutputVerbosity
+{
+    /// <summary>Responses only, no system chrome.</summary>
+    Quiet,
+    /// <summary>Collapsed init, no debug, clean prompts.</summary>
+    Normal,
+    /// <summary>Full init output, debug messages, intention bus.</summary>
+    Verbose
+}
+
+/// <summary>
 /// Configuration for the unified Ouroboros agent.
 /// </summary>
 public sealed record OuroborosConfig(
@@ -416,7 +430,10 @@ public sealed record OuroborosConfig(
     bool VoiceChannel = false,
     bool VoiceV2 = false,  // Enable unified Rx streaming voice mode V2
     bool Listen = false,
+    string? WakeWord = "Hey Iaret",      // null = always-on (no wake word)
+    string SttBackend = "auto",           // "azure" | "whisper" | "auto"
     bool Debug = false,
+    OutputVerbosity Verbosity = OutputVerbosity.Normal,
     double Temperature = 0.7,
     int MaxTokens = 2048,
     string? Culture = null,
@@ -490,6 +507,7 @@ public sealed record OuroborosConfig(
 public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
 {
     private readonly OuroborosConfig _config;
+    private readonly IConsoleOutput _output;
     private readonly VoiceModeService _voice;
     private VoiceModeServiceV2? _voiceV2;  // Unified Rx streaming voice service
 
@@ -635,6 +653,9 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     private CancellationTokenSource? _listeningCts;
     private Task? _listeningTask;
     private bool _isListening;
+
+    // Enhanced listening service (replaces simple ListenLoopAsync)
+    private Ouroboros.CLI.Services.EnhancedListeningService? _enhancedListener;
 
     // Input buffer for preserving typed text during proactive messages
     private readonly StringBuilder _currentInputBuffer = new();
@@ -820,7 +841,8 @@ Write the integrated response:";
     }
 
     /// <summary>
-    /// Starts listening for voice input using Azure Speech Recognition.
+    /// Starts listening for voice input using the enhanced listening service.
+    /// Supports continuous streaming STT, wake word detection, barge-in, and Whisper fallback.
     /// </summary>
     public async Task StartListeningAsync()
     {
@@ -829,15 +851,24 @@ Write the integrated response:";
         _listeningCts = new CancellationTokenSource();
         _isListening = true;
 
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine(GetLocalizedString("listening_start"));
-        Console.ResetColor();
+        _output.WriteSystem(GetLocalizedString("listening_start"));
+
+        // Create the enhanced listening service
+        _enhancedListener = new Ouroboros.CLI.Services.EnhancedListeningService(
+            _config,
+            _output,
+            processInput: ChatAsync,
+            speak: (text, ct) => SpeakResponseWithAzureTtsAsync(
+                text,
+                _config.AzureSpeechKey ?? Environment.GetEnvironmentVariable("AZURE_SPEECH_KEY") ?? "",
+                _config.AzureSpeechRegion,
+                ct));
 
         _listeningTask = Task.Run(async () =>
         {
             try
             {
-                await ListenLoopAsync(_listeningCts.Token);
+                await _enhancedListener.StartAsync(_listeningCts.Token);
             }
             catch (OperationCanceledException)
             {
@@ -845,9 +876,7 @@ Write the integrated response:";
             }
             catch (Exception ex)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"  ⚠ Listening error: {ex.Message}");
-                Console.ResetColor();
+                _output.WriteError($"Listening error: {ex.Message}");
             }
             finally
             {
@@ -866,11 +895,16 @@ Write the integrated response:";
         if (!_isListening) return;
 
         _listeningCts?.Cancel();
-        _isListening = false;
 
-        Console.ForegroundColor = ConsoleColor.DarkYellow;
-        Console.WriteLine(GetLocalizedString("listening_stop"));
-        Console.ResetColor();
+        // Dispose the enhanced listener
+        if (_enhancedListener != null)
+        {
+            _enhancedListener.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            _enhancedListener = null;
+        }
+
+        _isListening = false;
+        _output.WriteSystem(GetLocalizedString("listening_stop"));
     }
 
     /// <summary>
@@ -1112,7 +1146,7 @@ Write the integrated response:";
             });
 
         _tools = _tools.WithTool(ptzTool);
-        Console.WriteLine($"  ✓ Camera: capture_camera + camera_ptz registered (cameras: {availableCameras}, credentials: {(hasCredentials ? "yes" : "missing")})");
+        _output.RecordInit("Camera", true, $"capture_camera + camera_ptz (cameras: {availableCameras})");
 
         // Register smart home actuator tool for lights, plugs, and other Tapo REST API devices
         var restClient = _tapoRestClient;
@@ -1258,7 +1292,7 @@ Write the integrated response:";
             });
 
         _tools = _tools.WithTool(smartHomeTool);
-        Console.WriteLine($"  ✓ Smart Home: smart_home registered (REST API: {(restClient != null ? tapoServerAddress : "not configured")})");
+        _output.RecordInit("Smart Home", true, $"REST API: {(restClient != null ? tapoServerAddress : "not configured")}");
     }
 
     /// <summary>
@@ -1362,6 +1396,7 @@ Write the integrated response:";
 
     /// <summary>
     /// Speaks a response using Azure TTS with configured voice.
+    /// Supports barge-in via the CancellationToken — cancelling stops synthesis immediately.
     /// </summary>
     private async Task SpeakResponseWithAzureTtsAsync(string text, string key, string region, CancellationToken ct)
     {
@@ -1374,7 +1409,14 @@ Write the integrated response:";
             config.SpeechSynthesisVoiceName = voiceName;
 
             // Use default speaker
-            var speechSynthesizer = new Microsoft.CognitiveServices.Speech.SpeechSynthesizer(config);
+            using var speechSynthesizer = new Microsoft.CognitiveServices.Speech.SpeechSynthesizer(config);
+
+            // Register cancellation to stop synthesis (barge-in support)
+            ct.Register(() =>
+            {
+                try { _ = speechSynthesizer.StopSpeakingAsync(); }
+                catch { /* Best effort */ }
+            });
 
             var ssml = $@"<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='{(_config.Culture ?? "en-US")}'>
     <voice name='{voiceName}'>
@@ -1388,21 +1430,19 @@ Write the integrated response:";
             {
                 if (_config.Debug)
                 {
-                    Console.ForegroundColor = ConsoleColor.DarkYellow;
-                    Console.WriteLine($"  [Azure TTS] Synthesis issue: {result.Reason}");
-                    Console.ResetColor();
+                    _output.WriteDebug($"[Azure TTS] Synthesis issue: {result.Reason}");
                 }
             }
-
-            speechSynthesizer?.Dispose();
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected during barge-in
         }
         catch (Exception ex)
         {
             if (_config.Debug)
             {
-                Console.ForegroundColor = ConsoleColor.DarkYellow;
-                Console.WriteLine($"  [Azure TTS] Error: {ex.Message}");
-                Console.ResetColor();
+                _output.WriteDebug($"[Azure TTS] Error: {ex.Message}");
             }
         }
     }
@@ -1413,6 +1453,7 @@ Write the integrated response:";
     public OuroborosAgent(OuroborosConfig config)
     {
         _config = config;
+        _output = new ConsoleOutput(config.Verbosity);
         _voice = new VoiceModeService(new VoiceModeConfig(
             Persona: config.Persona,
             VoiceOnly: config.VoiceOnly,
@@ -1440,12 +1481,12 @@ Write the integrated response:";
         // Set static culture for TTS in static methods
         SetStaticCulture(_config.Culture);
 
-        Console.WriteLine("\n╔════════════════════════════════════════════════════════════╗");
-        Console.WriteLine("║          🐍 OUROBOROS - Unified AI Agent System           ║");
-        Console.WriteLine("╚════════════════════════════════════════════════════════════╝\n");
+        _output.WriteWelcome(_config.Persona, _config.Model,
+            _voice.ActivePersona?.Moods?.FirstOrDefault());
 
-        // Print feature configuration
-        PrintFeatureStatus();
+        // Print feature configuration (verbose only)
+        if (_config.Verbosity == OutputVerbosity.Verbose)
+            PrintFeatureStatus();
 
         // Initialize voice
         if (_config.Voice)
@@ -1475,7 +1516,7 @@ Write the integrated response:";
             {
                 return await _chatModel.GenerateTextAsync(prompt, ct);
             });
-            Console.WriteLine("  ✓ Voice LLM Sanitizer: Enabled (natural speech condensation)");
+            _output.RecordInit("Voice LLM Sanitizer", true, "natural speech condensation");
         }
 
         // Initialize embedding (always required for most features)
@@ -1492,7 +1533,7 @@ Write the integrated response:";
         else
         {
             _tools = ToolRegistry.CreateDefault();
-            Console.WriteLine("  ○ Tools: Disabled (use --no-tools=false to enable)");
+            _output.RecordInit("Tools", false, "disabled");
         }
 
         // Initialize MeTTa symbolic reasoning (conditionally)
@@ -1502,7 +1543,7 @@ Write the integrated response:";
         }
         else
         {
-            Console.WriteLine("  ○ MeTTa: Disabled (use --no-metta=false to enable)");
+            _output.RecordInit("MeTTa", false, "disabled");
         }
 
         // Initialize skill registry (conditionally)
@@ -1512,7 +1553,7 @@ Write the integrated response:";
         }
         else
         {
-            Console.WriteLine("  ○ Skills: Disabled (use --no-skills=false to enable)");
+            _output.RecordInit("Skills", false, "disabled");
         }
 
         // Initialize personality engine (conditionally)
@@ -1522,7 +1563,7 @@ Write the integrated response:";
         }
         else
         {
-            Console.WriteLine("  ○ Personality: Disabled (use --no-personality=false to enable)");
+            _output.RecordInit("Personality", false, "disabled");
         }
 
         // Initialize orchestrator (conditionally - needs skills)
@@ -1538,7 +1579,7 @@ Write the integrated response:";
         }
         else
         {
-            Console.WriteLine("  ○ AutonomousMind: Disabled (use --no-mind=false to enable)");
+            _output.RecordInit("Autonomous Mind", false, "disabled");
         }
 
         // Initialize ImmersivePersona consciousness simulation (conditionally)
@@ -1548,7 +1589,7 @@ Write the integrated response:";
         }
         else
         {
-            Console.WriteLine("  ○ Consciousness: Disabled (use --no-consciousness=false to enable)");
+            _output.RecordInit("Consciousness", false, "disabled");
         }
 
         // Initialize embodied interaction - multimodal sensors and actuators (conditionally)
@@ -1558,7 +1599,7 @@ Write the integrated response:";
         }
         else
         {
-            Console.WriteLine("  ○ Embodiment: Disabled (use --no-embodiment=false to enable)");
+            _output.RecordInit("Embodiment", false, "disabled");
         }
 
         // Initialize persistent thought memory (always enabled for continuity)
@@ -1602,8 +1643,9 @@ Write the integrated response:";
 
         _isInitialized = true;
 
-        Console.WriteLine("\n  ✓ Ouroboros fully initialized\n");
-        PrintQuickHelp();
+        _output.FlushInitSummary();
+        if (_config.Verbosity == OutputVerbosity.Verbose)
+            PrintQuickHelp();
 
         // AGI warmup - prime the model with examples for autonomous operation
         await PerformAgiWarmupAsync();
@@ -1617,9 +1659,7 @@ Write the integrated response:";
         // Start listening for voice input if enabled via CLI
         if (_config.Listen)
         {
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine("  🎤 Voice listening enabled via --listen flag");
-            Console.ResetColor();
+            _output.WriteSystem("Voice listening enabled via --listen flag");
             await StartListeningAsync();
         }
     }
@@ -1631,7 +1671,7 @@ Write the integrated response:";
     {
         try
         {
-            Console.WriteLine("\n  🔐 Enforcing governance policies...");
+            _output.WriteDebug("Enforcing governance policies...");
 
             var policyOpts = new PolicyOptions
             {
@@ -1652,13 +1692,10 @@ Write the integrated response:";
                     await PolicyCommands.RunPolicyAsync(policyOpts);
                     var output = writer.ToString();
 
-                    // Show policy status
                     Console.SetOut(originalOut);
                     if (!string.IsNullOrWhiteSpace(output))
                     {
-                        Console.ForegroundColor = ConsoleColor.DarkGreen;
-                        Console.WriteLine(output);
-                        Console.ResetColor();
+                        _output.WriteDebug(output.Trim());
                     }
                 }
             }
@@ -1669,9 +1706,7 @@ Write the integrated response:";
         }
         catch (Exception ex)
         {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"  [WARN] Policy enforcement warning: {ex.Message}");
-            Console.ResetColor();
+            _output.WriteWarning($"Policy enforcement: {ex.Message}");
         }
     }
 
@@ -1860,18 +1895,18 @@ OUTPUT (translation only, no explanations, no JSON, no metadata):";
                 }
             };
 
-            Console.WriteLine($"  ✓ Voice Side Channel: {_config.Persona} (parallel playback enabled)");
+            _output.RecordInit("Voice Side Channel", true, $"{_config.Persona} (parallel playback)");
         }
         catch (InvalidOperationException opEx)
         {
             Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"  ✗ Voice Side Channel: Configuration error - {opEx.Message}");
+            _output.RecordInit("Voice Side Channel", false, $"config error: {opEx.Message}");
             Console.ResetColor();
         }
         catch (Exception ex)
         {
             Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"  ✗ Voice Side Channel: {ex.GetType().Name} - {ex.Message}");
+            _output.RecordInit("Voice Side Channel", false, $"{ex.GetType().Name}: {ex.Message}");
             if (_config.Debug)
             {
                 Console.WriteLine($"    → Voice mode will continue without parallel playback");
@@ -1915,7 +1950,7 @@ OUTPUT (translation only, no explanations, no JSON, no metadata):";
                         azureKey, azureRegion, _config.Persona, _config.Culture);
                     streamingTts = azureTts;
                     // Don't set as fallback - we want local TTS as fallback for rate limits
-                    Console.WriteLine("  [OK] Azure Neural TTS available for streaming");
+                    _output.WriteDebug("Azure Neural TTS available for streaming");
                 }
                 catch (Exception ex)
                 {
@@ -1930,7 +1965,7 @@ OUTPUT (translation only, no explanations, no JSON, no metadata):";
                 {
                     fallbackTts = new Ouroboros.Providers.TextToSpeech.LocalWindowsTtsService(
                         voiceName: "Microsoft Zira Desktop", rate: 1, volume: 100);
-                    Console.WriteLine("  [OK] Local Windows TTS fallback available (for rate limit recovery)");
+                    _output.WriteDebug("Local Windows TTS fallback available");
                 }
                 catch (Exception ex)
                 {
@@ -1948,7 +1983,7 @@ OUTPUT (translation only, no explanations, no JSON, no metadata):";
             if (await whisperNet.IsAvailableAsync())
             {
                 fallbackStt = whisperNet;
-                Console.WriteLine("  [OK] Whisper.net STT available");
+                _output.WriteDebug("Whisper.net STT available");
             }
 
             // Get streaming LLM if available
@@ -1956,7 +1991,7 @@ OUTPUT (translation only, no explanations, no JSON, no metadata):";
             if (_chatModel is Ouroboros.Providers.IStreamingChatModel streamingModel)
             {
                 streamingLlm = streamingModel;
-                Console.WriteLine("  [OK] Streaming LLM available for voice pipeline");
+                _output.WriteDebug("Streaming LLM available for voice pipeline");
             }
 
             _voiceV2 = new VoiceModeServiceV2(
@@ -1980,13 +2015,13 @@ OUTPUT (translation only, no explanations, no JSON, no metadata):";
                 });
             }
 
-            Console.WriteLine("  ✓ Voice V2: Unified Rx streaming enabled");
+            _output.RecordInit("Voice V2", true, "unified Rx streaming");
             Console.WriteLine("    → Features: Typed streams | Barge-in | Streaming TTS");
         }
         catch (Exception ex)
         {
             Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"  ✗ Voice V2: {ex.GetType().Name} - {ex.Message}");
+            _output.RecordInit("Voice V2", false, $"{ex.GetType().Name}: {ex.Message}");
             Console.ResetColor();
         }
     }
@@ -2210,7 +2245,7 @@ $synth.Dispose()
                 var collectiveMind = CreateCollectiveMind(settings);
                 _chatModel = collectiveMind;
                 _costTracker = collectiveMind.CostTracker ?? _costTracker;
-                Console.WriteLine($"  ✓ Collective Mind: {collectiveMind.HealthyPathwayCount} providers ({_config.CollectiveThinkingMode} mode)");
+                _output.RecordInit("Collective Mind", true, $"{collectiveMind.HealthyPathwayCount} providers ({_config.CollectiveThinkingMode} mode)");
                 Console.WriteLine(collectiveMind.GetConsciousnessStatus());
                 return;
             }
@@ -2222,93 +2257,93 @@ $synth.Dispose()
                     if (string.IsNullOrWhiteSpace(apiKey))
                         throw new InvalidOperationException("Anthropic API key is required. Set ANTHROPIC_API_KEY or use --api-key.");
                     _chatModel = new AnthropicChatModel(apiKey, _config.Model, settings, costTracker: _costTracker);
-                    Console.WriteLine($"  ✓ LLM: {_config.Model} @ Anthropic");
+                    _output.RecordInit("LLM", true, $"{_config.Model} @ Anthropic");
                     break;
 
                 case ChatEndpointType.OllamaCloud:
                     _chatModel = new OllamaCloudChatModel(endpoint, apiKey ?? "", _config.Model, settings, costTracker: _costTracker);
-                    Console.WriteLine($"  ✓ LLM: {_config.Model} @ Ollama Cloud");
+                    _output.RecordInit("LLM", true, $"{_config.Model} @ Ollama Cloud");
                     break;
 
                 case ChatEndpointType.OllamaLocal:
                     _chatModel = new OllamaCloudChatModel(endpoint, "ollama", _config.Model, settings, costTracker: _costTracker);
-                    Console.WriteLine($"  ✓ LLM: {_config.Model} @ Ollama (local)");
+                    _output.RecordInit("LLM", true, $"{_config.Model} @ Ollama (local)");
                     break;
 
                 case ChatEndpointType.GitHubModels:
                     _chatModel = new GitHubModelsChatModel(apiKey ?? "", _config.Model, endpoint, settings, costTracker: _costTracker);
-                    Console.WriteLine($"  ✓ LLM: {_config.Model} @ GitHub Models");
+                    _output.RecordInit("LLM", true, $"{_config.Model} @ GitHub Models");
                     break;
 
                 case ChatEndpointType.LiteLLM:
                     _chatModel = new LiteLLMChatModel(endpoint, apiKey ?? "", _config.Model, settings, costTracker: _costTracker);
-                    Console.WriteLine($"  ✓ LLM: {_config.Model} @ LiteLLM");
+                    _output.RecordInit("LLM", true, $"{_config.Model} @ LiteLLM");
                     break;
 
                 // === OpenAI-compatible providers (use standard chat completions API) ===
                 case ChatEndpointType.OpenAI:
                     _chatModel = new LiteLLMChatModel(endpoint, apiKey ?? "", _config.Model, settings, costTracker: _costTracker);
-                    Console.WriteLine($"  ✓ LLM: {_config.Model} @ OpenAI");
+                    _output.RecordInit("LLM", true, $"{_config.Model} @ OpenAI");
                     break;
 
                 case ChatEndpointType.AzureOpenAI:
                     _chatModel = new LiteLLMChatModel(endpoint, apiKey ?? "", _config.Model, settings, costTracker: _costTracker);
-                    Console.WriteLine($"  ✓ LLM: {_config.Model} @ Azure OpenAI");
+                    _output.RecordInit("LLM", true, $"{_config.Model} @ Azure OpenAI");
                     break;
 
                 case ChatEndpointType.Groq:
                     _chatModel = new LiteLLMChatModel(endpoint, apiKey ?? "", _config.Model, settings, costTracker: _costTracker);
-                    Console.WriteLine($"  ✓ LLM: {_config.Model} @ Groq");
+                    _output.RecordInit("LLM", true, $"{_config.Model} @ Groq");
                     break;
 
                 case ChatEndpointType.Together:
                     _chatModel = new LiteLLMChatModel(endpoint, apiKey ?? "", _config.Model, settings, costTracker: _costTracker);
-                    Console.WriteLine($"  ✓ LLM: {_config.Model} @ Together AI");
+                    _output.RecordInit("LLM", true, $"{_config.Model} @ Together AI");
                     break;
 
                 case ChatEndpointType.Fireworks:
                     _chatModel = new LiteLLMChatModel(endpoint, apiKey ?? "", _config.Model, settings, costTracker: _costTracker);
-                    Console.WriteLine($"  ✓ LLM: {_config.Model} @ Fireworks AI");
+                    _output.RecordInit("LLM", true, $"{_config.Model} @ Fireworks AI");
                     break;
 
                 case ChatEndpointType.Perplexity:
                     _chatModel = new LiteLLMChatModel(endpoint, apiKey ?? "", _config.Model, settings, costTracker: _costTracker);
-                    Console.WriteLine($"  ✓ LLM: {_config.Model} @ Perplexity");
+                    _output.RecordInit("LLM", true, $"{_config.Model} @ Perplexity");
                     break;
 
                 case ChatEndpointType.DeepSeek:
                     _chatModel = new LiteLLMChatModel(endpoint, apiKey ?? "", _config.Model, settings, costTracker: _costTracker);
-                    Console.WriteLine($"  ✓ LLM: {_config.Model} @ DeepSeek");
+                    _output.RecordInit("LLM", true, $"{_config.Model} @ DeepSeek");
                     break;
 
                 case ChatEndpointType.Mistral:
                     _chatModel = new LiteLLMChatModel(endpoint, apiKey ?? "", _config.Model, settings, costTracker: _costTracker);
-                    Console.WriteLine($"  ✓ LLM: {_config.Model} @ Mistral AI");
+                    _output.RecordInit("LLM", true, $"{_config.Model} @ Mistral AI");
                     break;
 
                 case ChatEndpointType.Cohere:
                     _chatModel = new LiteLLMChatModel(endpoint, apiKey ?? "", _config.Model, settings, costTracker: _costTracker);
-                    Console.WriteLine($"  ✓ LLM: {_config.Model} @ Cohere");
+                    _output.RecordInit("LLM", true, $"{_config.Model} @ Cohere");
                     break;
 
                 case ChatEndpointType.Google:
                     _chatModel = new LiteLLMChatModel(endpoint, apiKey ?? "", _config.Model, settings, costTracker: _costTracker);
-                    Console.WriteLine($"  ✓ LLM: {_config.Model} @ Google AI");
+                    _output.RecordInit("LLM", true, $"{_config.Model} @ Google AI");
                     break;
 
                 case ChatEndpointType.HuggingFace:
                     _chatModel = new LiteLLMChatModel(endpoint, apiKey ?? "", _config.Model, settings, costTracker: _costTracker);
-                    Console.WriteLine($"  ✓ LLM: {_config.Model} @ HuggingFace");
+                    _output.RecordInit("LLM", true, $"{_config.Model} @ HuggingFace");
                     break;
 
                 case ChatEndpointType.Replicate:
                     _chatModel = new LiteLLMChatModel(endpoint, apiKey ?? "", _config.Model, settings, costTracker: _costTracker);
-                    Console.WriteLine($"  ✓ LLM: {_config.Model} @ Replicate");
+                    _output.RecordInit("LLM", true, $"{_config.Model} @ Replicate");
                     break;
 
                 case ChatEndpointType.OpenAiCompatible:
                     _chatModel = new HttpOpenAiCompatibleChatModel(endpoint, apiKey ?? "", _config.Model, settings, costTracker: _costTracker);
-                    Console.WriteLine($"  ✓ LLM: {_config.Model} @ {endpoint}");
+                    _output.RecordInit("LLM", true, $"{_config.Model} @ {endpoint}");
                     break;
 
                 case ChatEndpointType.Auto:
@@ -2319,12 +2354,12 @@ $synth.Dispose()
                     if (autoDetectLocal)
                     {
                         _chatModel = new OllamaCloudChatModel(endpoint, "ollama", _config.Model, settings, costTracker: _costTracker);
-                        Console.WriteLine($"  ✓ LLM: {_config.Model} @ {endpoint} (local)");
+                        _output.RecordInit("LLM", true, $"{_config.Model} @ {endpoint} (local)");
                     }
                     else
                     {
                         _chatModel = new LiteLLMChatModel(endpoint, apiKey ?? "", _config.Model, settings, costTracker: _costTracker);
-                        Console.WriteLine($"  ✓ LLM: {_config.Model} @ {endpoint}");
+                        _output.RecordInit("LLM", true, $"{_config.Model} @ {endpoint}");
                     }
                     break;
             }
@@ -2440,7 +2475,7 @@ $synth.Dispose()
         if (!string.IsNullOrWhiteSpace(_config.MasterModel))
         {
             mind.SetMaster(_config.MasterModel);
-            Console.WriteLine($"  ✓ Master model: {_config.MasterModel}");
+            _output.RecordInit("Master Model", true, _config.MasterModel ?? "");
         }
         else if (mind.Pathways.Count > 0)
         {
@@ -2500,7 +2535,7 @@ $synth.Dispose()
 
             if (!hasSpecializedModels || _chatModel == null)
             {
-                Console.WriteLine("  ○ Multi-model: Using single model (specify --coder-model, --reason-model, --summarize-model, or --vision-model to enable)");
+                _output.RecordInit("Multi-Model", false, "single model mode");
                 return;
             }
 
@@ -2583,7 +2618,7 @@ $synth.Dispose()
             _orchestratedModel = builder.Build();
 
             var modelCount = 1 + (_coderModel != null ? 1 : 0) + (_reasonModel != null ? 1 : 0) + (_summarizeModel != null ? 1 : 0) + (_visionChatModel != null ? 1 : 0);
-            Console.WriteLine($"  ✓ Multi-model: Orchestration enabled ({modelCount} models)");
+            _output.RecordInit("Multi-Model", true, $"orchestration ({modelCount} models)");
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.WriteLine($"    General: {_config.Model}");
             if (_coderModel != null) Console.WriteLine($"    Coder: {_config.CoderModel}");
@@ -2599,7 +2634,7 @@ $synth.Dispose()
                 MergeResults: true,
                 MergeSeparator: "\n\n");
             _divideAndConquer = new DivideAndConquerOrchestrator(_orchestratedModel, dcConfig);
-            Console.WriteLine($"  ✓ Divide-and-Conquer: Parallel processing enabled (parallelism={dcConfig.MaxParallelism})");
+            _output.RecordInit("Divide-and-Conquer", true, $"parallelism={dcConfig.MaxParallelism}");
 
             await Task.CompletedTask;
         }
@@ -2634,7 +2669,7 @@ $synth.Dispose()
 
                 // Test embedding
                 var testEmbed = await _embedding.CreateEmbeddingsAsync("test");
-                Console.WriteLine($"  ✓ Embeddings: {modelName} @ {embedEndpoint} (dim={testEmbed.Length})");
+                _output.RecordInit("Embeddings", true, $"{modelName} @ {embedEndpoint} (dim={testEmbed.Length})");
                 return; // Success!
             }
             catch (Exception ex)
@@ -2655,7 +2690,7 @@ $synth.Dispose()
     {
         if (_embedding == null || string.IsNullOrEmpty(_config.QdrantEndpoint))
         {
-            Console.WriteLine("  ○ Neural Memory: Disabled (requires embeddings + Qdrant)");
+            _output.RecordInit("Neural Memory", false, "requires embeddings + Qdrant");
             return;
         }
 
@@ -2677,7 +2712,7 @@ $synth.Dispose()
 
             // Get stats
             var stats = await _neuralMemory.GetStatsAsync();
-            Console.WriteLine($"  ✓ Neural Memory: Qdrant @ {qdrantRest}");
+            _output.RecordInit("Neural Memory", true, $"Qdrant @ {qdrantRest}");
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.WriteLine($"    Messages: {stats.NeuronMessagesCount} | Intentions: {stats.IntentionsCount} | Memories: {stats.MemoriesCount}");
             Console.ResetColor();
@@ -2744,7 +2779,7 @@ $synth.Dispose()
                     }
                     var qdrantAdmin = new QdrantAdminTool(qdrantRest, embedFunc);
                     _tools = _tools.WithTool(qdrantAdmin);
-                    Console.WriteLine("  ✓ Qdrant Admin: Self-management tool registered");
+                    _output.RecordInit("Qdrant Admin", true, "self-management tool");
                 }
 
                 // Add Playwright MCP tool for browser automation (if enabled)
@@ -2755,7 +2790,7 @@ $synth.Dispose()
                         _playwrightTool = new PlaywrightMcpTool();
                         await _playwrightTool.InitializeAsync();
                         _tools = _tools.WithTool(_playwrightTool);
-                        Console.WriteLine($"  ✓ Playwright: Browser automation ready ({_playwrightTool.AvailableTools.Count} tools)");
+                        _output.RecordInit("Playwright", true, $"browser automation ({_playwrightTool.AvailableTools.Count} tools)");
                     }
                     catch (Exception ex)
                     {
@@ -2764,7 +2799,7 @@ $synth.Dispose()
                 }
                 else
                 {
-                    Console.WriteLine("  ○ Playwright: Disabled (use --no-browser=false to enable)");
+                    _output.RecordInit("Playwright", false, "disabled");
                 }
 
                 // Register capture_camera tool for Tapo RTSP cameras
@@ -2799,11 +2834,11 @@ $synth.Dispose()
 
                     await _toolLearner.InitializeAsync();
                     var stats = _toolLearner.GetStats();
-                    Console.WriteLine($"  ✓ Tool Learner: {stats.TotalPatterns} patterns (GA+MeTTa)");
+                    _output.RecordInit("Tool Learner", true, $"{stats.TotalPatterns} patterns (GA+MeTTa)");
                 }
                 else
                 {
-                    Console.WriteLine($"  ✓ Tools: {_tools.Count} registered");
+                    _output.RecordInit("Tools", true, $"{_tools.Count} registered");
                 }
 
                 // Add self-introspection tools (search_my_code, read_my_file, etc.)
@@ -2811,14 +2846,14 @@ $synth.Dispose()
                 {
                     _tools = _tools.WithTool(tool);
                 }
-                Console.WriteLine($"  ✓ Self-Introspection: search_my_code, modify_my_code, etc. registered");
+                _output.RecordInit("Self-Introspection", true, "code tools registered");
 
                 // Add Roslyn code analysis tools
                 foreach (ITool tool in RoslynAnalyzerTools.CreateAllTools())
                 {
                     _tools = _tools.WithTool(tool);
                 }
-                Console.WriteLine($"  ✓ Roslyn: analyze_csharp_code, create_csharp_class, etc. registered");
+                _output.RecordInit("Roslyn", true, "C# analysis tools registered");
 
                 // CRITICAL: Recreate _llm with ALL tools now that registration is complete
                 // The ToolRegistry is immutable, so _llm needs the final snapshot
@@ -2828,7 +2863,7 @@ $synth.Dispose()
             }
             else
             {
-                Console.WriteLine($"  ✓ Tools: {_tools.Count} (static only)");
+                _output.RecordInit("Tools", true, $"{_tools.Count} (static only)");
             }
         }
         catch (Exception ex)
@@ -2843,7 +2878,7 @@ $synth.Dispose()
         {
             _mettaEngine ??= new InMemoryMeTTaEngine();
             await Task.CompletedTask; // Engine is sync-initialized
-            Console.WriteLine("  ✓ MeTTa: Symbolic reasoning engine ready");
+            _output.RecordInit("MeTTa", true, "symbolic reasoning engine");
         }
         catch (Exception ex)
         {
@@ -2865,7 +2900,7 @@ $synth.Dispose()
                     await qdrantSkills.InitializeAsync();
                     _skills = qdrantSkills;
                     var stats = qdrantSkills.GetStats();
-                    Console.WriteLine($"  ✓ Skills: Qdrant persistent storage ({stats.TotalSkills} skills loaded)");
+                    _output.RecordInit("Skills", true, $"Qdrant ({stats.TotalSkills} skills loaded)");
                 }
                 catch (HttpRequestException qdrantConnEx)
                 {
@@ -2873,7 +2908,7 @@ $synth.Dispose()
                     Console.WriteLine($"  ⚠ Qdrant skills: Connection failed - {qdrantConnEx.Message}");
                     Console.ResetColor();
                     _skills = new SkillRegistry(_embedding);
-                    Console.WriteLine("  ✓ Skills: In-memory with embeddings (fallback)");
+                    _output.RecordInit("Skills", true, "in-memory with embeddings");
                 }
                 catch (Exception qdrantEx)
                 {
@@ -2881,19 +2916,19 @@ $synth.Dispose()
                     Console.WriteLine($"  ⚠ Qdrant skills failed: {qdrantEx.GetType().Name} - {qdrantEx.Message}");
                     Console.ResetColor();
                     _skills = new SkillRegistry(_embedding);
-                    Console.WriteLine("  ✓ Skills: In-memory with embeddings (fallback)");
+                    _output.RecordInit("Skills", true, "in-memory with embeddings");
                 }
             }
             else
             {
                 _skills = new SkillRegistry();
-                Console.WriteLine("  ✓ Skills: In-memory basic");
+                _output.RecordInit("Skills", true, "in-memory basic");
             }
         }
         catch (Exception ex)
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"  ✗ Skills critical failure: {ex.GetType().Name} - {ex.Message}");
+            _output.RecordInit("Skills", false, $"critical: {ex.GetType().Name}: {ex.Message}");
             Console.ResetColor();
             // Create minimal fallback to prevent null reference
             _skills = new SkillRegistry();
@@ -2925,11 +2960,11 @@ $synth.Dispose()
                 persona.Moods,
                 persona.CoreIdentity);
 
-            Console.WriteLine($"  ✓ Personality: {persona.Name} ({_personality.Traits.Count} traits)");
+            _output.RecordInit("Personality", true, $"{persona.Name} ({_personality.Traits.Count} traits)");
 
             // Initialize valence monitor for affective state tracking
             _valenceMonitor = new ValenceMonitor();
-            Console.WriteLine("  ✓ Valence monitor initialized");
+            _output.RecordInit("Valence Monitor", true);
         }
         catch (ArgumentException argEx)
         {
@@ -2973,7 +3008,7 @@ $synth.Dispose()
                     .WithMemoryStore(memory);
 
                 _orchestrator = builder.Build();
-                Console.WriteLine("  ✓ Orchestrator: Meta-AI planner ready");
+                _output.RecordInit("Orchestrator", true, "Meta-AI planner");
             }
 
             await Task.CompletedTask;
@@ -3009,7 +3044,7 @@ $synth.Dispose()
 
             // Awaken the persona
             await _immersivePersona.AwakenAsync();
-            Console.WriteLine($"  ✓ Consciousness: ImmersivePersona '{_config.Persona}' awakened");
+            _output.RecordInit("Consciousness", true, $"ImmersivePersona '{_config.Persona}'");
 
             // Display initial consciousness state
             PrintConsciousnessState();
@@ -3138,7 +3173,7 @@ $synth.Dispose()
             // Start the embodiment controller
             var startResult = await _embodimentController.StartAsync();
             startResult.Match(
-                _ => Console.WriteLine($"  ✓ Embodiment: VirtualSelf '{_config.Persona}' with {_bodySchema.Capabilities.Count} capabilities"),
+                _ => _output.RecordInit("Embodiment", true, $"VirtualSelf '{_config.Persona}' ({_bodySchema.Capabilities.Count} capabilities)"),
                 error => Console.WriteLine($"  ⚠ Embodiment start warning: {error}"));
 
             // Print body schema summary
@@ -3189,14 +3224,14 @@ $synth.Dispose()
                     _config.QdrantEndpoint,
                     embeddingFunc);
 
-                Console.WriteLine("  ✓ Neuro-Symbolic Thought Map: Qdrant-backed with semantic search");
+                _output.RecordInit("Persistent Memory", true, "Qdrant-backed thought map");
             }
             catch (Exception qdrantEx)
             {
                 // Fall back to file-based storage
                 System.Diagnostics.Debug.WriteLine($"[ThoughtPersistence] Qdrant unavailable: {qdrantEx.Message}, using file storage");
                 _thoughtPersistence = ThoughtPersistenceService.CreateWithFilePersistence(sessionId, thoughtsDir);
-                Console.WriteLine("  ✓ Persistent Memory: File-based (Qdrant unavailable)");
+                _output.RecordInit("Persistent Memory", true, "file-based (Qdrant unavailable)");
             }
 
             // Load recent thoughts from previous sessions
@@ -3204,7 +3239,7 @@ $synth.Dispose()
 
             if (_persistentThoughts.Count > 0)
             {
-                Console.WriteLine($"  ✓ Persistent Memory: {_persistentThoughts.Count} thoughts recalled from previous sessions");
+                _output.RecordInit("Persistent Memory", true, $"{_persistentThoughts.Count} thoughts recalled");
 
                 // Show a brief summary of what we remember
                 var thoughtTypes = _persistentThoughts
@@ -3219,7 +3254,7 @@ $synth.Dispose()
             }
             else
             {
-                Console.WriteLine("  ✓ Persistent Memory: Ready (first session)");
+                _output.RecordInit("Persistent Memory", true, "ready (first session)");
             }
         }
         catch (Exception ex)
@@ -3368,17 +3403,17 @@ $synth.Dispose()
                     await dagStore.InitializeAsync();
                     _networkTracker.ConfigureQdrantPersistence(dagStore, autoPersist: true);
 
-                    Console.WriteLine("  ✓ NetworkState: Merkle-DAG reification with Qdrant persistence");
+                    _output.RecordInit("Network State", true, "Merkle-DAG with Qdrant persistence");
                 }
                 catch (Exception qdrantEx)
                 {
                     System.Diagnostics.Debug.WriteLine($"[NetworkState] Qdrant DAG storage unavailable: {qdrantEx.Message}");
-                    Console.WriteLine("  ✓ NetworkState: Merkle-DAG reification (in-memory only)");
+                    _output.RecordInit("Network State", true, "Merkle-DAG (in-memory)");
                 }
             }
             else
             {
-                Console.WriteLine("  ✓ NetworkState: Merkle-DAG reification (in-memory only)");
+                _output.RecordInit("Network State", true, "Merkle-DAG (in-memory)");
             }
 
             // Configure MeTTa symbolic export if MeTTa engine is available
@@ -3412,7 +3447,7 @@ $synth.Dispose()
     {
         if (_embedding == null)
         {
-            Console.WriteLine("  ○ SelfIndex: Skipped (no embedding model)");
+            _output.RecordInit("Self-Index", false, "no embedding model");
             return;
         }
 
@@ -3459,7 +3494,7 @@ $synth.Dispose()
             SystemAccessTools.SharedIndexer = _selfIndexer;
 
             var stats = await _selfIndexer.GetStatsAsync();
-            Console.WriteLine($"  ✓ SelfIndex: {stats.IndexedFiles} files, {stats.TotalVectors} chunks (live watching)");
+            _output.RecordInit("Self-Index", true, $"{stats.IndexedFiles} files, {stats.TotalVectors} chunks");
 
             // Run incremental index in background (don't block startup)
             _ = Task.Run(async () =>
@@ -3556,7 +3591,7 @@ $synth.Dispose()
                 }
             }
 
-            Console.WriteLine($"  ✓ SelfAssembly: Enabled (YOLO={_config.YoloMode}, max {config.MaxAssembledNeurons} neurons)");
+            _output.RecordInit("Self-Assembly", true, $"YOLO={_config.YoloMode}, max {config.MaxAssembledNeurons} neurons");
         }
         catch (Exception ex)
         {
@@ -3608,7 +3643,7 @@ $synth.Dispose()
             // Wire to SkillCliSteps for CLI access
             SkillCliSteps.SharedPresenceDetector = _presenceDetector;
 
-            Console.WriteLine($"  ✓ Presence Detection: Active (WiFi + Input, interval={config.CheckIntervalSeconds}s)");
+            _output.RecordInit("Presence Detection", true, $"WiFi + Input (interval={config.CheckIntervalSeconds}s)");
             await Task.CompletedTask;
         }
         catch (Exception ex)
@@ -3632,17 +3667,17 @@ $synth.Dispose()
                 agentId: Guid.NewGuid(),
                 config: AdaptiveAgentConfig.Default,
                 bufferCapacity: 10000);
-            Console.WriteLine("  ✓ Continuous Learning Agent: Active (EMA tracking, adaptive strategies)");
+            _output.RecordInit("Continuous Learning", true, "EMA tracking, adaptive strategies");
 
             // 2. Meta-Learner - learns how to learn, optimizes hyperparameters
             _metaLearner = new AdaptiveMetaLearner(
                 explorationWeight: 0.2,
                 historyLimit: 100);
-            Console.WriteLine("  ✓ Meta-Learner: Active (UCB exploration, Bayesian optimization)");
+            _output.RecordInit("Meta-Learner", true, "UCB exploration, Bayesian optimization");
 
             // 3. Experience Buffer - prioritized experience replay
             _experienceBuffer = new ExperienceBuffer(capacity: 10000);
-            Console.WriteLine("  ✓ Experience Buffer: Active (10K capacity, prioritized replay)");
+            _output.RecordInit("Experience Buffer", true, "10K capacity, prioritized replay");
 
             // 4. Cognitive Monitor - real-time cognitive health monitoring
             _cognitiveMonitor = new RealtimeCognitiveMonitor(
@@ -3659,32 +3694,32 @@ $synth.Dispose()
                     Console.ResetColor();
                 }
             });
-            Console.WriteLine("  ✓ Cognitive Monitor: Active (anomaly detection, health tracking)");
+            _output.RecordInit("Cognitive Monitor", true, "anomaly detection, health tracking");
 
             // 5. Bayesian Self-Assessor - probabilistic self-evaluation
             _selfAssessor = new BayesianSelfAssessor();
-            Console.WriteLine("  ✓ Self-Assessor: Active (6-dimension Bayesian evaluation)");
+            _output.RecordInit("Self-Assessor", true, "6-dimension Bayesian evaluation");
 
             // 6. Cognitive Introspector - deep self-analysis and reflection
             _introspector = new CognitiveIntrospector(maxHistorySize: 100);
-            Console.WriteLine("  ✓ Introspector: Active (state capture, pattern detection)");
+            _output.RecordInit("Introspector", true, "state capture, pattern detection");
 
             // 7. Council Orchestrator - multi-agent debate for complex decisions
             if (_llm != null)
             {
                 _councilOrchestrator = CouncilOrchestrator.CreateWithDefaultAgents(_llm);
-                Console.WriteLine("  ✓ Council Orchestrator: Active (5 debate agents, Round Table protocol)");
+                _output.RecordInit("Council", true, "5 debate agents, Round Table protocol");
             }
 
             // 8. World State - environment and capability tracking
             _worldState = WorldState.Empty();
-            Console.WriteLine("  ✓ World State: Active (environment tracking, observations)");
+            _output.RecordInit("World State", true, "environment tracking, observations");
 
             // 9. Tool Capability Matcher - semantic tool matching
             if (_tools != null)
             {
                 _toolCapabilityMatcher = new ToolCapabilityMatcher(_tools);
-                Console.WriteLine("  ✓ Tool Capability Matcher: Active (goal-tool relevance scoring)");
+                _output.RecordInit("Tool Capability Matcher", true, "goal-tool relevance scoring");
 
                 // 10. Smart Tool Selector - AI-powered tool selection
                 _smartToolSelector = new SmartToolSelector(
@@ -3692,7 +3727,7 @@ $synth.Dispose()
                     _tools,
                     _toolCapabilityMatcher,
                     SelectionConfig.Default);
-                Console.WriteLine("  ✓ Smart Tool Selector: Active (balanced optimization strategy)");
+                _output.RecordInit("Smart Tool Selector", true, "balanced optimization strategy");
             }
 
             // 11. Agent Coordinator - multi-agent task coordination
@@ -3705,7 +3740,7 @@ $synth.Dispose()
                     .WithCapability(PipelineAgentCapability.Create("research", "Information gathering")));
             var messageBus = new InMemoryMessageBus();
             _agentCoordinator = new AgentCoordinator(team, messageBus);
-            Console.WriteLine("  ✓ Agent Coordinator: Active (3 agents, round-robin delegation)");
+            _output.RecordInit("Agent Coordinator", true, "3 agents, round-robin delegation");
 
             await Task.CompletedTask;
         }
@@ -3805,10 +3840,6 @@ If they were away a while, you might mention being ready to help or having kept 
     {
         try
         {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine("\n  ⏳ Warming up AGI systems...");
-            Console.ResetColor();
-
             _agiWarmup = new AgiWarmup(
                 thinkFunction: _autonomousMind?.ThinkFunction,
                 searchFunction: _autonomousMind?.SearchFunction,
@@ -3816,59 +3847,43 @@ If they were away a while, you might mention being ready to help or having kept 
                 selfIndexer: _selfIndexer,
                 toolRegistry: _tools);
 
-            _agiWarmup.OnProgress += (step, percent) =>
+            if (_config.Verbosity == OutputVerbosity.Verbose)
             {
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.Write($"\r  ⏳ {step} ({percent}%)".PadRight(60));
-                Console.ResetColor();
-            };
+                _output.WriteDebug("Warming up AGI systems...");
+                _agiWarmup.OnProgress += (step, percent) =>
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.Write($"\r  ⏳ {step} ({percent}%)".PadRight(60));
+                    Console.ResetColor();
+                };
+            }
 
             var result = await _agiWarmup.WarmupAsync();
 
-            Console.WriteLine(); // Clear progress line
-
-            if (result.Success)
+            if (_config.Verbosity == OutputVerbosity.Verbose)
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"  ✓ AGI warmup complete in {result.Duration.TotalSeconds:F1}s");
-                Console.ResetColor();
+                Console.WriteLine(); // Clear progress line
 
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine($"    Thinking: {(result.ThinkingReady ? "✓" : "○")} | " +
-                                  $"Search: {(result.SearchReady ? "✓" : "○")} | " +
-                                  $"Tools: {result.ToolsSuccessCount}/{result.ToolsTestedCount} | " +
-                                  $"Self-Aware: {(result.SelfAwarenessReady ? "✓" : "○")}");
-                Console.ResetColor();
-
-                // Seed thoughts are now available for autonomous exploration
-                if (result.SeedThoughts.Count > 0)
+                if (result.Success)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[Warmup] {result.SeedThoughts.Count} seed thoughts primed for autonomous exploration");
+                    _output.WriteDebug($"AGI warmup complete in {result.Duration.TotalSeconds:F1}s");
+
+                    // Print initial thought if available
+                    if (!string.IsNullOrEmpty(result.WarmupThought))
+                    {
+                        var translatedThought = await TranslateThoughtIfNeededAsync(result.WarmupThought);
+                        _output.WriteDebug($"💭 Initial thought: \"{translatedThought}\"");
+                    }
                 }
-
-                // Print initial thought if available
-                if (!string.IsNullOrEmpty(result.WarmupThought))
+                else
                 {
-                    Console.ForegroundColor = ConsoleColor.Magenta;
-                    var translatedThought = await TranslateThoughtIfNeededAsync(result.WarmupThought);
-                    Console.WriteLine($"\n  💭 Initial thought: \"{translatedThought}\"");
-                    Console.ResetColor();
+                    _output.WriteWarning($"AGI warmup limited: {result.Error ?? "Some features unavailable"}");
                 }
             }
-            else
-            {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"  ⚠ AGI warmup limited: {result.Error ?? "Some features unavailable"}");
-                Console.ResetColor();
-            }
-
-            Console.WriteLine();
         }
         catch (Exception ex)
         {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine($"  ○ AGI warmup: {ex.Message}");
-            Console.ResetColor();
+            _output.WriteDebug($"AGI warmup skipped: {ex.Message}");
         }
     }
 
@@ -4269,9 +4284,7 @@ No markdown, no technical details, just the key insight:
                     Console.WriteLine();
                 }
 
-                Console.ForegroundColor = ConsoleColor.Magenta;
-                Console.WriteLine($"  💭 {msg}");
-                Console.ResetColor();
+                _output.WriteDebug($"💭 {msg}");
 
                 // Whisper the thought using the same voice
                 try
@@ -4344,12 +4357,12 @@ No markdown, no technical details, just the key insight:
                     _immersivePersona.InnerDialog,
                     profile: null, // Profile is optional - InnerDialog creates context dynamically
                     _immersivePersona.SelfAwareness);
-                Console.WriteLine("  ✓ Autonomous mind connected to InnerDialog (algorithmic + LLM hybrid)");
+                _output.RecordInit("Autonomous Mind", true, "InnerDialog (algorithmic + LLM hybrid)");
             }
 
             // Start autonomous thinking
             _autonomousMind.Start();
-            Console.WriteLine("  ✓ Autonomous mind active (inner thoughts every ~15s)");
+            _output.RecordInit("Autonomous Mind", true, "inner thoughts every ~15s");
 
             await Task.CompletedTask;
         }
@@ -4376,7 +4389,8 @@ No markdown, no technical details, just the key insight:
             return;
         }
 
-        _voice.PrintHeader("OUROBOROS");
+        if (_config.Verbosity == OutputVerbosity.Verbose)
+            _voice.PrintHeader("OUROBOROS");
 
         // Greeting - let the LLM generate a natural Cortana-like greeting
         if (!_config.NoGreeting)
@@ -7711,7 +7725,12 @@ Use these tools FIRST before considering others.";
                 }
             }
 
-            (string response, List<ToolExecution> tools) = await _llm.GenerateWithToolsAsync(prompt);
+            string response;
+            List<ToolExecution> tools;
+            using (var spinner = _output.StartSpinner("Thinking..."))
+            {
+                (response, tools) = await _llm.GenerateWithToolsAsync(prompt);
+            }
 
             // === POST-PROCESS: Execute tools when LLM TALKS about using them but doesn't ===
             // KEY INSIGHT: LLM often says "I searched..." or "Let me check..." without calling tools
@@ -8055,7 +8074,7 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
             try
             {
                 await _personalityEngine.SavePersonalitySnapshotAsync(_voice.ActivePersona.Name);
-                Console.WriteLine("  ✓ Personality snapshot saved");
+                _output.WriteDebug("Personality snapshot saved");
             }
             catch (Exception ex)
             {
@@ -8115,6 +8134,12 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
             _embodimentController.Dispose();
         }
         _virtualSelf?.Dispose();
+
+        // Dispose enhanced listening service
+        if (_enhancedListener != null)
+        {
+            await _enhancedListener.DisposeAsync();
+        }
 
         // Dispose voice side channel (drains queue)
         if (_voiceSideChannel != null)
@@ -8369,7 +8394,7 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
             }
 
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"  ✗ DSL execution failed: {ex.Message}");
+            _output.WriteError($"DSL execution failed: {ex.Message}");
             Console.ResetColor();
         }
     }
@@ -8506,7 +8531,7 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
                     AutoAssignAgents: true,
                     MaxConcurrentSubIssues: 5));
 
-            Console.WriteLine("  ✓ SubAgents: Distributed orchestration ready (1 agent registered)");
+            _output.RecordInit("Sub-Agents", true, "distributed orchestration (1 agent)");
             await Task.CompletedTask;
         }
         catch (Exception ex)
@@ -8596,11 +8621,11 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
                 }
 
                 var capCount = (await _capabilityRegistry.GetCapabilitiesAsync()).Count;
-                Console.WriteLine($"  ✓ SelfModel: Identity graph initialized ({capCount} capabilities)");
+                _output.RecordInit("Self-Model", true, $"identity graph ({capCount} capabilities)");
             }
             else
             {
-                Console.WriteLine("  ○ SelfModel: Skipped (requires chat model)");
+                _output.RecordInit("Self-Model", false, "requires chat model");
             }
         }
         catch (Exception ex)
@@ -8623,7 +8648,7 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
             // Start background self-execution task
             _selfExecutionTask = Task.Run(SelfExecutionLoopAsync, _selfExecutionCts.Token);
 
-            Console.WriteLine("  ✓ SelfExecution: Autonomous goal pursuit active");
+            _output.RecordInit("Self-Execution", true, "autonomous goal pursuit");
             await Task.CompletedTask;
         }
         catch (Exception ex)
@@ -8829,7 +8854,7 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
             // Start the neural network (for status visibility) without coordination loops
             _autonomousCoordinator.StartNetwork();
 
-            Console.WriteLine("  ✓ Autonomous Coordinator: Ready (neural network active)");
+            _output.RecordInit("Coordinator", true, "neural network active");
             await Task.CompletedTask;
         }
         catch (Exception ex)
@@ -8845,7 +8870,7 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
     {
         if (_autonomousCoordinator == null)
         {
-            Console.WriteLine("  ⚠ Cannot start Push Mode: Coordinator not initialized");
+            _output.WriteWarning("Cannot start Push Mode: Coordinator not initialized");
             return;
         }
 
@@ -8859,39 +8884,14 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
             _pushModeCts = new CancellationTokenSource();
             _pushModeTask = Task.Run(() => PushModeLoopAsync(_pushModeCts.Token), _pushModeCts.Token);
 
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            if (_config.YoloMode)
-            {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"  🤠 YOLO Mode: Active (all intentions auto-approved!)");
-                Console.ForegroundColor = ConsoleColor.Cyan;
-            }
-            Console.WriteLine($"  ⚡ Push Mode: Active (interval: {_config.IntentionIntervalSeconds}s)");
-            Console.WriteLine($"     🔍 Autonomous topic discovery: every {_autonomousCoordinator.TopicDiscoveryIntervalSeconds}s");
-
-            HashSet<string> autoApproveCategories = _config.AutoApproveCategories
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            if (autoApproveCategories.Count > 0)
-            {
-                Console.WriteLine($"     Auto-approve: {string.Join(", ", autoApproveCategories)}");
-            }
-            Console.ResetColor();
-
-            if (_neuralMemory != null)
-            {
-                Console.WriteLine("    ✓ Qdrant neural memory connected");
-            }
-            if (_mettaEngine != null)
-            {
-                Console.WriteLine("    ✓ MeTTa neuro-symbolic validation enabled");
-            }
+            var yoloPart = _config.YoloMode ? ", YOLO" : "";
+            _output.RecordInit("Push Mode", true, $"interval: {_config.IntentionIntervalSeconds}s{yoloPart}");
 
             await Task.CompletedTask;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  ⚠ Push Mode start failed: {ex.Message}");
+            _output.WriteWarning($"Push Mode start failed: {ex.Message}");
         }
     }
 
@@ -8907,29 +8907,24 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
         if (_isInConversationLoop && !isTrainingMessage && args.Priority < IntentionPriority.High)
             return;
 
-        string sourceIcon = args.Source switch
+        // In Normal mode, only show training and high-priority messages
+        if (_config.Verbosity < OutputVerbosity.Verbose && !isTrainingMessage && args.Priority < IntentionPriority.High)
         {
-            "user_persona" => "👤",
-            "self_dialogue" => "🐍",
-            "auto_training" => "🤖",
-            "coordinator" => "🐍",
-            _ => "🐍"
-        };
-
-        Console.ForegroundColor = args.Source switch
+            _output.WriteDebug($"[{args.Source}] {args.Message}");
+        }
+        else
         {
-            "user_persona" => ConsoleColor.Yellow,
-            "self_dialogue" => ConsoleColor.Magenta,
-            _ => ConsoleColor.Cyan
-        };
-
-        // Don't add extra source label if message already has persona prefix
-        var displayMessage = args.Message.StartsWith("👤") || args.Message.StartsWith("🐍")
-            ? args.Message
-            : $"{sourceIcon} [{args.Source}] {args.Message}";
-
-        Console.WriteLine($"\n  {displayMessage}");
-        Console.ResetColor();
+            string sourceIcon = args.Source switch
+            {
+                "user_persona" => "👤",
+                "auto_training" => "🤖",
+                _ => "🐍"
+            };
+            var displayMessage = args.Message.StartsWith("👤") || args.Message.StartsWith("🐍")
+                ? args.Message
+                : $"{sourceIcon} [{args.Source}] {args.Message}";
+            _output.WriteSystem(displayMessage);
+        }
 
         // Speak on voice side channel - block until complete
         // Use distinct persona for user_persona to get a different voice
@@ -8947,21 +8942,8 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
     {
         if (_isInConversationLoop) return;
 
-        var priorityColor = intention.Priority switch
-        {
-            IntentionPriority.Critical => ConsoleColor.Red,
-            IntentionPriority.High => ConsoleColor.Yellow,
-            IntentionPriority.Normal => ConsoleColor.White,
-            _ => ConsoleColor.DarkGray
-        };
-
-        Console.ForegroundColor = priorityColor;
-        Console.WriteLine($"\n  ⚡ [{intention.Id.ToString()[..8]}] {intention.Category} - {intention.Priority}");
-        Console.ResetColor();
-        Console.WriteLine($"     {intention.Title}");
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine($"     /approve {intention.Id.ToString()[..8]} | /reject {intention.Id.ToString()[..8]}");
-        Console.ResetColor();
+        var shortId = intention.Id.ToString()[..4];
+        _output.WriteSystem($"⚡ {intention.Title} ({intention.Category}/{intention.Priority}) — /approve {shortId} | /reject {shortId}");
 
         // Announce intention on voice side channel
         if (intention.Priority >= IntentionPriority.Normal)
@@ -8991,9 +8973,7 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
             }
             catch (Exception ex)
             {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"  [push] Error: {ex.Message}");
-                Console.ResetColor();
+                _output.WriteWarning($"[push] {ex.Message}");
                 await Task.Delay(5000, ct);
             }
         }
