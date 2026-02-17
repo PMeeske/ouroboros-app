@@ -327,9 +327,10 @@ public static class ImmersiveMode
         }
 
         // Initialize persistent conversation memory
+        var qdrantEndpoint = NormalizeEndpoint(options.QdrantEndpoint, "http://localhost:6334");
         _conversationMemory = new PersistentConversationMemory(
             embeddingModel,
-            new ConversationMemoryConfig { QdrantEndpoint = options.QdrantEndpoint });
+            new ConversationMemoryConfig { QdrantEndpoint = qdrantEndpoint });
         await _conversationMemory.InitializeAsync(personaName, ct);
         var memStats = _conversationMemory.GetStats();
         if (memStats.TotalSessions > 0)
@@ -347,7 +348,7 @@ public static class ImmersiveMode
                 var dag = new MerkleDag();
                 _networkStateProjector = new PersistentNetworkStateProjector(
                     dag,
-                    options.QdrantEndpoint,
+                    qdrantEndpoint,
                     async text => await embeddingModel.CreateEmbeddingsAsync(text));
                 await _networkStateProjector.InitializeAsync(ct);
                 Console.ForegroundColor = ConsoleColor.DarkCyan;
@@ -384,7 +385,7 @@ public static class ImmersiveMode
             try
             {
                 _selfPersistence = new SelfPersistence(
-                    options.QdrantEndpoint,
+                    qdrantEndpoint,
                     async text => await embeddingModel.CreateEmbeddingsAsync(text));
                 await _selfPersistence.InitializeAsync(ct);
                 Console.ForegroundColor = ConsoleColor.DarkCyan;
@@ -3533,5 +3534,26 @@ User: goodbye
             Console.WriteLine($"  [!] Distinction learning error: {ex.Message}");
             Console.ResetColor();
         }
+    }
+
+    private static string NormalizeEndpoint(string? rawEndpoint, string fallbackEndpoint)
+    {
+        var endpoint = (rawEndpoint ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(endpoint))
+        {
+            return fallbackEndpoint;
+        }
+
+        if (!endpoint.Contains("://", StringComparison.Ordinal))
+        {
+            endpoint = $"http://{endpoint}";
+        }
+
+        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) || string.IsNullOrWhiteSpace(uri.Host))
+        {
+            return fallbackEndpoint;
+        }
+
+        return uri.ToString().TrimEnd('/');
     }
 }

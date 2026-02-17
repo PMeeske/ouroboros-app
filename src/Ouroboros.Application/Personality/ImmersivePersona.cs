@@ -98,6 +98,9 @@ public sealed class ImmersivePersona : IAsyncDisposable
         // Initialize personality engine (includes consciousness)
         await _personality.InitializeAsync(ct);
 
+        // Register background operation executors (curiosity prefetch, anticipatory, etc.)
+        InnerDialog.InitializeDefaultExecutors();
+
         // Initialize Hyperon flow integration
         await InitializeHyperonAsync(ct);
 

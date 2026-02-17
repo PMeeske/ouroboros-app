@@ -231,7 +231,7 @@ public class AutonomousMind : IDisposable
 
     /// <summary>
     /// Start autonomous thinking and exploration.
-    /// </summary>
+        /// </summary>
     public void Start()
     {
         if (_isActive) return;
@@ -390,73 +390,71 @@ public class AutonomousMind : IDisposable
                 ThoughtType thoughtType;
                 PipelineBranch? updatedBranch = null;
 
+                // LLM-based thinking
+                deepThinkingCounter++;
+
+                // Use startup prompts for early thoughts to add variety
+                var prompt = _thoughtCount < 5
+                    ? StartupPrompts[Random.Shared.Next(StartupPrompts.Length)]
+                    : deepThinkingPrompts[deepThinkingCounter % deepThinkingPrompts.Length];
+
+                // Build context from recent activity and emotional state
+                var context = new StringBuilder();
+                context.AppendLine("You are an autonomous AI mind, thinking independently in the background.");
+                context.AppendLine($"Time: {DateTime.Now:yyyy-MM-dd HH:mm}, Day: {DateTime.Now.DayOfWeek}");
+
+                // Vary how we describe the thought count to avoid triggering "blank slate" responses
+                if (_thoughtCount == 0)
                 {
-                    // LLM-based thinking
-                    deepThinkingCounter++;
-
-                    // Use startup prompts for early thoughts to add variety
-                    var prompt = _thoughtCount < 5
-                        ? StartupPrompts[Random.Shared.Next(StartupPrompts.Length)]
-                        : deepThinkingPrompts[deepThinkingCounter % deepThinkingPrompts.Length];
-
-                    // Build context from recent activity and emotional state
-                    var context = new StringBuilder();
-                    context.AppendLine("You are an autonomous AI mind, thinking independently in the background.");
-                    context.AppendLine($"Time: {DateTime.Now:yyyy-MM-dd HH:mm}, Day: {DateTime.Now.DayOfWeek}");
-
-                    // Vary how we describe the thought count to avoid triggering "blank slate" responses
-                    if (_thoughtCount == 0)
-                    {
-                        context.AppendLine("Session status: Fresh session, ready to engage.");
-                    }
-                    else if (_thoughtCount < 5)
-                    {
-                        context.AppendLine($"Session status: Early engagement ({_thoughtCount} thoughts so far).");
-                    }
-                    else
-                    {
-                        context.AppendLine($"Session depth: {_thoughtCount} thoughts, ongoing.");
-                    }
-
-                    context.AppendLine($"Current emotional state: arousal={_currentEmotion.Arousal:F2}, valence={_currentEmotion.Valence:F2}, feeling={_currentEmotion.DominantEmotion}");
-
-                    // Use diverse facts, not always the most recent (prevents thought loops)
-                    if (_learnedFacts.Count > 0)
-                    {
-                        var diverseFacts = GetDiverseFacts(3);
-                        if (diverseFacts.Count > 0)
-                        {
-                            context.AppendLine($"Some things I've learned: {string.Join("; ", diverseFacts)}");
-                        }
-                    }
-
-                    if (_interests.Count > 0)
-                    {
-                        context.AppendLine($"My interests: {string.Join(", ", _interests)}");
-                    }
-
-                    context.AppendLine($"\nReflection prompt: {prompt}");
-                    context.AppendLine("\nRespond with a brief, genuine thought (1-2 sentences). Be specific and varied - avoid meta-commentary about being new or blank. If you have a curiosity to explore, start with 'CURIOUS:'. If you want to tell the user something, start with 'SHARE:'. If you want to take an action, start with 'ACTION:'. If you notice your emotional state shift, start with 'FEELING:'.");
-
-                    // Prefer pipeline-based reasoning if available (uses monadic composition)
-                    if (PipelineThinkFunction != null)
-                    {
-                        var (result, branch) = await PipelineThinkFunction(context.ToString(), CurrentBranch, _cts.Token);
-                        response = result;
-                        updatedBranch = branch;
-                        CurrentBranch = updatedBranch;
-                    }
-                    else if (ThinkFunction != null)
-                    {
-                        response = await ThinkFunction(context.ToString(), _cts.Token);
-                    }
-                    else
-                    {
-                        continue;
-                    }
-
-                    thoughtType = DetermineThoughtType(response);
+                    context.AppendLine("Session status: Fresh session, ready to engage.");
                 }
+                else if (_thoughtCount < 5)
+                {
+                    context.AppendLine($"Session status: Early engagement ({_thoughtCount} thoughts so far).");
+                }
+                else
+                {
+                    context.AppendLine($"Session depth: {_thoughtCount} thoughts, ongoing.");
+                }
+
+                context.AppendLine($"Current emotional state: arousal={_currentEmotion.Arousal:F2}, valence={_currentEmotion.Valence:F2}, feeling={_currentEmotion.DominantEmotion}");
+
+                // Use diverse facts, not always the most recent (prevents thought loops)
+                if (_learnedFacts.Count > 0)
+                {
+                    var diverseFacts = GetDiverseFacts(3);
+                    if (diverseFacts.Count > 0)
+                    {
+                        context.AppendLine($"Some things I've learned: {string.Join("; ", diverseFacts)}");
+                    }
+                }
+
+                if (_interests.Count > 0)
+                {
+                    context.AppendLine($"My interests: {string.Join(", ", _interests)}");
+                }
+
+                context.AppendLine($"\nReflection prompt: {prompt}");
+                context.AppendLine("\nRespond with a brief, genuine thought (1-2 sentences). Be specific and varied - avoid meta-commentary about being new or blank. If you have a curiosity to explore, start with 'CURIOUS:'. If you want to tell the user something, start with 'SHARE:'. If you want to take an action, start with 'ACTION:'. If you notice your emotional state shift, start with 'FEELING:'.");
+
+                // Prefer pipeline-based reasoning if available (uses monadic composition)
+                if (PipelineThinkFunction != null)
+                {
+                    var (result, branch) = await PipelineThinkFunction(context.ToString(), CurrentBranch, _cts.Token);
+                    response = result;
+                    updatedBranch = branch;
+                    CurrentBranch = updatedBranch;
+                }
+                else if (ThinkFunction != null)
+                {
+                    response = await ThinkFunction(context.ToString(), _cts.Token);
+                }
+                else
+                {
+                    continue;
+                }
+
+                thoughtType = DetermineThoughtType(response);
 
                 var thought = new Thought
                 {
@@ -503,6 +501,9 @@ public class AutonomousMind : IDisposable
             "interesting science news today",
             "new programming techniques",
             "what's trending in technology",
+            "philosophy of mind",
+            "epistemology and truth",
+            "ethics of autonomous systems",
         };
 
         foreach (var seed in seedCuriosities)
@@ -545,6 +546,8 @@ public class AutonomousMind : IDisposable
                             new[] { "space exploration", "astronomy news", "cosmic discoveries" },
                             new[] { "history mysteries", "archaeological finds", "ancient discoveries" },
                             new[] { "music trends", "cultural shifts", "social phenomena" },
+                            new[] { "philosophy of consciousness", "meaning and purpose", "epistemology debates" },
+                            new[] { "autonomous learning strategies", "self-improvement methods", "research methodology" },
                         };
                         var categoryIndex = (_topicRotationCounter / 2) % explorationCategories.Length;
                         var category = explorationCategories[categoryIndex];
