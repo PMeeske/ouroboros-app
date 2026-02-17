@@ -3,6 +3,7 @@
 // </copyright>
 
 using Ouroboros.Abstractions;
+using Ouroboros.Abstractions.Monads;
 
 namespace Ouroboros.CLI.Commands;
 
