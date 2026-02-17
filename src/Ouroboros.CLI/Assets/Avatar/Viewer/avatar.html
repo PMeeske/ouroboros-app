@@ -341,6 +341,211 @@
     100% { opacity: 0.45; }
   }
 
+  /* ══════════════════════════════════════
+     LIP MOVEMENT & FACIAL EXPRESSIONS
+     ══════════════════════════════════════ */
+
+  /* Lip sync overlay — simulates mouth opening/closing via masked scale */
+  #lip-sync {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  /* Mouth region mask — portrait mode: mouth ~65-72% down the frame */
+  #lip-mask {
+    position: absolute;
+    left: 30%;
+    right: 30%;
+    top: 62%;
+    height: 12%;
+    overflow: hidden;
+    border-radius: 40%;
+  }
+  body.fullbody #lip-mask {
+    left: 38%;
+    right: 38%;
+    top: 25%;
+    height: 6%;
+  }
+
+  /* Inner element clones the avatar image and applies jaw transform */
+  #lip-mask-inner {
+    position: absolute;
+    inset: -2px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: inherit;
+    transform-origin: center top;
+    animation: none;
+  }
+
+  #lip-sync.active #lip-mask-inner {
+    animation: lip-open var(--lip-speed, 0.28s) ease-in-out infinite alternate;
+  }
+
+  @keyframes lip-open {
+    0%   { transform: scaleY(0.2); opacity: 0.1; }
+    40%  { transform: scaleY(1.0); opacity: 0.35; }
+    70%  { transform: scaleY(0.6); opacity: 0.2; }
+    100% { transform: scaleY(0.85); opacity: 0.3; }
+  }
+
+  /* Jaw shadow — darkened chin area that shifts down during speech */
+  #jaw-shadow {
+    position: absolute;
+    left: 28%;
+    right: 28%;
+    top: 68%;
+    height: 10%;
+    background: radial-gradient(
+      ellipse 100% 100% at 50% 0%,
+      rgba(0, 0, 0, 0.15) 0%,
+      transparent 70%);
+    pointer-events: none;
+    transform-origin: center top;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+  body.fullbody #jaw-shadow {
+    left: 36%;
+    right: 36%;
+    top: 27%;
+    height: 5%;
+  }
+  #lip-sync.active ~ #jaw-shadow {
+    animation: jaw-move var(--lip-speed, 0.28s) ease-in-out infinite alternate;
+  }
+
+  @keyframes jaw-move {
+    0%   { opacity: 0; transform: translateY(0) scaleY(0.5); }
+    50%  { opacity: 0.2; transform: translateY(1.5px) scaleY(1); }
+    100% { opacity: 0.1; transform: translateY(0.5px) scaleY(0.7); }
+  }
+
+  /* ── Micro-expression transforms ── */
+  /* Subtle movement applied to the portrait frame content for each state */
+  #portrait-frame {
+    --expr-x: 0px;
+    --expr-y: 0px;
+    --expr-scale: 1;
+    --expr-rotate: 0deg;
+  }
+
+  #portrait-frame .avatar-layer.active {
+    transform: translate(var(--expr-x), var(--expr-y))
+               scale(var(--expr-scale))
+               rotate(var(--expr-rotate));
+    transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Idle: perfectly centered, tiny breathing sway */
+  body.expr-idle #portrait-frame {
+    --expr-x: 0px; --expr-y: 0px; --expr-scale: 1; --expr-rotate: 0deg;
+  }
+
+  /* Listening: slight tilt toward speaker, attentive lean */
+  body.expr-listening #portrait-frame {
+    --expr-x: -1px; --expr-y: -1px; --expr-scale: 1.005; --expr-rotate: -0.4deg;
+  }
+  body.expr-listening #portrait-frame .avatar-layer.active {
+    animation: listen-sway 4s ease-in-out infinite;
+  }
+  @keyframes listen-sway {
+    0%, 100% { transform: translate(-1px, -1px) scale(1.005) rotate(-0.4deg); }
+    50%      { transform: translate(1px, 0px) scale(1.005) rotate(0.3deg); }
+  }
+
+  /* Thinking: subtle furrow, slight zoom on face */
+  body.expr-thinking #portrait-frame {
+    --expr-x: 0px; --expr-y: -2px; --expr-scale: 1.015; --expr-rotate: 0deg;
+  }
+  body.expr-thinking #portrait-frame .avatar-layer.active {
+    animation: think-drift 6s ease-in-out infinite;
+  }
+  @keyframes think-drift {
+    0%, 100% { transform: translate(0, -2px) scale(1.015) rotate(0deg); }
+    30%      { transform: translate(-1px, -2px) scale(1.018) rotate(-0.2deg); }
+    70%      { transform: translate(1px, -1px) scale(1.012) rotate(0.2deg); }
+  }
+
+  /* Speaking: animated jaw micro-movement, direct engagement */
+  body.expr-speaking #portrait-frame {
+    --expr-x: 0px; --expr-y: 0px; --expr-scale: 1.008; --expr-rotate: 0deg;
+  }
+  body.expr-speaking #portrait-frame .avatar-layer.active {
+    animation: speak-micro 0.9s ease-in-out infinite;
+  }
+  @keyframes speak-micro {
+    0%, 100% { transform: translate(0, 0) scale(1.008) rotate(0deg); }
+    25%      { transform: translate(0, 0.3px) scale(1.008) rotate(0.1deg); }
+    50%      { transform: translate(0, -0.3px) scale(1.01) rotate(0deg); }
+    75%      { transform: translate(0, 0.2px) scale(1.008) rotate(-0.1deg); }
+  }
+
+  /* Encouraging: warm lean forward, gentle warmth overlay */
+  body.expr-encouraging #portrait-frame {
+    --expr-x: 0px; --expr-y: -1px; --expr-scale: 1.01; --expr-rotate: 0.3deg;
+  }
+
+  /* Warmth glow for encouraging state */
+  #warmth-overlay {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      ellipse 70% 50% at 50% 45%,
+      rgba(212, 168, 67, 0.06) 0%,
+      transparent 70%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 1.2s ease;
+    z-index: 1;
+  }
+  body.expr-encouraging #warmth-overlay {
+    opacity: 1;
+    animation: warmth-pulse 3s ease-in-out infinite;
+  }
+  @keyframes warmth-pulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+  }
+
+  /* ── Brow region overlay — furrow during thinking ── */
+  #brow-overlay {
+    position: absolute;
+    left: 25%;
+    right: 25%;
+    top: 28%;
+    height: 8%;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+  }
+  body.fullbody #brow-overlay {
+    left: 35%;
+    right: 35%;
+    top: 14%;
+    height: 4%;
+  }
+  body.expr-thinking #brow-overlay {
+    opacity: 1;
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(30, 10, 50, 0.12) 40%,
+      rgba(30, 10, 50, 0.12) 60%,
+      transparent 100%);
+    animation: brow-furrow 5s ease-in-out infinite;
+  }
+  @keyframes brow-furrow {
+    0%, 100% { transform: scaleY(1); opacity: 0.7; }
+    50%      { transform: scaleY(1.3); opacity: 1; }
+  }
+
   /* ── Gold ring border ── */
   #gold-ring {
     position: absolute;
@@ -635,6 +840,10 @@
     <div id="eye-shimmer"></div>
     <div id="blink-overlay"></div>
     <div id="speak-glow"></div>
+    <div id="lip-sync"><div id="lip-mask"><div id="lip-mask-inner"></div></div></div>
+    <div id="jaw-shadow"></div>
+    <div id="brow-overlay"></div>
+    <div id="warmth-overlay"></div>
   </div>
 
   <div id="gold-ring"></div>
@@ -956,6 +1165,7 @@ const layers = {
 };
 
 const speakGlow = document.getElementById('speak-glow');
+const lipSync = document.getElementById('lip-sync');
 const statusText = document.getElementById('status-text');
 const personaNameEl = document.getElementById('persona-name');
 const moodFill = document.getElementById('mood-fill');
@@ -972,6 +1182,29 @@ const STATE_STATUS = {
   Encouraging: 'With warmth',
 };
 
+const EXPR_CLASSES = ['expr-idle', 'expr-listening', 'expr-thinking', 'expr-speaking', 'expr-encouraging'];
+
+// ── Lip-sync speed variation — randomizes cadence for natural feel ──
+let lipSpeedTimer = null;
+
+function startLipSync() {
+  lipSync.classList.add('active');
+  varyLipSpeed();
+}
+
+function stopLipSync() {
+  lipSync.classList.remove('active');
+  if (lipSpeedTimer) { clearTimeout(lipSpeedTimer); lipSpeedTimer = null; }
+}
+
+function varyLipSpeed() {
+  if (!lipSync.classList.contains('active')) return;
+  // Random cadence between 0.18s (fast syllable) and 0.42s (slow pause)
+  const speed = (0.18 + Math.random() * 0.24).toFixed(2) + 's';
+  document.documentElement.style.setProperty('--lip-speed', speed);
+  lipSpeedTimer = setTimeout(varyLipSpeed, 200 + Math.random() * 400);
+}
+
 function setAvatarState(state) {
   if (!layers[state]) state = 'Idle';
   const changed = state !== currentState;
@@ -982,7 +1215,17 @@ function setAvatarState(state) {
     }
   }
 
+  // Speaking effects: golden glow + lip movement
   speakGlow.classList.toggle('active', state === 'Speaking');
+  if (state === 'Speaking') {
+    startLipSync();
+  } else {
+    stopLipSync();
+  }
+
+  // Micro-expression body classes
+  EXPR_CLASSES.forEach(c => document.body.classList.remove(c));
+  document.body.classList.add('expr-' + state.toLowerCase());
 
   const root = document.documentElement;
   switch (state) {

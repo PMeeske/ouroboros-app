@@ -18,13 +18,13 @@ public static class AvatarIntegration
     /// Creates, configures, and starts the avatar system with the web renderer.
     /// </summary>
     /// <param name="personaName">Active persona name (e.g. "Iaret").</param>
-    /// <param name="port">WebSocket port for the avatar viewer (default 9471).</param>
+    /// <param name="port">WebSocket port for the avatar viewer (0 = auto-assign from default).</param>
     /// <param name="assetDirectory">Optional override for the avatar asset directory.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The running avatar service (caller must dispose).</returns>
     public static async Task<InteractiveAvatarService> CreateAndStartAsync(
         string personaName = "Iaret",
-        int port = 9471,
+        int port = 0,
         string? assetDirectory = null,
         CancellationToken ct = default)
     {
