@@ -8,6 +8,7 @@ using System.Text;
 using Ouroboros.Application.Voice;
 using Ouroboros.Domain.Voice;
 using Ouroboros.Providers.SpeechToText;
+using Ouroboros.Abstractions.Monads;
 using Ouroboros.Providers.TextToSpeech;
 
 namespace Ouroboros.CLI.Commands;
