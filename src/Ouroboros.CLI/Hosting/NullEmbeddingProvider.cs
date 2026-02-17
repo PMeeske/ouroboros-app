@@ -8,7 +8,7 @@ namespace Ouroboros.CLI.Hosting;
 /// will always be zero which means minimal resource cost).
 /// </summary>
 #pragma warning disable CS0618 // Obsolete IEmbeddingProvider — CPE requires it
-file sealed class NullEmbeddingProvider : IEmbeddingProvider
+internal sealed class NullEmbeddingProvider : IEmbeddingProvider
 {
     public ValueTask<float[]> GetEmbeddingAsync(string text) =>
         ValueTask.FromResult(new float[384]);

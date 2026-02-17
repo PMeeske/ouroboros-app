@@ -8,14 +8,21 @@ namespace Ouroboros.CLI.Services;
 /// Production implementation of <see cref="IOuroborosAgentService"/>.
 /// Delegates to <see cref="AgentBootstrapper"/> for configuration loading,
 /// static provider setup, and agent creation, then runs the agent loop.
+/// Bridges host DI services into the agent's child container so that shared
+/// infrastructure (IConfiguration, ILoggerFactory, ISpectreConsoleService)
+/// flows through a single instance.
 /// </summary>
 public class OuroborosAgentService : IOuroborosAgentService
 {
     private readonly ILogger<OuroborosAgentService> _logger;
+    private readonly IServiceProvider _hostServices;
 
-    public OuroborosAgentService(ILogger<OuroborosAgentService> logger)
+    public OuroborosAgentService(
+        ILogger<OuroborosAgentService> logger,
+        IServiceProvider hostServices)
     {
         _logger = logger;
+        _hostServices = hostServices;
     }
 
     /// <inheritdoc />
@@ -29,14 +36,18 @@ public class OuroborosAgentService : IOuroborosAgentService
         var configuration = AgentBootstrapper.LoadConfiguration();
         AgentBootstrapper.ApplyConfiguration(configuration);
 
-        // 2. Create the agent from the fully mapped config
-        await using var agent = await AgentBootstrapper.CreateAgentAsync(config);
+        // 2. Create the agent via DI — pass the host's IServiceProvider so that
+        //    shared services (IConfiguration, ILoggerFactory, ISpectreConsoleService)
+        //    are forwarded into the child container instead of being duplicated.
+        var (agent, provider) = await AgentBootstrapper.CreateAgentWithDIAsync(config, _hostServices);
+        await using (provider)
+        {
+            _logger.LogInformation("Agent initialized via DI, entering main loop");
 
-        _logger.LogInformation("Agent initialized, entering main loop");
+            // 3. Run the agent's main interaction loop
+            await agent.RunAsync();
 
-        // 3. Run the agent's main interaction loop
-        await agent.RunAsync();
-
-        _logger.LogInformation("Agent session completed");
+            _logger.LogInformation("Agent session completed");
+        }
     }
 }

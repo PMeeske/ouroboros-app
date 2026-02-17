@@ -19,6 +19,11 @@
     <Content Include="Assets\Avatar\**\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- Prompt templates embedded as resources -->
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Prompts\*.txt" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Ouroboros.Application\Ouroboros.Application.csproj" />
     <ProjectReference Include="$(OuroborosFoundation)\Ouroboros.Core\Ouroboros.Core.csproj" />

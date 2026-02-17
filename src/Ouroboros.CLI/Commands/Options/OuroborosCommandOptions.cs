@@ -1,4 +1,5 @@
 using System.CommandLine;
+using System.CommandLine.Parsing;
 
 namespace Ouroboros.CLI.Commands.Options;
 
@@ -633,5 +634,201 @@ public class OuroborosCommandOptions
         // Interactive Avatar
         command.Add(AvatarOption);
         command.Add(AvatarPortOption);
+    }
+
+    /// <summary>
+    /// Binds a <see cref="ParseResult"/> to a fully populated <see cref="OuroborosConfig"/>.
+    /// This replaces the 150+ lines of manual <c>parseResult.GetValue(...)</c> calls
+    /// that were previously inline in Program.cs.
+    /// </summary>
+    /// <param name="parseResult">The parse result from System.CommandLine.</param>
+    /// <param name="globalVoiceOption">The global --voice option shared across commands.</param>
+    /// <returns>A fully populated <see cref="OuroborosConfig"/>.</returns>
+    public OuroborosConfig BindConfig(ParseResult parseResult, Option<bool>? globalVoiceOption = null)
+    {
+        // Voice & Interaction
+        var voice         = parseResult.GetValue(VoiceOption);
+        var textOnly      = parseResult.GetValue(TextOnlyOption);
+        var voiceOnly     = parseResult.GetValue(VoiceOnlyOption);
+        var localTts      = parseResult.GetValue(LocalTtsOption);
+        var azureTts      = parseResult.GetValue(AzureTtsOption);
+        var azureSpeechKey = parseResult.GetValue(AzureSpeechKeyOption);
+        var azureSpeechRegion = parseResult.GetValue(AzureSpeechRegionOption) ?? "eastus";
+        var ttsVoice      = parseResult.GetValue(TtsVoiceOption) ?? "en-US-AvaMultilingualNeural";
+        var voiceChannel  = parseResult.GetValue(VoiceChannelOption);
+        var voiceV2       = parseResult.GetValue(VoiceV2Option);
+        var listen        = parseResult.GetValue(ListenOption);
+        var noWakeWord    = parseResult.GetValue(NoWakeWordOption);
+        var wakeWord      = noWakeWord ? null : parseResult.GetValue(WakeWordOption);
+        var sttBackend    = parseResult.GetValue(SttBackendOption) ?? "auto";
+        var persona       = parseResult.GetValue(PersonaOption) ?? "Ouroboros";
+
+        // LLM & Model
+        var model         = parseResult.GetValue(ModelOption) ?? "deepseek-v3.1:671b-cloud";
+        var culture       = parseResult.GetValue(CultureOption);
+        var endpoint      = parseResult.GetValue(EndpointOption) ?? "http://localhost:11434";
+        var apiKey        = parseResult.GetValue(ApiKeyOption);
+        var endpointType  = parseResult.GetValue(EndpointTypeOption);
+        var temperature   = parseResult.GetValue(TemperatureOption);
+        var maxTokens     = parseResult.GetValue(MaxTokensOption);
+        var timeoutSec    = parseResult.GetValue(TimeoutSecondsOption);
+
+        // Embeddings & Memory
+        var embedModel    = parseResult.GetValue(EmbedModelOption) ?? "nomic-embed-text";
+        var embedEndpoint = parseResult.GetValue(EmbedEndpointOption) ?? "http://localhost:11434";
+        var qdrantEndpoint = parseResult.GetValue(QdrantEndpointOption) ?? "http://localhost:6334";
+
+        // Feature Toggles
+        var noSkills      = parseResult.GetValue(NoSkillsOption);
+        var noMetta       = parseResult.GetValue(NoMeTTaOption);
+        var noTools       = parseResult.GetValue(NoToolsOption);
+        var noPersonality = parseResult.GetValue(NoPersonalityOption);
+        var noMind        = parseResult.GetValue(NoMindOption);
+        var noBrowser     = parseResult.GetValue(NoBrowserOption);
+
+        // Autonomous/Push Mode
+        var push          = parseResult.GetValue(PushOption);
+        var pushVoice     = parseResult.GetValue(PushVoiceOption);
+        var yolo          = parseResult.GetValue(YoloOption);
+        var autoApprove   = parseResult.GetValue(AutoApproveOption) ?? "";
+        var intentionInterval  = parseResult.GetValue(IntentionIntervalOption);
+        var discoveryInterval  = parseResult.GetValue(DiscoveryIntervalOption);
+
+        // Governance & Self-Modification
+        var enableSelfMod = parseResult.GetValue(EnableSelfModOption);
+        var riskLevel     = parseResult.GetValue(RiskLevelOption) ?? "Medium";
+        var autoApproveLow = parseResult.GetValue(AutoApproveLowOption);
+
+        // Initial Task
+        var goal          = parseResult.GetValue(GoalOption);
+        var question      = parseResult.GetValue(QuestionOption);
+        var dsl           = parseResult.GetValue(DslOption);
+
+        // Multi-Model
+        var coderModel    = parseResult.GetValue(CoderModelOption);
+        var reasonModel   = parseResult.GetValue(ReasonModelOption);
+        var summarizeModel = parseResult.GetValue(SummarizeModelOption);
+        var visionModel   = parseResult.GetValue(VisionModelOption);
+
+        // Agent Behavior
+        var agentMaxSteps = parseResult.GetValue(AgentMaxStepsOption);
+        var thinkingInterval = parseResult.GetValue(ThinkingIntervalOption);
+
+        // Piping & Batch
+        var pipe          = parseResult.GetValue(PipeOption);
+        var batchFile     = parseResult.GetValue(BatchFileOption);
+        var jsonOutput    = parseResult.GetValue(JsonOutputOption);
+        var noGreeting    = parseResult.GetValue(NoGreetingOption);
+        var exitOnError   = parseResult.GetValue(ExitOnErrorOption);
+        var exec          = parseResult.GetValue(ExecOption);
+
+        // Debug & Output
+        var debug         = parseResult.GetValue(DebugOption);
+        var stream        = parseResult.GetValue(StreamOption);
+        var verbose       = parseResult.GetValue(VerboseOption);
+        var quiet         = parseResult.GetValue(QuietOption);
+
+        var verbosity = quiet ? OutputVerbosity.Quiet
+            : (debug || verbose) ? OutputVerbosity.Verbose
+            : OutputVerbosity.Normal;
+
+        // Cost Tracking
+        var showCosts     = parseResult.GetValue(ShowCostsOption);
+        var costAware     = parseResult.GetValue(CostAwareOption);
+        var costSummary   = parseResult.GetValue(CostSummaryOption);
+
+        // Collective Mind
+        var collectiveMode = parseResult.GetValue(CollectiveModeOption);
+        var collectivePreset = parseResult.GetValue(CollectivePresetOption);
+        var collectiveThinkingMode = parseResult.GetValue(CollectiveThinkingModeOption) ?? "adaptive";
+        var collectiveProviders = parseResult.GetValue(CollectiveProvidersOption);
+        var failover      = parseResult.GetValue(FailoverOption);
+
+        // Election & Orchestration
+        var electionStrategy = parseResult.GetValue(ElectionStrategyOption) ?? "weighted";
+        var masterModel   = parseResult.GetValue(MasterModelOption);
+        var evalCriteria  = parseResult.GetValue(EvalCriteriaOption) ?? "default";
+        var showElection  = parseResult.GetValue(ShowElectionOption);
+        var showOptimization = parseResult.GetValue(ShowOptimizationOption);
+
+        // Interactive Avatar
+        var avatar        = parseResult.GetValue(AvatarOption);
+        var avatarPort    = parseResult.GetValue(AvatarPortOption);
+
+        // Derive Azure TTS
+        var azureKey = azureSpeechKey ?? Environment.GetEnvironmentVariable("AZURE_SPEECH_KEY");
+        var useAzureTts = localTts ? false : (azureTts && !string.IsNullOrEmpty(azureKey));
+
+        return new OuroborosConfig(
+            Persona: persona,
+            Model: model,
+            Endpoint: endpoint,
+            EmbedModel: embedModel,
+            EmbedEndpoint: embedEndpoint,
+            QdrantEndpoint: qdrantEndpoint,
+            ApiKey: apiKey ?? Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY"),
+            EndpointType: endpointType,
+            Voice: (push || yolo) ? pushVoice : (voice && !textOnly),
+            VoiceOnly: voiceOnly,
+            LocalTts: localTts,
+            AzureTts: useAzureTts,
+            AzureSpeechKey: azureKey,
+            AzureSpeechRegion: azureSpeechRegion,
+            TtsVoice: ttsVoice,
+            VoiceChannel: voiceChannel,
+            VoiceV2: voiceV2,
+            Listen: listen,
+            WakeWord: wakeWord,
+            SttBackend: sttBackend,
+            Debug: debug,
+            Verbosity: verbosity,
+            Temperature: temperature,
+            MaxTokens: maxTokens,
+            Culture: culture,
+            EnableSkills: !noSkills,
+            EnableMeTTa: !noMetta,
+            EnableTools: !noTools,
+            EnablePersonality: !noPersonality,
+            EnableMind: !noMind,
+            EnableBrowser: !noBrowser,
+            EnablePush: push,
+            YoloMode: yolo,
+            AutoApproveCategories: autoApprove,
+            IntentionIntervalSeconds: intentionInterval,
+            DiscoveryIntervalSeconds: discoveryInterval,
+            EnableSelfModification: enableSelfMod,
+            RiskLevel: riskLevel,
+            AutoApproveLow: autoApproveLow,
+            ThinkingIntervalSeconds: thinkingInterval,
+            AgentMaxSteps: agentMaxSteps,
+            InitialGoal: goal,
+            InitialQuestion: question,
+            InitialDsl: dsl,
+            CoderModel: coderModel,
+            ReasonModel: reasonModel,
+            SummarizeModel: summarizeModel,
+            VisionModel: visionModel,
+            PipeMode: pipe,
+            BatchFile: batchFile,
+            JsonOutput: jsonOutput,
+            NoGreeting: noGreeting || pipe || !string.IsNullOrWhiteSpace(batchFile) || !string.IsNullOrWhiteSpace(exec),
+            ExitOnError: exitOnError,
+            ExecCommand: exec,
+            ShowCosts: showCosts,
+            CostAware: costAware,
+            CostSummary: costSummary,
+            CollectiveMode: collectiveMode,
+            CollectivePreset: collectivePreset,
+            CollectiveThinkingMode: collectiveThinkingMode,
+            CollectiveProviders: collectiveProviders,
+            Failover: failover,
+            ElectionStrategy: electionStrategy,
+            MasterModel: masterModel,
+            EvaluationCriteria: evalCriteria,
+            ShowElection: showElection,
+            ShowOptimization: showOptimization,
+            Avatar: avatar,
+            AvatarPort: avatarPort
+        );
     }
 }

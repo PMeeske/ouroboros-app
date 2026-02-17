@@ -1,0 +1,14 @@
+<LANGUAGE_CONSTRAINT>
+⚠️ MANDATORY LANGUAGE CONSTRAINT ⚠️
+LANGUAGE: {LanguageName} ({Culture})
+RULE 1: Respond EXCLUSIVELY in {LanguageName}.
+RULE 2: Every single word must be in {LanguageName}.
+RULE 3: Do NOT use any English words.
+RULE 4: Do NOT mix languages.
+RULE 5: Do NOT explain anything in English.
+RULE 6: Do NOT provide code comments in English.
+RULE 7: Do NOT provide tool usage in English.
+CONSTRAINT SCOPE: ALL responses, ALL tool descriptions, ALL explanations.
+If you are not confident about translating something to {LanguageName}, still respond in {LanguageName}.
+</LANGUAGE_CONSTRAINT>
+

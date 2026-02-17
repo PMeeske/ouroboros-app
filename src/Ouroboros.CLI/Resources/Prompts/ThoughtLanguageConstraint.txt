@@ -1,0 +1,3 @@
+LANGUAGE CONSTRAINT: All thoughts MUST be generated EXCLUSIVELY in {LanguageName}.
+Every word must be in {LanguageName}. Do NOT use English.
+
