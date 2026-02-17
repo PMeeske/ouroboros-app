@@ -101,15 +101,6 @@ public sealed class ImmersivePersona : IAsyncDisposable
         // Initialize Hyperon flow integration
         await InitializeHyperonAsync(ct);
 
-        // Start autonomous thinking in background
-        InnerDialog.StartAutonomousThinking(null, SelfAwareness, TimeSpan.FromSeconds(30));
-
-        // Subscribe to autonomous thoughts
-        SubscribeToAutonomousThoughts();
-
-        // Initialize default background operation executors
-        InnerDialog.InitializeDefaultExecutors();
-
         _isInitialized = true;
     }
 
@@ -518,10 +509,11 @@ public sealed class ImmersivePersona : IAsyncDisposable
     /// </summary>
     public async Task<string?> ThinkAsync(string? seed = null)
     {
-        var thought = await InnerDialog.GenerateAutonomousThoughtAsync(
+        var result = await InnerDialog.ConductAutonomousDialogAsync(
             profile: null,
             selfAwareness: SelfAwareness);
 
+        var thought = result.Session.Thoughts.FirstOrDefault();
         if (thought != null)
         {
             AutonomousThought?.Invoke(this, new AutonomousThoughtEventArgs(thought));
@@ -685,22 +677,7 @@ Remember: You are {Identity.Name}. You have a continuous experience. You can ver
         }
     }
 
-    private void SubscribeToAutonomousThoughts()
-    {
-        // Poll for autonomous thoughts periodically
-        _ = Task.Run(async () =>
-        {
-            while (_isInitialized)
-            {
-                var thoughts = InnerDialog.DrainAutonomousThoughts();
-                foreach (var thought in thoughts)
-                {
-                    AutonomousThought?.Invoke(this, new AutonomousThoughtEventArgs(thought));
-                }
-                await Task.Delay(2000);
-            }
-        });
-    }
+    // Autonomous thought generation is now handled by AutonomousMind (Path B)
 
     #region Hyperon Symbolic Reasoning API
 
@@ -940,7 +917,6 @@ Remember: You are {Identity.Name}. You have a continuous experience. You can ver
             _hyperonFlow = null;
         }
 
-        await InnerDialog.StopAutonomousThinkingAsync();
         await _personality.DisposeAsync();
         _thinkingLock.Dispose();
     }
