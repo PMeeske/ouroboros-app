@@ -28,6 +28,7 @@ using Ouroboros.Domain.DistinctionLearning;
 using Ouroboros.Tools.MeTTa;
 using static Ouroboros.Application.Tools.AutonomousTools;
 using Ouroboros.Abstractions;
+using Ouroboros.Abstractions.Monads;
 using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 
 /// <summary>

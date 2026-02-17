@@ -38,6 +38,7 @@ using PipelineAgentCapability = Ouroboros.Pipeline.MultiAgent.AgentCapability;
 // Keep MetaAI types accessible with explicit names for existing code
 using MetaAgentStatus = Ouroboros.Agent.MetaAI.AgentStatus;
 using MetaAgentCapability = Ouroboros.Agent.MetaAI.AgentCapability;
+using Ouroboros.Abstractions.Monads;
 using Unit = Ouroboros.Abstractions.Unit;
 using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 

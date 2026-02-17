@@ -155,7 +155,7 @@ public sealed class OuroborosCore : IOuroborosCore
             }
 
             // Step 2: Create hierarchical plan (if enabled)
-            Agent.MetaAI.Plan? executedPlan = null;
+            Ouroboros.Agent.MetaAI.Plan? executedPlan = null;
             if (config.UseHierarchicalPlanning)
             {
                 var planningConfig = new HierarchicalPlanningConfig(
@@ -187,7 +187,7 @@ public sealed class OuroborosCore : IOuroborosCore
                     new HierarchicalPlan(
                         goal,
                         executedPlan,
-                        new Dictionary<string, Agent.MetaAI.Plan>(),
+                        new Dictionary<string, Ouroboros.Agent.MetaAI.Plan>(),
                         config.MaxPlanningDepth,
                         DateTime.UtcNow),
                     ct);

@@ -4,6 +4,7 @@ using Ouroboros.Agent.MetaAI;
 using Ouroboros.Options;
 using Ouroboros.Application.Services;
 using IEmbeddingModel = Ouroboros.Domain.IEmbeddingModel;
+using Ouroboros.Abstractions.Monads;
 using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 
 namespace Ouroboros.CLI.Commands;

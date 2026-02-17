@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using Ouroboros.Abstractions;
+using Ouroboros.Abstractions.Monads;
 using Ouroboros.Agent.MetaAI;
 using Ouroboros.Agent.MetaAI.SelfModel;
 using Ouroboros.Pipeline.Planning;
