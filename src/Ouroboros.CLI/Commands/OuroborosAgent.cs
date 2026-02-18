@@ -5701,157 +5701,19 @@ Use this actual code information to answer the user's question accurately.
 
     private Task<string> AnalyzeCodeCommandAsync(string input)
         => _autonomySub.AnalyzeCodeCommandAsync(input);
-    // ═══════════════════════════════════════════════════════════════════════════
-    // INDEX COMMANDS (Code Indexing with Qdrant)
-    // ═══════════════════════════════════════════════════════════════════════════
 
-    /// <summary>
-    /// Performs a full reindex of all configured paths.
-    /// </summary>
-    private async Task<string> ReindexFullAsync()
-    {
-        if (_selfIndexer == null)
-        {
-            return "❌ Self-indexer not available. Qdrant may not be running.";
-        }
+    // Index commands (moved to AutonomySubsystem)
+    private Task<string> ReindexFullAsync()
+        => _autonomySub.ReindexFullAsync();
 
-        try
-        {
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine("\n  [~] Starting full workspace reindex...");
-            Console.ResetColor();
+    private Task<string> ReindexIncrementalAsync()
+        => _autonomySub.ReindexIncrementalAsync();
 
-            var result = await _selfIndexer.FullReindexAsync();
+    private Task<string> IndexSearchAsync(string query)
+        => _autonomySub.IndexSearchAsync(query);
 
-            var sb = new StringBuilder();
-            sb.AppendLine("✅ **Full Reindex Complete**\n");
-            sb.AppendLine($"  • Processed files: {result.ProcessedFiles}");
-            sb.AppendLine($"  • Indexed chunks: {result.IndexedChunks}");
-            sb.AppendLine($"  • Skipped files: {result.SkippedFiles}");
-            sb.AppendLine($"  • Errors: {result.ErrorFiles}");
-            sb.AppendLine($"  • Duration: {result.Elapsed.TotalSeconds:F1}s");
-
-            return sb.ToString();
-        }
-        catch (Exception ex)
-        {
-            return $"❌ Reindex failed: {ex.Message}";
-        }
-    }
-
-    /// <summary>
-    /// Performs an incremental reindex (changed files only).
-    /// </summary>
-    private async Task<string> ReindexIncrementalAsync()
-    {
-        if (_selfIndexer == null)
-        {
-            return "❌ Self-indexer not available. Qdrant may not be running.";
-        }
-
-        try
-        {
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine("\n  [~] Starting incremental reindex (changed files only)...");
-            Console.ResetColor();
-
-            var result = await _selfIndexer.IncrementalIndexAsync();
-
-            var sb = new StringBuilder();
-            sb.AppendLine("✅ **Incremental Reindex Complete**\n");
-            sb.AppendLine($"  • Updated files: {result.ProcessedFiles}");
-            sb.AppendLine($"  • Indexed chunks: {result.IndexedChunks}");
-            sb.AppendLine($"  • Duration: {result.Elapsed.TotalSeconds:F1}s");
-
-            return sb.ToString();
-        }
-        catch (Exception ex)
-        {
-            return $"❌ Incremental reindex failed: {ex.Message}";
-        }
-    }
-
-    /// <summary>
-    /// Searches the code index for a query.
-    /// </summary>
-    private async Task<string> IndexSearchAsync(string query)
-    {
-        if (_selfIndexer == null)
-        {
-            return "❌ Self-indexer not available. Qdrant may not be running.";
-        }
-
-        if (string.IsNullOrWhiteSpace(query))
-        {
-            return @"🔍 **Index Search - Semantic Code Search**
-
-Usage: `index search <query>`
-
-Examples:
-  `index search how is TTS initialized`
-  `index search error handling patterns`
-  `index search tool registration`";
-        }
-
-        try
-        {
-            var results = await _selfIndexer.SearchAsync(query, limit: 5);
-
-            var sb = new StringBuilder();
-            sb.AppendLine($"🔍 **Index Search Results for:** \"{query}\"\n");
-
-            if (results.Count == 0)
-            {
-                sb.AppendLine("No results found. Try running `reindex` to update the index.");
-            }
-            else
-            {
-                foreach (var result in results)
-                {
-                    sb.AppendLine($"**{result.FilePath}** (score: {result.Score:F2})");
-                    sb.AppendLine($"```");
-                    sb.AppendLine(result.Content.Length > 500 ? result.Content[..500] + "..." : result.Content);
-                    sb.AppendLine($"```\n");
-                }
-            }
-
-            return sb.ToString();
-        }
-        catch (Exception ex)
-        {
-            return $"❌ Index search failed: {ex.Message}";
-        }
-    }
-
-    /// <summary>
-    /// Gets the current index statistics.
-    /// </summary>
-    private async Task<string> GetIndexStatsAsync()
-    {
-        if (_selfIndexer == null)
-        {
-            return "❌ Self-indexer not available. Qdrant may not be running.";
-        }
-
-        try
-        {
-            var stats = await _selfIndexer.GetStatsAsync();
-
-            var sb = new StringBuilder();
-            sb.AppendLine("📊 **Code Index Statistics**\n");
-            sb.AppendLine($"  • Collection: {stats.CollectionName}");
-            sb.AppendLine($"  • Total vectors: {stats.TotalVectors}");
-            sb.AppendLine($"  • Indexed files: {stats.IndexedFiles}");
-            sb.AppendLine($"  • Vector size: {stats.VectorSize}");
-
-            return sb.ToString();
-        }
-        catch (Exception ex)
-        {
-            return $"❌ Failed to get index stats: {ex.Message}";
-        }
-    }
-
+    private Task<string> GetIndexStatsAsync()
+        => _autonomySub.GetIndexStatsAsync();
     // 
     //  COGNITIVE DELEGATES  AGI Subsystem Methods (logic in CognitiveSubsystem)
     // 
