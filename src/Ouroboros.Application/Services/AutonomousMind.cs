@@ -253,7 +253,7 @@ public class AutonomousMind : IDisposable
         _selfAwareness = selfAwareness;
 
         // Stop the InnerDialog's own autonomous thinking to prevent duplicates
-        _ = innerDialog.StopAutonomousThinkingAsync();
+        innerDialog.StopAutonomousThinkingAsync().GetAwaiter().GetResult();
     }
 
     /// <summary>
@@ -436,7 +436,6 @@ public class AutonomousMind : IDisposable
                 }
                 else
                 {
-
                 // LLM-based thinking
                 deepThinkingCounter++;
 

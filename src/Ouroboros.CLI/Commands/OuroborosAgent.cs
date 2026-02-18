@@ -1514,7 +1514,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
             if (_config.Verbosity != OutputVerbosity.Quiet)
             {
                 Console.ForegroundColor = ConsoleColor.DarkMagenta;
-                Console.WriteLine($"  💭 [inner thought] I just learned something new from '{query}': {fact}");
+                Console.WriteLine($"  💭 [inner thought] I just learned from '{query}': {fact}");
                 Console.ResetColor();
             }
 

@@ -62,7 +62,11 @@ public sealed class InnerDialogEngine
                         _backgroundThoughts.AddOrUpdate(
                             personaName,
                             _ => new List<InnerThought> { thought },
-                            (_, list) => { list.Add(thought); return list; });
+                            (_, list) =>
+                            {
+                                var newList = new List<InnerThought>(list) { thought };
+                                return newList;
+                            });
 
                         // Execute background operations based on the thought
                         var operationResults = await _operationEngine.ProcessThoughtAsync(
@@ -835,7 +839,7 @@ public sealed class InnerDialogEngine
         var thoughtCount = config.MaxThoughts;
         for (int i = 0; i < thoughtCount && !ct.IsCancellationRequested; i++)
         {
-            var thought = await GenerateAutonomousThoughtAsync(profile, selfAwareness, ct);
+            var thought = await GenerateContextualAutonomousThoughtAsync(profile, selfAwareness, ct);
             if (thought != null && config.IsThoughtTypeEnabled(thought.Type))
             {
                 session = session.AddThought(thought);
