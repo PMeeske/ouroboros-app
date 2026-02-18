@@ -53,10 +53,28 @@ public sealed class AskCommandHandler
 
             return 0;
         }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "Network error executing ask command");
+            _console.MarkupLine($"[red]Error:[/] Could not reach the LLM endpoint.");
+            _console.MarkupLine($"[dim]  Detail:[/] {ex.Message}");
+            _console.MarkupLine("[dim]  Possible fixes:[/]");
+            _console.MarkupLine("[dim]    - Ensure Ollama is running: [yellow]ollama serve[/][/]");
+            _console.MarkupLine("[dim]    - Check the endpoint URL with [yellow]--endpoint[/][/]");
+            _console.MarkupLine("[dim]    - Run [yellow]dotnet run -- doctor[/] to diagnose your environment[/]");
+            return 1;
+        }
+        catch (TaskCanceledException)
+        {
+            _console.MarkupLine("[yellow]Request timed out.[/] The model may be loading or the endpoint is slow.");
+            _console.MarkupLine("[dim]  Try again, or increase the timeout in appsettings.json (Pipeline:LlmProvider:RequestTimeoutSeconds).[/]");
+            return 1;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error executing ask command");
             _console.MarkupLine($"[red]Error:[/] {ex.Message}");
+            _console.MarkupLine("[dim]  Run [yellow]dotnet run -- doctor[/] to check your environment.[/]");
             return 1;
         }
     }

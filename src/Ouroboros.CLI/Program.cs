@@ -1,4 +1,5 @@
 using System.CommandLine;
+using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -42,6 +43,28 @@ using var host = hostBuilder.Build();
 // Create the root command with System.CommandLine
 var rootCommand = new RootCommand("Ouroboros CLI - Advanced AI Assistant System");
 
+// Add --version option
+var versionOption = new System.CommandLine.Option<bool>("--version", "Show version information");
+rootCommand.Add(versionOption);
+rootCommand.SetAction((parseResult, _) =>
+{
+    if (parseResult.GetValue(versionOption))
+    {
+        var assembly = Assembly.GetExecutingAssembly();
+        var version = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+                      ?? assembly.GetName().Version?.ToString()
+                      ?? "0.0.0";
+        AnsiConsole.MarkupLine($"[cyan]Ouroboros CLI[/] {version}");
+        AnsiConsole.MarkupLine($"[dim]Runtime:[/] {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}");
+        AnsiConsole.MarkupLine($"[dim]OS:[/]      {System.Runtime.InteropServices.RuntimeInformation.OSDescription}");
+        return Task.CompletedTask;
+    }
+
+    // No subcommand provided — show help
+    parseResult.Configuration.Output.Write(parseResult.GetResult(rootCommand)!.Command.ToString());
+    return Task.CompletedTask;
+});
+
 // Add global voice option (Recursive = true makes it propagate to all subcommands)
 var voiceOption = new System.CommandLine.Option<bool>("--voice")
 {
@@ -58,6 +81,9 @@ rootCommand.Add(CreateOuroborosCommand(host, voiceOption));
 rootCommand.Add(CreateSkillsCommand(host, voiceOption));
 rootCommand.Add(CreateOrchestratorCommand(host, voiceOption));
 rootCommand.Add(CreateCognitivePhysicsCommand(host, voiceOption));
+rootCommand.Add(CreateDoctorCommand());
+rootCommand.Add(CreateChatCommand(host));
+rootCommand.Add(CreateInteractiveCommand(host));
 
 // Parse and invoke
 return await rootCommand.Parse(args).InvokeAsync();
@@ -362,6 +388,46 @@ static Command CreateCognitivePhysicsCommand(IHost host, System.CommandLine.Opti
                 console.MarkupLine($"[red]Unknown operation:[/] {operation}. Use: shift, trajectory, entangle, chaos");
                 break;
         }
+    });
+
+    return command;
+}
+
+static Command CreateDoctorCommand()
+{
+    var command = new Command("doctor", "Check your development environment for required and optional dependencies");
+
+    command.SetAction(async (parseResult, cancellationToken) =>
+    {
+        await DoctorCommand.RunAsync(AnsiConsole.Console);
+    });
+
+    return command;
+}
+
+static Command CreateChatCommand(IHost host)
+{
+    var command = new Command("chat", "Start an interactive chat session with the LLM");
+
+    command.SetAction(async (parseResult, cancellationToken) =>
+    {
+        var askService = host.Services.GetRequiredService<IAskService>();
+        await ChatCommand.RunAsync(askService, AnsiConsole.Console, cancellationToken);
+    });
+
+    return command;
+}
+
+static Command CreateInteractiveCommand(IHost host)
+{
+    var command = new Command("interactive", "Guided launcher — discover features through selection prompts");
+    command.AddAlias("i");
+
+    command.SetAction(async (parseResult, cancellationToken) =>
+    {
+        var askService = host.Services.GetRequiredService<IAskService>();
+        var pipelineService = host.Services.GetRequiredService<IPipelineService>();
+        await InteractiveCommand.RunAsync(askService, pipelineService, AnsiConsole.Console, cancellationToken);
     });
 
     return command;

@@ -5,7 +5,7 @@ using Ouroboros.Android.Views;
 namespace Ouroboros.Android;
 
 /// <summary>
-/// Main page with enhanced CLI-like interface
+/// Main page with CLI-like interface backed by the Ouroboros WebAPI.
 /// </summary>
 public partial class MainPage : ContentPage
 {
@@ -15,29 +15,32 @@ public partial class MainPage : ContentPage
     private int _historyIndex;
     private CommandSuggestionEngine? _suggestionEngine;
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="MainPage"/> class.
-    /// </summary>
     public MainPage()
     {
         InitializeComponent();
-        
+
         _outputHistory = new StringBuilder();
         _commandHistory = new List<string>();
         _historyIndex = -1;
-        
-        _outputHistory.AppendLine("Ouroboros CLI v1.0");
-        _outputHistory.AppendLine("Enhanced with AI-powered suggestions and Ollama integration");
-        _outputHistory.AppendLine("Type 'help' to see available commands");
+
+        _outputHistory.AppendLine("Ouroboros CLI v2.0");
         _outputHistory.AppendLine();
-        
-        // Initialize with database support - with error handling
+        _outputHistory.AppendLine("Welcome! Here are some things you can do:");
+        _outputHistory.AppendLine("  ask <question>   Ask the AI a question");
+        _outputHistory.AppendLine("  pipeline <dsl>   Run a DSL pipeline");
+        _outputHistory.AppendLine("  status           Check connection to WebAPI");
+        _outputHistory.AppendLine("  help             Show all commands");
+        _outputHistory.AppendLine();
+        _outputHistory.AppendLine("Tip: Tap the quick-action buttons below or type a command.");
+        _outputHistory.AppendLine();
+
+        // Initialize with database support
         try
         {
             var dbPath = Path.Combine(FileSystem.AppDataDirectory, "command_history.db");
-            _cliExecutor = new CliExecutor(dbPath);
-            
-            // Initialize suggestion engine if available
+            var apiEndpoint = Preferences.Get("api_endpoint", "http://localhost:5000");
+            _cliExecutor = new CliExecutor(dbPath, apiEndpoint);
+
             try
             {
                 var historyService = new CommandHistoryService(dbPath);
@@ -45,44 +48,29 @@ public partial class MainPage : ContentPage
             }
             catch (Exception ex)
             {
-                // Gracefully handle if suggestions aren't available
                 _suggestionEngine = null;
                 _outputHistory.AppendLine($"? Suggestions unavailable: {ex.Message}");
                 _outputHistory.AppendLine();
             }
-
-            // Load settings
-            LoadSettings();
         }
         catch (Exception ex)
         {
             _outputHistory.AppendLine($"? Initialization error: {ex.Message}");
             _outputHistory.AppendLine("Some features may be unavailable.");
             _outputHistory.AppendLine();
-            
-            // Create a minimal fallback executor
+
             try
             {
                 _cliExecutor = new CliExecutor(null);
             }
             catch
             {
-                // If even that fails, we'll handle it in ExecuteCommand
                 _cliExecutor = null!;
             }
         }
-        
+
         _outputHistory.Append("> ");
         UpdateOutput();
-    }
-
-    private void LoadSettings()
-    {
-        if (_cliExecutor != null)
-        {
-            var endpoint = Preferences.Get("ollama_endpoint", "http://localhost:11434");
-            _cliExecutor.OllamaEndpoint = endpoint;
-        }
     }
 
     private async void OnCommandEntered(object? sender, EventArgs e)
@@ -104,7 +92,7 @@ public partial class MainPage : ContentPage
         }
 
         var text = e.NewTextValue?.Trim() ?? string.Empty;
-        
+
         if (string.IsNullOrWhiteSpace(text) || text.Length < 2)
         {
             SuggestionsFrame.IsVisible = false;
@@ -114,7 +102,7 @@ public partial class MainPage : ContentPage
         try
         {
             var suggestions = await _suggestionEngine.GetSuggestionsAsync(text, 5);
-            
+
             if (suggestions.Count > 0)
             {
                 SuggestionsView.ItemsSource = suggestions;
@@ -144,9 +132,7 @@ public partial class MainPage : ContentPage
     private void OnHistoryUpClicked(object? sender, EventArgs e)
     {
         if (_commandHistory.Count == 0)
-        {
             return;
-        }
 
         if (_historyIndex < _commandHistory.Count - 1)
         {
@@ -164,27 +150,6 @@ public partial class MainPage : ContentPage
         }
     }
 
-    private async void OnModelsClicked(object? sender, EventArgs e)
-    {
-        try
-        {
-            if (_cliExecutor == null)
-            {
-                await DisplayAlert("Error", "CLI executor not initialized. Cannot access models.", "OK");
-                return;
-            }
-            
-            var ollamaService = new OllamaService(_cliExecutor.OllamaEndpoint);
-            var modelManager = new ModelManager(ollamaService);
-            var modelManagerView = new ModelManagerView(modelManager);
-            await Navigation.PushAsync(modelManagerView);
-        }
-        catch (Exception ex)
-        {
-            await DisplayAlert("Error", $"Failed to open model manager: {ex.Message}", "OK");
-        }
-    }
-
     private async void OnSettingsClicked(object? sender, EventArgs e)
     {
         var settingsView = new SettingsView();
@@ -192,8 +157,8 @@ public partial class MainPage : ContentPage
         {
             if (_cliExecutor != null)
             {
-                _cliExecutor.OllamaEndpoint = args.OllamaEndpoint;
-                _outputHistory.AppendLine($"Settings updated: Endpoint = {args.OllamaEndpoint}");
+                _cliExecutor.ApiEndpoint = args.ApiEndpoint;
+                _outputHistory.AppendLine($"Settings updated: Endpoint = {args.ApiEndpoint}");
                 UpdateOutput();
             }
         };
@@ -239,17 +204,13 @@ public partial class MainPage : ContentPage
     private async Task ExecuteCommand()
     {
         var command = CommandEntry.Text?.Trim();
-        
-        if (string.IsNullOrWhiteSpace(command))
-        {
-            return;
-        }
 
-        // Add command to history
+        if (string.IsNullOrWhiteSpace(command))
+            return;
+
         _outputHistory.AppendLine(command);
         _outputHistory.AppendLine();
 
-        // Execute command
         string result;
         if (_cliExecutor == null)
         {
@@ -267,7 +228,6 @@ public partial class MainPage : ContentPage
             }
         }
 
-        // Handle special commands
         if (result == "CLEAR_SCREEN")
         {
             _outputHistory.Clear();
@@ -281,12 +241,10 @@ public partial class MainPage : ContentPage
         }
 
         _outputHistory.Append("> ");
-        
-        // Update UI
+
         UpdateOutput();
         CommandEntry.Text = string.Empty;
 
-        // Scroll to bottom
         await Task.Delay(100);
         await OutputScrollView.ScrollToAsync(OutputLabel, ScrollToPosition.End, true);
     }
@@ -296,4 +254,3 @@ public partial class MainPage : ContentPage
         OutputLabel.Text = _outputHistory.ToString();
     }
 }
-
