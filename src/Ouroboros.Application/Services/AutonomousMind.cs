@@ -13,6 +13,7 @@ using Ouroboros.Application.Personality;
 /// Autonomous mind that thinks, explores, and acts independently in the background.
 /// Enables curiosity-driven learning, proactive actions, and self-directed exploration.
 /// Uses pipeline monads for structured reasoning and persists state continuously.
+/// Integrates with InnerDialogEngine for algorithmic thought generation.
 /// </summary>
 public class AutonomousMind : IDisposable
 {
@@ -47,6 +48,11 @@ public class AutonomousMind : IDisposable
     // Emotional state tracking
     private EmotionalState _currentEmotion = new();
     private readonly ConcurrentQueue<EmotionalState> _emotionalHistory = new();
+
+    // Integration with InnerDialogEngine for sophisticated thought generation
+    private InnerDialogEngine? _innerDialog;
+    private PersonalityProfile? _personalityProfile;
+    private SelfAwareness? _selfAwareness;
 
     /// <summary>
     /// Delegate for generating AI responses (used for deep exploration, not routine thoughts).
@@ -230,6 +236,27 @@ public class AutonomousMind : IDisposable
     }
 
     /// <summary>
+    /// Connects this AutonomousMind to an InnerDialogEngine for sophisticated thought generation.
+    /// When connected, uses algorithmic/genetic thought generation instead of LLM for routine thoughts.
+    /// LLM is still used for deep exploration and curiosity-driven research.
+    /// </summary>
+    /// <param name="innerDialog">The inner dialog engine to use.</param>
+    /// <param name="profile">Optional personality profile for context.</param>
+    /// <param name="selfAwareness">Optional self-awareness state.</param>
+    public void ConnectInnerDialog(
+        InnerDialogEngine innerDialog,
+        PersonalityProfile? profile = null,
+        SelfAwareness? selfAwareness = null)
+    {
+        _innerDialog = innerDialog;
+        _personalityProfile = profile;
+        _selfAwareness = selfAwareness;
+
+        // Stop the InnerDialog's own autonomous thinking to prevent duplicates
+        _ = innerDialog.StopAutonomousThinkingAsync();
+    }
+
+    /// <summary>
     /// Start autonomous thinking and exploration.
         /// </summary>
     public void Start()
@@ -390,6 +417,26 @@ public class AutonomousMind : IDisposable
                 ThoughtType thoughtType;
                 PipelineBranch? updatedBranch = null;
 
+                // Use InnerDialogEngine for algorithmic thoughts (80% of the time)
+                // Use LLM for deep exploration (20% of the time)
+                var useAlgorithmic = _innerDialog != null && Random.Shared.NextDouble() < 0.8;
+
+                if (useAlgorithmic && _innerDialog != null)
+                {
+                    // Generate thought using algorithmic composition
+                    var innerThought = await _innerDialog.GenerateAutonomousThoughtAsync(
+                        _personalityProfile,
+                        _selfAwareness,
+                        _cts.Token);
+
+                    if (innerThought == null) continue;
+
+                    response = innerThought.Content;
+                    thoughtType = MapInnerThoughtType(innerThought.Type);
+                }
+                else
+                {
+
                 // LLM-based thinking
                 deepThinkingCounter++;
 
@@ -455,11 +502,12 @@ public class AutonomousMind : IDisposable
                 }
 
                 thoughtType = DetermineThoughtType(response);
+                } // end else (LLM-based thinking)
 
                 var thought = new Thought
                 {
                     Timestamp = DateTime.Now,
-                    Prompt = "llm-deep",
+                    Prompt = useAlgorithmic ? "algorithmic" : "llm-deep",
                     Content = response,
                     Type = thoughtType,
                 };
@@ -491,6 +539,30 @@ public class AutonomousMind : IDisposable
         }
     }
 
+    /// <summary>
+    /// Maps InnerThoughtType to the simpler ThoughtType enum.
+    /// </summary>
+    private static ThoughtType MapInnerThoughtType(InnerThoughtType innerType)
+    {
+        return innerType switch
+        {
+            InnerThoughtType.Curiosity => ThoughtType.Curiosity,
+            InnerThoughtType.Wandering => ThoughtType.Reflection,
+            InnerThoughtType.Metacognitive => ThoughtType.Reflection,
+            InnerThoughtType.Anticipatory => ThoughtType.Observation,
+            InnerThoughtType.Consolidation => ThoughtType.Reflection,
+            InnerThoughtType.Musing => ThoughtType.Creative,
+            InnerThoughtType.Intention => ThoughtType.Action,
+            InnerThoughtType.Aesthetic => ThoughtType.Creative,
+            InnerThoughtType.Existential => ThoughtType.Reflection,
+            InnerThoughtType.Playful => ThoughtType.Creative,
+            InnerThoughtType.Creative => ThoughtType.Creative,
+            InnerThoughtType.Strategic => ThoughtType.Action,
+            InnerThoughtType.SelfReflection => ThoughtType.Reflection,
+            InnerThoughtType.Observation => ThoughtType.Observation,
+            _ => ThoughtType.Reflection
+        };
+    }
 
     private async Task CuriosityLoopAsync()
     {

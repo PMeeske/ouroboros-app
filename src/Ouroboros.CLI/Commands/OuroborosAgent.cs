@@ -1295,7 +1295,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
             else if (_config.Verbosity != OutputVerbosity.Quiet)
             {
                 Console.ForegroundColor = ConsoleColor.DarkMagenta;
-                Console.WriteLine($"  [inner thought] {msg}");
+                Console.WriteLine($"  💭 [inner thought] {msg}");
                 Console.ResetColor();
             }
             try { await _voice.WhisperAsync(msg); } catch { }
@@ -1324,13 +1324,22 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
             };
             var innerThought = InnerThought.CreateAutonomous(thoughtType, thought.Content, confidence: 0.7);
 
-            // Display autonomous mind thoughts in pink
+            // Display autonomous mind thoughts in magenta with thought bubble
             Console.ForegroundColor = ConsoleColor.DarkMagenta;
-            Console.WriteLine($"\n  [inner thought] {thought.Content}");
+            Console.WriteLine($"\n  💭 [inner thought] {thought.Content}");
             Console.ResetColor();
 
             await PersistThoughtAsync(innerThought, "autonomous_thinking");
         };
+
+        // Connect InnerDialogEngine for algorithmic thought generation (80/20 split)
+        if (_personalityEngine != null)
+        {
+            _autonomousMind.ConnectInnerDialog(
+                _personalityEngine.InnerDialog,
+                profile: null,
+                selfAwareness: _personalityEngine.CurrentSelfAwareness);
+        }
     }
 
     /// <summary>
@@ -1439,8 +1448,8 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
 
         _immersivePersona.AutonomousThought += (_, e) =>
         {
-            Console.ForegroundColor = ConsoleColor.DarkCyan;
-            Console.WriteLine($"\n  [inner thought] {e.Thought.Content}");
+            Console.ForegroundColor = ConsoleColor.DarkMagenta;
+            Console.WriteLine($"\n  💭 [inner thought] {e.Thought.Content}");
             Console.ResetColor();
         };
     }
@@ -1505,7 +1514,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
             if (_config.Verbosity != OutputVerbosity.Quiet)
             {
                 Console.ForegroundColor = ConsoleColor.DarkMagenta;
-                Console.WriteLine($"  [inner thought] I discovered from '{query}': {fact}");
+                Console.WriteLine($"  💭 [inner thought] I just learned something new from '{query}': {fact}");
                 Console.ResetColor();
             }
 
@@ -2221,7 +2230,7 @@ $synth.Dispose()
             {
                 var translatedThought = await TranslateThoughtIfNeededAsync(result.WarmupThought);
                 Console.ForegroundColor = ConsoleColor.DarkMagenta;
-                Console.WriteLine($"\n  [inner thought] {translatedThought}");
+                Console.WriteLine($"\n  💭 [inner thought] {translatedThought}");
                 Console.ResetColor();
             }
         }
