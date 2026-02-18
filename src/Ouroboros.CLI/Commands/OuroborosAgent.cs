@@ -1123,7 +1123,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
         WireAutonomyCallbacks();
 
         // ── Autonomous Mind delegates ──
-        WireAutonomousMindDelegates();
+        WireAutonomousMindDelegatesAsync().GetAwaiter().GetResult();
 
         // ── Autonomous Coordinator ──
         WireAutonomousCoordinatorAsync().GetAwaiter().GetResult();
@@ -1177,7 +1177,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     /// Wires AutonomousMind's ThinkFunction, SearchFunction, ExecuteToolFunction,
     /// pipe command execution, output sanitization, and all event handlers.
     /// </summary>
-    private void WireAutonomousMindDelegates()
+    private async Task WireAutonomousMindDelegatesAsync()
     {
         if (_autonomousMind == null) return;
 
