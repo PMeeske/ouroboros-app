@@ -2,7 +2,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
-using Ouroboros.WebApi.Models;
+using Ouroboros.ApiHost.Models;
 
 namespace Ouroboros.Tests.Infrastructure.Assertions;
 

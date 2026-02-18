@@ -2,8 +2,8 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
-using Ouroboros.WebApi.Models;
-using Ouroboros.WebApi.Services;
+using Ouroboros.ApiHost.Models;
+using Ouroboros.ApiHost.Services;
 
 namespace Ouroboros.Tests.WebApi.Fixtures;
 

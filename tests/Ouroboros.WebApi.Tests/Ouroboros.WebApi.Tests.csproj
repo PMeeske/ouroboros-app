@@ -11,6 +11,8 @@
   <ItemGroup>
     <ProjectReference Include="$(OuroborosBuild)\test-infra\Ouroboros.TestKit\Ouroboros.TestKit.csproj" />
     <ProjectReference Include="$(Ouroboros)\Ouroboros.WebApi\Ouroboros.WebApi.csproj" />
+    <!-- ApiHost owns services, models, and middleware (formerly in WebApi) -->
+    <ProjectReference Include="$(Ouroboros)\Ouroboros.ApiHost\Ouroboros.ApiHost.csproj" />
     <ProjectReference Include="$(Ouroboros)\Ouroboros.Application\Ouroboros.Application.csproj" />
     <ProjectReference Include="$(OuroborosEngine)\Ouroboros.Agent\Ouroboros.Agent.csproj" />
     <ProjectReference Include="$(OuroborosEngine)\Ouroboros.Pipeline\Ouroboros.Pipeline.csproj" />
