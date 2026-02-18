@@ -10,47 +10,54 @@ namespace Ouroboros.WebApi.Models;
 public sealed record AskRequest
 {
     /// <summary>
-    /// Gets the question or prompt to ask.
+    /// The question or prompt to ask. Example: "What is functional programming?"
     /// </summary>
     public required string Question { get; init; }
 
     /// <summary>
-    /// Gets a value indicating whether enable retrieval augmented generation (RAG).
+    /// Enable Retrieval Augmented Generation (RAG). When true, relevant context is
+    /// retrieved from <see cref="SourcePath"/> and included with the question for
+    /// more grounded answers.
     /// </summary>
     public bool UseRag { get; init; }
 
     /// <summary>
-    /// Gets source path for RAG context (defaults to current directory).
+    /// Directory or file path used as context when <see cref="UseRag"/> is true.
+    /// Only relevant on the server's filesystem. Leave null to skip RAG.
     /// </summary>
     public string? SourcePath { get; init; }
 
     /// <summary>
-    /// Gets model name to use (defaults to llama3).
+    /// Model name for generation. Defaults to "llama3" when omitted.
+    /// Must match a model available on the configured provider (e.g. "llama3", "phi3:mini").
     /// </summary>
     public string? Model { get; init; }
 
     /// <summary>
-    /// Gets a value indicating whether enable agent mode with tool usage.
+    /// Enable agent mode. The model can call tools (math, search, code execution)
+    /// for multi-step reasoning over complex questions.
     /// </summary>
     public bool Agent { get; init; }
 
     /// <summary>
-    /// Gets temperature for response generation (0.0 - 1.0).
+    /// Sampling temperature. Range: 0.0 (deterministic) to 2.0 (creative). Default: 0.7.
     /// </summary>
     public float? Temperature { get; init; }
 
     /// <summary>
-    /// Gets maximum tokens for response.
+    /// Maximum tokens in the response. Typical range: 100 - 8000.
+    /// Higher values allow longer answers but increase latency.
     /// </summary>
     public int? MaxTokens { get; init; }
 
     /// <summary>
-    /// Gets remote endpoint URL (e.g., https://api.ollama.com).
+    /// Remote LLM endpoint URL to override the server default.
+    /// Example: "https://api.openai.com/v1" or "http://localhost:11434".
     /// </summary>
     public string? Endpoint { get; init; }
 
     /// <summary>
-    /// Gets aPI key for remote endpoint.
+    /// API key for the remote endpoint. Required for cloud providers; not needed for local Ollama.
     /// </summary>
     public string? ApiKey { get; init; }
 }

@@ -23,6 +23,7 @@ public class AIProviderConfigView : ContentPage
     private readonly Label _maxTokensLabel;
     private readonly Switch _enabledSwitch;
     private readonly Label _statusLabel;
+    private readonly Label _providerHintLabel;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AIProviderConfigView"/> class.
@@ -63,7 +64,15 @@ public class AIProviderConfigView : ContentPage
         {
             TextColor = Color.FromRgb(200, 200, 200),
             FontSize = 12,
-            Margin = new Thickness(10, 0, 10, 10)
+            Margin = new Thickness(10, 0, 10, 5)
+        };
+
+        _providerHintLabel = new Label
+        {
+            TextColor = Color.FromRgb(160, 160, 160),
+            FontSize = 11,
+            Margin = new Thickness(10, 0, 10, 10),
+            LineBreakMode = LineBreakMode.WordWrap
         };
 
         // Endpoint
@@ -76,7 +85,7 @@ public class AIProviderConfigView : ContentPage
 
         // Model
         var modelLabel = CreateLabel("Default Model");
-        _modelEntry = CreateEntry("model-name");
+        _modelEntry = CreateEntry("e.g. llama3, gpt-4o, claude-sonnet-4-20250514");
 
         // Organization ID (for OpenAI)
         var orgLabel = CreateLabel("Organization ID (Optional)");
@@ -94,8 +103,8 @@ public class AIProviderConfigView : ContentPage
         var deploymentLabel = CreateLabel("Deployment Name (Optional)");
         _deploymentEntry = CreateEntry("deployment-name");
 
-        // Temperature
-        var temperatureTitle = CreateLabel("Temperature");
+        // Temperature — controls randomness of the output
+        var temperatureTitle = CreateLabel("Temperature (0 = precise, 2 = creative)");
         _temperatureLabel = new Label
         {
             Text = "0.7",
@@ -118,8 +127,8 @@ public class AIProviderConfigView : ContentPage
             _temperatureLabel.Text = $"{e.NewValue:F2}";
         };
 
-        // Max Tokens
-        var maxTokensTitle = CreateLabel("Max Tokens");
+        // Max Tokens — controls maximum response length
+        var maxTokensTitle = CreateLabel("Max Tokens (response length limit)");
         _maxTokensLabel = new Label
         {
             Text = "2000",
@@ -197,6 +206,7 @@ public class AIProviderConfigView : ContentPage
                     providerLabel,
                     _providerPicker,
                     _statusLabel,
+                    _providerHintLabel,
                     new BoxView { HeightRequest = 1, Color = Color.FromRgb(100, 100, 100), Margin = new Thickness(10, 10) },
                     endpointLabel,
                     _endpointEntry,
@@ -281,7 +291,35 @@ public class AIProviderConfigView : ContentPage
         var isActive = _providerService.GetActiveProvider() == provider;
         _statusLabel.Text = isActive ? "✓ Active Provider" : "Inactive";
         _statusLabel.TextColor = isActive ? Color.FromRgb(0, 255, 0) : Color.FromRgb(200, 200, 200);
+
+        _providerHintLabel.Text = GetProviderHint(provider);
     }
+
+    private static string GetProviderHint(AIProvider provider) => provider switch
+    {
+        AIProvider.Ollama =>
+            "Runs models locally on your device or a nearby server. No API key needed. " +
+            "Install Ollama from ollama.com, then pull a model (e.g. \"ollama pull llama3\").",
+        AIProvider.OpenAI =>
+            "Cloud provider. Requires an API key from platform.openai.com. " +
+            "Popular models: gpt-4o, gpt-4o-mini.",
+        AIProvider.Anthropic =>
+            "Cloud provider. Requires an API key starting with \"sk-ant-\" from console.anthropic.com. " +
+            "Popular models: claude-sonnet-4-20250514, claude-haiku-4-5-20251001.",
+        AIProvider.Google =>
+            "Cloud provider. Requires a Google AI API key from aistudio.google.com. " +
+            "Popular models: gemini-2.0-flash, gemini-1.5-pro.",
+        AIProvider.AzureOpenAI =>
+            "Enterprise cloud. Requires an Azure resource endpoint, API key, and deployment name. " +
+            "Contact your Azure admin for details.",
+        AIProvider.HuggingFace =>
+            "Open-source model hub. Requires an API key starting with \"hf_\" from huggingface.co/settings/tokens.",
+        AIProvider.Cohere =>
+            "Cloud provider focused on enterprise search and generation. " +
+            "Get an API key from dashboard.cohere.com.",
+        _ =>
+            "Select a provider above to see setup instructions."
+    };
 
     private void OnProviderChanged(object? sender, EventArgs e)
     {

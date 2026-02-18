@@ -27,8 +27,14 @@ public partial class MainPage : ContentPage
         _historyIndex = -1;
         
         _outputHistory.AppendLine("Ouroboros CLI v1.0");
-        _outputHistory.AppendLine("Enhanced with AI-powered suggestions and Ollama integration");
-        _outputHistory.AppendLine("Type 'help' to see available commands");
+        _outputHistory.AppendLine();
+        _outputHistory.AppendLine("Welcome! Here are some things you can do:");
+        _outputHistory.AppendLine("  ask <question>   Ask the AI a question");
+        _outputHistory.AppendLine("  models           See available AI models");
+        _outputHistory.AppendLine("  status           Check connection to Ollama");
+        _outputHistory.AppendLine("  help             Show all commands");
+        _outputHistory.AppendLine();
+        _outputHistory.AppendLine("Tip: Tap the quick-action buttons below or type a command.");
         _outputHistory.AppendLine();
         
         // Initialize with database support - with error handling
