@@ -1796,9 +1796,177 @@ Commands:
         return "Evaluate commands: evaluate performance";
     }
 
-    // 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PUSH MODE COMMANDS (migrated from OuroborosAgent)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Approves one or more pending intentions.
+    /// </summary>
+    internal async Task<string> ApproveIntentionAsync(string arg)
+    {
+        if (Coordinator == null)
+        {
+            return "Push mode not enabled. Use --push flag to enable.";
+        }
+
+        var sb = new StringBuilder();
+        var bus = Coordinator.IntentionBus;
+
+        if (string.IsNullOrWhiteSpace(arg) || arg.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            // Approve all pending
+            var pending = bus.GetPendingIntentions().ToList();
+            if (pending.Count == 0)
+            {
+                return "No pending intentions to approve.";
+            }
+
+            foreach (var intention in pending)
+            {
+                var result = bus.ApproveIntentionByPartialId(intention.Id.ToString()[..8], "User approved all");
+                sb.AppendLine(result
+                    ? $"✓ Approved: [{intention.Id.ToString()[..8]}] {intention.Title}"
+                    : $"✗ Failed to approve: {intention.Id}");
+            }
+        }
+        else
+        {
+            // Approve specific intention by ID prefix
+            var result = bus.ApproveIntentionByPartialId(arg, "User approved");
+            sb.AppendLine(result
+                ? $"✓ Approved intention: {arg}"
+                : $"No pending intention found matching '{arg}'.");
+        }
+
+        await Task.CompletedTask;
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Rejects one or more pending intentions.
+    /// </summary>
+    internal async Task<string> RejectIntentionAsync(string arg)
+    {
+        if (Coordinator == null)
+        {
+            return "Push mode not enabled. Use --push flag to enable.";
+        }
+
+        var sb = new StringBuilder();
+        var bus = Coordinator.IntentionBus;
+
+        if (string.IsNullOrWhiteSpace(arg) || arg.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            // Reject all pending
+            var pending = bus.GetPendingIntentions().ToList();
+            if (pending.Count == 0)
+            {
+                return "No pending intentions to reject.";
+            }
+
+            foreach (var intention in pending)
+            {
+                bus.RejectIntentionByPartialId(intention.Id.ToString()[..8], "User rejected all");
+                sb.AppendLine($"✗ Rejected: [{intention.Id.ToString()[..8]}] {intention.Title}");
+            }
+        }
+        else
+        {
+            // Reject specific intention by ID prefix
+            var result = bus.RejectIntentionByPartialId(arg, "User rejected");
+            sb.AppendLine(result
+                ? $"✗ Rejected intention: {arg}"
+                : $"No pending intention found matching '{arg}'.");
+        }
+
+        await Task.CompletedTask;
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Lists all pending intentions.
+    /// </summary>
+    internal string ListPendingIntentions()
+    {
+        if (Coordinator == null)
+        {
+            return "Push mode not enabled. Use --push flag to enable.";
+        }
+
+        var pending = Coordinator.IntentionBus.GetPendingIntentions().ToList();
+
+        if (pending.Count == 0)
+        {
+            return "No pending intentions. Ouroboros will propose actions based on context.";
+        }
+
+        var sb = new StringBuilder();
+        sb.AppendLine("╔═══════════════════════════════════════════════════════════════╗");
+        sb.AppendLine("║                   PENDING INTENTIONS                          ║");
+        sb.AppendLine("╚═══════════════════════════════════════════════════════════════╝");
+        sb.AppendLine();
+
+        foreach (var intention in pending.OrderByDescending(i => i.Priority))
+        {
+            var priorityMarker = intention.Priority switch
+            {
+                IntentionPriority.Critical => "🔴",
+                IntentionPriority.High => "🟠",
+                IntentionPriority.Normal => "🟢",
+                _ => "⚪"
+            };
+
+            sb.AppendLine($"  {priorityMarker} [{intention.Id.ToString()[..8]}] {intention.Category}");
+            sb.AppendLine($"     {intention.Title}");
+            sb.AppendLine($"     {intention.Description}");
+            sb.AppendLine($"     Created: {intention.CreatedAt:HH:mm:ss}");
+            sb.AppendLine();
+        }
+
+        sb.AppendLine("Commands: /approve <id|all> | /reject <id|all>");
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Pauses push mode (stops proposing actions).
+    /// </summary>
+    internal string PausePushMode()
+    {
+        if (Coordinator == null)
+        {
+            return "Push mode not enabled.";
+        }
+
+        PushModeCts?.Cancel();
+        return "⏸ Push mode paused. Use /resume to continue receiving proposals.";
+    }
+
+    /// <summary>
+    /// Resumes push mode (continues proposing actions).
+    /// </summary>
+    internal string ResumePushMode()
+    {
+        if (Coordinator == null)
+        {
+            return "Push mode not enabled. Use --push flag to enable.";
+        }
+
+        if (PushModeCts == null || PushModeCts.IsCancellationRequested)
+        {
+            PushModeCts?.Dispose();
+            PushModeCts = new CancellationTokenSource();
+            PushModeTask = Task.Run(() => PushModeLoopAsync(PushModeCts.Token), PushModeCts.Token);
+            return "▶ Push mode resumed. Ouroboros will propose actions.";
+        }
+
+        return "Push mode is already active.";
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // END MIGRATED METHODS
-    // 
+    // ═══════════════════════════════════════════════════════════════════════════
 
         public async ValueTask DisposeAsync()
     {
