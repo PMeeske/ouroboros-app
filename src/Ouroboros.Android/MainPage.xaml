@@ -19,9 +19,8 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            
+
             <Button Grid.Column="0"
                     Text="Menu"
                     FontSize="14"
@@ -40,16 +39,6 @@
                    VerticalOptions="Center" />
 
             <Button Grid.Column="2"
-                    Text="Models"
-                    FontSize="14"
-                    BackgroundColor="#00AA00"
-                    TextColor="#FFFFFF"
-                    Clicked="OnModelsClicked"
-                    WidthRequest="70"
-                    HeightRequest="40"
-                    ToolTipProperties.Text="Model Manager" />
-
-            <Button Grid.Column="3"
                     Text="Settings"
                     FontSize="14"
                     BackgroundColor="#00AA00"
@@ -61,7 +50,7 @@
         </Grid>
 
         <!-- Output Area (ScrollView with Label) -->
-        <ScrollView Grid.Row="1" 
+        <ScrollView Grid.Row="1"
                     x:Name="OutputScrollView"
                     BackgroundColor="#000000"
                     Margin="0,10,0,10">
@@ -128,7 +117,7 @@
                         BackgroundColor="#005500"
                         TextColor="#FFFFFF"
                         Clicked="OnQuickCommand" />
-                <Button Text="models"
+                <Button Text="ping"
                         FontSize="10"
                         BackgroundColor="#005500"
                         TextColor="#FFFFFF"
