@@ -6,6 +6,7 @@ using System.Diagnostics;
 using Ouroboros.Agent.MetaAI;
 using Ouroboros.Agent.MetaAI.SelfModel;
 using Microsoft.OpenApi;
+using Ouroboros.WebApi.Middleware;
 using Ouroboros.WebApi.Models;
 using Ouroboros.WebApi.Services;
 
@@ -87,7 +88,10 @@ var localizationOptions = new RequestLocalizationOptions()
 
 app.UseRequestLocalization(localizationOptions);
 
-// Configure middleware
+// Middleware pipeline (order matters)
+app.UseMiddleware<CorrelationIdMiddleware>();
+app.UseMiddleware<GlobalExceptionMiddleware>();
+
 // Enable Swagger in all environments for API documentation
 app.UseSwagger();
 app.UseSwaggerUI(c =>
