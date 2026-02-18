@@ -285,6 +285,48 @@ public sealed class WebAvatarRenderer : IAvatarRenderer
         }
     }
 
+    private static bool TryGetSafeFilePath(string rootDir, string relativePath, out string? safePath)
+    {
+        safePath = null;
+
+        if (string.IsNullOrEmpty(relativePath))
+        {
+            return false;
+        }
+
+        // Basic rejection of parent directory references
+        if (relativePath.Contains("..", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        // Reject any invalid path characters to avoid malformed paths
+        if (relativePath.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
+        {
+            return false;
+        }
+
+        string combinedPath;
+        try
+        {
+            combinedPath = Path.GetFullPath(Path.Combine(rootDir, relativePath));
+        }
+        catch
+        {
+            return false;
+        }
+
+        var rootFullPath = Path.GetFullPath(rootDir);
+        if (!combinedPath.StartsWith(rootFullPath.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(combinedPath, rootFullPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        safePath = combinedPath;
+        return true;
+    }
+
     private void HandleHttpRequest(HttpListenerContext context)
     {
         var path = context.Request.Url?.AbsolutePath?.TrimStart('/') ?? "";
@@ -292,15 +334,23 @@ public sealed class WebAvatarRenderer : IAvatarRenderer
 
         // Serve from viewer directory first, then from avatar images directory
         var viewerDir = Path.Combine(_assetDirectory, "Viewer");
-        var filePath = Path.Combine(viewerDir, path);
 
-        if (!File.Exists(filePath))
+        string? filePath = null;
+        if (TryGetSafeFilePath(viewerDir, path, out var candidateViewerPath) && File.Exists(candidateViewerPath))
+        {
+            filePath = candidateViewerPath;
+        }
+        else
         {
             // Try avatar images directory (for idle.png, etc.)
-            filePath = Path.Combine(_assetDirectory, "Iaret", path);
+            var iaretDir = Path.Combine(_assetDirectory, "Iaret");
+            if (TryGetSafeFilePath(iaretDir, path, out var candidateIaretPath) && File.Exists(candidateIaretPath))
+            {
+                filePath = candidateIaretPath;
+            }
         }
 
-        if (!File.Exists(filePath))
+        if (filePath is null)
         {
             context.Response.StatusCode = 404;
             context.Response.Close();
