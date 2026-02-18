@@ -1156,6 +1156,9 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
 
         // -- Pipeline think delegate --
         WirePipelineThinkDelegate();
+
+        // -- Memory subsystem thought persistence --
+        _memorySub.PersistThoughtFunc = PersistThoughtAsync;
     }
 
     /// <summary>
@@ -5688,6 +5691,12 @@ Use this actual code information to answer the user's question accurately.
     private Task<string> IntrospectCommandAsync(string focus)
         => ((CognitiveSubsystem)_cognitiveSub).IntrospectCommandAsync(focus);
 
+    // Thought commands (moved to MemorySubsystem)
+    private Task<string> SaveThoughtCommandAsync(string argument)
+        => _memorySub.SaveThoughtCommandAsync(argument);
+
+    private void TrackLastThought(string content)
+        => _memorySub.TrackLastThought(content);
 
     // Code Self-Perception commands (moved to AutonomySubsystem)
     private Task<string> SaveCodeCommandAsync(string argument)
