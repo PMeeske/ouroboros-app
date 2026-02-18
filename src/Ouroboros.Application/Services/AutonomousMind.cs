@@ -243,7 +243,7 @@ public class AutonomousMind : IDisposable
     /// <param name="innerDialog">The inner dialog engine to use.</param>
     /// <param name="profile">Optional personality profile for context.</param>
     /// <param name="selfAwareness">Optional self-awareness state.</param>
-    public void ConnectInnerDialog(
+    public async Task ConnectInnerDialogAsync(
         InnerDialogEngine innerDialog,
         PersonalityProfile? profile = null,
         SelfAwareness? selfAwareness = null)
@@ -253,7 +253,7 @@ public class AutonomousMind : IDisposable
         _selfAwareness = selfAwareness;
 
         // Stop the InnerDialog's own autonomous thinking to prevent duplicates
-        innerDialog.StopAutonomousThinkingAsync().GetAwaiter().GetResult();
+        await innerDialog.StopAutonomousThinkingAsync();
     }
 
     /// <summary>

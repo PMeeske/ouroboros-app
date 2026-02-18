@@ -688,14 +688,19 @@ Remember: You are {Identity.Name}. You have a continuous experience. You can ver
 
     private void SubscribeToAutonomousThoughts()
     {
-        _autonomousThoughtsSubscriptionCts?.Cancel();
-        _autonomousThoughtsSubscriptionCts?.Dispose();
+        // Cancel and dispose any existing subscription
+        var oldCts = _autonomousThoughtsSubscriptionCts;
         _autonomousThoughtsSubscriptionCts = new CancellationTokenSource();
+        var cts = _autonomousThoughtsSubscriptionCts;
+        
+        // Clean up old subscription after creating new one
+        oldCts?.Cancel();
+        oldCts?.Dispose();
         
         // Poll for autonomous thoughts periodically
         _ = Task.Run(async () =>
         {
-            while (_isInitialized && !_autonomousThoughtsSubscriptionCts.Token.IsCancellationRequested)
+            while (_isInitialized && !cts.Token.IsCancellationRequested)
             {
                 var thoughts = InnerDialog.DrainAutonomousThoughts();
                 foreach (var thought in thoughts)
@@ -705,14 +710,14 @@ Remember: You are {Identity.Name}. You have a continuous experience. You can ver
                 
                 try
                 {
-                    await Task.Delay(2000, _autonomousThoughtsSubscriptionCts.Token);
+                    await Task.Delay(2000, cts.Token);
                 }
                 catch (OperationCanceledException)
                 {
                     break;
                 }
             }
-        }, _autonomousThoughtsSubscriptionCts.Token);
+        }, cts.Token);
     }
 
     #region Hyperon Symbolic Reasoning API

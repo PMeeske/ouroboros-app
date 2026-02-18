@@ -1335,7 +1335,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
         // Connect InnerDialogEngine for algorithmic thought generation (80/20 split)
         if (_personalityEngine != null)
         {
-            _autonomousMind.ConnectInnerDialog(
+            await _autonomousMind.ConnectInnerDialogAsync(
                 _personalityEngine.InnerDialog,
                 profile: null,
                 selfAwareness: _personalityEngine.CurrentSelfAwareness);
