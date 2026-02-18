@@ -1167,7 +1167,7 @@ Example: [Learn] I should consolidate my understanding of the recent coding task
         if (Config.Debug)
         {
             Console.ForegroundColor = ConsoleColor.DarkMagenta;
-            Console.WriteLine($"  [thought] [{thought.ActionType}] {thought.Content}");
+            Console.WriteLine($"  💭 [thought] [{thought.ActionType}] {thought.Content}");
             Console.ResetColor();
         }
 
