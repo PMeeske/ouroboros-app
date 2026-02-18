@@ -82,6 +82,8 @@ rootCommand.Add(CreateSkillsCommand(host, voiceOption));
 rootCommand.Add(CreateOrchestratorCommand(host, voiceOption));
 rootCommand.Add(CreateCognitivePhysicsCommand(host, voiceOption));
 rootCommand.Add(CreateDoctorCommand());
+rootCommand.Add(CreateChatCommand(host));
+rootCommand.Add(CreateInteractiveCommand(host));
 
 // Parse and invoke
 return await rootCommand.Parse(args).InvokeAsync();
@@ -398,6 +400,34 @@ static Command CreateDoctorCommand()
     command.SetAction(async (parseResult, cancellationToken) =>
     {
         await DoctorCommand.RunAsync(AnsiConsole.Console);
+    });
+
+    return command;
+}
+
+static Command CreateChatCommand(IHost host)
+{
+    var command = new Command("chat", "Start an interactive chat session with the LLM");
+
+    command.SetAction(async (parseResult, cancellationToken) =>
+    {
+        var askService = host.Services.GetRequiredService<IAskService>();
+        await ChatCommand.RunAsync(askService, AnsiConsole.Console, cancellationToken);
+    });
+
+    return command;
+}
+
+static Command CreateInteractiveCommand(IHost host)
+{
+    var command = new Command("interactive", "Guided launcher — discover features through selection prompts");
+    command.AddAlias("i");
+
+    command.SetAction(async (parseResult, cancellationToken) =>
+    {
+        var askService = host.Services.GetRequiredService<IAskService>();
+        var pipelineService = host.Services.GetRequiredService<IPipelineService>();
+        await InteractiveCommand.RunAsync(askService, pipelineService, AnsiConsole.Console, cancellationToken);
     });
 
     return command;
