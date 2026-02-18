@@ -5659,9 +5659,25 @@ Use this actual code information to answer the user's question accurately.
     private Task<string> EvaluateCommandAsync(string subCommand)
         => _autonomySub.EvaluateCommandAsync(subCommand);
 
-    // 
+    // Push Mode commands (moved to AutonomySubsystem)
+    private Task<string> ApproveIntentionAsync(string arg)
+        => _autonomySub.ApproveIntentionAsync(arg);
+
+    private Task<string> RejectIntentionAsync(string arg)
+        => _autonomySub.RejectIntentionAsync(arg);
+
+    private string ListPendingIntentions()
+        => _autonomySub.ListPendingIntentions();
+
+    private string PausePushMode()
+        => _autonomySub.PausePushMode();
+
+    private string ResumePushMode()
+        => _autonomySub.ResumePushMode();
+
+    //
     //  COGNITIVE DELEGATES  Emergent Behavior Commands (logic in CognitiveSubsystem)
-    // 
+    //
 
     private Task<string> EmergenceCommandAsync(string topic)
         => ((CognitiveSubsystem)_cognitiveSub).EmergenceCommandAsync(topic);
@@ -6353,173 +6369,6 @@ Examples:
         => CognitiveSubsystem.TruncateText(text, maxLength);
 
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // PUSH MODE COMMANDS
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Approves one or more pending intentions.
-    /// </summary>
-    private async Task<string> ApproveIntentionAsync(string arg)
-    {
-        if (_autonomousCoordinator == null)
-        {
-            return "Push mode not enabled. Use --push flag to enable.";
-        }
-
-        var sb = new StringBuilder();
-        var bus = _autonomousCoordinator.IntentionBus;
-
-        if (string.IsNullOrWhiteSpace(arg) || arg.Equals("all", StringComparison.OrdinalIgnoreCase))
-        {
-            // Approve all pending
-            var pending = bus.GetPendingIntentions().ToList();
-            if (pending.Count == 0)
-            {
-                return "No pending intentions to approve.";
-            }
-
-            foreach (var intention in pending)
-            {
-                var result = bus.ApproveIntentionByPartialId(intention.Id.ToString()[..8], "User approved all");
-                sb.AppendLine(result
-                    ? $"✓ Approved: [{intention.Id.ToString()[..8]}] {intention.Title}"
-                    : $"✗ Failed to approve: {intention.Id}");
-            }
-        }
-        else
-        {
-            // Approve specific intention by ID prefix
-            var result = bus.ApproveIntentionByPartialId(arg, "User approved");
-            sb.AppendLine(result
-                ? $"✓ Approved intention: {arg}"
-                : $"No pending intention found matching '{arg}'.");
-        }
-
-        await Task.CompletedTask;
-        return sb.ToString();
-    }
-
-    /// <summary>
-    /// Rejects one or more pending intentions.
-    /// </summary>
-    private async Task<string> RejectIntentionAsync(string arg)
-    {
-        if (_autonomousCoordinator == null)
-        {
-            return "Push mode not enabled. Use --push flag to enable.";
-        }
-
-        var sb = new StringBuilder();
-        var bus = _autonomousCoordinator.IntentionBus;
-
-        if (string.IsNullOrWhiteSpace(arg) || arg.Equals("all", StringComparison.OrdinalIgnoreCase))
-        {
-            // Reject all pending
-            var pending = bus.GetPendingIntentions().ToList();
-            if (pending.Count == 0)
-            {
-                return "No pending intentions to reject.";
-            }
-
-            foreach (var intention in pending)
-            {
-                bus.RejectIntentionByPartialId(intention.Id.ToString()[..8], "User rejected all");
-                sb.AppendLine($"✗ Rejected: [{intention.Id.ToString()[..8]}] {intention.Title}");
-            }
-        }
-        else
-        {
-            // Reject specific intention by ID prefix
-            var result = bus.RejectIntentionByPartialId(arg, "User rejected");
-            sb.AppendLine(result
-                ? $"✗ Rejected intention: {arg}"
-                : $"No pending intention found matching '{arg}'.");
-        }
-
-        await Task.CompletedTask;
-        return sb.ToString();
-    }
-
-    /// <summary>
-    /// Lists all pending intentions.
-    /// </summary>
-    private string ListPendingIntentions()
-    {
-        if (_autonomousCoordinator == null)
-        {
-            return "Push mode not enabled. Use --push flag to enable.";
-        }
-
-        var pending = _autonomousCoordinator.IntentionBus.GetPendingIntentions().ToList();
-
-        if (pending.Count == 0)
-        {
-            return "No pending intentions. Ouroboros will propose actions based on context.";
-        }
-
-        var sb = new StringBuilder();
-        sb.AppendLine("╔═══════════════════════════════════════════════════════════════╗");
-        sb.AppendLine("║                   PENDING INTENTIONS                          ║");
-        sb.AppendLine("╚═══════════════════════════════════════════════════════════════╝");
-        sb.AppendLine();
-
-        foreach (var intention in pending.OrderByDescending(i => i.Priority))
-        {
-            var priorityMarker = intention.Priority switch
-            {
-                IntentionPriority.Critical => "🔴",
-                IntentionPriority.High => "🟠",
-                IntentionPriority.Normal => "🟢",
-                _ => "⚪"
-            };
-
-            sb.AppendLine($"  {priorityMarker} [{intention.Id.ToString()[..8]}] {intention.Category}");
-            sb.AppendLine($"     {intention.Title}");
-            sb.AppendLine($"     {intention.Description}");
-            sb.AppendLine($"     Created: {intention.CreatedAt:HH:mm:ss}");
-            sb.AppendLine();
-        }
-
-        sb.AppendLine("Commands: /approve <id|all> | /reject <id|all>");
-
-        return sb.ToString();
-    }
-
-    /// <summary>
-    /// Pauses push mode (stops proposing actions).
-    /// </summary>
-    private string PausePushMode()
-    {
-        if (_autonomousCoordinator == null)
-        {
-            return "Push mode not enabled.";
-        }
-
-        _pushModeCts?.Cancel();
-        return "⏸ Push mode paused. Use /resume to continue receiving proposals.";
-    }
-
-    /// <summary>
-    /// Resumes push mode (continues proposing actions).
-    /// </summary>
-    private string ResumePushMode()
-    {
-        if (_autonomousCoordinator == null)
-        {
-            return "Push mode not enabled. Use --push flag to enable.";
-        }
-
-        if (_pushModeCts == null || _pushModeCts.IsCancellationRequested)
-        {
-            _pushModeCts?.Dispose();
-            _pushModeCts = new CancellationTokenSource();
-            _pushModeTask = Task.Run(() => _autonomySub.PushModeLoopAsync(_pushModeCts.Token), _pushModeCts.Token);
-            return "▶ Push mode resumed. Ouroboros will propose actions.";
-        }
-
-        return "Push mode is already active.";
-    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
