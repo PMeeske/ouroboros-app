@@ -33,6 +33,7 @@ public sealed class ImmersivePersona : IAsyncDisposable
     // Hyperon integration
     private HyperonFlowIntegration? _hyperonFlow;
     private CancellationTokenSource? _consciousnessLoopCts;
+    private CancellationTokenSource? _autonomousThoughtsSubscriptionCts;
 
     /// <summary>Core identity - who this persona believes it is.</summary>
     public PersonaIdentity Identity { get; private set; }
@@ -109,9 +110,6 @@ public sealed class ImmersivePersona : IAsyncDisposable
 
         // Subscribe to autonomous thoughts
         SubscribeToAutonomousThoughts();
-
-        // Initialize default background operation executors
-        InnerDialog.InitializeDefaultExecutors();
 
         _isInitialized = true;
     }
@@ -690,19 +688,31 @@ Remember: You are {Identity.Name}. You have a continuous experience. You can ver
 
     private void SubscribeToAutonomousThoughts()
     {
+        _autonomousThoughtsSubscriptionCts?.Cancel();
+        _autonomousThoughtsSubscriptionCts?.Dispose();
+        _autonomousThoughtsSubscriptionCts = new CancellationTokenSource();
+        
         // Poll for autonomous thoughts periodically
         _ = Task.Run(async () =>
         {
-            while (_isInitialized)
+            while (_isInitialized && !_autonomousThoughtsSubscriptionCts.Token.IsCancellationRequested)
             {
                 var thoughts = InnerDialog.DrainAutonomousThoughts();
                 foreach (var thought in thoughts)
                 {
                     AutonomousThought?.Invoke(this, new AutonomousThoughtEventArgs(thought));
                 }
-                await Task.Delay(2000);
+                
+                try
+                {
+                    await Task.Delay(2000, _autonomousThoughtsSubscriptionCts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
             }
-        });
+        }, _autonomousThoughtsSubscriptionCts.Token);
     }
 
     #region Hyperon Symbolic Reasoning API
@@ -935,6 +945,9 @@ Remember: You are {Identity.Name}. You have a continuous experience. You can ver
 
         // Stop consciousness loop
         _consciousnessLoopCts?.Cancel();
+        
+        // Stop autonomous thoughts subscription
+        _autonomousThoughtsSubscriptionCts?.Cancel();
 
         // Dispose Hyperon flow integration
         if (_hyperonFlow != null)
@@ -946,5 +959,7 @@ Remember: You are {Identity.Name}. You have a continuous experience. You can ver
         await InnerDialog.StopAutonomousThinkingAsync();
         await _personality.DisposeAsync();
         _thinkingLock.Dispose();
+        _consciousnessLoopCts?.Dispose();
+        _autonomousThoughtsSubscriptionCts?.Dispose();
     }
 }
