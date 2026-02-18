@@ -5,7 +5,7 @@
 using Ouroboros.Abstractions.Core;
 using Ouroboros.Agent.MetaAI.SelfModel;
 
-namespace Ouroboros.WebApi.Services;
+namespace Ouroboros.ApiHost.Services;
 
 /// <summary>
 /// Implementation of self-model service.

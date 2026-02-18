@@ -9,13 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="$(OuroborosFoundation)\Ouroboros.Core\Ouroboros.Core.csproj" />
-    <ProjectReference Include="$(OuroborosFoundation)\Ouroboros.Domain\Ouroboros.Domain.csproj" />
-    <ProjectReference Include="$(OuroborosEngine)\Ouroboros.Pipeline\Ouroboros.Pipeline.csproj" />
-    <ProjectReference Include="$(OuroborosFoundation)\Ouroboros.Tools\Ouroboros.Tools.csproj" />
-    <ProjectReference Include="$(OuroborosEngine)\Ouroboros.Providers\Ouroboros.Providers.csproj" />
-    <ProjectReference Include="$(OuroborosEngine)\Ouroboros.Agent\Ouroboros.Agent.csproj" />
-    <ProjectReference Include="..\Ouroboros.Application\Ouroboros.Application.csproj" />
+    <!-- ApiHost provides all services, middleware, models, and endpoint mappings -->
+    <ProjectReference Include="..\Ouroboros.ApiHost\Ouroboros.ApiHost.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -23,12 +18,6 @@
     <PackageReference Include="Microsoft.Build.Tasks.Core" Version="18.3.3" />
     <PackageReference Include="Microsoft.Build.Utilities.Core" Version="18.3.3" />
 
-    <PackageReference Include="LangChain" Version="0.17.0" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.3" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.3" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="SonarAnalyzer.CSharp" Version="10.19.0.132793" PrivateAssets="all" />
   </ItemGroup>
 

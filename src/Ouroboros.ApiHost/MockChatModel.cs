@@ -1,4 +1,6 @@
-﻿using Ouroboros.Abstractions.Core;
+using Ouroboros.Abstractions.Core;
+
+namespace Ouroboros.ApiHost;
 
 internal sealed class MockChatModel : IChatCompletionModel
 {

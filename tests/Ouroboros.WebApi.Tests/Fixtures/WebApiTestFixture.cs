@@ -5,7 +5,7 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
-using Ouroboros.WebApi.Services;
+using Ouroboros.ApiHost.Services;
 
 namespace Ouroboros.Tests.WebApi.Fixtures;
 
