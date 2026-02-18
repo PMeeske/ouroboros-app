@@ -25,12 +25,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- ASP.NET Core types needed for --serve (WebApplication, WebApplicationBuilder, etc.) -->
+    <!-- ASP.NET Core types needed for 'serve' mode (WebApplication, WebApplicationBuilder, etc.) -->
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- ApiHost enables --serve (embedded Kestrel) and provides IOuroborosApiClient for --api-url -->
+    <!-- ApiHost enables 'serve' mode (embedded Kestrel) and provides IOuroborosApiClient for 'api-url' -->
     <ProjectReference Include="..\Ouroboros.ApiHost\Ouroboros.ApiHost.csproj" />
     <ProjectReference Include="..\Ouroboros.Application\Ouroboros.Application.csproj" />
     <ProjectReference Include="$(OuroborosFoundation)\Ouroboros.Core\Ouroboros.Core.csproj" />
