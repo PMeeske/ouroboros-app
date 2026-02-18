@@ -23,39 +23,39 @@
             </Grid.ColumnDefinitions>
             
             <Button Grid.Column="0"
-                    Text="?"
-                    FontSize="20"
+                    Text="Menu"
+                    FontSize="14"
                     BackgroundColor="#00AA00"
                     TextColor="#FFFFFF"
                     Clicked="OnMenuClicked"
-                    WidthRequest="50"
+                    WidthRequest="60"
                     HeightRequest="40" />
-            
+
             <Label Grid.Column="1"
-                   Text="Ouroboros CLI"
+                   Text="Ouroboros"
                    FontSize="20"
                    FontAttributes="Bold"
                    TextColor="#00FF00"
                    HorizontalOptions="Center"
                    VerticalOptions="Center" />
-            
+
             <Button Grid.Column="2"
-                    Text="??"
-                    FontSize="18"
+                    Text="Models"
+                    FontSize="14"
                     BackgroundColor="#00AA00"
                     TextColor="#FFFFFF"
                     Clicked="OnModelsClicked"
-                    WidthRequest="50"
+                    WidthRequest="70"
                     HeightRequest="40"
                     ToolTipProperties.Text="Model Manager" />
-            
+
             <Button Grid.Column="3"
-                    Text="??"
-                    FontSize="18"
+                    Text="Settings"
+                    FontSize="14"
                     BackgroundColor="#00AA00"
                     TextColor="#FFFFFF"
                     Clicked="OnSettingsClicked"
-                    WidthRequest="50"
+                    WidthRequest="80"
                     HeightRequest="40"
                     ToolTipProperties.Text="Settings" />
         </Grid>
@@ -160,16 +160,17 @@
             </Grid.ColumnDefinitions>
 
             <Button Grid.Column="0"
-                    Text="?"
+                    Text="&#x25B2;"
                     FontSize="16"
                     BackgroundColor="#005500"
                     TextColor="#FFFFFF"
                     Clicked="OnHistoryUpClicked"
-                    WidthRequest="40" />
+                    WidthRequest="40"
+                    ToolTipProperties.Text="Previous command" />
 
             <Entry Grid.Column="1"
                    x:Name="CommandEntry"
-                   Placeholder="Enter command..."
+                   Placeholder="Ask a question or type a command..."
                    PlaceholderColor="#808080"
                    TextColor="#00FF00"
                    BackgroundColor="#000000"

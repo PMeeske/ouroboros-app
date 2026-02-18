@@ -10,37 +10,42 @@ namespace Ouroboros.WebApi.Models;
 public sealed record PipelineRequest
 {
     /// <summary>
-    /// Gets dSL expression for pipeline execution (e.g., "SetTopic('AI') | UseDraft | UseCritique").
+    /// DSL expression describing the pipeline steps.
+    /// Example: "SetTopic('AI') | UseDraft | UseCritique | UseImprove".
+    /// Pipe-separated operations are executed left to right.
     /// </summary>
     public required string Dsl { get; init; }
 
     /// <summary>
-    /// Gets model name to use (defaults to llama3).
+    /// Model name for generation. Defaults to "llama3" when omitted.
+    /// Must match a model available on the configured provider.
     /// </summary>
     public string? Model { get; init; }
 
     /// <summary>
-    /// Gets a value indicating whether enable debug output.
+    /// Enable debug output. When true, intermediate pipeline states and
+    /// timing information are included in the response.
     /// </summary>
     public bool Debug { get; init; }
 
     /// <summary>
-    /// Gets temperature for response generation.
+    /// Sampling temperature. Range: 0.0 (deterministic) to 2.0 (creative). Default: 0.7.
     /// </summary>
     public float? Temperature { get; init; }
 
     /// <summary>
-    /// Gets maximum tokens for response.
+    /// Maximum tokens in the response. Typical range: 100 - 8000.
     /// </summary>
     public int? MaxTokens { get; init; }
 
     /// <summary>
-    /// Gets remote endpoint URL.
+    /// Remote LLM endpoint URL to override the server default.
+    /// Example: "http://localhost:11434".
     /// </summary>
     public string? Endpoint { get; init; }
 
     /// <summary>
-    /// Gets aPI key for remote endpoint.
+    /// API key for the remote endpoint. Required for cloud providers; not needed for local Ollama.
     /// </summary>
     public string? ApiKey { get; init; }
 }
