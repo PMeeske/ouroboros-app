@@ -6,6 +6,7 @@ using System.Diagnostics;
 using Ouroboros.Agent.MetaAI;
 using Ouroboros.Agent.MetaAI.SelfModel;
 using Microsoft.OpenApi;
+using Ouroboros.WebApi.Middleware;
 using Ouroboros.WebApi.Models;
 using Ouroboros.WebApi.Services;
 
@@ -87,7 +88,10 @@ var localizationOptions = new RequestLocalizationOptions()
 
 app.UseRequestLocalization(localizationOptions);
 
-// Configure middleware
+// Middleware pipeline (order matters)
+app.UseMiddleware<CorrelationIdMiddleware>();
+app.UseMiddleware<GlobalExceptionMiddleware>();
+
 // Enable Swagger in all environments for API documentation
 app.UseSwagger();
 app.UseSwaggerUI(c =>
@@ -108,6 +112,7 @@ app.MapGet("/", () => Results.Ok(new
     service = "Ouroboros Web API",
     version = "1.0.0",
     status = "running",
+    documentation = "/swagger",
     environment = new
     {
         name = Ouroboros.Core.EnvironmentDetector.GetEnvironmentName() ?? "Unknown",
@@ -116,17 +121,22 @@ app.MapGet("/", () => Results.Ok(new
         isStaging = Ouroboros.Core.EnvironmentDetector.IsStaging(),
         isKubernetes = Ouroboros.Core.EnvironmentDetector.IsRunningInKubernetes(),
     },
-    endpoints = new[]
+    endpoints = new object[]
     {
-        "/health - Health check endpoint",
-        "/ready - Readiness check endpoint",
-        "/api/ask - Ask a question to the AI",
-        "/api/pipeline - Execute a pipeline DSL",
-        "/api/self/state - Get agent identity state",
-        "/api/self/forecast - Get forecasts and predictions",
-        "/api/self/commitments - Get active commitments",
-        "/api/self/explain - Generate self-explanation from DAG",
-        "/swagger - API documentation"
+        new { method = "GET",  path = "/health",               description = "Liveness probe for Kubernetes" },
+        new { method = "GET",  path = "/ready",                description = "Readiness probe for Kubernetes" },
+        new { method = "POST", path = "/api/ask",              description = "Ask a question (supports RAG and agent mode)" },
+        new { method = "POST", path = "/api/pipeline",         description = "Execute a DSL pipeline" },
+        new { method = "GET",  path = "/api/self/state",       description = "Get agent identity state" },
+        new { method = "GET",  path = "/api/self/forecast",    description = "Get predictions and anomalies" },
+        new { method = "GET",  path = "/api/self/commitments", description = "Get active commitments" },
+        new { method = "POST", path = "/api/self/explain",     description = "Generate self-explanation from execution DAG" },
+        new { method = "GET",  path = "/swagger",              description = "Interactive API documentation (Swagger UI)" },
+    },
+    quickStart = new
+    {
+        askExample = new { method = "POST", url = "/api/ask", body = new { question = "What is functional programming?", model = "llama3" } },
+        pipelineExample = new { method = "POST", url = "/api/pipeline", body = new { dsl = "SetTopic('AI') | UseDraft | UseCritique" } },
     },
 }))
 .WithName("Root")
