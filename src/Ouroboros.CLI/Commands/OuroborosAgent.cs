@@ -1335,7 +1335,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
         // Connect InnerDialogEngine for algorithmic thought generation (80/20 split)
         if (_personalityEngine != null)
         {
-            _autonomousMind.ConnectInnerDialog(
+            await _autonomousMind.ConnectInnerDialogAsync(
                 _personalityEngine.InnerDialog,
                 profile: null,
                 selfAwareness: _personalityEngine.CurrentSelfAwareness);
@@ -1514,7 +1514,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
             if (_config.Verbosity != OutputVerbosity.Quiet)
             {
                 Console.ForegroundColor = ConsoleColor.DarkMagenta;
-                Console.WriteLine($"  💭 [inner thought] I just learned something new from '{query}': {fact}");
+                Console.WriteLine($"  💭 [inner thought] I just learned from '{query}': {fact}");
                 Console.ResetColor();
             }
 
