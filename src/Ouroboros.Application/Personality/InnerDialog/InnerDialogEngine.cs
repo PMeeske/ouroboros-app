@@ -839,7 +839,7 @@ public sealed class InnerDialogEngine
         var thoughtCount = config.MaxThoughts;
         for (int i = 0; i < thoughtCount && !ct.IsCancellationRequested; i++)
         {
-            var thought = await GenerateContextualAutonomousThoughtAsync(profile, selfAwareness, ct);
+            var thought = await GenerateContextualAutonomousThoughtAsync(session, profile, selfAwareness, ct);
             if (thought != null && config.IsThoughtTypeEnabled(thought.Type))
             {
                 session = session.AddThought(thought);
