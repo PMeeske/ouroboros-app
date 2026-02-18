@@ -1,4 +1,4 @@
-namespace Ouroboros.WebApi.Middleware;
+namespace Ouroboros.ApiHost.Middleware;
 
 /// <summary>
 /// Ensures every request/response carries a correlation ID for distributed tracing.

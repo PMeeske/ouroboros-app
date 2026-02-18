@@ -1,4 +1,4 @@
-namespace Ouroboros.WebApi.Middleware;
+namespace Ouroboros.ApiHost.Middleware;
 
 using System.Net;
 using System.Text.Json;

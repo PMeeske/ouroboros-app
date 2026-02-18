@@ -1,6 +1,6 @@
 using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 
-namespace Ouroboros.WebApi.Services;
+namespace Ouroboros.ApiHost.Services;
 
 /// <summary>
 /// Default implementation of pipeline service

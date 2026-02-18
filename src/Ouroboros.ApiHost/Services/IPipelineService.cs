@@ -1,4 +1,4 @@
-﻿namespace Ouroboros.WebApi.Services;
+﻿namespace Ouroboros.ApiHost.Services;
 
 /// <summary>
 /// Service for executing AI pipeline operations.

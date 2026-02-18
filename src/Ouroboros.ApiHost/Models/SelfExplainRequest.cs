@@ -2,7 +2,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
-namespace Ouroboros.WebApi.Models;
+namespace Ouroboros.ApiHost.Models;
 
 /// <summary>
 /// Request for self-model explain endpoint.

@@ -1,4 +1,4 @@
-﻿namespace Ouroboros.WebApi.Models;
+﻿namespace Ouroboros.ApiHost.Models;
 
 /// <summary>
 /// DTO for agent commitment.
