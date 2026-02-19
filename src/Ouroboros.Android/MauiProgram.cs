@@ -37,6 +37,16 @@ public static class MauiProgram
 
 		builder.Services.AddSingleton<OuroborosApiService>();
 
+		// ── GitHub Update Services ────────────────────────────────────────────
+		builder.Services.AddHttpClient<GitHubReleaseService>(client =>
+		{
+			client.DefaultRequestHeaders.Add("User-Agent", "Ouroboros-Android-App");
+			client.DefaultRequestHeaders.Add("Accept", "application/vnd.github.v3+json");
+			client.Timeout = TimeSpan.FromSeconds(30);
+		});
+
+		builder.Services.AddSingleton<UpdateManagerService>();
+
 #if DEBUG
 		builder.Logging.AddDebug();
 #endif
