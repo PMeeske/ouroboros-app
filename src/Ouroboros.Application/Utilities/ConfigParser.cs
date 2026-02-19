@@ -75,8 +75,10 @@ public static class ConfigParser
 
         string trimmed = arg.Trim();
         
-        if ((trimmed.StartsWith('\'') && trimmed.EndsWith('\'')) ||
-            (trimmed.StartsWith('"') && trimmed.EndsWith('"')))
+        // Need at least 2 characters to have a pair of quotes
+        if (trimmed.Length >= 2 &&
+            ((trimmed.StartsWith('\'') && trimmed.EndsWith('\'')) ||
+             (trimmed.StartsWith('"') && trimmed.EndsWith('"'))))
         {
             return trimmed[1..^1];
         }

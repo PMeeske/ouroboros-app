@@ -230,11 +230,21 @@ public static class CliSteps
 
     public static string ParseString(string? arg)
     {
-        arg ??= string.Empty;
-        Match m = Regex.Match(arg, @"^'(?<s>.*)'$", RegexOptions.Singleline);
-        if (m.Success) return m.Groups["s"].Value;
-        m = Regex.Match(arg, @"^""(?<s>.*)""$", RegexOptions.Singleline);
-        if (m.Success) return m.Groups["s"].Value;
+        if (arg is null)
+        {
+            return string.Empty;
+        }
+
+        // If the string is wrapped in double quotes (with optional surrounding whitespace),
+        // extract the content between the quotes. Otherwise, return the original string unchanged.
+        // This preserves whitespace for unquoted strings while stripping quotes and external
+        // whitespace for quoted strings.
+        Match m = Regex.Match(arg, @"^\s*""(.*)""\s*$");
+        if (m.Success)
+        {
+            return m.Groups[1].Value;
+        }
+
         return arg;
     }
 
