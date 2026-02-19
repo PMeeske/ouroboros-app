@@ -64,7 +64,7 @@ public static class InteractiveCommand
 
                 case "Guided setup wizard":
                     console.MarkupLine("[dim]Launching guided setup...[/]");
-                    await Setup.GuidedSetup.RunAsync(new Setup.SetupOptions());
+                    await Setup.GuidedSetup.RunAsync(new SetupOptions());
                     break;
 
                 case "Exit":
