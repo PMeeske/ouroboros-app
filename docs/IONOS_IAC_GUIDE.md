@@ -598,7 +598,6 @@ terraform fmt -check -recursive
 
 ## Related Documentation
 
-- [Terraform README](../terraform/README.md) - Detailed module documentation
 - [IONOS Deployment Guide](IONOS_DEPLOYMENT_GUIDE.md) - Application deployment
 - [IONOS Cloud API Docs](https://api.ionos.com/docs/) - API reference
 - [Terraform IONOS Provider](https://registry.terraform.io/providers/ionos-cloud/ionoscloud/latest/docs)

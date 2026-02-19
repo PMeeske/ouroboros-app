@@ -247,6 +247,6 @@ To disable automatic learning, set `EnablePipelineIntegration = false` in config
 
 ## See Also
 
-- [Consciousness Dream Cycle](CONSCIOUSNESS.md)
-- [Laws of Form](LAWS_OF_FORM.md)
-- [PEFT Training](PEFT_TRAINING.md)
+- Consciousness Dream Cycle - Advanced consciousness modeling features
+- Laws of Form - Formal distinction theory implementation
+- PEFT Training - Parameter-efficient fine-tuning capabilities

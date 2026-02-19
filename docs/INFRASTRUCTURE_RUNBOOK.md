@@ -2,8 +2,6 @@
 
 ## Quick Reference Guide
 
-**For detailed procedures, see**: [terraform/README.md](../terraform/README.md)
-
 This runbook provides quick access to common infrastructure incidents and their resolutions.
 
 ## Emergency Contacts
@@ -474,9 +472,8 @@ What we learned from this incident
 
 ## Additional Resources
 
-- **Full Documentation**: [terraform/README.md](../terraform/README.md)
-- **Quick Start**: [docs/IONOS_IAC_QUICKSTART.md](IONOS_IAC_QUICKSTART.md)
-- **Deployment Guide**: [docs/IONOS_DEPLOYMENT_GUIDE.md](IONOS_DEPLOYMENT_GUIDE.md)
+- **Quick Start**: [IONOS_IAC_QUICKSTART.md](IONOS_IAC_QUICKSTART.md)
+- **Deployment Guide**: [IONOS_DEPLOYMENT_GUIDE.md](IONOS_DEPLOYMENT_GUIDE.md)
 - **IONOS Cloud Docs**: https://api.ionos.com/docs/
 - **Terraform Provider**: https://registry.terraform.io/providers/ionos-cloud/ionoscloud/latest/docs
 

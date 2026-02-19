@@ -377,8 +377,6 @@ Tests validate:
 
 ## Related Documentation
 
-- [Automated Development Cycle](AUTOMATED_DEVELOPMENT_CYCLE.md)
-- [Copilot Development Loop](COPILOT_DEVELOPMENT_LOOP.md)
 - [Playwright Documentation](https://playwright.dev/)
 - [GitHub Actions Artifacts](https://docs.github.com/actions/using-workflows/storing-workflow-data-as-artifacts)
 
