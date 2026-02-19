@@ -59,18 +59,26 @@ public sealed class ModelSubsystem : IModelSubsystem
     {
         try
         {
-            var settings = new ChatRuntimeSettings(ctx.Config.Temperature, ctx.Config.MaxTokens, 120, false);
+            // Avatar mode requires collective intelligence — force it
+            var config = ctx.Config;
+            if (config.Avatar && !config.CollectiveMode)
+            {
+                config = config with { CollectiveMode = true };
+                ctx.Output.RecordInit("CollectiveMode", true, "forced by --avatar");
+            }
+
+            var settings = new ChatRuntimeSettings(config.Temperature, config.MaxTokens, 120, false);
             var (resolvedEndpoint, resolvedApiKey, resolvedEndpointType) = ChatConfig.ResolveWithOverrides(
-                ctx.Config.Endpoint, ctx.Config.ApiKey, ctx.Config.EndpointType);
-            var endpoint = (resolvedEndpoint ?? ctx.Config.Endpoint).TrimEnd('/');
+                config.Endpoint, config.ApiKey, config.EndpointType);
+            var endpoint = (resolvedEndpoint ?? config.Endpoint).TrimEnd('/');
             var apiKey = resolvedApiKey;
 
-            CostTracker = new LlmCostTracker(ctx.Config.Model);
+            CostTracker = new LlmCostTracker(config.Model);
 
-            if (ctx.Config.CollectiveMode)
+            if (config.CollectiveMode)
             {
                 var mind = CollectiveMindFactory.CreateFromConfig(
-                    ctx.Config.Model, ctx.Config.Endpoint, ctx.Config.ApiKey, ctx.Config.EndpointType, settings);
+                    config.Model, config.Endpoint, config.ApiKey, config.EndpointType, settings);
                 ChatModel = mind;
                 CostTracker = mind.CostTracker ?? CostTracker;
                 ctx.Output.RecordInit("Collective Mind", true, $"{mind.HealthyPathwayCount} providers");

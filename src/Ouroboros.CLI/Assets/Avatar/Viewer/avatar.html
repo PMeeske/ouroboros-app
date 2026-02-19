@@ -844,6 +844,9 @@
     <div id="jaw-shadow"></div>
     <div id="brow-overlay"></div>
     <div id="warmth-overlay"></div>
+
+    <!-- Live AI-generated video frame canvas (overlays static portrait when stream active) -->
+    <canvas id="avatarCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;display:none;border-radius:inherit;object-fit:cover;z-index:50;"></canvas>
   </div>
 
   <div id="gold-ring"></div>
@@ -1280,6 +1283,7 @@ function connectWs() {
   connLabel.textContent = 'CONNECTING';
 
   ws = new WebSocket(`ws://localhost:${WS_PORT}/avatar`);
+  ws.binaryType = 'arraybuffer'; // Must be set before messages arrive
 
   ws.onopen = () => {
     reconnectDelay = 1000;
@@ -1288,12 +1292,53 @@ function connectWs() {
     statusText.textContent = 'Connected to Ouroboros';
   };
 
+  // Video frame canvas setup
+  const avatarCanvas = document.getElementById('avatarCanvas');
+  const ctx = avatarCanvas ? avatarCanvas.getContext('2d') : null;
+  let lastFrameTime = 0;
+  const FRAME_TIMEOUT_MS = 5000; // Hide canvas if no frames for 5s
+
+  // Check for frame timeout and hide canvas
+  if (avatarCanvas) {
+    setInterval(() => {
+      if (lastFrameTime > 0 && Date.now() - lastFrameTime > FRAME_TIMEOUT_MS) {
+        avatarCanvas.style.display = 'none';
+        lastFrameTime = 0;
+      }
+    }, 1000);
+  }
+
   ws.onmessage = (ev) => {
-    try {
-      const snap = JSON.parse(ev.data);
-      applySnapshot(snap);
-    } catch (e) {
-      console.warn('Invalid avatar state:', e);
+    if (ev.data instanceof ArrayBuffer) {
+      // Binary message = video frame
+      const data = new Uint8Array(ev.data);
+      if (data.length > 1 && data[0] === 0x01 && avatarCanvas && ctx) {
+        const frameBytes = data.slice(1);
+        const blob = new Blob([frameBytes], { type: 'image/jpeg' });
+        const url = URL.createObjectURL(blob);
+        avatarCanvas.style.display = 'block';
+        // Size canvas to match portrait frame
+        const frame = document.getElementById('portrait-frame');
+        if (frame) {
+          avatarCanvas.width = frame.offsetWidth;
+          avatarCanvas.height = frame.offsetHeight;
+        }
+        const img = new Image();
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0, avatarCanvas.width, avatarCanvas.height);
+          URL.revokeObjectURL(url);
+        };
+        img.src = url;
+        lastFrameTime = Date.now();
+      }
+    } else {
+      // JSON state snapshot (existing path)
+      try {
+        const snap = JSON.parse(ev.data);
+        applySnapshot(snap);
+      } catch (e) {
+        console.warn('Invalid avatar state:', e);
+      }
     }
   };
 

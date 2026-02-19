@@ -593,8 +593,9 @@ public static class ImmersiveMode
             try
             {
                 Console.WriteLine("  [~] Launching interactive avatar...");
-                _avatarService = await Avatar.AvatarIntegration.CreateAndStartAsync(
+                var (service, _videoStream) = await Avatar.AvatarIntegration.CreateAndStartAsync(
                     personaName, ouroOpts.AvatarPort, ct: ct);
+                _avatarService = service;
                 Console.WriteLine("  [OK] Avatar viewer launched — Iaret is watching");
             }
             catch (Exception ex)

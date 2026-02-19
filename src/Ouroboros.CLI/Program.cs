@@ -93,21 +93,17 @@ var versionOption = new System.CommandLine.Option<bool>("--version", "Show versi
 rootCommand.Add(versionOption);
 
 // --serve: embed the Ouroboros API server in-process alongside the CLI
-var serveOption = new System.CommandLine.Option<bool>("--serve")
-{
-    Description = "Co-host the Ouroboros Web API server inside this CLI process (accessible at http://localhost:5000 by default)",
-    DefaultValueFactory = _ => false,
-    Recursive = true,
-};
+var serveOption = new System.CommandLine.Option<bool>("--serve");
+serveOption.Description = "Co-host the Ouroboros Web API server inside this CLI process (accessible at http://localhost:5000 by default)";
+serveOption.DefaultValueFactory = _ => false;
+serveOption.Recursive = true;
 rootCommand.Add(serveOption);
 
 // --api-url: use a remote (or co-hosted) Ouroboros API as upstream provider
-var apiUrlOption = new System.CommandLine.Option<string?>("--api-url")
-{
-    Description = "Base URL of a running Ouroboros Web API to use as upstream provider (e.g. http://localhost:5000). Overrides local pipeline execution.",
-    DefaultValueFactory = _ => null,
-    Recursive = true,
-};
+var apiUrlOption = new System.CommandLine.Option<string?>("--api-url");
+apiUrlOption.Description = "Base URL of a running Ouroboros Web API to use as upstream provider (e.g. http://localhost:5000). Overrides local pipeline execution.";
+apiUrlOption.DefaultValueFactory = _ => null;
+apiUrlOption.Recursive = true;
 rootCommand.Add(apiUrlOption);
 rootCommand.SetAction((parseResult, _) =>
 {
@@ -129,12 +125,10 @@ rootCommand.SetAction((parseResult, _) =>
 });
 
 // Add global voice option (Recursive = true makes it propagate to all subcommands)
-var voiceOption = new System.CommandLine.Option<bool>("--voice")
-{
-    Description = "Enable voice interaction mode",
-    DefaultValueFactory = _ => false,
-    Recursive = true
-};
+var voiceOption = new System.CommandLine.Option<bool>("--voice");
+voiceOption.Description = "Enable voice interaction mode";
+voiceOption.DefaultValueFactory = _ => false;
+voiceOption.Recursive = true;
 rootCommand.Add(voiceOption);
 
 // Add subcommands
@@ -517,11 +511,9 @@ static Command CreateInteractiveCommand(IHost host)
 /// </summary>
 static Command CreateServeCommand()
 {
-    var urlOption = new System.CommandLine.Option<string>("--url")
-    {
-        Description = "URL(s) to listen on (default: http://localhost:5000)",
-        DefaultValueFactory = _ => "http://localhost:5000",
-    };
+    var urlOption = new System.CommandLine.Option<string>("--url");
+    urlOption.Description = "URL(s) to listen on (default: http://localhost:5000)";
+    urlOption.DefaultValueFactory = _ => "http://localhost:5000";
 
     var command = new Command("serve", "Start the Ouroboros Web API server in-process (co-hosted with CLI)");
     command.Add(urlOption);

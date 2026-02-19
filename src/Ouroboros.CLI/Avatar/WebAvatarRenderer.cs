@@ -18,7 +18,7 @@ namespace Ouroboros.CLI.Avatar;
 /// Serves the avatar viewer HTML and relays state over WebSocket.
 /// Opens the user's default browser to show the living avatar alongside the CLI.
 /// </summary>
-public sealed class WebAvatarRenderer : IAvatarRenderer
+public sealed class WebAvatarRenderer : IAvatarRenderer, IVideoFrameRenderer
 {
     private const int DefaultPort = 9471;
     private const int MaxPortRetries = 10;
@@ -125,6 +125,58 @@ public sealed class WebAvatarRenderer : IAvatarRenderer
         var port = ((IPEndPoint)tcp.LocalEndpoint).Port;
         tcp.Stop();
         return port;
+    }
+
+    /// <summary>
+    /// Broadcasts a raw JPEG video frame to all connected WebSocket clients.
+    /// The frame is prefixed with a 0x01 type marker byte so the client can
+    /// distinguish binary video frames from JSON state snapshots.
+    /// </summary>
+    /// <param name="jpegBytes">JPEG-encoded frame bytes.</param>
+    public async Task BroadcastFrameAsync(byte[] jpegBytes)
+    {
+        // Prefix with message type byte: 0x01 = video frame
+        var message = new byte[1 + jpegBytes.Length];
+        message[0] = 0x01;
+        jpegBytes.CopyTo(message, 1);
+
+        await _clientLock.WaitAsync();
+        try
+        {
+            var dead = new List<WebSocket>();
+            foreach (var ws in _clients)
+            {
+                if (ws.State == WebSocketState.Open)
+                {
+                    try
+                    {
+                        await ws.SendAsync(
+                            new ArraySegment<byte>(message),
+                            WebSocketMessageType.Binary,
+                            true,
+                            CancellationToken.None);
+                    }
+                    catch
+                    {
+                        dead.Add(ws);
+                    }
+                }
+                else
+                {
+                    dead.Add(ws);
+                }
+            }
+
+            foreach (var ws in dead)
+            {
+                _clients.Remove(ws);
+                ws.Dispose();
+            }
+        }
+        finally
+        {
+            _clientLock.Release();
+        }
     }
 
     /// <inheritdoc/>
