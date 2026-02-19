@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
+
 namespace Ouroboros.ApiHost.Middleware;
 
 /// <summary>
