@@ -105,6 +105,9 @@ public static class OuroborosCliIntegration
                 var visionLogger = sp.GetService<ILogger<OllamaVisionModel>>();
                 return new OllamaVisionModel(ollamaEndpoint, visionModelName, logger: visionLogger);
             });
+
+            // Register VirtualSelf for avatar perception loop and embodied interaction
+            services.AddSingleton<VirtualSelf>(sp => new VirtualSelf("Iaret"));
         });
 
         var host = builder.Build();

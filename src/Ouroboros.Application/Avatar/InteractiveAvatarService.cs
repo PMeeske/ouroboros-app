@@ -46,6 +46,26 @@ public sealed class InteractiveAvatarService : IAsyncDisposable
     }
 
     /// <summary>
+    /// Broadcasts a raw JPEG video frame to all attached renderers that support binary frame streaming.
+    /// Renderers must implement <see cref="IVideoFrameRenderer"/> to receive frames.
+    /// </summary>
+    /// <param name="jpegFrame">JPEG-encoded frame bytes.</param>
+    public async Task BroadcastVideoFrameAsync(byte[] jpegFrame)
+    {
+        foreach (var renderer in _renderers.Where(r => r.IsActive && r is IVideoFrameRenderer))
+        {
+            try
+            {
+                await ((IVideoFrameRenderer)renderer).BroadcastFrameAsync(jpegFrame);
+            }
+            catch (Exception)
+            {
+                // Individual renderer failures shouldn't crash the stream
+            }
+        }
+    }
+
+    /// <summary>
     /// Subscribes to a presence state observable (e.g. from <c>AgentPresenceController.State</c>).
     /// </summary>
     /// <param name="presenceStates">Observable of presence state names.</param>

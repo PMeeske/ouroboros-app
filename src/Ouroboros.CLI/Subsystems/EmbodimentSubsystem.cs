@@ -32,6 +32,9 @@ public sealed class EmbodimentSubsystem : IEmbodimentSubsystem
     // Interactive avatar
     public Application.Avatar.InteractiveAvatarService? AvatarService { get; set; }
 
+    // Avatar video stream (live SD generation)
+    public Application.Avatar.AvatarVideoStream? AvatarVideoStream { get; set; }
+
     // Vision
     public VisionService? VisionService { get; set; }
 
@@ -228,9 +231,21 @@ public sealed class EmbodimentSubsystem : IEmbodimentSubsystem
 
         try
         {
-            AvatarService = await Avatar.AvatarIntegration.CreateAndStartAsync(
-                ctx.Config.Persona, ctx.Config.AvatarPort, ct: CancellationToken.None);
-            ctx.Output.RecordInit("Avatar", true, $"port {ctx.Config.AvatarPort}");
+            var ollamaEndpoint = ctx.StaticConfiguration?["Ollama:Endpoint"] ?? "http://localhost:11434";
+
+            var (service, videoStream) = await Avatar.AvatarIntegration.CreateAndStartAsync(
+                ctx.Config.Persona,
+                ctx.Config.AvatarPort,
+                visionModel: ctx.Models.VisionModel,
+                virtualSelf: VirtualSelf,
+                ollamaEndpoint: ollamaEndpoint,
+                ct: CancellationToken.None);
+
+            AvatarService = service;
+            AvatarVideoStream = videoStream;
+
+            var streamInfo = videoStream != null ? " + video stream" : "";
+            ctx.Output.RecordInit("Avatar", true, $"port {ctx.Config.AvatarPort}{streamInfo}");
         }
         catch (Exception ex)
         {
@@ -256,6 +271,10 @@ public sealed class EmbodimentSubsystem : IEmbodimentSubsystem
 
         // Dispose virtual self
         VirtualSelf?.Dispose();
+
+        // Dispose avatar video stream
+        if (AvatarVideoStream != null)
+            await AvatarVideoStream.DisposeAsync();
 
         // Dispose avatar
         if (AvatarService != null)
