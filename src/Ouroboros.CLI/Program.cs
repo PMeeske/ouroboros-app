@@ -89,7 +89,8 @@ if (servePreparse)
 var rootCommand = new RootCommand("Ouroboros CLI - Advanced AI Assistant System");
 
 // Add --version option
-var versionOption = new System.CommandLine.Option<bool>("--version", "Show version information");
+var versionOption = new System.CommandLine.Option<bool>("--version");
+versionOption.Description = "Show version information";
 rootCommand.Add(versionOption);
 
 // --serve: embed the Ouroboros API server in-process alongside the CLI
