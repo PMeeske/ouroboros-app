@@ -359,7 +359,5 @@ Listen mode with Azure TTS works seamlessly with:
 
 ## Related Documentation
 
-- [Agent Mode Guide](./docs/OUROBOROS_AGENT_MODE.md)
-- [Voice Configuration](./docs/VOICE_CONFIGURATION.md)
 - [Azure Speech Services](https://learn.microsoft.com/en-us/azure/cognitive-services/speech-service/)
-- [Culture Codes](./docs/CULTURE_SUPPORT.md)
+- [Azure TTS Voice Gallery](https://speech.microsoft.com/portal/voicegallery)

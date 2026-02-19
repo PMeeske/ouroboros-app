@@ -340,8 +340,7 @@ Add at least one stage: `.Draft()`, `.Critique()`, `.Improve()`, or `.Summarize(
 ## Next Steps
 
 - Explore the full [Ouroboros documentation](../README.md)
-- Check out the [examples directory](../examples/)
-- Learn about [advanced pipeline features](../PIPELINE_GUIDE.md)
+- Check out the [examples project](../src/Ouroboros.Examples/)
 - Contribute to [Ouroboros development](../CONTRIBUTING.md)
 
 ## Support

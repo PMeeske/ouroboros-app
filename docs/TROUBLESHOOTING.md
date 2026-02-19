@@ -472,4 +472,4 @@ If you continue to experience issues:
 
 - [DEPLOYMENT.md](DEPLOYMENT.md) - Comprehensive deployment guide
 - [CONFIGURATION_AND_SECURITY.md](CONFIGURATION_AND_SECURITY.md) - Configuration reference
-- [README.md](README.md) - Project overview
+- [Project Overview](../README.md) - Main README
