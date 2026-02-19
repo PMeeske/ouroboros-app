@@ -175,6 +175,7 @@ public partial class MainPage : ContentPage
             "About",
             "Status",
             "Clear Screen",
+            "Check for Updates",
             "Settings");
 
         switch (action)
@@ -195,9 +196,33 @@ public partial class MainPage : ContentPage
                 CommandEntry.Text = "clear";
                 await ExecuteCommand();
                 break;
+            case "Check for Updates":
+                await OnCheckForUpdatesClicked();
+                break;
             case "Settings":
                 OnSettingsClicked(sender, e);
                 break;
+        }
+    }
+
+    private async Task OnCheckForUpdatesClicked()
+    {
+        try
+        {
+            var updateManager = Application.Current?.Handler?.MauiContext?.Services.GetService<UpdateManagerService>();
+            
+            if (updateManager == null)
+            {
+                await DisplayAlert("Error", "Update service not available", "OK");
+                return;
+            }
+
+            var updateView = new Views.UpdateView(updateManager);
+            await Navigation.PushAsync(updateView);
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Error", $"Failed to open update view: {ex.Message}", "OK");
         }
     }
 
