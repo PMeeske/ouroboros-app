@@ -3,6 +3,8 @@
 // </copyright>
 
 using System.Diagnostics;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Ouroboros.ApiHost.Middleware;
 
 namespace Ouroboros.ApiHost.Extensions;
