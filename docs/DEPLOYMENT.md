@@ -241,7 +241,7 @@ export IONOS_PASSWORD="your-password"
 ./scripts/deploy-ionos.sh
 ```
 
-For detailed IONOS deployment instructions, see [IONOS Cloud Deployment Guide](docs/IONOS_DEPLOYMENT_GUIDE.md).
+For detailed IONOS deployment instructions, see [IONOS Cloud Deployment Guide](IONOS_DEPLOYMENT_GUIDE.md).
 
 #### Manual Cloud Deployment
 
@@ -650,10 +650,9 @@ spec:
 
 ## Additional Resources
 
-- [Documentation Index](docs/README.md) - Complete documentation catalog
 - [CONFIGURATION_AND_SECURITY.md](CONFIGURATION_AND_SECURITY.md) - Configuration reference
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Troubleshooting guide
-- [README.md](README.md) - Project overview
+- [Project Overview](../README.md) - Main README
 - [Docker Documentation](https://docs.docker.com/)
 - [Kubernetes Documentation](https://kubernetes.io/docs/)
 

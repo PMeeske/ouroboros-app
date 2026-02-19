@@ -511,13 +511,12 @@ dotnet run -- dag --command snapshot --branch main
 
 ## Next Steps
 
-- Review [Architecture Documentation](PHASE_0_ARCHITECTURE.md)
 - Explore Phase 1 features (when available)
 - Contribute to Phase 0 enhancements
 
 ## Support
 
 For issues or questions:
-- Check [Troubleshooting Guide](../TROUBLESHOOTING.md)
+- Check [Troubleshooting Guide](TROUBLESHOOTING.md)
 - Open an issue on GitHub
-- Review test cases in `src/Ouroboros.Tests/Tests/`
+- Review test cases in `tests/` directory

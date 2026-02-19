@@ -208,7 +208,6 @@ See [Migration Guide](IONOS_IAC_GUIDE.md#migration-from-manual-setup) for detail
 ## Getting Help
 
 - **Full Guide**: [IONOS IaC Guide](IONOS_IAC_GUIDE.md)
-- **Terraform Docs**: [terraform/README.md](../terraform/README.md)
 - **IONOS Support**: [https://www.ionos.com/help](https://www.ionos.com/help)
 - **Issues**: [GitHub Issues](https://github.com/PMeeske/Ouroboros/issues)
 
