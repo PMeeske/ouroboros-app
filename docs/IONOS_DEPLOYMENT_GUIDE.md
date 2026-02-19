@@ -97,7 +97,6 @@ export IONOS_TOKEN="your-api-token"
 **Resources**:
 - **Quick Start Guide**: [IONOS IaC Quick Start](IONOS_IAC_QUICKSTART.md)
 - **Full Documentation**: [IONOS IaC Guide](IONOS_IAC_GUIDE.md)
-- **Terraform Modules**: [terraform/README.md](../terraform/README.md)
 
 **Benefits**:
 - 🚀 **Zero manual setup** - fully automated

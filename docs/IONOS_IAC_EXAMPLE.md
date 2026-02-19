@@ -445,10 +445,8 @@ kubectl describe pod <pod-name> -n monadic-pipeline
 
 ## Resources
 
-- [IONOS IaC Guide](docs/IONOS_IAC_GUIDE.md)
-- [Terraform README](terraform/README.md)
-- [IONOS Deployment Guide](docs/IONOS_DEPLOYMENT_GUIDE.md)
-- [Scripts Documentation](scripts/README.md)
+- [IONOS IaC Guide](IONOS_IAC_GUIDE.md)
+- [IONOS Deployment Guide](IONOS_DEPLOYMENT_GUIDE.md)
 
 ---
 

@@ -223,7 +223,7 @@ sudo journalctl -u monadic-pipeline -f
 
 - [DEPLOYMENT.md](DEPLOYMENT.md) - Complete deployment guide
 - [CONFIGURATION_AND_SECURITY.md](CONFIGURATION_AND_SECURITY.md) - Configuration reference
-- [README.md](README.md) - Project overview
+- [Project Overview](../README.md) - Main README
 
 ---
 
