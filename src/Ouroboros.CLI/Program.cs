@@ -1,6 +1,7 @@
 using System.CommandLine;
 using System.Reflection;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -123,7 +124,7 @@ rootCommand.SetAction((parseResult, _) =>
     }
 
     // No subcommand provided — show help
-    parseResult.Configuration.Output.Write(parseResult.GetResult(rootCommand)!.Command.ToString());
+    Console.Out.Write(parseResult.GetResult(rootCommand)!.Command.ToString());
     return Task.CompletedTask;
 });
 
@@ -497,7 +498,7 @@ static Command CreateChatCommand(IHost host)
 static Command CreateInteractiveCommand(IHost host)
 {
     var command = new Command("interactive", "Guided launcher — discover features through selection prompts");
-    command.AddAlias("i");
+    command.Aliases.Add("i");
 
     command.SetAction(async (parseResult, cancellationToken) =>
     {
