@@ -26,6 +26,7 @@ public static class AvatarIntegration
     /// <param name="visionModel">Optional vision model for the video stream perception loop.</param>
     /// <param name="virtualSelf">Optional VirtualSelf for closed-loop perception publishing.</param>
     /// <param name="ollamaEndpoint">Ollama server endpoint for SD generation.</param>
+    /// <param name="sdModel">Stable Diffusion model name for generation.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The running avatar service and optional video stream (caller must dispose both).</returns>
     public static async Task<(InteractiveAvatarService Service, AvatarVideoStream? VideoStream)> CreateAndStartAsync(
@@ -35,6 +36,7 @@ public static class AvatarIntegration
         IVisionModel? visionModel = null,
         VirtualSelf? virtualSelf = null,
         string ollamaEndpoint = "http://localhost:11434",
+        string sdModel = "stable-diffusion",
         CancellationToken ct = default)
     {
         var service = new InteractiveAvatarService(personaName);
@@ -45,7 +47,7 @@ public static class AvatarIntegration
         AvatarVideoStream? videoStream = null;
         if (visionModel != null || virtualSelf != null)
         {
-            var generator = new AvatarVideoGenerator(ollamaEndpoint, logger: null);
+            var generator = new AvatarVideoGenerator(ollamaEndpoint, sdModel, logger: null);
             videoStream = new AvatarVideoStream(generator, service, visionModel, virtualSelf, assetDirectory);
             _ = videoStream.StartAsync(ct); // fire and forget — runs in background
         }
