@@ -349,6 +349,138 @@ public sealed class MemorySubsystem : IMemorySubsystem
         }
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // THOUGHT COMMANDS (migrated from OuroborosAgent)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Updates the last thought content for "save it" command.
+    /// Call this whenever the agent generates a thought/learning.
+    /// </summary>
+    internal void TrackLastThought(string content)
+    {
+        LastThoughtContent = content;
+    }
+
+    /// <summary>
+    /// Direct command to save a thought/learning to persistent memory.
+    /// Supports "save it" to save the last generated thought, or explicit content.
+    /// </summary>
+    internal async Task<string> SaveThoughtCommandAsync(string argument)
+    {
+        try
+        {
+            if (ThoughtPersistence == null)
+            {
+                return "❌ Thought persistence is not initialized. Thoughts cannot be saved.";
+            }
+
+            string contentToSave;
+            string? topic = null;
+
+            if (string.IsNullOrWhiteSpace(argument))
+            {
+                // "save it" or "save thought" without argument - use last thought
+                if (string.IsNullOrWhiteSpace(LastThoughtContent))
+                {
+                    return @"❌ No recent thought to save.
+
+💡 **Usage:**
+  `save it` - saves the last thought/learning
+  `save thought <content>` - saves explicit content
+  `save learning <content>` - saves a learning
+
+Example: save thought I discovered that monadic composition simplifies error handling";
+                }
+
+                contentToSave = LastThoughtContent;
+            }
+            else
+            {
+                contentToSave = argument.Trim();
+            }
+
+            // Parse topic if present (format: "content #topic" or "content [topic]")
+            var hashIndex = contentToSave.LastIndexOf('#');
+            var bracketIndex = contentToSave.LastIndexOf('[');
+
+            if (hashIndex > 0)
+            {
+                topic = contentToSave[(hashIndex + 1)..].Trim().TrimEnd(']');
+                contentToSave = contentToSave[..hashIndex].Trim();
+            }
+            else if (bracketIndex > 0 && contentToSave.EndsWith(']'))
+            {
+                topic = contentToSave[(bracketIndex + 1)..^1].Trim();
+                contentToSave = contentToSave[..bracketIndex].Trim();
+            }
+
+            // Determine thought type based on content
+            var thoughtType = InnerThoughtType.Consolidation; // Default for learnings
+            if (contentToSave.Contains("learned", StringComparison.OrdinalIgnoreCase) ||
+                contentToSave.Contains("discovered", StringComparison.OrdinalIgnoreCase))
+            {
+                thoughtType = InnerThoughtType.Consolidation;
+            }
+            else if (contentToSave.Contains("wonder", StringComparison.OrdinalIgnoreCase) ||
+                     contentToSave.Contains("curious", StringComparison.OrdinalIgnoreCase) ||
+                     contentToSave.Contains("?"))
+            {
+                thoughtType = InnerThoughtType.Curiosity;
+            }
+            else if (contentToSave.Contains("feel", StringComparison.OrdinalIgnoreCase) ||
+                     contentToSave.Contains("emotion", StringComparison.OrdinalIgnoreCase))
+            {
+                thoughtType = InnerThoughtType.Emotional;
+            }
+            else if (contentToSave.Contains("idea", StringComparison.OrdinalIgnoreCase) ||
+                     contentToSave.Contains("perhaps", StringComparison.OrdinalIgnoreCase) ||
+                     contentToSave.Contains("maybe", StringComparison.OrdinalIgnoreCase))
+            {
+                thoughtType = InnerThoughtType.Creative;
+            }
+            else if (contentToSave.Contains("think", StringComparison.OrdinalIgnoreCase) ||
+                     contentToSave.Contains("realize", StringComparison.OrdinalIgnoreCase))
+            {
+                thoughtType = InnerThoughtType.Metacognitive;
+            }
+
+            // Create and save the thought
+            var thought = InnerThought.CreateAutonomous(
+                thoughtType,
+                contentToSave,
+                confidence: 0.85,
+                priority: ThoughtPriority.Normal,
+                tags: topic != null ? [topic] : null);
+
+            await PersistThoughtFunc(thought, topic);
+
+            var typeEmoji = thoughtType switch
+            {
+                InnerThoughtType.Consolidation => "💡",
+                InnerThoughtType.Curiosity => "🤔",
+                InnerThoughtType.Emotional => "💭",
+                InnerThoughtType.Creative => "💫",
+                InnerThoughtType.Metacognitive => "🧠",
+                _ => "📝"
+            };
+
+            var topicNote = topic != null ? $" (topic: {topic})" : "";
+            return $"✅ **Thought Saved**{topicNote}\n\n{typeEmoji} {contentToSave}\n\nType: {thoughtType} | ID: {thought.Id:N}";
+        }
+        catch (Exception ex)
+        {
+            return $"❌ Failed to save thought: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Agent-level persistence callback that uses the full neuro-symbolic pipeline.
+    /// Set by the mediator (OuroborosAgent) during wiring.
+    /// </summary>
+    internal Func<InnerThought, string?, Task> PersistThoughtFunc { get; set; }
+        = (thought, topic) => Task.CompletedTask;
+
     public ValueTask DisposeAsync()
     {
         MeTTaEngine?.Dispose();

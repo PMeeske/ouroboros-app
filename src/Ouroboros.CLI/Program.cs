@@ -1,8 +1,12 @@
 using System.CommandLine;
+using System.Reflection;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
+using Ouroboros.ApiHost.Extensions;
 using Ouroboros.CLI.Commands;
 using Ouroboros.CLI.Commands.Options;
 using Ouroboros.CLI.Commands.Handlers;
@@ -10,12 +14,29 @@ using Ouroboros.CLI.Infrastructure;
 using Ouroboros.CLI.Services;
 using Ouroboros.CLI.Hosting;
 
+// ── Pre-parse --api-url and --serve before building the DI host ───────────────
+// We need these values at host-construction time so we can swap service registrations.
+string? apiUrlPreparse = null;
+bool servePreparse = false;
+for (int i = 0; i < args.Length; i++)
+{
+    if (args[i] == "--api-url" && i + 1 < args.Length)
+        apiUrlPreparse = args[i + 1];
+    if (args[i] == "--serve")
+        servePreparse = true;
+}
+
 // Create the host builder
 var hostBuilder = Host.CreateDefaultBuilder(args)
     .ConfigureServices((context, services) =>
     {
         // Register CLI services
         services.AddCliServices();
+
+        // If --api-url was provided, redirect IAskService and IPipelineService
+        // to the remote Ouroboros Web API (upstream provider mode).
+        if (!string.IsNullOrWhiteSpace(apiUrlPreparse))
+            services.AddUpstreamApiProvider(apiUrlPreparse);
 
         // Register command handlers
         services.AddCommandHandlers();
@@ -39,8 +60,73 @@ var hostBuilder = Host.CreateDefaultBuilder(args)
 // Build the host
 using var host = hostBuilder.Build();
 
+// ── --serve: start an embedded Ouroboros API server alongside the CLI ─────────
+Task? serveTask = null;
+CancellationTokenSource? serveCts = null;
+if (servePreparse)
+{
+    serveCts = new CancellationTokenSource();
+    serveTask = Task.Run(async () =>
+    {
+        try
+        {
+            var webBuilder = WebApplication.CreateBuilder(args);
+            webBuilder.Services.AddOuroborosWebApi();
+            var webApp = webBuilder.Build();
+            webApp.UseOuroborosWebApi();
+            webApp.MapOuroborosApiEndpoints();
+            AnsiConsole.MarkupLine("[cyan]Ouroboros API server starting (co-hosted with CLI)…[/]");
+            await webApp.RunAsync(serveCts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // expected on shutdown
+        }
+    }, serveCts.Token);
+}
+
 // Create the root command with System.CommandLine
 var rootCommand = new RootCommand("Ouroboros CLI - Advanced AI Assistant System");
+
+// Add --version option
+var versionOption = new System.CommandLine.Option<bool>("--version", "Show version information");
+rootCommand.Add(versionOption);
+
+// --serve: embed the Ouroboros API server in-process alongside the CLI
+var serveOption = new System.CommandLine.Option<bool>("--serve")
+{
+    Description = "Co-host the Ouroboros Web API server inside this CLI process (accessible at http://localhost:5000 by default)",
+    DefaultValueFactory = _ => false,
+    Recursive = true,
+};
+rootCommand.Add(serveOption);
+
+// --api-url: use a remote (or co-hosted) Ouroboros API as upstream provider
+var apiUrlOption = new System.CommandLine.Option<string?>("--api-url")
+{
+    Description = "Base URL of a running Ouroboros Web API to use as upstream provider (e.g. http://localhost:5000). Overrides local pipeline execution.",
+    DefaultValueFactory = _ => null,
+    Recursive = true,
+};
+rootCommand.Add(apiUrlOption);
+rootCommand.SetAction((parseResult, _) =>
+{
+    if (parseResult.GetValue(versionOption))
+    {
+        var assembly = Assembly.GetExecutingAssembly();
+        var version = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+                      ?? assembly.GetName().Version?.ToString()
+                      ?? "0.0.0";
+        AnsiConsole.MarkupLine($"[cyan]Ouroboros CLI[/] {version}");
+        AnsiConsole.MarkupLine($"[dim]Runtime:[/] {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}");
+        AnsiConsole.MarkupLine($"[dim]OS:[/]      {System.Runtime.InteropServices.RuntimeInformation.OSDescription}");
+        return Task.CompletedTask;
+    }
+
+    // No subcommand provided — show help
+    Console.Out.Write(parseResult.GetResult(rootCommand)!.Command.ToString());
+    return Task.CompletedTask;
+});
 
 // Add global voice option (Recursive = true makes it propagate to all subcommands)
 var voiceOption = new System.CommandLine.Option<bool>("--voice")
@@ -58,9 +144,26 @@ rootCommand.Add(CreateOuroborosCommand(host, voiceOption));
 rootCommand.Add(CreateSkillsCommand(host, voiceOption));
 rootCommand.Add(CreateOrchestratorCommand(host, voiceOption));
 rootCommand.Add(CreateCognitivePhysicsCommand(host, voiceOption));
+rootCommand.Add(CreateDoctorCommand());
+rootCommand.Add(CreateChatCommand(host));
+rootCommand.Add(CreateInteractiveCommand(host));
+
+// Add a special 'serve' subcommand for running API-only mode
+rootCommand.Add(CreateServeCommand());
 
 // Parse and invoke
-return await rootCommand.Parse(args).InvokeAsync();
+int exitCode = await rootCommand.Parse(args).InvokeAsync();
+
+// Shut down the co-hosted API server (if --serve was used)
+if (serveCts is not null)
+{
+    await serveCts.CancelAsync();
+    if (serveTask is not null)
+        await serveTask.ConfigureAwait(false);
+    serveCts.Dispose();
+}
+
+return exitCode;
 
 // ────────────────────────────────────────────────────────
 // Command creation methods
@@ -362,6 +465,81 @@ static Command CreateCognitivePhysicsCommand(IHost host, System.CommandLine.Opti
                 console.MarkupLine($"[red]Unknown operation:[/] {operation}. Use: shift, trajectory, entangle, chaos");
                 break;
         }
+    });
+
+    return command;
+}
+
+static Command CreateDoctorCommand()
+{
+    var command = new Command("doctor", "Check your development environment for required and optional dependencies");
+
+    command.SetAction(async (parseResult, cancellationToken) =>
+    {
+        await DoctorCommand.RunAsync(AnsiConsole.Console);
+    });
+
+    return command;
+}
+
+static Command CreateChatCommand(IHost host)
+{
+    var command = new Command("chat", "Start an interactive chat session with the LLM");
+
+    command.SetAction(async (parseResult, cancellationToken) =>
+    {
+        var askService = host.Services.GetRequiredService<IAskService>();
+        await ChatCommand.RunAsync(askService, AnsiConsole.Console, cancellationToken);
+    });
+
+    return command;
+}
+
+static Command CreateInteractiveCommand(IHost host)
+{
+    var command = new Command("interactive", "Guided launcher — discover features through selection prompts");
+    command.Aliases.Add("i");
+
+    command.SetAction(async (parseResult, cancellationToken) =>
+    {
+        var askService = host.Services.GetRequiredService<IAskService>();
+        var pipelineService = host.Services.GetRequiredService<IPipelineService>();
+        await InteractiveCommand.RunAsync(askService, pipelineService, AnsiConsole.Console, cancellationToken);
+    });
+
+    return command;
+}
+
+/// <summary>
+/// 'serve' subcommand — starts the Ouroboros Web API server in foreground mode
+/// (no other CLI commands; blocks until Ctrl+C). Equivalent to running the
+/// standalone Ouroboros.WebApi project but embedded in the CLI binary.
+/// </summary>
+static Command CreateServeCommand()
+{
+    var urlOption = new System.CommandLine.Option<string>("--url")
+    {
+        Description = "URL(s) to listen on (default: http://localhost:5000)",
+        DefaultValueFactory = _ => "http://localhost:5000",
+    };
+
+    var command = new Command("serve", "Start the Ouroboros Web API server in-process (co-hosted with CLI)");
+    command.Add(urlOption);
+
+    command.SetAction(async (parseResult, cancellationToken) =>
+    {
+        var url = parseResult.GetValue(urlOption) ?? "http://localhost:5000";
+
+        var webBuilder = WebApplication.CreateBuilder([]);
+        webBuilder.WebHost.UseUrls(url);
+        webBuilder.Services.AddOuroborosWebApi();
+        var webApp = webBuilder.Build();
+        webApp.UseOuroborosWebApi();
+        webApp.MapOuroborosApiEndpoints();
+
+        AnsiConsole.MarkupLine($"[cyan]Ouroboros API server listening on[/] [link]{url}[/]");
+        AnsiConsole.MarkupLine("[dim]Press Ctrl+C to stop.[/]");
+        await webApp.RunAsync(cancellationToken);
     });
 
     return command;

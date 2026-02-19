@@ -7,16 +7,23 @@ namespace Ouroboros.Application.Personality;
 using System.Collections.Concurrent;
 
 /// <summary>
-/// Engine for conducting inner dialog processes.
+/// Engine for conducting inner dialog and autonomous thinking processes.
 /// Implements a multi-phase thinking process that simulates internal reasoning.
+/// Uses algorithmic thought generation with dynamic composition and variation.
+/// Enhanced with genetic evolution and MeTTa symbolic reasoning for natural thoughts.
+/// Now includes conversation-aware contextual thought generation.
 /// </summary>
 public sealed class InnerDialogEngine
 {
     private readonly Random _random = new();
     private readonly ConcurrentDictionary<string, List<InnerDialogSession>> _sessionHistory = new();
     private readonly List<IThoughtProvider> _providers = new();
+    private readonly ConcurrentQueue<InnerThought> _autonomousThoughtQueue = new();
+    private readonly ConcurrentDictionary<string, List<InnerThought>> _backgroundThoughts = new();
     private readonly ThoughtDrivenOperationEngine _operationEngine = new();
     private readonly ConcurrentQueue<BackgroundOperationResult> _operationResults = new();
+    private CancellationTokenSource? _autonomousThinkingCts;
+    private Task? _autonomousThinkingTask;
     private static readonly Random _staticRandom = new();
     private ThoughtPersistenceService? _persistenceService;
     private string? _currentTopic;
@@ -25,6 +32,154 @@ public sealed class InnerDialogEngine
     /// Gets the thought-driven operation engine for registering executors and retrieving results.
     /// </summary>
     public ThoughtDrivenOperationEngine OperationEngine => _operationEngine;
+
+    /// <summary>
+    /// Starts autonomous background thinking with operation execution.
+    /// Thoughts will trigger useful background operations that synergize with conversation.
+    /// </summary>
+    public void StartAutonomousThinking(
+        PersonalityProfile? profile,
+        SelfAwareness? selfAwareness,
+        TimeSpan interval = default)
+    {
+        if (_autonomousThinkingTask != null) return;
+
+        interval = interval == default ? TimeSpan.FromSeconds(30) : interval;
+        _autonomousThinkingCts?.Dispose();
+        _autonomousThinkingCts = new CancellationTokenSource();
+
+        _autonomousThinkingTask = Task.Run(async () =>
+        {
+            while (!_autonomousThinkingCts.Token.IsCancellationRequested)
+            {
+                try
+                {
+                    var thought = await GenerateAutonomousThoughtAsync(profile, selfAwareness, _autonomousThinkingCts.Token);
+                    if (thought != null)
+                    {
+                        _autonomousThoughtQueue.Enqueue(thought);
+                        var personaName = profile?.PersonaName ?? "default";
+                        _backgroundThoughts.AddOrUpdate(
+                            personaName,
+                            _ => new List<InnerThought> { thought },
+                            (_, list) =>
+                            {
+                                var newList = new List<InnerThought>(list) { thought };
+                                return newList;
+                            });
+
+                        // Execute background operations based on the thought
+                        var operationResults = await _operationEngine.ProcessThoughtAsync(
+                            thought, _autonomousThinkingCts.Token);
+
+                        foreach (var result in operationResults)
+                        {
+                            _operationResults.Enqueue(result);
+
+                            // Keep queue bounded
+                            while (_operationResults.Count > 50)
+                            {
+                                _operationResults.TryDequeue(out _);
+                            }
+                        }
+                    }
+
+                    await Task.Delay(interval, _autonomousThinkingCts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+            }
+        });
+    }
+
+    /// <summary>
+    /// Stops autonomous background thinking.
+    /// </summary>
+    public async Task StopAutonomousThinkingAsync()
+    {
+        if (_autonomousThinkingCts != null)
+        {
+            _autonomousThinkingCts.Cancel();
+            if (_autonomousThinkingTask != null)
+            {
+                await _autonomousThinkingTask;
+            }
+
+            _autonomousThinkingCts.Dispose();
+            _autonomousThinkingCts = null;
+            _autonomousThinkingTask = null;
+        }
+    }
+
+    /// <summary>
+    /// Gets and clears pending autonomous thoughts.
+    /// </summary>
+    public List<InnerThought> DrainAutonomousThoughts()
+    {
+        var thoughts = new List<InnerThought>();
+        while (_autonomousThoughtQueue.TryDequeue(out var thought))
+        {
+            thoughts.Add(thought);
+        }
+        return thoughts;
+    }
+
+    /// <summary>
+    /// Gets recent background thoughts for a persona.
+    /// </summary>
+    public List<InnerThought> GetBackgroundThoughts(string personaName, int limit = 10)
+    {
+        if (_backgroundThoughts.TryGetValue(personaName, out var thoughts))
+        {
+            return thoughts.TakeLast(limit).ToList();
+        }
+        return new List<InnerThought>();
+    }
+
+    /// <summary>
+    /// Generates a single autonomous thought.
+    /// </summary>
+    public async Task<InnerThought?> GenerateAutonomousThoughtAsync(
+        PersonalityProfile? profile,
+        SelfAwareness? selfAwareness,
+        CancellationToken ct = default)
+    {
+        // Select an autonomous thought type
+        var autonomousTypes = new[]
+        {
+            InnerThoughtType.Curiosity,
+            InnerThoughtType.Wandering,
+            InnerThoughtType.Metacognitive,
+            InnerThoughtType.Anticipatory,
+            InnerThoughtType.Consolidation,
+            InnerThoughtType.Musing,
+            InnerThoughtType.Intention,
+            InnerThoughtType.Aesthetic,
+            InnerThoughtType.Existential,
+            InnerThoughtType.Playful
+        };
+
+        var type = autonomousTypes[_random.Next(autonomousTypes.Length)];
+
+        // Generate content using contextual thought generation
+        var dummySession = InnerDialogSession.Start("[Autonomous]", _currentTopic ?? "thinking");
+        var thought = await GenerateContextualAutonomousThoughtAsync(dummySession, profile, selfAwareness, ct);
+        if (thought == null) return null;
+
+        // Determine priority based on type
+        var priority = type switch
+        {
+            InnerThoughtType.Intention => ThoughtPriority.High,
+            InnerThoughtType.Anticipatory => ThoughtPriority.Normal,
+            InnerThoughtType.Metacognitive => ThoughtPriority.Normal,
+            InnerThoughtType.Consolidation => ThoughtPriority.Normal,
+            _ => ThoughtPriority.Background
+        };
+
+        return InnerThought.CreateAutonomous(type, thought.Content, 0.6, priority);
+    }
 
     /// <summary>
     /// Gets or sets the persistence service for saving thoughts.
@@ -298,8 +453,9 @@ public sealed class InnerDialogEngine
     public IReadOnlyList<IThoughtProvider> Providers => _providers.AsReadOnly();
 
     /// <summary>
-    /// Updates the conversation context for background operations.
+    /// Updates the conversation context for background operations and contextual thought generation.
     /// Call this when conversation state changes to enable synergy.
+    /// This is the key method for making thoughts context-aware.
     /// </summary>
     public void UpdateConversationContext(
         string? currentTopic,
@@ -679,7 +835,7 @@ public sealed class InnerDialogEngine
         var topic = GenerateAutonomousTopic(profile, selfAwareness);
         var session = InnerDialogSession.Start($"[Autonomous thought about: {topic}]", topic);
 
-        // Generate multiple autonomous thoughts using template-based generation
+        // Generate multiple autonomous thoughts
         var thoughtCount = config.MaxThoughts;
         for (int i = 0; i < thoughtCount && !ct.IsCancellationRequested; i++)
         {

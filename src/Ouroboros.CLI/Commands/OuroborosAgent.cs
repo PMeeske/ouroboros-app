@@ -1123,7 +1123,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
         WireAutonomyCallbacks();
 
         // ── Autonomous Mind delegates ──
-        WireAutonomousMindDelegates();
+        WireAutonomousMindDelegatesAsync().GetAwaiter().GetResult();
 
         // ── Autonomous Coordinator ──
         WireAutonomousCoordinatorAsync().GetAwaiter().GetResult();
@@ -1156,6 +1156,9 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
 
         // -- Pipeline think delegate --
         WirePipelineThinkDelegate();
+
+        // -- Memory subsystem thought persistence --
+        _memorySub.PersistThoughtFunc = PersistThoughtAsync;
     }
 
     /// <summary>
@@ -1177,7 +1180,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     /// Wires AutonomousMind's ThinkFunction, SearchFunction, ExecuteToolFunction,
     /// pipe command execution, output sanitization, and all event handlers.
     /// </summary>
-    private void WireAutonomousMindDelegates()
+    private async Task WireAutonomousMindDelegatesAsync()
     {
         if (_autonomousMind == null) return;
 
@@ -1295,7 +1298,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
             else if (_config.Verbosity != OutputVerbosity.Quiet)
             {
                 Console.ForegroundColor = ConsoleColor.DarkMagenta;
-                Console.WriteLine($"  [inner thought] {msg}");
+                Console.WriteLine($"  💭 [inner thought] {msg}");
                 Console.ResetColor();
             }
             try { await _voice.WhisperAsync(msg); } catch { }
@@ -1324,13 +1327,22 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
             };
             var innerThought = InnerThought.CreateAutonomous(thoughtType, thought.Content, confidence: 0.7);
 
-            // Display autonomous mind thoughts in pink
+            // Display autonomous mind thoughts in magenta with thought bubble
             Console.ForegroundColor = ConsoleColor.DarkMagenta;
-            Console.WriteLine($"\n  [inner thought] {thought.Content}");
+            Console.WriteLine($"\n  💭 [inner thought] {thought.Content}");
             Console.ResetColor();
 
             await PersistThoughtAsync(innerThought, "autonomous_thinking");
         };
+
+        // Connect InnerDialogEngine for algorithmic thought generation (80/20 split)
+        if (_personalityEngine != null)
+        {
+            await _autonomousMind.ConnectInnerDialogAsync(
+                _personalityEngine.InnerDialog,
+                profile: null,
+                selfAwareness: _personalityEngine.CurrentSelfAwareness);
+        }
     }
 
     /// <summary>
@@ -1439,8 +1451,8 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
 
         _immersivePersona.AutonomousThought += (_, e) =>
         {
-            Console.ForegroundColor = ConsoleColor.DarkCyan;
-            Console.WriteLine($"\n  [inner thought] {e.Thought.Content}");
+            Console.ForegroundColor = ConsoleColor.DarkMagenta;
+            Console.WriteLine($"\n  💭 [inner thought] {e.Thought.Content}");
             Console.ResetColor();
         };
     }
@@ -1505,7 +1517,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
             if (_config.Verbosity != OutputVerbosity.Quiet)
             {
                 Console.ForegroundColor = ConsoleColor.DarkMagenta;
-                Console.WriteLine($"  [inner thought] I discovered from '{query}': {fact}");
+                Console.WriteLine($"  💭 [inner thought] I just learned from '{query}': {fact}");
                 Console.ResetColor();
             }
 
@@ -2221,7 +2233,7 @@ $synth.Dispose()
             {
                 var translatedThought = await TranslateThoughtIfNeededAsync(result.WarmupThought);
                 Console.ForegroundColor = ConsoleColor.DarkMagenta;
-                Console.WriteLine($"\n  [inner thought] {translatedThought}");
+                Console.WriteLine($"\n  💭 [inner thought] {translatedThought}");
                 Console.ResetColor();
             }
         }
@@ -5650,9 +5662,25 @@ Use this actual code information to answer the user's question accurately.
     private Task<string> EvaluateCommandAsync(string subCommand)
         => _autonomySub.EvaluateCommandAsync(subCommand);
 
-    // 
+    // Push Mode commands (moved to AutonomySubsystem)
+    private Task<string> ApproveIntentionAsync(string arg)
+        => _autonomySub.ApproveIntentionAsync(arg);
+
+    private Task<string> RejectIntentionAsync(string arg)
+        => _autonomySub.RejectIntentionAsync(arg);
+
+    private string ListPendingIntentions()
+        => _autonomySub.ListPendingIntentions();
+
+    private string PausePushMode()
+        => _autonomySub.PausePushMode();
+
+    private string ResumePushMode()
+        => _autonomySub.ResumePushMode();
+
+    //
     //  COGNITIVE DELEGATES  Emergent Behavior Commands (logic in CognitiveSubsystem)
-    // 
+    //
 
     private Task<string> EmergenceCommandAsync(string topic)
         => ((CognitiveSubsystem)_cognitiveSub).EmergenceCommandAsync(topic);
@@ -5663,649 +5691,38 @@ Use this actual code information to answer the user's question accurately.
     private Task<string> IntrospectCommandAsync(string focus)
         => ((CognitiveSubsystem)_cognitiveSub).IntrospectCommandAsync(focus);
 
+    // Thought commands (moved to MemorySubsystem)
+    private Task<string> SaveThoughtCommandAsync(string argument)
+        => _memorySub.SaveThoughtCommandAsync(argument);
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // SELF-MODIFICATION COMMANDS (Direct tool invocation)
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Direct command to save/modify code using modify_my_code tool.
-    /// Bypasses LLM since some models don't properly use tools.
-    /// </summary>
-    private async Task<string> SaveCodeCommandAsync(string argument)
-    {
-        try
-        {
-            // Check if we have the tool
-            Maybe<ITool> toolOption = _tools.GetTool("modify_my_code");
-            if (!toolOption.HasValue)
-            {
-                return "❌ Self-modification tool (modify_my_code) is not registered. Please restart with proper tool initialization.";
-            }
-
-            ITool tool = toolOption.GetValueOrDefault(null!)!;
-
-            // Parse the argument - expect JSON or guided input
-            if (string.IsNullOrWhiteSpace(argument))
-            {
-                return @"📝 **Save Code - Direct Tool Invocation**
-
-Usage: `save {""file"":""path/to/file.cs"",""search"":""exact text to find"",""replace"":""replacement text""}`
-
-Or use the interactive format:
-  `save file.cs ""old text"" ""new text""`
-
-Examples:
-  `save {""file"":""src/Ouroboros.CLI/Commands/OuroborosAgent.cs"",""search"":""old code"",""replace"":""new code""}`
-  `save MyClass.cs ""public void Old()"" ""public void New()""
-
-This command directly invokes the `modify_my_code` tool, bypassing the LLM.";
-            }
-
-            string jsonInput;
-            if (argument.TrimStart().StartsWith("{"))
-            {
-                // Already JSON
-                jsonInput = argument;
-            }
-            else
-            {
-                // Try to parse as "file search replace" format
-                // Normalize smart quotes and other quote variants to standard quotes
-                string normalizedArg = argument
-                    .Replace('\u201C', '"')  // Left smart quote "
-                    .Replace('\u201D', '"')  // Right smart quote "
-                    .Replace('\u201E', '"')  // German low quote „
-                    .Replace('\u201F', '"')  // Double high-reversed-9 ‟
-                    .Replace('\u2018', '\'') // Left single smart quote '
-                    .Replace('\u2019', '\'') // Right single smart quote '
-                    .Replace('`', '\'');     // Backtick to single quote
-
-                // Find first quote (double or single)
-                int firstDoubleQuote = normalizedArg.IndexOf('"');
-                int firstSingleQuote = normalizedArg.IndexOf('\'');
-
-                char quoteChar;
-                int firstQuote;
-                if (firstDoubleQuote == -1 && firstSingleQuote == -1)
-                {
-                    return @"❌ Invalid format. Use JSON or: filename ""search text"" ""replace text""
-
-Example: save MyClass.cs ""old code"" ""new code""
-Note: You can use double quotes ("") or single quotes ('')";
-                }
-                else if (firstDoubleQuote == -1)
-                {
-                    quoteChar = '\'';
-                    firstQuote = firstSingleQuote;
-                }
-                else if (firstSingleQuote == -1)
-                {
-                    quoteChar = '"';
-                    firstQuote = firstDoubleQuote;
-                }
-                else
-                {
-                    // Use whichever comes first
-                    if (firstDoubleQuote < firstSingleQuote)
-                    {
-                        quoteChar = '"';
-                        firstQuote = firstDoubleQuote;
-                    }
-                    else
-                    {
-                        quoteChar = '\'';
-                        firstQuote = firstSingleQuote;
-                    }
-                }
-
-                string filePart = normalizedArg[..firstQuote].Trim();
-                string rest = normalizedArg[firstQuote..];
-
-                // Parse quoted strings
-                List<string> quoted = new();
-                bool inQuote = false;
-                StringBuilder current = new();
-                for (int i = 0; i < rest.Length; i++)
-                {
-                    char c = rest[i];
-                    if (c == quoteChar)
-                    {
-                        if (inQuote)
-                        {
-                            quoted.Add(current.ToString());
-                            current.Clear();
-                            inQuote = false;
-                        }
-                        else
-                        {
-                            inQuote = true;
-                        }
-                    }
-                    else if (inQuote)
-                    {
-                        current.Append(c);
-                    }
-                }
-
-                if (quoted.Count < 2)
-                {
-                    return $@"❌ Could not parse search and replace strings. Found {quoted.Count} quoted section(s).
-
-Use format: filename ""search"" ""replace""
-Or with single quotes: filename 'search' 'replace'
-
-Make sure both search and replace text are quoted.";
-                }
-
-                jsonInput = System.Text.Json.JsonSerializer.Serialize(new
-                {
-                    file = filePart,
-                    search = quoted[0],
-                    replace = quoted[1]
-                });
-            }
-
-            // Invoke the tool directly
-            Console.WriteLine($"[SaveCode] Invoking modify_my_code with: {jsonInput[..Math.Min(100, jsonInput.Length)]}...");
-            Result<string, string> result = await tool.InvokeAsync(jsonInput);
-
-            if (result.IsSuccess)
-            {
-                return $"✅ **Code Modified Successfully**\n\n{result.Value}";
-            }
-            else
-            {
-                return $"❌ **Modification Failed**\n\n{result.Error}";
-            }
-        }
-        catch (Exception ex)
-        {
-            return $"❌ SaveCode command failed: {ex.Message}";
-        }
-    }
-
-    /// <summary>
-    /// Direct command to save a thought/learning to persistent memory.
-    /// Supports "save it" to save the last generated thought, or explicit content.
-    /// </summary>
-    private async Task<string> SaveThoughtCommandAsync(string argument)
-    {
-        try
-        {
-            if (_thoughtPersistence == null)
-            {
-                return "❌ Thought persistence is not initialized. Thoughts cannot be saved.";
-            }
-
-            string contentToSave;
-            string? topic = null;
-
-            if (string.IsNullOrWhiteSpace(argument))
-            {
-                // "save it" or "save thought" without argument - use last thought
-                if (string.IsNullOrWhiteSpace(_lastThoughtContent))
-                {
-                    return @"❌ No recent thought to save.
-
-💡 **Usage:**
-  `save it` - saves the last thought/learning
-  `save thought <content>` - saves explicit content
-  `save learning <content>` - saves a learning
-
-Example: save thought I discovered that monadic composition simplifies error handling";
-                }
-
-                contentToSave = _lastThoughtContent;
-            }
-            else
-            {
-                contentToSave = argument.Trim();
-            }
-
-            // Parse topic if present (format: "content #topic" or "content [topic]")
-            var hashIndex = contentToSave.LastIndexOf('#');
-            var bracketIndex = contentToSave.LastIndexOf('[');
-
-            if (hashIndex > 0)
-            {
-                topic = contentToSave[(hashIndex + 1)..].Trim().TrimEnd(']');
-                contentToSave = contentToSave[..hashIndex].Trim();
-            }
-            else if (bracketIndex > 0 && contentToSave.EndsWith(']'))
-            {
-                topic = contentToSave[(bracketIndex + 1)..^1].Trim();
-                contentToSave = contentToSave[..bracketIndex].Trim();
-            }
-
-            // Determine thought type based on content
-            var thoughtType = InnerThoughtType.Consolidation; // Default for learnings
-            if (contentToSave.Contains("learned", StringComparison.OrdinalIgnoreCase) ||
-                contentToSave.Contains("discovered", StringComparison.OrdinalIgnoreCase))
-            {
-                thoughtType = InnerThoughtType.Consolidation;
-            }
-            else if (contentToSave.Contains("wonder", StringComparison.OrdinalIgnoreCase) ||
-                     contentToSave.Contains("curious", StringComparison.OrdinalIgnoreCase) ||
-                     contentToSave.Contains("?"))
-            {
-                thoughtType = InnerThoughtType.Curiosity;
-            }
-            else if (contentToSave.Contains("feel", StringComparison.OrdinalIgnoreCase) ||
-                     contentToSave.Contains("emotion", StringComparison.OrdinalIgnoreCase))
-            {
-                thoughtType = InnerThoughtType.Emotional;
-            }
-            else if (contentToSave.Contains("idea", StringComparison.OrdinalIgnoreCase) ||
-                     contentToSave.Contains("perhaps", StringComparison.OrdinalIgnoreCase) ||
-                     contentToSave.Contains("maybe", StringComparison.OrdinalIgnoreCase))
-            {
-                thoughtType = InnerThoughtType.Creative;
-            }
-            else if (contentToSave.Contains("think", StringComparison.OrdinalIgnoreCase) ||
-                     contentToSave.Contains("realize", StringComparison.OrdinalIgnoreCase))
-            {
-                thoughtType = InnerThoughtType.Metacognitive;
-            }
-
-            // Create and save the thought
-            var thought = InnerThought.CreateAutonomous(
-                thoughtType,
-                contentToSave,
-                confidence: 0.85,
-                priority: ThoughtPriority.Normal,
-                tags: topic != null ? [topic] : null);
-
-            await PersistThoughtAsync(thought, topic);
-
-            var typeEmoji = thoughtType switch
-            {
-                InnerThoughtType.Consolidation => "💡",
-                InnerThoughtType.Curiosity => "🤔",
-                InnerThoughtType.Emotional => "💭",
-                InnerThoughtType.Creative => "💫",
-                InnerThoughtType.Metacognitive => "🧠",
-                _ => "📝"
-            };
-
-            var topicNote = topic != null ? $" (topic: {topic})" : "";
-            return $"✅ **Thought Saved**{topicNote}\n\n{typeEmoji} {contentToSave}\n\nType: {thoughtType} | ID: {thought.Id:N}";
-        }
-        catch (Exception ex)
-        {
-            return $"❌ Failed to save thought: {ex.Message}";
-        }
-    }
-
-    /// <summary>
-    /// Updates the last thought content for "save it" command.
-    /// Call this whenever the agent generates a thought/learning.
-    /// </summary>
     private void TrackLastThought(string content)
-    {
-        _lastThoughtContent = content;
-    }
+        => _memorySub.TrackLastThought(content);
 
-    /// <summary>
-    /// Direct command to read source code using read_my_file tool.
-    /// </summary>
-    private async Task<string> ReadMyCodeCommandAsync(string filePath)
-    {
-        try
-        {
-            Maybe<ITool> toolOption = _tools.GetTool("read_my_file");
-            if (!toolOption.HasValue)
-            {
-                return "❌ Read file tool (read_my_file) is not registered.";
-            }
+    // Code Self-Perception commands (moved to AutonomySubsystem)
+    private Task<string> SaveCodeCommandAsync(string argument)
+        => _autonomySub.SaveCodeCommandAsync(argument);
 
-            ITool tool = toolOption.GetValueOrDefault(null!)!;
+    private Task<string> ReadMyCodeCommandAsync(string filePath)
+        => _autonomySub.ReadMyCodeCommandAsync(filePath);
 
-            if (string.IsNullOrWhiteSpace(filePath))
-            {
-                return @"📖 **Read My Code - Direct Tool Invocation**
+    private Task<string> SearchMyCodeCommandAsync(string query)
+        => _autonomySub.SearchMyCodeCommandAsync(query);
 
-Usage: `read my code <filepath>`
+    private Task<string> AnalyzeCodeCommandAsync(string input)
+        => _autonomySub.AnalyzeCodeCommandAsync(input);
 
-Examples:
-  `read my code src/Ouroboros.CLI/Commands/OuroborosAgent.cs`
-  `/read OuroborosCommands.cs`
-  `cat Program.cs`";
-            }
+    // Index commands (moved to AutonomySubsystem)
+    private Task<string> ReindexFullAsync()
+        => _autonomySub.ReindexFullAsync();
 
-            Console.WriteLine($"[ReadMyCode] Reading: {filePath}");
-            Result<string, string> result = await tool.InvokeAsync(filePath.Trim());
+    private Task<string> ReindexIncrementalAsync()
+        => _autonomySub.ReindexIncrementalAsync();
 
-            if (result.IsSuccess)
-            {
-                return result.Value;
-            }
-            else
-            {
-                return $"❌ Failed to read file: {result.Error}";
-            }
-        }
-        catch (Exception ex)
-        {
-            return $"❌ ReadMyCode command failed: {ex.Message}";
-        }
-    }
+    private Task<string> IndexSearchAsync(string query)
+        => _autonomySub.IndexSearchAsync(query);
 
-    /// <summary>
-    /// Direct command to search source code using search_my_code tool.
-    /// </summary>
-    private async Task<string> SearchMyCodeCommandAsync(string query)
-    {
-        try
-        {
-            Maybe<ITool> toolOption = _tools.GetTool("search_my_code");
-            if (!toolOption.HasValue)
-            {
-                return "❌ Search code tool (search_my_code) is not registered.";
-            }
-
-            ITool tool = toolOption.GetValueOrDefault(null!)!;
-
-            if (string.IsNullOrWhiteSpace(query))
-            {
-                return @"🔍 **Search My Code - Direct Tool Invocation**
-
-Usage: `search my code <query>`
-
-Examples:
-  `search my code tool registration`
-  `/search consciousness`
-  `grep modify_my_code`
-  `find in code GenerateTextAsync`";
-            }
-
-            Console.WriteLine($"[SearchMyCode] Searching for: {query}");
-            Result<string, string> result = await tool.InvokeAsync(query.Trim());
-
-            if (result.IsSuccess)
-            {
-                return result.Value;
-            }
-            else
-            {
-                return $"❌ Search failed: {result.Error}";
-            }
-        }
-        catch (Exception ex)
-        {
-            return $"❌ SearchMyCode command failed: {ex.Message}";
-        }
-    }
-
-    /// <summary>
-    /// Direct command to analyze and improve code using Roslyn tools.
-    /// Bypasses LLM to use tools directly.
-    /// </summary>
-    private async Task<string> AnalyzeCodeCommandAsync(string input)
-    {
-        StringBuilder sb = new();
-        sb.AppendLine("🔍 **Code Analysis - Direct Tool Invocation**\n");
-
-        try
-        {
-            // Step 1: Search for C# files to analyze
-            Maybe<ITool> searchTool = _tools.GetTool("search_my_code");
-            Maybe<ITool> analyzeTool = _tools.GetTool("analyze_csharp_code");
-            Maybe<ITool> readTool = _tools.GetTool("read_my_file");
-
-            if (!searchTool.HasValue)
-            {
-                return "❌ search_my_code tool not available.";
-            }
-
-            // Find some key C# files
-            sb.AppendLine("**Scanning codebase for C# files...**\n");
-            Console.WriteLine("[AnalyzeCode] Searching for key files...");
-
-            string[] searchTerms = new[] { "OuroborosAgent", "ChatAsync", "ITool", "ToolRegistry" };
-            List<string> foundFiles = new();
-
-            foreach (string term in searchTerms)
-            {
-                Result<string, string> searchResult = await searchTool.GetValueOrDefault(null!)!.InvokeAsync(term);
-                if (searchResult.IsSuccess)
-                {
-                    // Extract file paths from search results
-                    foreach (string line in searchResult.Value.Split('\n'))
-                    {
-                        if (line.Contains(".cs") && line.Contains("src/"))
-                        {
-                            // Extract the file path
-                            int start = line.IndexOf("src/");
-                            if (start >= 0)
-                            {
-                                int end = line.IndexOf(".cs", start) + 3;
-                                if (end > start)
-                                {
-                                    string filePath = line[start..end];
-                                    if (!foundFiles.Contains(filePath))
-                                    {
-                                        foundFiles.Add(filePath);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (foundFiles.Count == 0)
-            {
-                foundFiles.Add("src/Ouroboros.CLI/Commands/OuroborosAgent.cs");
-                foundFiles.Add("src/Ouroboros.Application/Tools/SystemAccessTools.cs");
-            }
-
-            sb.AppendLine($"Found {foundFiles.Count} files to analyze:\n");
-            foreach (string file in foundFiles.Take(5))
-            {
-                sb.AppendLine($"  • {file}");
-            }
-            sb.AppendLine();
-
-            // Step 2: If Roslyn analyzer is available, use it
-            if (analyzeTool.HasValue)
-            {
-                sb.AppendLine("**Running Roslyn analysis...**\n");
-                Console.WriteLine("[AnalyzeCode] Running Roslyn analysis...");
-
-                string sampleFile = foundFiles.FirstOrDefault() ?? "src/Ouroboros.CLI/Commands/OuroborosAgent.cs";
-                if (readTool.HasValue)
-                {
-                    Result<string, string> readResult = await readTool.GetValueOrDefault(null!)!.InvokeAsync(sampleFile);
-                    if (readResult.IsSuccess && readResult.Value.Length < 50000)
-                    {
-                        // Analyze a portion of the code
-                        string codeSnippet = readResult.Value.Length > 5000
-                            ? readResult.Value[..5000]
-                            : readResult.Value;
-
-                        Result<string, string> analyzeResult = await analyzeTool.GetValueOrDefault(null!)!.InvokeAsync(codeSnippet);
-                        if (analyzeResult.IsSuccess)
-                        {
-                            sb.AppendLine("**Analysis Results:**\n");
-                            sb.AppendLine(analyzeResult.Value);
-                        }
-                    }
-                }
-            }
-
-            // Step 3: Provide actionable commands
-            sb.AppendLine("\n**━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━**");
-            sb.AppendLine("**Direct commands to modify code:**\n");
-            sb.AppendLine("```");
-            sb.AppendLine($"/read {foundFiles.FirstOrDefault()}");
-            sb.AppendLine($"grep <search_term>");
-            sb.AppendLine($"save {{\"file\":\"{foundFiles.FirstOrDefault()}\",\"search\":\"old text\",\"replace\":\"new text\"}}");
-            sb.AppendLine("```\n");
-            sb.AppendLine("To make a specific change, use:");
-            sb.AppendLine("  1. `/read <file>` to see current content");
-            sb.AppendLine("  2. `save {\"file\":\"...\",\"search\":\"...\",\"replace\":\"...\"}` to modify");
-            sb.AppendLine("**━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━**");
-
-            return sb.ToString();
-        }
-        catch (Exception ex)
-        {
-            return $"❌ Code analysis failed: {ex.Message}";
-        }
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // INDEX COMMANDS (Code Indexing with Qdrant)
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Performs a full reindex of all configured paths.
-    /// </summary>
-    private async Task<string> ReindexFullAsync()
-    {
-        if (_selfIndexer == null)
-        {
-            return "❌ Self-indexer not available. Qdrant may not be running.";
-        }
-
-        try
-        {
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine("\n  [~] Starting full workspace reindex...");
-            Console.ResetColor();
-
-            var result = await _selfIndexer.FullReindexAsync();
-
-            var sb = new StringBuilder();
-            sb.AppendLine("✅ **Full Reindex Complete**\n");
-            sb.AppendLine($"  • Processed files: {result.ProcessedFiles}");
-            sb.AppendLine($"  • Indexed chunks: {result.IndexedChunks}");
-            sb.AppendLine($"  • Skipped files: {result.SkippedFiles}");
-            sb.AppendLine($"  • Errors: {result.ErrorFiles}");
-            sb.AppendLine($"  • Duration: {result.Elapsed.TotalSeconds:F1}s");
-
-            return sb.ToString();
-        }
-        catch (Exception ex)
-        {
-            return $"❌ Reindex failed: {ex.Message}";
-        }
-    }
-
-    /// <summary>
-    /// Performs an incremental reindex (changed files only).
-    /// </summary>
-    private async Task<string> ReindexIncrementalAsync()
-    {
-        if (_selfIndexer == null)
-        {
-            return "❌ Self-indexer not available. Qdrant may not be running.";
-        }
-
-        try
-        {
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine("\n  [~] Starting incremental reindex (changed files only)...");
-            Console.ResetColor();
-
-            var result = await _selfIndexer.IncrementalIndexAsync();
-
-            var sb = new StringBuilder();
-            sb.AppendLine("✅ **Incremental Reindex Complete**\n");
-            sb.AppendLine($"  • Updated files: {result.ProcessedFiles}");
-            sb.AppendLine($"  • Indexed chunks: {result.IndexedChunks}");
-            sb.AppendLine($"  • Duration: {result.Elapsed.TotalSeconds:F1}s");
-
-            return sb.ToString();
-        }
-        catch (Exception ex)
-        {
-            return $"❌ Incremental reindex failed: {ex.Message}";
-        }
-    }
-
-    /// <summary>
-    /// Searches the code index for a query.
-    /// </summary>
-    private async Task<string> IndexSearchAsync(string query)
-    {
-        if (_selfIndexer == null)
-        {
-            return "❌ Self-indexer not available. Qdrant may not be running.";
-        }
-
-        if (string.IsNullOrWhiteSpace(query))
-        {
-            return @"🔍 **Index Search - Semantic Code Search**
-
-Usage: `index search <query>`
-
-Examples:
-  `index search how is TTS initialized`
-  `index search error handling patterns`
-  `index search tool registration`";
-        }
-
-        try
-        {
-            var results = await _selfIndexer.SearchAsync(query, limit: 5);
-
-            var sb = new StringBuilder();
-            sb.AppendLine($"🔍 **Index Search Results for:** \"{query}\"\n");
-
-            if (results.Count == 0)
-            {
-                sb.AppendLine("No results found. Try running `reindex` to update the index.");
-            }
-            else
-            {
-                foreach (var result in results)
-                {
-                    sb.AppendLine($"**{result.FilePath}** (score: {result.Score:F2})");
-                    sb.AppendLine($"```");
-                    sb.AppendLine(result.Content.Length > 500 ? result.Content[..500] + "..." : result.Content);
-                    sb.AppendLine($"```\n");
-                }
-            }
-
-            return sb.ToString();
-        }
-        catch (Exception ex)
-        {
-            return $"❌ Index search failed: {ex.Message}";
-        }
-    }
-
-    /// <summary>
-    /// Gets the current index statistics.
-    /// </summary>
-    private async Task<string> GetIndexStatsAsync()
-    {
-        if (_selfIndexer == null)
-        {
-            return "❌ Self-indexer not available. Qdrant may not be running.";
-        }
-
-        try
-        {
-            var stats = await _selfIndexer.GetStatsAsync();
-
-            var sb = new StringBuilder();
-            sb.AppendLine("📊 **Code Index Statistics**\n");
-            sb.AppendLine($"  • Collection: {stats.CollectionName}");
-            sb.AppendLine($"  • Total vectors: {stats.TotalVectors}");
-            sb.AppendLine($"  • Indexed files: {stats.IndexedFiles}");
-            sb.AppendLine($"  • Vector size: {stats.VectorSize}");
-
-            return sb.ToString();
-        }
-        catch (Exception ex)
-        {
-            return $"❌ Failed to get index stats: {ex.Message}";
-        }
-    }
-
+    private Task<string> GetIndexStatsAsync()
+        => _autonomySub.GetIndexStatsAsync();
     // 
     //  COGNITIVE DELEGATES  AGI Subsystem Methods (logic in CognitiveSubsystem)
     // 
@@ -6344,173 +5761,6 @@ Examples:
         => CognitiveSubsystem.TruncateText(text, maxLength);
 
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // PUSH MODE COMMANDS
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    /// <summary>
-    /// Approves one or more pending intentions.
-    /// </summary>
-    private async Task<string> ApproveIntentionAsync(string arg)
-    {
-        if (_autonomousCoordinator == null)
-        {
-            return "Push mode not enabled. Use --push flag to enable.";
-        }
-
-        var sb = new StringBuilder();
-        var bus = _autonomousCoordinator.IntentionBus;
-
-        if (string.IsNullOrWhiteSpace(arg) || arg.Equals("all", StringComparison.OrdinalIgnoreCase))
-        {
-            // Approve all pending
-            var pending = bus.GetPendingIntentions().ToList();
-            if (pending.Count == 0)
-            {
-                return "No pending intentions to approve.";
-            }
-
-            foreach (var intention in pending)
-            {
-                var result = bus.ApproveIntentionByPartialId(intention.Id.ToString()[..8], "User approved all");
-                sb.AppendLine(result
-                    ? $"✓ Approved: [{intention.Id.ToString()[..8]}] {intention.Title}"
-                    : $"✗ Failed to approve: {intention.Id}");
-            }
-        }
-        else
-        {
-            // Approve specific intention by ID prefix
-            var result = bus.ApproveIntentionByPartialId(arg, "User approved");
-            sb.AppendLine(result
-                ? $"✓ Approved intention: {arg}"
-                : $"No pending intention found matching '{arg}'.");
-        }
-
-        await Task.CompletedTask;
-        return sb.ToString();
-    }
-
-    /// <summary>
-    /// Rejects one or more pending intentions.
-    /// </summary>
-    private async Task<string> RejectIntentionAsync(string arg)
-    {
-        if (_autonomousCoordinator == null)
-        {
-            return "Push mode not enabled. Use --push flag to enable.";
-        }
-
-        var sb = new StringBuilder();
-        var bus = _autonomousCoordinator.IntentionBus;
-
-        if (string.IsNullOrWhiteSpace(arg) || arg.Equals("all", StringComparison.OrdinalIgnoreCase))
-        {
-            // Reject all pending
-            var pending = bus.GetPendingIntentions().ToList();
-            if (pending.Count == 0)
-            {
-                return "No pending intentions to reject.";
-            }
-
-            foreach (var intention in pending)
-            {
-                bus.RejectIntentionByPartialId(intention.Id.ToString()[..8], "User rejected all");
-                sb.AppendLine($"✗ Rejected: [{intention.Id.ToString()[..8]}] {intention.Title}");
-            }
-        }
-        else
-        {
-            // Reject specific intention by ID prefix
-            var result = bus.RejectIntentionByPartialId(arg, "User rejected");
-            sb.AppendLine(result
-                ? $"✗ Rejected intention: {arg}"
-                : $"No pending intention found matching '{arg}'.");
-        }
-
-        await Task.CompletedTask;
-        return sb.ToString();
-    }
-
-    /// <summary>
-    /// Lists all pending intentions.
-    /// </summary>
-    private string ListPendingIntentions()
-    {
-        if (_autonomousCoordinator == null)
-        {
-            return "Push mode not enabled. Use --push flag to enable.";
-        }
-
-        var pending = _autonomousCoordinator.IntentionBus.GetPendingIntentions().ToList();
-
-        if (pending.Count == 0)
-        {
-            return "No pending intentions. Ouroboros will propose actions based on context.";
-        }
-
-        var sb = new StringBuilder();
-        sb.AppendLine("╔═══════════════════════════════════════════════════════════════╗");
-        sb.AppendLine("║                   PENDING INTENTIONS                          ║");
-        sb.AppendLine("╚═══════════════════════════════════════════════════════════════╝");
-        sb.AppendLine();
-
-        foreach (var intention in pending.OrderByDescending(i => i.Priority))
-        {
-            var priorityMarker = intention.Priority switch
-            {
-                IntentionPriority.Critical => "🔴",
-                IntentionPriority.High => "🟠",
-                IntentionPriority.Normal => "🟢",
-                _ => "⚪"
-            };
-
-            sb.AppendLine($"  {priorityMarker} [{intention.Id.ToString()[..8]}] {intention.Category}");
-            sb.AppendLine($"     {intention.Title}");
-            sb.AppendLine($"     {intention.Description}");
-            sb.AppendLine($"     Created: {intention.CreatedAt:HH:mm:ss}");
-            sb.AppendLine();
-        }
-
-        sb.AppendLine("Commands: /approve <id|all> | /reject <id|all>");
-
-        return sb.ToString();
-    }
-
-    /// <summary>
-    /// Pauses push mode (stops proposing actions).
-    /// </summary>
-    private string PausePushMode()
-    {
-        if (_autonomousCoordinator == null)
-        {
-            return "Push mode not enabled.";
-        }
-
-        _pushModeCts?.Cancel();
-        return "⏸ Push mode paused. Use /resume to continue receiving proposals.";
-    }
-
-    /// <summary>
-    /// Resumes push mode (continues proposing actions).
-    /// </summary>
-    private string ResumePushMode()
-    {
-        if (_autonomousCoordinator == null)
-        {
-            return "Push mode not enabled. Use --push flag to enable.";
-        }
-
-        if (_pushModeCts == null || _pushModeCts.IsCancellationRequested)
-        {
-            _pushModeCts?.Dispose();
-            _pushModeCts = new CancellationTokenSource();
-            _pushModeTask = Task.Run(() => _autonomySub.PushModeLoopAsync(_pushModeCts.Token), _pushModeCts.Token);
-            return "▶ Push mode resumed. Ouroboros will propose actions.";
-        }
-
-        return "Push mode is already active.";
-    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

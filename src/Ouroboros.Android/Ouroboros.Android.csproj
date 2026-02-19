@@ -36,13 +36,13 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
-		<PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="$(MauiVersion)" />
-		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="8.0.1" />
-		<PackageReference Include="LangChain" Version="0.17.0" />
-		<PackageReference Include="CommandLineParser" Version="2.9.1" />
+		<PackageReference Include="Microsoft.Maui.Controls" Version="10.0.40" />
+		<PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="10.0.40" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.3" />
 		<PackageReference Include="sqlite-net-pcl" Version="1.9.172" />
-		<PackageReference Include="SQLitePCLRaw.bundle_green" Version="2.1.10" />
+		<PackageReference Include="SQLitePCLRaw.bundle_green" Version="2.1.11" />
+		<!-- HttpClient factory for upstream Ouroboros API connectivity -->
+		<PackageReference Include="Microsoft.Extensions.Http" Version="10.0.3" />
 	</ItemGroup>
 
 	<ItemGroup>

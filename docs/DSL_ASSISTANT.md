@@ -469,7 +469,6 @@ See repository LICENSE file.
 
 ## Related Documentation
 
-- [Ouroboros README](../../README.md)
-- [CLI Documentation](../Ouroboros.CLI/README.md)
-- [Agent Architecture](../Ouroboros.Agent/README.md)
-- [Test Specifications](../Ouroboros.Tests/README.md)
+- [Ouroboros README](../README.md)
+- [CLI Project](../src/Ouroboros.CLI/)
+- [Application Project](../src/Ouroboros.Application/)
