@@ -23,7 +23,6 @@ global using Ouroboros.Agent;
 
 // CLI
 global using Ouroboros.Application;
-global using Ouroboros.Application.Cli;
 
 // Domain models and state management
 global using Ouroboros.Domain;
