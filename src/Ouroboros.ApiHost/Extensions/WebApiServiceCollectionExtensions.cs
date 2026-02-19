@@ -1,0 +1,125 @@
+// <copyright file="WebApiServiceCollectionExtensions.cs" company="PlaceholderCompany">
+// Copyright (c) PlaceholderCompany. All rights reserved.
+// </copyright>
+
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.OpenApi;
+using Ouroboros.Agent.MetaAI;
+using Ouroboros.Agent.MetaAI.SelfModel;
+using Ouroboros.ApiHost.Client;
+
+namespace Ouroboros.ApiHost.Extensions;
+
+/// <summary>
+/// <see cref="IServiceCollection"/> extensions that register all Ouroboros Web API
+/// services. Call <c>AddOuroborosWebApi()</c> from any host – standalone
+/// <c>WebApplication</c>, CLI with <c>--serve</c>, or an Android MAUI background
+/// service – to get a fully functional AI pipeline server.
+/// </summary>
+public static class WebApiServiceCollectionExtensions
+{
+    /// <summary>
+    /// Registers all services required to host the Ouroboros Web API inside any
+    /// <see cref="IServiceCollection"/>-based host.
+    /// </summary>
+    /// <param name="services">The DI container.</param>
+    /// <param name="allowedOrigins">
+    /// Optional CORS origins. <c>null</c> falls back to environment-aware defaults:
+    /// any origin in local-dev mode, a placeholder origin otherwise.
+    /// </param>
+    /// <returns><paramref name="services"/> for fluent chaining.</returns>
+    public static IServiceCollection AddOuroborosWebApi(
+        this IServiceCollection services,
+        string[]? allowedOrigins = null)
+    {
+        // Swagger / OpenAPI
+        services.AddEndpointsApiExplorer();
+        services.AddLocalization(options => options.ResourcesPath = "Resources");
+        services.AddSwaggerGen(c =>
+        {
+            c.SwaggerDoc("v1", new OpenApiInfo
+            {
+                Title = "Ouroboros API",
+                Version = "v1",
+                Description = "Kubernetes-friendly ASP.NET Core Web API for Ouroboros – A functional programming-based AI pipeline system",
+            });
+        });
+
+        // Pipeline service
+        services.AddSingleton<IPipelineService, PipelineService>();
+
+        // Self-model components (Phase 2)
+        services.AddSingleton<IGlobalWorkspace>(_ => new GlobalWorkspace());
+        services.AddSingleton<IPredictiveMonitor>(_ => new PredictiveMonitor());
+
+        services.AddSingleton<IIdentityGraph>(_ =>
+        {
+            var registry = new CapabilityRegistry(
+                new MockChatModel(),
+                new ToolRegistry(),
+                new CapabilityRegistryConfig());
+
+            return new IdentityGraph(
+                Guid.NewGuid(),
+                "OuroborosAgent",
+                registry,
+                Path.Combine(Path.GetTempPath(), "ouroboros_identity.json"));
+        });
+
+        services.AddSingleton<ISelfModelService, SelfModelService>();
+
+        // CORS
+        services.AddCors(options =>
+        {
+            options.AddDefaultPolicy(policy =>
+            {
+                if (allowedOrigins is { Length: > 0 })
+                {
+                    policy.WithOrigins(allowedOrigins).AllowAnyMethod().AllowAnyHeader();
+                }
+                else if (Ouroboros.Core.EnvironmentDetector.IsLocalDevelopment())
+                {
+                    policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
+                }
+                else
+                {
+                    policy.WithOrigins("https://yourdomain.com")
+                          .AllowAnyMethod()
+                          .AllowAnyHeader();
+                }
+            });
+        });
+
+        // Health checks (Kubernetes liveness/readiness probes)
+        services.AddHealthChecks();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers an <see cref="HttpClient"/> preconfigured to call a remote Ouroboros
+    /// Web API instance. Useful for Android or CLI clients that delegate to an
+    /// upstream API server rather than running the pipeline locally.
+    /// </summary>
+    /// <param name="services">The DI container.</param>
+    /// <param name="baseAddress">Base URL of the running Ouroboros API, e.g. <c>http://localhost:5000</c>.</param>
+    /// <returns><paramref name="services"/> for fluent chaining.</returns>
+    public static IServiceCollection AddOuroborosApiClient(
+        this IServiceCollection services,
+        string baseAddress)
+    {
+        services.AddHttpClient(OuroborosApiClientConstants.HttpClientName, client =>
+        {
+            client.BaseAddress = new Uri(baseAddress.TrimEnd('/') + "/");
+            client.DefaultRequestHeaders.Add("Accept", "application/json");
+        });
+
+        services.AddSingleton<IOuroborosApiClient>(sp =>
+        {
+            var factory = sp.GetRequiredService<IHttpClientFactory>();
+            return new OuroborosApiClient(factory);
+        });
+
+        return services;
+    }
+}

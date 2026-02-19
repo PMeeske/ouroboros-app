@@ -161,13 +161,12 @@ Key settings:
 
 ## Next Steps
 
-1. **Read the Architecture Docs**: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-2. **Explore Examples**: [src/Ouroboros.Examples](src/Ouroboros.Examples)
-3. **Try the Web API**: [src/Ouroboros.WebApi/README.md](src/Ouroboros.WebApi/README.md)
-4. **Deploy to K8s**: [DEPLOYMENT.md](DEPLOYMENT.md)
+1. **Explore Examples**: [src/Ouroboros.Examples](../src/Ouroboros.Examples)
+2. **Try the Web API**: [src/Ouroboros.WebApi](../src/Ouroboros.WebApi/README.md)
+3. **Deploy to K8s**: [DEPLOYMENT.md](DEPLOYMENT.md)
 
 ## Support
 
-- 📖 **Full Documentation**: [README.md](README.md)
+- 📖 **Full Documentation**: [Main README](../README.md)
 - 🐛 **Issues**: [GitHub Issues](https://github.com/PMeeske/Ouroboros/issues)
 - 💬 **Discussions**: [GitHub Discussions](https://github.com/PMeeske/Ouroboros/discussions)

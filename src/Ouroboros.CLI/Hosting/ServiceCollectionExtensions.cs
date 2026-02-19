@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Ouroboros.ApiHost.Extensions;
 using Ouroboros.CLI.Commands;
 using Ouroboros.CLI.Commands.Handlers;
 using Ouroboros.CLI.Infrastructure;
@@ -71,6 +72,31 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddExistingBusinessLogic(this IServiceCollection services)
     {
         services.TryAddScoped<VoiceModeService>();
+        return services;
+    }
+
+    /// <summary>
+    /// Redirects <see cref="IAskService"/> and <see cref="IPipelineService"/> to
+    /// call a remote Ouroboros Web API instead of running the pipeline locally.
+    /// This makes the API a complete <em>upstream provider</em> for the CLI.
+    /// </summary>
+    /// <param name="services">The DI container.</param>
+    /// <param name="apiBaseUrl">
+    /// Base URL of the running Ouroboros API, e.g. <c>http://localhost:5000</c>.
+    /// Typically supplied via the CLI's <c>--api-url</c> option.
+    /// </param>
+    /// <returns><paramref name="services"/> for fluent chaining.</returns>
+    public static IServiceCollection AddUpstreamApiProvider(
+        this IServiceCollection services,
+        string apiBaseUrl)
+    {
+        // Register the typed HTTP client that talks to the upstream API
+        services.AddOuroborosApiClient(apiBaseUrl);
+
+        // Override the local service implementations with HTTP-backed ones
+        services.AddScoped<IAskService, HttpApiAskService>();
+        services.AddScoped<IPipelineService, HttpApiPipelineService>();
+
         return services;
     }
 }

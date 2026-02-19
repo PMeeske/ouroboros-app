@@ -7,7 +7,7 @@ using System.Net.Http.Json;
 using Ouroboros.Tests.Infrastructure.Assertions;
 using Ouroboros.Tests.Infrastructure.Builders;
 using Ouroboros.Tests.WebApi.Fixtures;
-using Ouroboros.WebApi.Models;
+using Ouroboros.ApiHost.Models;
 
 namespace Ouroboros.Tests.WebApi.Controllers;
 

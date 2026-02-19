@@ -242,5 +242,4 @@ dotnet test --filter "Category=Integration"
 
 - [GitHub REST API Documentation](https://docs.github.com/en/rest)
 - [Personal Access Tokens](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
-- [TEST_COVERAGE_REPORT.md](./TEST_COVERAGE_REPORT.md) - Overall test coverage
-- [CONTRIBUTING.md](./CONTRIBUTING.md) - Contributing guidelines
+- [CONTRIBUTING.md](../CONTRIBUTING.md) - Contributing guidelines

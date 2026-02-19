@@ -23,6 +23,7 @@ A powerful CLI interface for Ouroboros on Android with integrated AI provider su
 - **Settings Management**: Configure multiple AI providers with custom parameters
 - **Knowledge Base**: Build and query logical knowledge bases
 - **Streaming Responses**: Real-time AI response streaming
+- **GitHub-Based Updates**: Automatic update checks and in-app update installation
 
 ## Supported AI Providers
 
@@ -101,6 +102,28 @@ To install directly on a connected Android device:
 ```bash
 dotnet build -c Release -f net10.0-android -t:Install
 ```
+
+## Updates
+
+### In-App Updates
+
+The Ouroboros Android app includes a built-in update mechanism that checks for new releases from GitHub:
+
+1. **Check for Updates**: Tap the Menu button → "Check for Updates"
+2. **View Available Update**: See the latest version, release notes, and file size
+3. **Download and Install**: Tap "Download Update" to install the latest version
+
+The app will:
+- Fetch the latest release from the GitHub repository
+- Compare versions to determine if an update is available
+- Download the APK directly from GitHub releases
+- Prompt you to install the update via Android's package installer
+
+**Note**: You'll need to grant permission to install apps from this source when prompted by Android.
+
+### Manual Updates
+
+You can also manually download APK files from the [GitHub Releases page](https://github.com/PMeeske/ouroboros-app/releases).
 
 ## Usage
 
