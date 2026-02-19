@@ -231,7 +231,12 @@ public sealed class EmbodimentSubsystem : IEmbodimentSubsystem
 
         try
         {
-            var ollamaEndpoint = ctx.StaticConfiguration?["Ollama:Endpoint"] ?? "http://localhost:11434";
+            var ollamaEndpoint = ctx.Config.SdEndpoint
+                ?? ctx.StaticConfiguration?["Ollama:Endpoint"]
+                ?? "http://localhost:11434";
+            var sdModel = string.IsNullOrWhiteSpace(ctx.Config.SdModel)
+                ? "stable-diffusion"
+                : ctx.Config.SdModel;
 
             var (service, videoStream) = await Avatar.AvatarIntegration.CreateAndStartAsync(
                 ctx.Config.Persona,
@@ -239,6 +244,7 @@ public sealed class EmbodimentSubsystem : IEmbodimentSubsystem
                 visionModel: ctx.Models.VisionModel,
                 virtualSelf: VirtualSelf,
                 ollamaEndpoint: ollamaEndpoint,
+                sdModel: sdModel,
                 ct: CancellationToken.None);
 
             AvatarService = service;

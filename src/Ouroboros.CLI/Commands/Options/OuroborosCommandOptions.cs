@@ -522,6 +522,16 @@ public class OuroborosCommandOptions
         DefaultValueFactory = _ => 0
     };
 
+    public System.CommandLine.Option<string?> SdEndpointOption { get; } = new("--sd-endpoint")
+    {
+        Description = "Stable Diffusion endpoint for avatar video stream (defaults to Ollama:Endpoint / http://localhost:11434)"
+    };
+
+    public System.CommandLine.Option<string?> SdModelOption { get; } = new("--sd-model")
+    {
+        Description = "Stable Diffusion model name for avatar video stream (default: stable-diffusion)"
+    };
+
     /// <summary>
     /// Adds all ouroboros command options to the given command.
     /// </summary>
@@ -634,6 +644,8 @@ public class OuroborosCommandOptions
         // Interactive Avatar
         command.Add(AvatarOption);
         command.Add(AvatarPortOption);
+        command.Add(SdEndpointOption);
+        command.Add(SdModelOption);
     }
 
     /// <summary>
@@ -754,6 +766,8 @@ public class OuroborosCommandOptions
         // Interactive Avatar
         var avatar        = parseResult.GetValue(AvatarOption);
         var avatarPort    = parseResult.GetValue(AvatarPortOption);
+        var sdEndpoint    = parseResult.GetValue(SdEndpointOption);
+        var sdModel       = parseResult.GetValue(SdModelOption);
 
         // Derive Azure TTS
         var azureKey = azureSpeechKey ?? Environment.GetEnvironmentVariable("AZURE_SPEECH_KEY");
@@ -828,7 +842,9 @@ public class OuroborosCommandOptions
             ShowElection: showElection,
             ShowOptimization: showOptimization,
             Avatar: avatar,
-            AvatarPort: avatarPort
+            AvatarPort: avatarPort,
+            SdEndpoint: sdEndpoint,
+            SdModel: sdModel
         );
     }
 }
