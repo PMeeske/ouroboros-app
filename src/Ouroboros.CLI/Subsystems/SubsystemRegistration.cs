@@ -39,6 +39,11 @@ public static class SubsystemRegistration
         services.AddSingleton<ICognitiveSubsystem, CognitiveSubsystem>();
         services.AddSingleton<IAutonomySubsystem, AutonomySubsystem>();
         services.AddSingleton<IEmbodimentSubsystem, EmbodimentSubsystem>();
+        services.AddSingleton<ILocalizationSubsystem, LocalizationSubsystem>();
+        services.AddSingleton<ISelfAssemblySubsystem, SelfAssemblySubsystem>();
+        services.AddSingleton<IPipeProcessingSubsystem, PipeProcessingSubsystem>();
+        services.AddSingleton<IChatSubsystem, ChatSubsystem>();
+        services.AddSingleton<ICommandRoutingSubsystem, CommandRoutingSubsystem>();
 
         return services;
     }
