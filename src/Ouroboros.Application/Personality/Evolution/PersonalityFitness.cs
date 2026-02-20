@@ -18,7 +18,7 @@ public sealed class PersonalityFitness : IFitnessFunction<PersonalityGene>
     }
 
     /// <inheritdoc/>
-    public Task<double> EvaluateAsync(IChromosome<PersonalityGene> chromosome)
+    public Task<double> EvaluateAsync(IChromosome<PersonalityGene> chromosome, CancellationToken cancellationToken)
     {
         if (_recentFeedback.Count == 0)
             return Task.FromResult(0.5);

@@ -16,7 +16,7 @@ public sealed class ActionSequenceFitness : IFitnessFunction<ActionGene>
         _goal = goal;
     }
 
-    public async Task<double> EvaluateAsync(IChromosome<ActionGene> chromosome)
+    public async Task<double> EvaluateAsync(IChromosome<ActionGene> chromosome, CancellationToken cancellationToken)
     {
         var actions = chromosome.Genes
             .OrderByDescending(g => g.Priority)

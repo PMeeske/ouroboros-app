@@ -458,7 +458,7 @@ What single action should be taken? Respond in JSON:
                 elitismRate: 0.15);
 
             // Evolve for a few generations
-            var result = await ga.EvolveAsync(initialPopulation, generations: 8);
+            var result = await ga.EvolveAsync(initialPopulation, generations: 8, ct);
 
             if (result.IsSuccess)
             {

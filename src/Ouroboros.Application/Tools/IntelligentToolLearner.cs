@@ -215,7 +215,7 @@ public sealed class IntelligentToolLearner : IAsyncDisposable
                 elitismRate: 0.2);
 
             // Evolve over a few generations (keep it fast for interactive use)
-            var result = await ga.EvolveAsync(initialPopulation, generations: 5);
+            var result = await ga.EvolveAsync(initialPopulation, generations: 5, ct);
 
             if (result.IsSuccess)
             {
