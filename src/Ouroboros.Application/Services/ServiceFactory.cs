@@ -1,5 +1,6 @@
 using LangChain.Providers.Ollama;
 using Ouroboros.Abstractions.Core;
+using Ouroboros.Providers;
 using IEmbeddingModel = Ouroboros.Domain.IEmbeddingModel;
 
 namespace Ouroboros.Application.Services;
@@ -11,6 +12,7 @@ public static class ServiceFactory
     {
         return endpointType switch
         {
+            ChatEndpointType.Anthropic => new AnthropicChatModel(apiKey, modelName, settings),
             ChatEndpointType.OllamaCloud => new OllamaCloudChatModel(endpoint, apiKey, modelName, settings),
             ChatEndpointType.LiteLLM => new LiteLLMChatModel(endpoint, apiKey, modelName, settings),
             ChatEndpointType.GitHubModels => new GitHubModelsChatModel(apiKey, modelName, endpoint, settings),
