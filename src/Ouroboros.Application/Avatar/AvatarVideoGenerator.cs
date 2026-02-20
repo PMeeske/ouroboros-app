@@ -31,10 +31,12 @@ public sealed class AvatarVideoGenerator
     /// </summary>
     /// <param name="sdEndpoint">Base URL of the Forge/A1111 server (default: http://localhost:7860).</param>
     /// <param name="sdModel">Optional checkpoint name to load via override_settings. Leave null/empty to use whichever model is currently loaded.</param>
+    /// <param name="timeoutSeconds">HTTP request timeout in seconds (default: 300). SD img2img can take several minutes on slower hardware.</param>
     /// <param name="logger">Optional logger.</param>
     public AvatarVideoGenerator(
         string sdEndpoint = "http://localhost:7860",
         string? sdModel = null,
+        int timeoutSeconds = 300,
         ILogger<AvatarVideoGenerator>? logger = null)
     {
         _sdCheckpoint = string.IsNullOrWhiteSpace(sdModel) || sdModel == "stable-diffusion"
@@ -44,7 +46,7 @@ public sealed class AvatarVideoGenerator
         _http = new HttpClient
         {
             BaseAddress = new Uri(sdEndpoint.TrimEnd('/')),
-            Timeout = TimeSpan.FromSeconds(120),
+            Timeout = TimeSpan.FromSeconds(timeoutSeconds),
         };
     }
 
@@ -100,17 +102,20 @@ public sealed class AvatarVideoGenerator
         try
         {
             // Build the A1111/Forge img2img payload
+            // Low-resource settings: 384×512 + 8 steps keeps generation under ~60s even when
+            // the model must CPU-swap (GPU VRAM < model size). "Euler a" converges faster at
+            // low step counts than DPM++ 2M.
             var payloadObj = new Dictionary<string, object?>
             {
                 ["prompt"] = prompt,
                 ["negative_prompt"] = "ugly, blurry, low quality, deformed, disfigured, extra limbs",
                 ["init_images"] = new[] { seedBase64 },
                 ["denoising_strength"] = 0.45,
-                ["steps"] = 20,
+                ["steps"] = 8,
                 ["cfg_scale"] = 7,
-                ["width"] = 512,
-                ["height"] = 768,
-                ["sampler_name"] = "DPM++ 2M",
+                ["width"] = 384,
+                ["height"] = 512,
+                ["sampler_name"] = "Euler a",
             };
 
             if (_sdCheckpoint != null)
