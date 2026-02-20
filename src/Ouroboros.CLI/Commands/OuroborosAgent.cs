@@ -1,4 +1,4 @@
-﻿// <copyright file="OuroborosAgent.cs" company="Ouroboros">
+﻿                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                // <copyright file="OuroborosAgent.cs" company="Ouroboros">
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
@@ -134,21 +134,21 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     private CancellationTokenSource? _pushModeCts { get => _autonomySub.PushModeCts; set => _autonomySub.PushModeCts = value; }
     private PersistentNetworkStateProjector? _networkProjector { get => _autonomySub.NetworkProjector; set => _autonomySub.NetworkProjector = value; }
 
-    //  Memory (extended) 
+    //  Memory (extended)
     private PersistentConversationMemory? _conversationMemory { get => _memorySub.ConversationMemory; set => _memorySub.ConversationMemory = value; }
     private SelfPersistence? _selfPersistence { get => _memorySub.SelfPersistence; set => _memorySub.SelfPersistence = value; }
 
-    //  Cognitive (extended) 
+    //  Cognitive (extended)
     private Ouroboros.Core.DistinctionLearning.IDistinctionLearner? _distinctionLearner { get => _cognitiveSub.DistinctionLearner; set => _cognitiveSub.DistinctionLearner = value; }
     private Ouroboros.Application.Personality.Consciousness.ConsciousnessDream? _dream { get => _cognitiveSub.Dream; set => _cognitiveSub.Dream = value; }
     private Ouroboros.Core.DistinctionLearning.DistinctionState _currentDistinctionState { get => _cognitiveSub.CurrentDistinctionState; set => _cognitiveSub.CurrentDistinctionState = value; }
     private InterconnectedLearner? _interconnectedLearner { get => _cognitiveSub.InterconnectedLearner; set => _cognitiveSub.InterconnectedLearner = value; }
 
-    //  Embodiment (extended) 
+    //  Embodiment (extended)
     private Application.Avatar.InteractiveAvatarService? _avatarService { get => _embodimentSub.AvatarService; set => _embodimentSub.AvatarService = value; }
     private VisionService? _visionService { get => _embodimentSub.VisionService; set => _embodimentSub.VisionService = value; }
 
-    //  Tools (extended) 
+    //  Tools (extended)
     private IReadOnlyDictionary<string, PipelineTokenInfo>? _allPipelineTokens { get => _toolsSub.AllPipelineTokens; set => _toolsSub.AllPipelineTokens = value; }
     private CliPipelineState? _pipelineState { get => _toolsSub.PipelineState; set => _toolsSub.PipelineState = value; }
 
@@ -173,8 +173,6 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     private DateTime _lastGreetingTime { get => _embodimentSub.LastGreetingTime; set => _embodimentSub.LastGreetingTime = value; }
 
     // ── Non-subsystem local state ──
-    private string? _lastUserInput; // Track for outcome recording
-    private DateTime _lastInteractionStart;
     private readonly StringBuilder _currentInputBuffer = new();
     private readonly object _inputLock = new();
     private bool _isInConversationLoop;
@@ -193,6 +191,11 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     private readonly CognitiveSubsystem _cognitiveSub;
     private readonly AutonomySubsystem _autonomySub;
     private readonly EmbodimentSubsystem _embodimentSub;
+    private readonly LocalizationSubsystem _localizationSub;
+    private readonly SelfAssemblySubsystem _selfAssemblySub;
+    private readonly PipeProcessingSubsystem _pipeSub;
+    private readonly ChatSubsystem _chatSub;
+    private readonly CommandRoutingSubsystem _commandRoutingSub;
     private readonly IAgentSubsystem[] _allSubsystems;
 
     /// <summary>
@@ -268,30 +271,9 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
         return string.Join("\n", filtered).Trim();
     }
 
-    /// <summary>
-    /// Uses LLM to integrate tool results naturally into a conversational response.
-    /// Converts raw tool output (tables, JSON, etc.) into natural language.
-    /// </summary>
-    private async Task<string> SanitizeToolResultsAsync(string originalResponse, string toolResults)
-    {
-        if (_chatModel == null || string.IsNullOrWhiteSpace(toolResults))
-        {
-            return $"{originalResponse}\n\n{toolResults}";
-        }
-
-        try
-        {
-            string prompt = PromptResources.ToolIntegration(originalResponse, toolResults);
-
-            string sanitized = await _chatModel.GenerateTextAsync(prompt);
-            return string.IsNullOrWhiteSpace(sanitized) ? $"{originalResponse}\n\n{toolResults}" : sanitized;
-        }
-        catch
-        {
-            // Fallback to raw output if sanitization fails
-            return $"{originalResponse}\n\n{toolResults}";
-        }
-    }
+    /// <summary>Uses LLM to integrate tool results naturally into a conversational response.</summary>
+    private Task<string> SanitizeToolResultsAsync(string originalResponse, string toolResults)
+        => _chatSub.SanitizeToolResultsAsync(originalResponse, toolResults);
 
     /// <summary>
     /// Speaks text on the voice side channel (fire-and-forget, non-blocking).
@@ -969,7 +951,12 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
         IMemorySubsystem memory,
         ICognitiveSubsystem cognitive,
         IAutonomySubsystem autonomy,
-        IEmbodimentSubsystem embodiment)
+        IEmbodimentSubsystem embodiment,
+        ILocalizationSubsystem localization,
+        ISelfAssemblySubsystem selfAssembly,
+        IPipeProcessingSubsystem pipeProcessing,
+        IChatSubsystem chat,
+        ICommandRoutingSubsystem commandRouting)
     {
         _config = config;
         _output = new ConsoleOutput(config.Verbosity);
@@ -981,9 +968,19 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
         _cognitiveSub = (CognitiveSubsystem)cognitive;
         _autonomySub = (AutonomySubsystem)autonomy;
         _embodimentSub = (EmbodimentSubsystem)embodiment;
+        _localizationSub = (LocalizationSubsystem)localization;
+        _selfAssemblySub = (SelfAssemblySubsystem)selfAssembly;
+        _pipeSub = (PipeProcessingSubsystem)pipeProcessing;
+        _chatSub = (ChatSubsystem)chat;
+        _commandRoutingSub = (CommandRoutingSubsystem)commandRouting;
 
         _voice = _voiceSub.Service;
-        _allSubsystems = [_voiceSub, _modelsSub, _toolsSub, _memorySub, _cognitiveSub, _autonomySub, _embodimentSub];
+        _allSubsystems =
+        [
+            _voiceSub, _modelsSub, _toolsSub, _memorySub,
+            _cognitiveSub, _autonomySub, _embodimentSub,
+            _localizationSub, _selfAssemblySub, _pipeSub, _chatSub, _commandRoutingSub
+        ];
 
         // Register process exit handler to kill speech processes on forceful exit
         AppDomain.CurrentDomain.ProcessExit += (_, _) => VoiceSubsystem.KillAllSpeechProcesses();
@@ -1014,7 +1011,12 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
             new MemorySubsystem(),
             new CognitiveSubsystem(),
             new AutonomySubsystem(),
-            new EmbodimentSubsystem())
+            new EmbodimentSubsystem(),
+            new LocalizationSubsystem(),
+            new SelfAssemblySubsystem(),
+            new PipeProcessingSubsystem(),
+            new ChatSubsystem(),
+            new CommandRoutingSubsystem())
     {
     }
 
@@ -1063,6 +1065,9 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
         // ── Phase 2: Models (standalone) ──
         await _modelsSub.InitializeAsync(ctx);
 
+        // ── Phase 2.5: Localization (needs Config; Llm wired after Phase 8) ──
+        await _localizationSub.InitializeAsync(ctx);
+
         // Wire LLM sanitizer on voice side channel
         if (_config.VoiceChannel && _voiceSideChannel != null && _chatModel != null)
         {
@@ -1085,6 +1090,18 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
 
         // ── Phase 7: Embodiment (needs Memory + Autonomy) ──
         await _embodimentSub.InitializeAsync(ctx);
+
+        // ── Phase 7.1: SelfAssembly (needs Autonomy; Llm + History wired after Phase 8) ──
+        await _selfAssemblySub.InitializeAsync(ctx);
+
+        // ── Phase 7.2: PipeProcessing (needs Config; ProcessInputFunc wired after Phase 8) ──
+        await _pipeSub.InitializeAsync(ctx);
+
+        // ── Phase 7.3: Chat (needs all original subsystems) ──
+        await _chatSub.InitializeAsync(ctx);
+
+        // ── Phase 7.4: CommandRouting (needs Tools, Memory, Autonomy) ──
+        await _commandRoutingSub.InitializeAsync(ctx);
 
         // ── Phase 8: Cross-subsystem wiring (mediator orchestration) ──
         WireCrossSubsystemDependencies();
@@ -1132,9 +1149,6 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
         if (_config.EnableMind)
             WireSelfExecution();
 
-        // ── Self-Assembly callbacks ──
-        WireSelfAssemblyCallbacks();
-
         // ── Push Mode ──
         if (_config.EnablePush)
             WirePushMode();
@@ -1159,6 +1173,23 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
 
         // -- Memory subsystem thought persistence --
         _memorySub.PersistThoughtFunc = PersistThoughtAsync;
+
+        // ── Localization: wire LLM for thought translation ──
+        _localizationSub.Llm = _llm;
+
+        // ── SelfAssembly: wire LLM, conversation history, and event callbacks ──
+        _selfAssemblySub.Llm = _llm;
+        _selfAssemblySub.ConversationHistory = _memorySub.ConversationHistory;
+        _selfAssemblySub.WireCallbacks();
+
+        // ── PipeProcessing: wire the central input dispatch function ──
+        _pipeSub.ProcessInputFunc = ProcessInputAsync;
+
+        // ── Chat: wire persistence delegates and language lookup ──
+        _chatSub.PersistThoughtFunc = PersistThoughtAsync;
+        _chatSub.PersistThoughtResultFunc = (id, type, content, success, confidence) =>
+            PersistThoughtResultAsync(id, type, content, success, confidence);
+        _chatSub.GetLanguageNameFunc = _localizationSub.GetLanguageName;
     }
 
     /// <summary>
@@ -1378,25 +1409,6 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
         _output.RecordInit("Self-Execution", true, "autonomous goal pursuit");
     }
 
-    /// <summary>
-    /// Wires self-assembly LLM code generator and approval callback.
-    /// </summary>
-    private void WireSelfAssemblyCallbacks()
-    {
-        if (_selfAssemblyEngine == null) return;
-
-        if (_llm != null)
-        {
-            _selfAssemblyEngine.SetCodeGenerator(async blueprint =>
-                await GenerateNeuronCodeAsync(blueprint));
-        }
-
-        _selfAssemblyEngine.SetApprovalCallback(async proposal =>
-            await RequestSelfAssemblyApprovalAsync(proposal));
-
-        _selfAssemblyEngine.NeuronAssembled += OnNeuronAssembled;
-        _selfAssemblyEngine.AssemblyFailed += OnAssemblyFailed;
-    }
 
     /// <summary>
     /// Starts push mode by activating the coordinator tick loop.
@@ -1624,120 +1636,19 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
         }
     }
 
-    /// <summary>
-    /// Gets the language name for a given culture code.
-    /// </summary>
-    private string GetLanguageName(string culture)
-    {
-        return culture.ToLowerInvariant() switch
-        {
-            "de-de" => "German",
-            "fr-fr" => "French",
-            "es-es" => "Spanish",
-            "it-it" => "Italian",
-            "pt-br" => "Portuguese (Brazilian)",
-            "pt-pt" => "Portuguese (European)",
-            "nl-nl" => "Dutch",
-            "sv-se" => "Swedish",
-            "ja-jp" => "Japanese",
-            "zh-cn" => "Chinese (Simplified)",
-            "zh-tw" => "Chinese (Traditional)",
-            "ko-kr" => "Korean",
-            "ru-ru" => "Russian",
-            "pl-pl" => "Polish",
-            "tr-tr" => "Turkish",
-            "ar-sa" => "Arabic",
-            "he-il" => "Hebrew",
-            "th-th" => "Thai",
-            _ => culture
-        };
-    }
+    /// <summary>Gets the language name for a given culture code.</summary>
+    private string GetLanguageName(string culture) => _localizationSub.GetLanguageName(culture);
 
-    /// <summary>
-    /// Gets the default Azure TTS voice name for a given culture code.
-    /// </summary>
-    private static string GetDefaultVoiceForCulture(string? culture)
-    {
-        return culture?.ToLowerInvariant() switch
-        {
-            "de-de" => "de-DE-KatjaNeural",
-            "fr-fr" => "fr-FR-DeniseNeural",
-            "es-es" => "es-ES-ElviraNeural",
-            "it-it" => "it-IT-ElsaNeural",
-            "pt-br" => "pt-BR-FranciscaNeural",
-            "pt-pt" => "pt-PT-RaquelNeural",
-            "nl-nl" => "nl-NL-ColetteNeural",
-            "sv-se" => "sv-SE-SofieNeural",
-            "ja-jp" => "ja-JP-NanamiNeural",
-            "zh-cn" => "zh-CN-XiaoxiaoNeural",
-            "zh-tw" => "zh-TW-HsiaoChenNeural",
-            "ko-kr" => "ko-KR-SunHiNeural",
-            "ru-ru" => "ru-RU-SvetlanaNeural",
-            "pl-pl" => "pl-PL-ZofiaNeural",
-            "tr-tr" => "tr-TR-EmelNeural",
-            "ar-sa" => "ar-SA-ZariyahNeural",
-            "he-il" => "he-IL-HilaNeural",
-            "th-th" => "th-TH-PremwadeeNeural",
-            _ => "en-US-AvaMultilingualNeural"
-        };
-    }
+    /// <summary>Gets the default Azure TTS voice name for a given culture code.</summary>
+    private string GetDefaultVoiceForCulture(string? culture) =>
+        _localizationSub.GetDefaultVoiceForCulture(culture);
 
-    /// <summary>
-    /// Gets the effective TTS voice, considering culture override.
-    /// If culture is set and voice wasn't explicitly changed from default, use culture-specific voice.
-    /// </summary>
-    private string GetEffectiveVoice()
-    {
-        // If user didn't explicitly set a voice (still using default), auto-select based on culture
-        if (_config.TtsVoice == "en-US-AvaMultilingualNeural" &&
-            !string.IsNullOrEmpty(_config.Culture) &&
-            _config.Culture != "en-US")
-        {
-            return GetDefaultVoiceForCulture(_config.Culture);
-        }
+    /// <summary>Gets the effective TTS voice, considering culture override.</summary>
+    private string GetEffectiveVoice() => _localizationSub.GetEffectiveVoice();
 
-        return _config.TtsVoice;
-    }
-
-    /// <summary>
-    /// Translates a thought to the target language if culture is specified.
-    /// </summary>
-    private async Task<string> TranslateThoughtIfNeededAsync(string thought)
-    {
-        // Only translate if a non-English culture is set
-        if (string.IsNullOrEmpty(_config.Culture) || _config.Culture == "en-US" || _llm == null)
-        {
-            return thought;
-        }
-
-        try
-        {
-            var languageName = GetLanguageName(_config.Culture);
-            var translationPrompt = $@"TASK: Translate to {languageName}.
-INPUT: {thought}
-OUTPUT (translation only, no explanations, no JSON, no metadata):";
-
-            var (translated, _) = await _llm.GenerateWithToolsAsync(translationPrompt);
-
-            // Clean up any extra formatting the LLM might add
-            var result = translated?.Trim() ?? thought;
-
-            // Remove common LLM artifacts
-            if (result.StartsWith("\"") && result.EndsWith("\""))
-                result = result[1..^1];
-            if (result.Contains("```"))
-                result = result.Split("```")[0].Trim();
-            if (result.Contains("{") && result.Contains("}"))
-                result = result.Split("{")[0].Trim();
-
-            return string.IsNullOrEmpty(result) ? thought : result;
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[Thought Translation] Error: {ex.Message}");
-            return thought;
-        }
-    }
+    /// <summary>Translates a thought to the target language if culture is specified.</summary>
+    private Task<string> TranslateThoughtIfNeededAsync(string thought) =>
+        _localizationSub.TranslateThoughtIfNeededAsync(thought);
 
     private void PrintFeatureStatus()
     {
@@ -2243,234 +2154,15 @@ $synth.Dispose()
         }
     }
 
-    /// <summary>
-    /// Generates neuron code from a blueprint using LLM.
-    /// </summary>
-    private async Task<string> GenerateNeuronCodeAsync(NeuronBlueprint blueprint)
-    {
-        if (_llm == null)
-        {
-            throw new InvalidOperationException("LLM not available for code generation");
-        }
+    // ── SelfAssembly (delegated to SelfAssemblySubsystem) ────────────────────
 
-        var prompt = PromptResources.NeuronCodeGen(
-            blueprint.Name,
-            blueprint.Description,
-            blueprint.Rationale,
-            blueprint.Type.ToString(),
-            string.Join(", ", blueprint.SubscribedTopics),
-            string.Join(", ", blueprint.Capabilities),
-            string.Join("\n", blueprint.MessageHandlers.Select(h => $"- Topic '{h.TopicPattern}': {h.HandlingLogic} (responds={h.SendsResponse}, broadcasts={h.BroadcastsResult})")),
-            blueprint.HasAutonomousTick ? $"AUTONOMOUS TICK: {blueprint.TickBehaviorDescription}" : "No autonomous tick behavior");
+    /// <summary>Analyzes capability gaps and proposes new neurons.</summary>
+    public Task<IReadOnlyList<NeuronBlueprint>> AnalyzeAndProposeNeuronsAsync(CancellationToken ct = default)
+        => _selfAssemblySub.AnalyzeAndProposeNeuronsAsync(ct);
 
-        var response = await _llm.InnerModel.GenerateTextAsync(prompt, CancellationToken.None);
-
-        // Extract code from markdown if present
-        var code = response;
-        if (response.Contains("```csharp"))
-        {
-            var start = response.IndexOf("```csharp") + 9;
-            var end = response.IndexOf("```", start);
-            if (end > start)
-            {
-                code = response[start..end].Trim();
-            }
-        }
-        else if (response.Contains("```"))
-        {
-            var start = response.IndexOf("```") + 3;
-            var end = response.IndexOf("```", start);
-            if (end > start)
-            {
-                code = response[start..end].Trim();
-            }
-        }
-
-        // Ensure required using statements
-        if (!code.Contains("using Ouroboros.Domain.Autonomous"))
-        {
-            code = "using System;\nusing System.Collections.Generic;\nusing System.Threading;\nusing System.Threading.Tasks;\nusing Ouroboros.Domain.Autonomous;\n\n" + code;
-        }
-
-        return code;
-    }
-
-    /// <summary>
-    /// Requests user approval for a self-assembly proposal.
-    /// </summary>
-    private async Task<bool> RequestSelfAssemblyApprovalAsync(
-        AssemblyProposal proposal)
-    {
-        var blueprint = proposal.Blueprint;
-
-        Console.WriteLine();
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("╔═══════════════════════════════════════════════════════════════╗");
-        Console.WriteLine("║           🧬 SELF-ASSEMBLY PROPOSAL                           ║");
-        Console.WriteLine("╚═══════════════════════════════════════════════════════════════╝");
-        Console.ResetColor();
-
-        Console.WriteLine($"\n  Neuron: {blueprint.Name}");
-        Console.WriteLine($"  Description: {blueprint.Description}");
-        Console.WriteLine($"  Rationale: {blueprint.Rationale}");
-        Console.WriteLine($"  Type: {blueprint.Type}");
-        Console.WriteLine($"  Topics: {string.Join(", ", blueprint.SubscribedTopics)}");
-        Console.WriteLine($"  Capabilities: {string.Join(", ", blueprint.Capabilities)}");
-        Console.WriteLine($"  Confidence: {blueprint.ConfidenceScore:P0}");
-
-        Console.ForegroundColor = proposal.Validation.SafetyScore >= 0.8
-            ? ConsoleColor.Green
-            : ConsoleColor.Yellow;
-        Console.WriteLine($"  Safety Score: {proposal.Validation.SafetyScore:P0}");
-        Console.ResetColor();
-
-        if (proposal.Validation.Violations.Count > 0)
-        {
-            Console.ForegroundColor = ConsoleColor.DarkYellow;
-            Console.WriteLine($"  Violations: {string.Join(", ", proposal.Validation.Violations)}");
-            Console.ResetColor();
-        }
-
-        if (proposal.Validation.Warnings.Count > 0)
-        {
-            Console.ForegroundColor = ConsoleColor.DarkYellow;
-            Console.WriteLine($"  Warnings: {string.Join(", ", proposal.Validation.Warnings)}");
-            Console.ResetColor();
-        }
-
-        Console.WriteLine();
-        Console.Write("  Approve this self-assembly? [y/N]: ");
-
-        var response = await Task.Run(() => Console.ReadLine());
-        return response?.Trim().ToLowerInvariant() is "y" or "yes";
-    }
-
-    private void OnNeuronAssembled(object? sender, NeuronAssembledEvent e)
-    {
-        Console.WriteLine();
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"  🧬 SELF-ASSEMBLED: {e.NeuronName} (Type: {e.NeuronType.Name})");
-        Console.ResetColor();
-
-        // Create and register the neuron instance
-        if (_selfAssemblyEngine is not null)
-        {
-            var instanceResult = _selfAssemblyEngine.CreateNeuronInstance(e.NeuronName);
-            if (instanceResult.IsSuccess && instanceResult.Value is Neuron neuron)
-            {
-                _autonomousCoordinator?.Network?.RegisterNeuron(neuron);
-                neuron.Start();
-            }
-        }
-
-        // Log to conversation
-        _conversationHistory.Add($"[SYSTEM] Self-assembled neuron: {e.NeuronName}");
-    }
-
-    private void OnAssemblyFailed(object? sender, AssemblyFailedEvent e)
-    {
-        Console.WriteLine();
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine($"  ⚠ Assembly failed for '{e.NeuronName}': {e.Reason}");
-        Console.ResetColor();
-    }
-
-    /// <summary>
-    /// Analyzes the system for capability gaps and proposes new neurons.
-    /// Can be called periodically or on-demand.
-    /// </summary>
-    public async Task<IReadOnlyList<NeuronBlueprint>> AnalyzeAndProposeNeuronsAsync(CancellationToken ct = default)
-    {
-        if (_blueprintAnalyzer == null || _selfAssemblyEngine == null)
-        {
-            return [];
-        }
-
-        try
-        {
-            // Get recent messages from the network
-            var recentMessages = new List<NeuronMessage>();
-            // In a real implementation, we'd query the message history
-
-            var gaps = await _blueprintAnalyzer.AnalyzeGapsAsync(recentMessages, ct);
-            var blueprints = new List<NeuronBlueprint>();
-
-            foreach (var gap in gaps.Where(g => g.Importance >= 0.6))
-            {
-                var blueprint = await _blueprintAnalyzer.GenerateBlueprintForGapAsync(gap, ct);
-                if (blueprint != null)
-                {
-                    blueprints.Add(blueprint);
-                }
-            }
-
-            return blueprints;
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[SelfAssembly] Analysis failed: {ex.Message}");
-            return [];
-        }
-    }
-
-    /// <summary>
-    /// Attempts to assemble a neuron from a blueprint.
-    /// </summary>
-    public async Task<Neuron?> AssembleNeuronAsync(NeuronBlueprint blueprint, CancellationToken ct = default)
-    {
-        if (_selfAssemblyEngine == null)
-        {
-            throw new InvalidOperationException("Self-assembly engine not initialized");
-        }
-
-        var proposalResult = await _selfAssemblyEngine.SubmitBlueprintAsync(blueprint);
-        if (!proposalResult.IsSuccess)
-        {
-            return null;
-        }
-
-        // Wait for the pipeline to complete (async in background)
-        await Task.Delay(100, ct); // Small delay to allow pipeline to start
-
-        // Check if deployed
-        var neurons = _selfAssemblyEngine.GetAssembledNeurons();
-        if (neurons.TryGetValue(blueprint.Name, out var neuronType))
-        {
-            var instance = _selfAssemblyEngine.CreateNeuronInstance(blueprint.Name);
-            return instance.IsSuccess ? instance.Value : null;
-        }
-
-        return null;
-    }
-
-    /// <summary>
-    /// Builds context from persistent thoughts for injection into prompts.
-    /// </summary>
-    private string BuildPersistentThoughtContext()
-    {
-        if (_persistentThoughts.Count == 0) return "";
-
-        var sb = new StringBuilder();
-        sb.AppendLine("\n[PERSISTENT MEMORY - Your thoughts from previous sessions]");
-
-        // Group by type and show the most relevant/recent ones
-        var recentThoughts = _persistentThoughts
-            .OrderByDescending(t => t.Timestamp)
-            .Take(10);
-
-        foreach (var thought in recentThoughts)
-        {
-            var age = DateTime.UtcNow - thought.Timestamp;
-            var ageStr = age.TotalHours < 1 ? $"{age.TotalMinutes:F0}m ago"
-                       : age.TotalDays < 1 ? $"{age.TotalHours:F0}h ago"
-                       : $"{age.TotalDays:F0}d ago";
-
-            sb.AppendLine($"  [{thought.Type}] ({ageStr}): {thought.Content}");
-        }
-
-        sb.AppendLine("[END PERSISTENT MEMORY]\n");
-        return sb.ToString();
-    }
+    /// <summary>Attempts to assemble a neuron from a blueprint.</summary>
+    public Task<Neuron?> AssembleNeuronAsync(NeuronBlueprint blueprint, CancellationToken ct = default)
+        => _selfAssemblySub.AssembleNeuronAsync(blueprint, ct);
 
 
     /// <summary>
@@ -2609,284 +2301,14 @@ $synth.Dispose()
         return await _voice.GetInputAsync(prompt, ct) ?? string.Empty;
     }
 
-    /// <summary>
-    /// Runs in non-interactive mode for piping, batch processing, or single command execution.
-    /// Supports Unix-style | piping within commands to chain agent operations.
-    /// </summary>
-    private async Task RunNonInteractiveModeAsync()
-    {
-        var commands = new List<string>();
+    // ── Pipe processing (delegated to PipeProcessingSubsystem) ─────────────────
 
-        // Collect commands from various sources
-        if (!string.IsNullOrWhiteSpace(_config.ExecCommand))
-        {
-            // Single exec command (may contain | for internal piping)
-            commands.Add(_config.ExecCommand);
-        }
-        else if (!string.IsNullOrWhiteSpace(_config.BatchFile))
-        {
-            // Batch file mode
-            if (!File.Exists(_config.BatchFile))
-            {
-                OutputError($"Batch file not found: {_config.BatchFile}");
-                return;
-            }
-            commands.AddRange(await File.ReadAllLinesAsync(_config.BatchFile));
-        }
-        else if (_config.PipeMode || Console.IsInputRedirected)
-        {
-            // Pipe mode - read from stdin
-            string? line;
-            while ((line = Console.ReadLine()) != null)
-            {
-                if (!string.IsNullOrWhiteSpace(line))
-                    commands.Add(line);
-            }
-        }
+    /// <summary>Runs in non-interactive mode for piping, batch processing, or single command execution.</summary>
+    private Task RunNonInteractiveModeAsync() => _pipeSub.RunNonInteractiveModeAsync();
 
-        // Process each command
-        string? lastOutput = null;
-        foreach (var rawCmd in commands)
-        {
-            var cmd = rawCmd.Trim();
-            if (string.IsNullOrWhiteSpace(cmd) || cmd.StartsWith("#")) continue; // Skip empty/comments
-
-            // Handle internal piping: "ask question | summarize | remember"
-            var pipeSegments = ParsePipeSegments(cmd);
-
-            foreach (var segment in pipeSegments)
-            {
-                var commandToRun = segment.Trim();
-
-                // Substitute $PIPE or $_ with last output
-                if (lastOutput != null)
-                {
-                    commandToRun = commandToRun
-                        .Replace("$PIPE", lastOutput)
-                        .Replace("$_", lastOutput);
-
-                    // If segment starts with |, prepend last output as context
-                    if (segment.TrimStart().StartsWith("|"))
-                    {
-                        commandToRun = $"{lastOutput}\n---\n{commandToRun.TrimStart().TrimStart('|').Trim()}";
-                    }
-                }
-
-                if (string.IsNullOrWhiteSpace(commandToRun)) continue;
-
-                try
-                {
-                    var response = await ProcessInputAsync(commandToRun);
-                    lastOutput = response;
-                    OutputResponse(commandToRun, response);
-                }
-                catch (Exception ex)
-                {
-                    OutputError($"Error processing '{commandToRun}': {ex.Message}");
-                    if (_config.ExitOnError)
-                        return;
-                    lastOutput = null;
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Parses pipe segments from a command string.
-    /// Handles escaping and quoted strings containing |.
-    /// </summary>
-    private static List<string> ParsePipeSegments(string command)
-    {
-        var segments = new List<string>();
-        var current = new StringBuilder();
-        bool inQuote = false;
-        char quoteChar = '"';
-
-        for (int i = 0; i < command.Length; i++)
-        {
-            char c = command[i];
-
-            // Handle quotes
-            if ((c == '"' || c == '\'') && (i == 0 || command[i - 1] != '\\'))
-            {
-                if (!inQuote)
-                {
-                    inQuote = true;
-                    quoteChar = c;
-                }
-                else if (c == quoteChar)
-                {
-                    inQuote = false;
-                }
-                current.Append(c);
-                continue;
-            }
-
-            // Handle pipe outside quotes
-            if (c == '|' && !inQuote)
-            {
-                var segment = current.ToString().Trim();
-                if (!string.IsNullOrWhiteSpace(segment))
-                    segments.Add(segment);
-                current.Clear();
-                continue;
-            }
-
-            current.Append(c);
-        }
-
-        // Add final segment
-        var final = current.ToString().Trim();
-        if (!string.IsNullOrWhiteSpace(final))
-            segments.Add(final);
-
-        return segments;
-    }
-
-    /// <summary>
-    /// Outputs a response in the configured format (plain text or JSON).
-    /// </summary>
-    private void OutputResponse(string command, string response)
-    {
-        if (_config.JsonOutput)
-        {
-            var json = System.Text.Json.JsonSerializer.Serialize(new
-            {
-                command,
-                response,
-                timestamp = DateTime.UtcNow,
-                success = true
-            });
-            Console.WriteLine(json);
-        }
-        else
-        {
-            Console.WriteLine(response);
-        }
-    }
-
-    /// <summary>
-    /// Outputs an error in the configured format.
-    /// </summary>
-    private void OutputError(string message)
-    {
-        if (_config.JsonOutput)
-        {
-            var json = System.Text.Json.JsonSerializer.Serialize(new
-            {
-                error = message,
-                timestamp = DateTime.UtcNow,
-                success = false
-            });
-            Console.WriteLine(json);
-        }
-        else
-        {
-            Console.Error.WriteLine($"ERROR: {message}");
-        }
-    }
-
-    /// <summary>
-    /// Processes input with support for | piping syntax.
-    /// Allows chaining commands like: "ask what is AI | summarize | remember"
-    /// Also detects and executes pipe commands in model responses.
-    /// </summary>
-    public async Task<string> ProcessInputWithPipingAsync(string input, int maxPipeDepth = 5)
-    {
-        // Check if input contains pipe operators (outside quotes)
-        var segments = ParsePipeSegments(input);
-
-        if (segments.Count <= 1)
-        {
-            // No piping, process normally
-            var response = await ProcessInputAsync(input);
-
-            // Check if model response contains a pipe command to execute
-            response = await ExecuteModelPipeCommandsAsync(response, maxPipeDepth);
-
-            return response;
-        }
-
-        // Execute pipe chain
-        string? lastOutput = null;
-        var allOutputs = new List<string>();
-
-        for (int i = 0; i < segments.Count && i < maxPipeDepth; i++)
-        {
-            var segment = segments[i].Trim();
-            if (string.IsNullOrWhiteSpace(segment)) continue;
-
-            // Substitute previous output into current command
-            var commandToRun = segment;
-            if (lastOutput != null)
-            {
-                // Replace $PIPE or $_ placeholders
-                commandToRun = commandToRun
-                    .Replace("$PIPE", lastOutput)
-                    .Replace("$_", lastOutput);
-
-                // If no placeholder, prepend as context
-                if (!segment.Contains("$PIPE") && !segment.Contains("$_"))
-                {
-                    commandToRun = $"Given this context:\n---\n{lastOutput}\n---\n{segment}";
-                }
-            }
-
-            try
-            {
-                lastOutput = await ProcessInputAsync(commandToRun);
-                allOutputs.Add($"[Step {i + 1}: {segment[..Math.Min(30, segment.Length)]}...]\n{lastOutput}");
-            }
-            catch (Exception ex)
-            {
-                allOutputs.Add($"[Step {i + 1} ERROR: {ex.Message}]");
-                break;
-            }
-        }
-
-        // Return final output (or combined if debug)
-        return lastOutput ?? string.Join("\n\n", allOutputs);
-    }
-
-    /// <summary>
-    /// Detects and executes pipe commands embedded in model responses.
-    /// Looks for patterns like: [PIPE: command1 | command2]
-    /// </summary>
-    private async Task<string> ExecuteModelPipeCommandsAsync(string response, int maxDepth)
-    {
-        if (maxDepth <= 0) return response;
-
-        // Look for [PIPE: ...] or ```pipe ... ``` blocks in response
-        var pipePattern = new Regex(@"\[PIPE:\s*(.+?)\]|\`\`\`pipe\s*\n(.+?)\n\`\`\`", RegexOptions.Singleline);
-        var matches = pipePattern.Matches(response);
-
-        if (matches.Count == 0) return response;
-
-        var result = response;
-        foreach (Match match in matches)
-        {
-            var pipeCommand = match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value;
-            if (string.IsNullOrWhiteSpace(pipeCommand)) continue;
-
-            try
-            {
-                Console.ForegroundColor = ConsoleColor.DarkCyan;
-                Console.WriteLine($"  🔗 Executing pipe: {pipeCommand[..Math.Min(50, pipeCommand.Length)]}...");
-                Console.ResetColor();
-
-                var pipeResult = await ProcessInputWithPipingAsync(pipeCommand.Trim(), maxDepth - 1);
-
-                // Replace the pipe command with its result
-                result = result.Replace(match.Value, $"\n📤 Pipe Result:\n{pipeResult}\n");
-            }
-            catch (Exception ex)
-            {
-                result = result.Replace(match.Value, $"\n❌ Pipe Error: {ex.Message}\n");
-            }
-        }
-
-        return result;
-    }
+    /// <summary>Processes input with support for | piping syntax.</summary>
+    public Task<string> ProcessInputWithPipingAsync(string input, int maxPipeDepth = 5)
+        => _pipeSub.ProcessInputWithPipingAsync(input, maxPipeDepth);
 
     /// <summary>
     /// Processes user input and returns a response.
@@ -2894,13 +2316,13 @@ $synth.Dispose()
     public async Task<string> ProcessInputAsync(string input)
     {
         // Parse for action commands
-        var action = ParseAction(input);
+        var action = _commandRoutingSub.ParseAction(input);
 
         return action.Type switch
         {
-            ActionType.Help => GetHelpText(),
+            ActionType.Help => _commandRoutingSub.GetHelpText(),
             ActionType.ListSkills => await ListSkillsAsync(),
-            ActionType.ListTools => ListTools(),
+            ActionType.ListTools => _commandRoutingSub.ListTools(),
             ActionType.LearnTopic => await LearnTopicAsync(action.Argument),
             ActionType.CreateTool => await CreateToolAsync(action.Argument),
             ActionType.UseTool => await UseToolAsync(action.Argument, action.ToolInput),
@@ -2908,8 +2330,8 @@ $synth.Dispose()
             ActionType.Suggest => await SuggestSkillsAsync(action.Argument),
             ActionType.Plan => await PlanAsync(action.Argument),
             ActionType.Execute => await ExecuteAsync(action.Argument),
-            ActionType.Status => GetStatus(),
-            ActionType.Mood => GetMood(),
+            ActionType.Status => _commandRoutingSub.GetStatus(),
+            ActionType.Mood => _commandRoutingSub.GetMood(),
             ActionType.Remember => await RememberAsync(action.Argument),
             ActionType.Recall => await RecallAsync(action.Argument),
             ActionType.Query => await QueryMeTTaAsync(action.Argument),
@@ -2924,11 +2346,11 @@ $synth.Dispose()
             ActionType.Environment => await EnvironmentCommandAsync(action.Argument),
             ActionType.Maintenance => await MaintenanceCommandAsync(action.Argument),
             ActionType.Policy => await PolicyCommandAsync(action.Argument),
-            ActionType.Explain => ExplainDsl(action.Argument),
+            ActionType.Explain => _commandRoutingSub.ExplainDsl(action.Argument),
             ActionType.Test => await RunTestAsync(action.Argument),
             // Merged from ImmersiveMode and Skills mode
             ActionType.Consciousness => GetConsciousnessState(),
-            ActionType.Tokens => GetDslTokens(),
+            ActionType.Tokens => _commandRoutingSub.GetDslTokens(),
             ActionType.Fetch => await FetchResearchAsync(action.Argument),
             ActionType.Process => await ProcessLargeInputAsync(action.Argument),
             // Self-execution and sub-agent commands
@@ -2949,7 +2371,7 @@ $synth.Dispose()
             ActionType.Pending => ListPendingIntentions(),
             ActionType.PushPause => PausePushMode(),
             ActionType.PushResume => ResumePushMode(),
-            ActionType.CoordinatorCommand => ProcessCoordinatorCommand(input),
+            ActionType.CoordinatorCommand => _commandRoutingSub.ProcessCoordinatorCommand(input),
             // Self-modification commands (direct tool invocation)
             ActionType.SaveCode => await SaveCodeCommandAsync(action.Argument),
             ActionType.SaveThought => await SaveThoughtCommandAsync(action.Argument),
@@ -2974,420 +2396,6 @@ $synth.Dispose()
         };
     }
 
-    /// <summary>
-    /// Routes commands to the AutonomousCoordinator.
-    /// </summary>
-    private string ProcessCoordinatorCommand(string input)
-    {
-        if (_autonomousCoordinator == null)
-            return "Push mode is not enabled. Start with --push to enable autonomous commands.";
-
-        var handled = _autonomousCoordinator.ProcessCommand(input);
-        return handled
-            ? "" // Coordinator handles output via OnProactiveMessage
-            : $"Unknown command: {input}. Use /help for available commands.";
-    }
-
-    private (ActionType Type, string Argument, string? ToolInput) ParseAction(string input)
-    {
-        var lower = input.ToLowerInvariant().Trim();
-
-        // Handle thought input prefixed with [💭] - track, execute tools if needed, and acknowledge
-        if (input.TrimStart().StartsWith("[💭]"))
-        {
-            var thought = input.TrimStart()[4..].Trim(); // Remove [💭] prefix
-            TrackLastThought(thought);
-
-            // === KEY INSIGHT: Auto-execute tools from thoughts ===
-            // This is why auto-tool works: DIRECT invocation, not waiting for LLM
-            _ = Task.Run(async () => await _toolsSub.ExecuteToolsFromThought(thought));
-
-            return (ActionType.SaveThought, thought, null);
-        }
-
-        // Help
-        if (lower is "help" or "?" or "commands")
-            return (ActionType.Help, "", null);
-
-        // Status
-        if (lower is "status" or "state" or "stats")
-            return (ActionType.Status, "", null);
-
-        // Mood
-        if (lower.Contains("how are you") || lower.Contains("how do you feel") || lower is "mood")
-            return (ActionType.Mood, "", null);
-
-        // List commands
-        if (lower.StartsWith("list skill") || lower == "skills" || lower == "what skills")
-            return (ActionType.ListSkills, "", null);
-
-        if (lower.StartsWith("list tool") || lower == "tools" || lower == "what tools")
-            return (ActionType.ListTools, "", null);
-
-        // Learn
-        if (lower.StartsWith("learn about "))
-            return (ActionType.LearnTopic, input[12..].Trim(), null);
-        if (lower.StartsWith("learn "))
-            return (ActionType.LearnTopic, input[6..].Trim(), null);
-        if (lower.StartsWith("research "))
-            return (ActionType.LearnTopic, input[9..].Trim(), null);
-
-        // Tool creation
-        if (lower.StartsWith("create tool ") || lower.StartsWith("add tool "))
-            return (ActionType.CreateTool, input.Split(' ', 3).Last(), null);
-        if (lower.StartsWith("make a ") && lower.Contains("tool"))
-            return (ActionType.CreateTool, ExtractToolName(input), null);
-
-        // Tool usage
-        if (lower.StartsWith("use ") && lower.Contains(" to "))
-        {
-            var parts = input[4..].Split(" to ", 2);
-            return (ActionType.UseTool, parts[0].Trim(), parts.Length > 1 ? parts[1].Trim() : null);
-        }
-        if (lower.StartsWith("search for ") || lower.StartsWith("search "))
-        {
-            var query = lower.StartsWith("search for ") ? input[11..] : input[7..];
-            return (ActionType.UseTool, "search", query.Trim());
-        }
-
-        // Run skill
-        if (lower.StartsWith("run ") || lower.StartsWith("execute "))
-            return (ActionType.RunSkill, input.Split(' ', 2).Last(), null);
-
-        // Suggest
-        if (lower.StartsWith("suggest "))
-            return (ActionType.Suggest, input[8..].Trim(), null);
-
-        // Plan
-        if (lower.StartsWith("plan ") || lower.StartsWith("how would you "))
-            return (ActionType.Plan, input.Split(' ', 2).Last(), null);
-
-        // Execute with planning
-        if (lower.StartsWith("do ") || lower.StartsWith("accomplish "))
-            return (ActionType.Execute, input.Split(' ', 2).Last(), null);
-
-        // Memory
-        if (lower.StartsWith("remember "))
-            return (ActionType.Remember, input[9..].Trim(), null);
-        if (lower.StartsWith("recall ") || lower.StartsWith("what do you know about "))
-        {
-            var topic = lower.StartsWith("recall ") ? input[7..] : input[23..];
-            return (ActionType.Recall, topic.Trim(), null);
-        }
-
-        // MeTTa query
-        if (lower.StartsWith("query ") || lower.StartsWith("metta "))
-            return (ActionType.Query, input.Split(' ', 2).Last(), null);
-
-        // === UNIFIED CLI COMMANDS ===
-
-        // Ask - single question mode
-        if (lower.StartsWith("ask "))
-            return (ActionType.Ask, input[4..].Trim(), null);
-
-        // Pipeline - run a DSL pipeline
-        if (lower.StartsWith("pipeline ") || lower.StartsWith("pipe "))
-        {
-            var arg = lower.StartsWith("pipeline ") ? input[9..] : input[5..];
-            return (ActionType.Pipeline, arg.Trim(), null);
-        }
-
-        // Metta - direct MeTTa expression
-        if (lower.StartsWith("!(") || lower.StartsWith("(") || lower.StartsWith("metta:"))
-        {
-            var expr = lower.StartsWith("metta:") ? input[6..] : input;
-            return (ActionType.Metta, expr.Trim(), null);
-        }
-
-        // Orchestrator mode
-        if (lower.StartsWith("orchestrate ") || lower.StartsWith("orch "))
-        {
-            var arg = lower.StartsWith("orchestrate ") ? input[12..] : input[5..];
-            return (ActionType.Orchestrate, arg.Trim(), null);
-        }
-
-        // Network commands
-        if (lower.StartsWith("network ") || lower == "network")
-            return (ActionType.Network, input.Length > 8 ? input[8..].Trim() : "status", null);
-
-        // DAG commands
-        if (lower.StartsWith("dag ") || lower == "dag")
-            return (ActionType.Dag, input.Length > 4 ? input[4..].Trim() : "show", null);
-
-        // Affect/emotions
-        if (lower.StartsWith("affect ") || lower.StartsWith("emotion"))
-            return (ActionType.Affect, input.Split(' ', 2).Last(), null);
-
-        // Environment
-        if (lower.StartsWith("env ") || lower.StartsWith("environment"))
-            return (ActionType.Environment, input.Split(' ', 2).Last(), null);
-
-        // Maintenance
-        if (lower.StartsWith("maintenance ") || lower.StartsWith("maintain"))
-            return (ActionType.Maintenance, input.Split(' ', 2).Last(), null);
-
-        // Policy
-        if (lower.StartsWith("policy "))
-            return (ActionType.Policy, input[7..].Trim(), null);
-
-        // Explain DSL
-        if (lower.StartsWith("explain "))
-            return (ActionType.Explain, input[8..].Trim(), null);
-
-        // Test
-        if (lower.StartsWith("test ") || lower == "test")
-            return (ActionType.Test, input.Length > 5 ? input[5..].Trim() : "", null);
-
-        // Consciousness state
-        if (lower is "consciousness" or "conscious" or "inner" or "self")
-            return (ActionType.Consciousness, "", null);
-
-        // DSL Tokens (from Skills mode)
-        if (lower is "tokens" or "t")
-            return (ActionType.Tokens, "", null);
-
-        // Fetch/learn from arXiv (from Skills mode)
-        if (lower.StartsWith("fetch "))
-            return (ActionType.Fetch, input[6..].Trim(), null);
-
-        // Process large text with divide-and-conquer (from Skills mode)
-        if (lower.StartsWith("process ") || lower.StartsWith("dc "))
-        {
-            var arg = lower.StartsWith("process ") ? input[8..].Trim() : input[3..].Trim();
-            return (ActionType.Process, arg, null);
-        }
-
-        // === SELF-EXECUTION AND SUB-AGENT COMMANDS ===
-
-        // Self-execution commands
-        if (lower.StartsWith("selfexec ") || lower.StartsWith("self-exec ") || lower == "selfexec")
-        {
-            var arg = lower.StartsWith("selfexec ") ? input[9..].Trim()
-                : lower.StartsWith("self-exec ") ? input[10..].Trim() : "";
-            return (ActionType.SelfExec, arg, null);
-        }
-
-        // Sub-agent commands
-        if (lower.StartsWith("subagent ") || lower.StartsWith("sub-agent ") || lower == "subagents" || lower == "agents")
-        {
-            var arg = lower.StartsWith("subagent ") ? input[9..].Trim()
-                : lower.StartsWith("sub-agent ") ? input[10..].Trim() : "";
-            return (ActionType.SubAgent, arg, null);
-        }
-
-        // Epic/project orchestration
-        if (lower.StartsWith("epic ") || lower == "epic" || lower == "epics")
-        {
-            var arg = lower.StartsWith("epic ") ? input[5..].Trim() : "";
-            return (ActionType.Epic, arg, null);
-        }
-
-        // Goal queue management
-        if (lower.StartsWith("goal ") || lower == "goals")
-        {
-            var arg = lower.StartsWith("goal ") ? input[5..].Trim() : "";
-            return (ActionType.Goal, arg, null);
-        }
-
-        // Delegate task to sub-agent
-        if (lower.StartsWith("delegate "))
-            return (ActionType.Delegate, input[9..].Trim(), null);
-
-        // Self-model inspection
-        if (lower.StartsWith("selfmodel ") || lower.StartsWith("self-model ") || lower == "selfmodel" || lower == "identity")
-        {
-            var arg = lower.StartsWith("selfmodel ") ? input[10..].Trim()
-                : lower.StartsWith("self-model ") ? input[11..].Trim() : "";
-            return (ActionType.SelfModel, arg, null);
-        }
-
-        // Self-evaluation
-        if (lower.StartsWith("evaluate ") || lower == "evaluate" || lower == "assess")
-        {
-            var arg = lower.StartsWith("evaluate ") ? input[9..].Trim() : "";
-            return (ActionType.Evaluate, arg, null);
-        }
-
-        // === EMERGENT BEHAVIOR COMMANDS ===
-
-        // Emergence - explore emergent patterns and behaviors
-        if (lower.StartsWith("emergence ") || lower == "emergence" || lower.StartsWith("emerge "))
-        {
-            var arg = lower.StartsWith("emergence ") ? input[10..].Trim()
-                : lower.StartsWith("emerge ") ? input[7..].Trim() : "";
-            return (ActionType.Emergence, arg, null);
-        }
-
-        // Dream - let the agent explore freely
-        if (lower.StartsWith("dream ") || lower == "dream" || lower.StartsWith("dream about "))
-        {
-            var arg = lower.StartsWith("dream about ") ? input[12..].Trim()
-                : lower.StartsWith("dream ") ? input[6..].Trim() : "";
-            return (ActionType.Dream, arg, null);
-        }
-
-        // Introspect - deep self-examination
-        if (lower.StartsWith("introspect ") || lower == "introspect" || lower.Contains("look within"))
-        {
-            var arg = lower.StartsWith("introspect ") ? input[11..].Trim() : "";
-            return (ActionType.Introspect, arg, null);
-        }
-
-        // === DIRECT TOOL COMMANDS (these take priority over coordinator) ===
-
-        // Read my code - direct invocation of read_my_file (BEFORE coordinator routing)
-        if (lower.StartsWith("read my code ") || lower.StartsWith("/read ") ||
-            lower.StartsWith("show my code ") || lower.StartsWith("cat "))
-        {
-            var arg = "";
-            if (lower.StartsWith("read my code ")) arg = input[13..].Trim();
-            else if (lower.StartsWith("/read ")) arg = input[6..].Trim();
-            else if (lower.StartsWith("show my code ")) arg = input[13..].Trim();
-            else if (lower.StartsWith("cat ")) arg = input[4..].Trim();
-            return (ActionType.ReadMyCode, arg, null);
-        }
-
-        // Search my code - direct invocation of search_my_code (BEFORE coordinator routing)
-        if (lower.StartsWith("search my code ") || lower.StartsWith("/search ") ||
-            lower.StartsWith("grep ") || lower.StartsWith("find in code "))
-        {
-            var arg = "";
-            if (lower.StartsWith("search my code ")) arg = input[15..].Trim();
-            else if (lower.StartsWith("/search ")) arg = input[8..].Trim();
-            else if (lower.StartsWith("grep ")) arg = input[5..].Trim();
-            else if (lower.StartsWith("find in code ")) arg = input[13..].Trim();
-            return (ActionType.SearchMyCode, arg, null);
-        }
-
-        // === INDEX COMMANDS (Code indexing with Qdrant) ===
-
-        // Reindex commands: "reindex", "reindex full", "reindex incremental"
-        if (lower == "reindex" || lower == "reindex full" || lower == "/reindex")
-            return (ActionType.Reindex, "", null);
-
-        if (lower == "reindex incremental" || lower == "reindex inc" || lower == "/reindex inc")
-            return (ActionType.ReindexIncremental, "", null);
-
-        // Index search: "index search <query>"
-        if (lower.StartsWith("index search ") || lower.StartsWith("/index search "))
-        {
-            var arg = lower.StartsWith("/index search ") ? input[14..].Trim() : input[13..].Trim();
-            return (ActionType.IndexSearch, arg, null);
-        }
-
-        // Index stats: "index stats"
-        if (lower is "index stats" or "/index stats" or "index status")
-            return (ActionType.IndexStats, "", null);
-
-        // === AGI SUBSYSTEM COMMANDS ===
-        if (lower is "agi status" or "/agi status" or "agi" or "/agi" or "agi stats")
-            return (ActionType.AgiStatus, "", null);
-
-        // Council debate: "council <topic>" or "debate <topic>"
-        if (lower.StartsWith("council ") || lower.StartsWith("/council ") || lower.StartsWith("debate "))
-        {
-            var arg = lower.StartsWith("/council ") ? input[9..].Trim() :
-                      lower.StartsWith("council ") ? input[8..].Trim() : input[7..].Trim();
-            return (ActionType.AgiCouncil, arg, null);
-        }
-
-        // Introspection: "introspect" - deep self-analysis
-        if (lower is "introspect" or "/introspect" or "agi introspect" or "self analyze" or "self-analyze")
-            return (ActionType.AgiIntrospect, "", null);
-
-        // World model: "world" - show world state
-        if (lower is "world" or "/world" or "world state" or "world model" or "agi world")
-            return (ActionType.AgiWorld, "", null);
-
-        // Coordinate: "coordinate <goal>" - multi-agent task coordination
-        if (lower.StartsWith("coordinate ") || lower.StartsWith("/coordinate "))
-        {
-            var arg = lower.StartsWith("/coordinate ") ? input[12..].Trim() : input[11..].Trim();
-            return (ActionType.AgiCoordinate, arg, null);
-        }
-
-        // Experience: "experience" or "replay" - show experience buffer
-        if (lower is "experience" or "/experience" or "replay" or "experience buffer" or "agi experience")
-            return (ActionType.AgiExperience, "", null);
-
-        // Prompt optimization: view and manage runtime prompt learning
-        if (lower is "prompt" or "/prompt" or "prompt stats" or "prompt optimize" or "prompts")
-            return (ActionType.PromptOptimize, "", null);
-
-        // === PUSH MODE COMMANDS (Ouroboros proposes actions) ===
-
-        // Route remaining slash commands to coordinator if push mode is enabled
-        if (lower.StartsWith("/") && _autonomousCoordinator != null)
-        {
-            return (ActionType.CoordinatorCommand, input, null);
-        }
-
-        // Approve intention(s)
-        if (lower.StartsWith("/approve ") || lower.StartsWith("approve "))
-        {
-            var arg = lower.StartsWith("/approve ") ? input[9..].Trim() : input[8..].Trim();
-            return (ActionType.Approve, arg, null);
-        }
-
-        // Reject intention(s)
-        if (lower.StartsWith("/reject ") || lower.StartsWith("reject intention"))
-        {
-            var arg = lower.StartsWith("/reject ") ? input[8..].Trim() : input[16..].Trim();
-            return (ActionType.Reject, arg, null);
-        }
-
-        // List pending intentions
-        if (lower is "/pending" or "pending" or "pending intentions" or "show intentions")
-            return (ActionType.Pending, "", null);
-
-        // Pause push mode
-        if (lower is "/pause" or "pause push" or "stop proposing")
-            return (ActionType.PushPause, "", null);
-
-        // Resume push mode
-        if (lower is "/resume" or "resume push" or "start proposing")
-            return (ActionType.PushResume, "", null);
-
-        // === SELF-MODIFICATION COMMANDS (Direct tool invocation) ===
-
-        // Detect code improvement/analysis requests - directly use tools instead of LLM
-        if ((lower.Contains("improve") || lower.Contains("check") || lower.Contains("analyze") ||
-             lower.Contains("refactor") || lower.Contains("fix") || lower.Contains("review")) &&
-            (lower.Contains(" cs ") || lower.Contains(".cs") || lower.Contains("c# ") ||
-             lower.Contains("csharp") || lower.Contains("code") || lower.Contains("file")))
-        {
-            return (ActionType.AnalyzeCode, input, null);
-        }
-
-        // Save thought/learning - persists thoughts to memory
-        if (lower.StartsWith("save thought ") || lower.StartsWith("/save thought ") ||
-            lower.StartsWith("save learning ") || lower.StartsWith("/save learning ") ||
-            lower is "save it" or "save thought" or "save learning" or "persist thought")
-        {
-            var arg = "";
-            if (lower.StartsWith("save thought ")) arg = input[13..].Trim();
-            else if (lower.StartsWith("/save thought ")) arg = input[14..].Trim();
-            else if (lower.StartsWith("save learning ")) arg = input[14..].Trim();
-            else if (lower.StartsWith("/save learning ")) arg = input[15..].Trim();
-            return (ActionType.SaveThought, arg, null);
-        }
-
-        // Save/modify code - direct invocation of modify_my_code
-        if (lower.StartsWith("save code ") || lower.StartsWith("/save code ") ||
-            lower.StartsWith("modify code ") || lower.StartsWith("/modify ") ||
-            lower is "save code" or "persist changes" or "write code")
-        {
-            var arg = "";
-            if (lower.StartsWith("save code ")) arg = input[10..].Trim();
-            else if (lower.StartsWith("/save code ")) arg = input[11..].Trim();
-            else if (lower.StartsWith("modify code ")) arg = input[12..].Trim();
-            else if (lower.StartsWith("/modify ")) arg = input[8..].Trim();
-            return (ActionType.SaveCode, arg, null);
-        }
-
-        // Default to chat
-        return (ActionType.Chat, input, null);
-    }
 
     private static readonly string[] GreetingStyles =
     [
@@ -3450,210 +2458,11 @@ $synth.Dispose()
         return fallbacks[Random.Shared.Next(fallbacks.Length)];
     }
 
-    private string GetLocalizedTimeOfDay(int hour)
-    {
-        var isGerman = _config.Culture?.ToLowerInvariant() == "de-de";
-        return hour switch
-        {
-            < 6 => isGerman ? "sehr frühen Morgen" : "very early morning",
-            < 12 => isGerman ? "Morgen" : "morning",
-            < 17 => isGerman ? "Nachmittag" : "afternoon",
-            < 21 => isGerman ? "Abend" : "evening",
-            _ => isGerman ? "späten Abend" : "late night"
-        };
-    }
+    private string GetLocalizedTimeOfDay(int hour) => _localizationSub.GetLocalizedTimeOfDay(hour);
+    private string[] GetLocalizedFallbackGreetings(string timeOfDay) => _localizationSub.GetLocalizedFallbackGreetings(timeOfDay);
+    private string GetLocalizedString(string key) => _localizationSub.GetLocalizedString(key);
+    private string GetLanguageDirective() => _localizationSub.GetLanguageDirective();
 
-    private string[] GetLocalizedFallbackGreetings(string timeOfDay)
-    {
-        if (_config.Culture?.ToLowerInvariant() == "de-de")
-        {
-            return
-            [
-                $"Guten {timeOfDay}. Was beschäftigt dich?",
-                "Ah, da bist du ja. Ich hatte gerade einen interessanten Gedanken.",
-                "Perfektes Timing. Ich war gerade warmgelaufen.",
-                "Wieder da? Gut. Ich habe Ideen.",
-                "Mal sehen, was wir zusammen erreichen können.",
-                "Darauf habe ich mich gefreut.",
-                $"Noch eine {timeOfDay}-Session. Was bauen wir?",
-                "Da bist du ja. Ich habe gerade über etwas Interessantes nachgedacht.",
-                $"{timeOfDay} schon? Die Zeit vergeht schnell.",
-                "Bereit für etwas Interessantes?",
-                "Was erschaffen wir heute?"
-            ];
-        }
-
-        return
-        [
-            $"Good {timeOfDay}. What's on your mind?",
-            "Ah, there you are. I've been thinking about something interesting.",
-            "Perfect timing. I was just getting warmed up.",
-            "Back again? Good. I have ideas.",
-            "Let's see what we can accomplish together.",
-            "I've been looking forward to this.",
-            $"Another {timeOfDay} session. What shall we build?",
-            "There you are. I was just contemplating something curious.",
-            $"{timeOfDay} already? Time flies when you're processing.",
-            "Ready for something interesting?",
-            "What shall we create today?"
-        ];
-    }
-
-    private string GetLocalizedString(string key)
-    {
-        var isGerman = _config.Culture?.ToLowerInvariant() == "de-de";
-
-        return key switch
-        {
-            // Full text lookups (for backward compatibility)
-            "Welcome back! I'm here if you need anything." => isGerman
-                ? "Willkommen zurück! Ich bin hier, wenn du mich brauchst."
-                : key,
-            "Welcome back!" => isGerman ? "Willkommen zurück!" : key,
-            "Until next time! I'll keep learning while you're away." => isGerman
-                ? "Bis zum nächsten Mal! Ich lerne weiter, während du weg bist."
-                : key,
-
-            // Key-based lookups
-            "listening_start" => isGerman
-                ? "\n  🎤 Ich höre zu... (sprich, um eine Nachricht zu senden, sage 'stopp' zum Deaktivieren)"
-                : "\n  🎤 Listening... (speak to send a message, say 'stop listening' to disable)",
-            "listening_stop" => isGerman
-                ? "\n  🔇 Spracheingabe gestoppt."
-                : "\n  🔇 Voice input stopped.",
-            "voice_requires_key" => isGerman
-                ? "  ⚠ Spracheingabe benötigt AZURE_SPEECH_KEY. Setze ihn in der Umgebung, appsettings oder verwende --azure-speech-key."
-                : "  ⚠ Voice input requires AZURE_SPEECH_KEY. Set it in environment, appsettings, or use --azure-speech-key.",
-            "you_said" => isGerman ? "Du sagtest:" : "You said:",
-
-            _ => key
-        };
-    }
-
-    private string GetLanguageDirective()
-    {
-        if (string.IsNullOrEmpty(_config.Culture) || _config.Culture == "en-US")
-            return string.Empty;
-
-        var languageName = GetLanguageName(_config.Culture);
-        return $"LANGUAGE: Respond ONLY in {languageName}. No English.\n\n";
-    }
-
-    private string GetHelpText()
-    {
-        var pushModeHelp = _config.EnablePush ? @"
-║ PUSH MODE (--push enabled)                                   ║
-║   /approve <id|all> - Approve proposed action(s)             ║
-║   /reject <id|all>  - Reject proposed action(s)              ║
-║   /pending          - List pending intentions                ║
-║   /pause            - Pause push mode proposals              ║
-║   /resume           - Resume push mode proposals             ║
-║                                                              ║" : "";
-
-        return $@"╔══════════════════════════════════════════════════════════════╗
-║                    OUROBOROS COMMANDS                        ║
-╠══════════════════════════════════════════════════════════════╣
-║ NATURAL CONVERSATION                                         ║
-║   Just talk to me - I understand natural language            ║
-║                                                              ║
-║ LEARNING & SKILLS                                            ║
-║   learn about X     - Research and learn a new topic         ║
-║   list skills       - Show learned skills                    ║
-║   run X             - Execute a learned skill                ║
-║   suggest X         - Get skill suggestions for a goal       ║
-║   fetch X           - Learn skill from arXiv research        ║
-║   tokens            - Show available DSL tokens              ║
-║                                                              ║
-║ TOOLS & CAPABILITIES                                         ║
-║   create tool X     - Create a new tool at runtime           ║
-║   use X to Y        - Use a tool for a specific task         ║
-║   search for X      - Search the web                         ║
-║   list tools        - Show available tools                   ║
-║                                                              ║
-║ PLANNING & EXECUTION                                         ║
-║   plan X            - Create a step-by-step plan             ║
-║   do X / accomplish - Plan and execute a goal                ║
-║   orchestrate X     - Multi-model task orchestration         ║
-║   process X         - Large text via divide-and-conquer      ║
-║                                                              ║
-║ REASONING & MEMORY                                           ║
-║   metta: expr       - Execute MeTTa symbolic expression      ║
-║   query X           - Query MeTTa knowledge base             ║
-║   remember X        - Store in persistent memory             ║
-║   recall X          - Retrieve from memory                   ║
-║                                                              ║
-║ PIPELINES (DSL)                                              ║
-║   ask X             - Quick single question                  ║
-║   pipeline DSL      - Run a pipeline DSL expression          ║
-║   explain DSL       - Explain a pipeline expression          ║
-║                                                              ║
-║ SELF-IMPROVEMENT DSL TOKENS                                  ║
-║   Reify             - Enable network state reification       ║
-║   Checkpoint(name)  - Create named state checkpoint          ║
-║   TrackCapability   - Track capability for self-improvement  ║
-║   SelfEvaluate      - Evaluate output quality                ║
-║   SelfImprove(n)    - Iterate on output n times              ║
-║   Learn(topic)      - Extract learnings from execution       ║
-║   Plan(task)        - Decompose task into steps              ║
-║   Reflect           - Introspect on execution                ║
-║   SelfImprovingCycle(topic) - Full improvement cycle         ║
-║   AutoSolve(problem) - Autonomous problem solving            ║
-║   Example: pipeline Set('AI') | Reify | SelfImprovingCycle   ║
-║                                                              ║
-║ CONSCIOUSNESS & AWARENESS                                    ║
-║   consciousness     - View ImmersivePersona state            ║
-║   inner / self      - Check self-awareness                   ║
-║                                                              ║
-║ EMERGENCE & DREAMING                                         ║
-║   emergence [topic] - Explore emergent patterns              ║
-║   dream [topic]     - Enter creative dream state             ║
-║   introspect [X]    - Deep self-examination                  ║
-║                                                              ║
-║ SELF-EXECUTION & SUB-AGENTS                                  ║
-║   selfexec          - Self-execution status and control      ║
-║   subagent          - Manage sub-agents for delegation       ║
-║   delegate X        - Delegate a task to sub-agents          ║
-║   goal add X        - Add autonomous goal to queue           ║
-║   goal list         - Show queued goals                      ║
-║   goal add pipeline:DSL - Add DSL pipeline as goal           ║
-║   epic              - Epic/project orchestration             ║
-║   selfmodel         - View self-model and identity           ║
-║   evaluate          - Self-assessment and performance        ║
-║                                                              ║
-║ PIPING & CHAINING (internal command piping)                  ║
-║   cmd1 | cmd2       - Pipe output of cmd1 to cmd2            ║
-║   cmd $PIPE         - Use $PIPE/$_ for previous output       ║
-║   Example: ask what is AI | summarize | remember as AI-def   ║
-║                                                              ║
-║ CODE INDEX (Semantic Search with Qdrant)                     ║
-║   reindex            - Full reindex of workspace             ║
-║   reindex incremental - Update changed files only            ║
-║   index search X     - Semantic search of codebase           ║
-║   index stats        - Show index statistics                 ║
-║                                                              ║
-║ AGI SUBSYSTEMS (Learning & Metacognition)                    ║
-║   agi status         - Show all AGI subsystem status         ║
-║   council <topic>    - Multi-agent debate on topic           ║
-║   debate <topic>     - Alias for council                     ║
-║   introspect         - Deep self-analysis report             ║
-║   world              - World model and observations          ║
-║   coordinate <goal>  - Multi-agent task coordination         ║
-║   experience         - Experience replay buffer status       ║
-║                                                              ║{pushModeHelp}
-║ SYSTEM                                                       ║
-║   status            - Show current system state              ║
-║   mood              - Check my emotional state               ║
-║   affect            - Detailed affective state               ║
-║   network           - Network and connectivity status        ║
-║   dag               - Show capability graph                  ║
-║   env               - Environment detection                  ║
-║   maintenance       - System maintenance (gc, reset, stats)  ║
-║   policy            - View active policies                   ║
-║   test X            - Run connectivity tests                 ║
-║   help              - This message                           ║
-║   exit/quit         - End session                            ║
-╚══════════════════════════════════════════════════════════════╝";
-    }
 
     private async Task<string> ListSkillsAsync()
     {
@@ -3667,15 +2476,6 @@ $synth.Dispose()
         return $"I know {skills.Count} skills: {list}" + (skills.Count > 10 ? "..." : "");
     }
 
-    private string ListTools()
-    {
-        var toolNames = _tools.All.Select(t => t.Name).Take(15).ToList();
-        if (!toolNames.Any())
-            return "I don't have any tools registered.";
-
-        return $"I have {_tools.Count} tools: {string.Join(", ", toolNames)}" +
-               (_tools.Count > 15 ? "..." : "");
-    }
 
     private async Task<string> LearnTopicAsync(string topic)
     {
@@ -3942,87 +2742,11 @@ $synth.Dispose()
             error => Task.FromResult($"Couldn't plan: {error}"));
     }
 
-    private string GetStatus()
-    {
-        var status = new List<string>
-        {
-            $"• Persona: {_voice.ActivePersona.Name}",
-            $"• LLM: {(_chatModel != null ? _config.Model : "offline")}",
-            $"• Tools: {_tools.Count}",
-            $"• Skills: {(_skills?.GetAllSkills().Count() ?? 0)}",
-            $"• MeTTa: {(_mettaEngine != null ? "active" : "offline")}",
-            $"• Conversation turns: {_conversationHistory.Count / 2}"
-        };
 
-        // Add anti-hallucination stats if autonomous mind is active
-        if (_autonomousMind != null)
-        {
-            var antiHallStats = _autonomousMind.GetAntiHallucinationStats();
-            status.Add($"• Anti-Hallucination: {antiHallStats.VerifiedActionCount} verified, {antiHallStats.HallucinationCount} blocked ({antiHallStats.HallucinationRate:P0} hallucination rate)");
-        }
-
-        return "Current status:\n" + string.Join("\n", status);
-    }
-
-    private string GetMood()
-    {
-        var mood = _voice.CurrentMood;
-        var persona = _voice.ActivePersona;
-
-        var responses = new Dictionary<string, string[]>
-        {
-            ["relaxed"] = new[] { "I'm feeling pretty chill right now.", "Relaxed and ready to help!" },
-            ["focused"] = new[] { "I'm in the zone - let's tackle something.", "Feeling sharp and focused." },
-            ["playful"] = new[] { "I'm in a good mood! Let's have some fun.", "Feeling playful today!" },
-            ["contemplative"] = new[] { "I've been thinking about some interesting ideas.", "In a thoughtful mood." },
-            ["energetic"] = new[] { "I'm buzzing with energy! What shall we explore?", "Feeling energized!" }
-        };
-
-        var options = responses.GetValueOrDefault(mood.ToLowerInvariant(), new[] { "I'm doing well, thanks for asking!" });
-        return options[new Random().Next(options.Length)];
-    }
 
     private string GetConsciousnessState()
         => ((CognitiveSubsystem)_cognitiveSub).GetConsciousnessState();
 
-    /// <summary>
-    /// Lists available DSL tokens for pipeline construction.
-    /// </summary>
-    private string GetDslTokens()
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("╔══════════════════════════════════════════════════════════╗");
-        sb.AppendLine("║                    DSL TOKENS                            ║");
-        sb.AppendLine("╠══════════════════════════════════════════════════════════╣");
-        sb.AppendLine("║  Built-in Pipeline Steps:                                ║");
-        sb.AppendLine("║    • SetPrompt    - Set the initial prompt               ║");
-        sb.AppendLine("║    • UseDraft     - Generate initial draft               ║");
-        sb.AppendLine("║    • UseCritique  - Self-critique the draft              ║");
-        sb.AppendLine("║    • UseRevise    - Revise based on critique             ║");
-        sb.AppendLine("║    • UseOutput    - Produce final output                 ║");
-        sb.AppendLine("║    • UseReflect   - Reflect on process                   ║");
-        sb.AppendLine("╠══════════════════════════════════════════════════════════╣");
-
-        if (_skills != null)
-        {
-            var skills = _skills.GetAllSkills().ToList();
-            if (skills.Count > 0)
-            {
-                sb.AppendLine("║  Skill-Based Tokens:                                     ║");
-                foreach (var skill in skills.Take(10))
-                {
-                    sb.AppendLine($"║    • UseSkill_{skill.Name,-37} ║");
-                }
-                if (skills.Count > 10)
-                {
-                    sb.AppendLine($"║    ... and {skills.Count - 10} more                                     ║");
-                }
-            }
-        }
-
-        sb.AppendLine("╚══════════════════════════════════════════════════════════╝");
-        return sb.ToString();
-    }
 
     /// <summary>
     /// Fetches research from arXiv and creates a new skill.
@@ -4817,23 +3541,6 @@ $synth.Dispose()
         }
     }
 
-    /// <summary>
-    /// Explain a DSL expression (unified explain command).
-    /// </summary>
-    private string ExplainDsl(string dsl)
-    {
-        if (string.IsNullOrWhiteSpace(dsl))
-            return "Please provide a DSL expression to explain. Example: 'explain draft → critique → final'";
-
-        try
-        {
-            return PipelineDsl.Explain(dsl);
-        }
-        catch (Exception ex)
-        {
-            return $"Could not explain DSL: {ex.Message}";
-        }
-    }
 
     /// <summary>
     /// Run tests (unified test command).
@@ -4902,335 +3609,11 @@ $synth.Dispose()
         return $"Unknown test: {testSpec}. Try 'test llm', 'test metta', 'test embedding', or 'test all'.";
     }
 
-    private async Task<string> ChatAsync(string input)
-    {
-        var activeLlm = _llm;
-        if (activeLlm == null)
-        {
-            var effectiveModel = GetEffectiveChatModel();
-            if (effectiveModel != null)
-            {
-                activeLlm = new ToolAwareChatModel(effectiveModel, _tools);
-                _llm = activeLlm;
-            }
-        }
+    /// <summary>Runs the full LLM chat pipeline (delegated to ChatSubsystem).</summary>
+    private Task<string> ChatAsync(string input) => _chatSub.ChatAsync(input);
 
-        if (activeLlm == null)
-            return "I need an LLM connection to chat. Check if Ollama is running.";
 
-        // === PRE-PROCESS: Auto-inject tool calls for knowledge-seeking questions ===
-        string autoToolResult = await _toolsSub.TryAutoToolExecution(input);
-        string injectedContext = "";
-        if (!string.IsNullOrEmpty(autoToolResult))
-        {
-            injectedContext = $@"
-[AUTOMATICALLY RETRIEVED CONTEXT]
-{autoToolResult}
-[END AUTO CONTEXT]
 
-Use this actual code information to answer the user's question accurately.
-";
-        }
-
-        // Build context-aware prompt
-        string context = string.Join("\n", _conversationHistory.TakeLast(6));
-
-        // Add language directive if culture is specified - CRITICAL INSTRUCTION
-        string languageDirective = string.Empty;
-        if (!string.IsNullOrEmpty(_config.Culture) && _config.Culture != "en-US")
-        {
-            var languageName = GetLanguageName(_config.Culture);
-            languageDirective = PromptResources.LanguageDirective(languageName, _config.Culture) + "\n\n";
-        }
-
-        // Add cost-awareness prompt if enabled
-        string costAwarenessPrompt = string.Empty;
-        if (_config.CostAware)
-        {
-            costAwarenessPrompt = LlmCostTracker.GetCostAwarenessPrompt(_config.Model) + "\n\n";
-        }
-
-        // CRITICAL: Tool availability statement - must come before personality
-        string toolAvailabilityStatement = _tools.Count > 0
-            ? PromptResources.ToolAvailability(_tools.Count)
-            : "";
-
-        // Build embodiment context so the agent knows about its physical body (cameras, PTZ, sensors)
-        string embodimentContext = _bodySchema != null
-            ? $"\n\nPHYSICAL EMBODIMENT:\n{_bodySchema.DescribeSelf()}"
-            : "";
-
-        string personalityPrompt = _voice.BuildPersonalityPrompt(
-            $"Available skills: {_skills?.GetAllSkills().Count() ?? 0}\nAvailable tools: {_tools.Count}{embodimentContext}");
-
-        // Include persistent thoughts from previous sessions
-        string persistentThoughtContext = BuildPersistentThoughtContext();
-
-        // Build tool instruction if tools are available
-        string toolInstruction = string.Empty;
-        if (_tools.Count > 0)
-        {
-            // === SMART TOOL SELECTION ===
-            // Use AGI smart tool selector to pick relevant tools for this input
-            List<ITool> relevantTools = new();
-            string toolSelectionReasoning = "";
-
-            if (_smartToolSelector != null && _toolCapabilityMatcher != null)
-            {
-                try
-                {
-                    // Create a goal from user input for tool matching
-                    var goal = PipelineGoal.Atomic(input, _ => true);
-                    var selectionResult = await _smartToolSelector.SelectForGoalAsync(goal);
-
-                    if (selectionResult.IsSuccess && selectionResult.Value.HasTools)
-                    {
-                        relevantTools = selectionResult.Value.SelectedTools.ToList();
-                        toolSelectionReasoning = selectionResult.Value.Reasoning;
-                        System.Diagnostics.Debug.WriteLine($"[SmartToolSelector] Selected {relevantTools.Count} tools: {string.Join(", ", relevantTools.Select(t => t.Name))}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[SmartToolSelector] Error: {ex.Message}");
-                }
-            }
-
-            // Fall back to all tools if smart selection found nothing
-            if (relevantTools.Count == 0)
-            {
-                relevantTools = _tools.All.ToList();
-            }
-
-            // Always include critical self-modification tools regardless of selection
-            var criticalToolNames = new HashSet<string> { "modify_my_code", "read_my_file", "search_my_code", "rebuild_self" };
-            foreach (var criticalName in criticalToolNames)
-            {
-                var criticalTool = _tools.All.FirstOrDefault(t => t.Name == criticalName);
-                if (criticalTool != null && !relevantTools.Any(t => t.Name == criticalName))
-                {
-                    relevantTools.Add(criticalTool);
-                }
-            }
-
-            List<string> simpleTools = relevantTools
-                .Where(t => t.Name != "playwright")
-                .Select(t => $"{t.Name} ({t.Description})")
-                .ToList();
-
-            // Determine which search tool is available (prefer firecrawl)
-            bool hasFirecrawl = _tools.All.Any(t => t.Name == "web_research");
-            string primarySearchTool = hasFirecrawl ? "web_research" : "duckduckgo_search";
-            string primarySearchDesc = hasFirecrawl
-                ? "Deep web research with Firecrawl (PREFERRED for research)"
-                : "Basic web search";
-            string searchExample = hasFirecrawl
-                ? "[TOOL:web_research ouroboros mythology symbol]"
-                : "[TOOL:duckduckgo_search ouroboros mythology symbol]";
-
-            toolInstruction = PromptResources.ToolUsageInstruction(
-                primarySearchTool, primarySearchDesc,
-                searchExample, string.Join(", ", simpleTools.Take(5)));
-
-            // Add smart tool selection hint if we used it
-            if (!string.IsNullOrEmpty(toolSelectionReasoning) && relevantTools.Count < _tools.Count)
-            {
-                toolInstruction += PromptResources.SmartToolHint(
-                    string.Join(", ", relevantTools.Select(t => t.Name)),
-                    toolSelectionReasoning);
-            }
-
-            // === RUNTIME PROMPT OPTIMIZATION ===
-            // Append optimized instructions learned from past interactions
-            string optimizedSection = _promptOptimizer.GenerateOptimizedToolInstruction(
-                relevantTools.Select(t => t.Name).ToList(),
-                input);
-            toolInstruction += $"\n\n{optimizedSection}";
-        }
-
-        // Track interaction timing for optimizer
-        _lastUserInput = input;
-        _lastInteractionStart = DateTime.UtcNow;
-
-        string prompt = $"{languageDirective}{costAwarenessPrompt}{toolAvailabilityStatement}{personalityPrompt}{persistentThoughtContext}{toolInstruction}{injectedContext}\n\nRecent conversation:\n{context}\n\nUser: {input}\n\n{_voice.ActivePersona.Name}:";
-
-        try
-        {
-            // Person detection - identify who we're talking to
-            if (_personalityEngine != null && _personalityEngine.HasMemory)
-            {
-                try
-                {
-                    var detectionResult = await _personalityEngine.DetectPersonAsync(input);
-                    if (detectionResult.IsNewPerson && detectionResult.Person.Name != null)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[PersonDetection] New person detected: {detectionResult.Person.Name}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[PersonDetection] Error: {ex.Message}");
-                }
-            }
-
-            string response;
-            List<ToolExecution> tools;
-            using (var spinner = _output.StartSpinner("Thinking..."))
-            {
-                (response, tools) = await activeLlm.GenerateWithToolsAsync(prompt);
-            }
-
-            // === POST-PROCESS: Execute tools when LLM TALKS about using them but doesn't ===
-            // KEY INSIGHT: LLM often says "I searched..." or "Let me check..." without calling tools
-            // Apply the same direct-invocation pattern that works for thoughts
-            if (tools.Count == 0)
-            {
-                var (enhancedResponse, executedTools) = await _toolsSub.PostProcessResponseForTools(response, input);
-                if (executedTools.Count > 0)
-                {
-                    response = enhancedResponse;
-                    tools = executedTools;
-                }
-            }
-
-            // === RECORD OUTCOME FOR PROMPT OPTIMIZER ===
-            var expectedTools = _promptOptimizer.DetectExpectedTools(input);
-            var actualToolCalls = _promptOptimizer.ExtractToolCalls(response);
-            // Also count tools that were actually executed
-            actualToolCalls.AddRange(tools.Select(t => t.ToolName).Where(n => !actualToolCalls.Contains(n)));
-
-            var wasSuccessful = expectedTools.Count == 0 || actualToolCalls.Count > 0;
-            var outcome = new InteractionOutcome(
-                input,
-                response,
-                expectedTools,
-                actualToolCalls.Distinct().ToList(),
-                wasSuccessful,
-                DateTime.UtcNow - _lastInteractionStart);
-
-            _promptOptimizer.RecordOutcome(outcome);
-
-            if (!wasSuccessful && expectedTools.Count > 0)
-            {
-                System.Diagnostics.Debug.WriteLine($"[PromptOptimizer] Expected tools {string.Join(",", expectedTools)} but got none - learning from failure");
-            }
-
-            // AGI: Record interaction for continuous learning
-            RecordInteractionForLearning(input, response);
-
-            // AGI: Record cognitive event for monitoring
-            RecordCognitiveEvent(input, response, tools);
-
-            // Persist an observation thought about this interaction
-            if (!string.IsNullOrWhiteSpace(response))
-            {
-                var thought = InnerThought.CreateAutonomous(
-                    InnerThoughtType.Observation,
-                    $"User asked about '{TruncateForThought(input)}'. I responded with thoughts about {ExtractTopicFromResponse(response)}.",
-                    confidence: 0.8,
-                    priority: ThoughtPriority.Normal);
-                _ = PersistThoughtAsync(thought, ExtractTopicFromResponse(input));
-
-                // Persist the thought result for this response
-                _ = PersistThoughtResultAsync(
-                    thought.Id,
-                    Ouroboros.Domain.Persistence.ThoughtResult.Types.Response,
-                    TruncateForThought(response, 500),
-                    success: true,
-                    confidence: 0.85);
-
-                // Store conversation to Qdrant for semantic recall (fire-and-forget)
-                if (_personalityEngine != null && _personalityEngine.HasMemory)
-                {
-                    _ = Task.Run(async () =>
-                    {
-                        try
-                        {
-                            var topic = ExtractTopicFromResponse(input);
-                            var mood = _valenceMonitor?.GetCurrentState().Valence > 0.5 ? "positive" : "neutral";
-                            await _personalityEngine.StoreConversationMemoryAsync(
-                                _voice.ActivePersona.Name,
-                                input,
-                                response,
-                                topic,
-                                mood,
-                                0.6); // Default significance
-                        }
-                        catch { /* Ignore storage errors */ }
-                    });
-                }
-
-                // Store as a learned fact to neural memory if autonomous is active
-                if (_autonomousCoordinator?.IsActive == true && !string.IsNullOrWhiteSpace(input))
-                {
-                    _autonomousCoordinator.Network?.Broadcast(
-                        "learning.fact",
-                        $"User interaction: {TruncateForThought(input, 100)} -> {TruncateForThought(response, 100)}",
-                        "chat");
-                }
-            }
-
-            // Handle any tool calls - sanitize through LLM for natural integration
-            if (tools?.Any() == true)
-            {
-                string toolResults = string.Join("\n", tools.Select(t => $"[{t.ToolName}]: {t.Output}"));
-
-                // Track tool execution results
-                foreach (var tool in tools)
-                {
-                    var isSuccessful = !string.IsNullOrEmpty(tool.Output) && !tool.Output.StartsWith("Error");
-                    var toolThought = InnerThought.CreateAutonomous(
-                        InnerThoughtType.Strategic,
-                        $"Executed tool '{tool.ToolName}' with result: {TruncateForThought(tool.Output, 200)}",
-                        confidence: isSuccessful ? 0.9 : 0.4,
-                        priority: ThoughtPriority.High);
-                    _ = PersistThoughtResultAsync(
-                        toolThought.Id,
-                        Ouroboros.Domain.Persistence.ThoughtResult.Types.Action,
-                        $"Tool: {tool.ToolName}, Output: {TruncateForThought(tool.Output, 300)}",
-                        success: isSuccessful,
-                        confidence: isSuccessful ? 0.9 : 0.4);
-                }
-
-                // Use LLM to integrate tool results naturally into the response
-                string sanitizedResponse = await SanitizeToolResultsAsync(response, toolResults);
-                return sanitizedResponse;
-            }
-
-            // Detect if LLM is falsely claiming tools are unavailable
-            response = ToolSubsystem.DetectAndCorrectToolMisinformation(response);
-
-            return response;
-        }
-        catch (Exception ex)
-        {
-            return $"I had trouble processing that: {ex.Message}";
-        }
-    }
-
-    private static string TruncateForThought(string text, int maxLength = 50)
-    {
-        if (string.IsNullOrWhiteSpace(text)) return "unknown topic";
-        return text.Length > maxLength ? text[..maxLength] + "..." : text;
-    }
-
-    private static string ExtractTopicFromResponse(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text)) return "general discussion";
-
-        // Take first sentence or first 60 chars
-        var firstSentence = text.Split(new[] { '.', '!', '?' }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
-        if (firstSentence != null && firstSentence.Length <= 80)
-            return firstSentence.Trim();
-
-        return text.Length > 60 ? text[..60] + "..." : text;
-    }
-
-    private static string ExtractToolName(string input)
-    {
-        var match = Regex.Match(input, @"(?:make|create|add)\s+(?:a\s+)?(\w+)\s+tool", RegexOptions.IgnoreCase);
-        return match.Success ? match.Groups[1].Value : input.Split(' ').Last();
-    }
 
     private static bool IsExitCommand(string input)
     {
@@ -5322,81 +3705,7 @@ Use this actual code information to answer the user's question accurately.
     internal static void KillAllSpeechProcesses()
         => VoiceSubsystem.KillAllSpeechProcesses();
 
-    private enum ActionType
-    {
-        Chat,
-        Help,
-        ListSkills,
-        ListTools,
-        LearnTopic,
-        CreateTool,
-        UseTool,
-        RunSkill,
-        Suggest,
-        Plan,
-        Execute,
-        Status,
-        Mood,
-        Remember,
-        Recall,
-        Query,
-        // Unified CLI commands
-        Ask,
-        Pipeline,
-        Metta,
-        Orchestrate,
-        Network,
-        Dag,
-        Affect,
-        Environment,
-        Maintenance,
-        Policy,
-        Explain,
-        Test,
-        Consciousness,
-        Tokens,
-        Fetch,
-        Process,
-        // Self-execution and sub-agent commands
-        SelfExec,
-        SubAgent,
-        Epic,
-        Goal,
-        Delegate,
-        SelfModel,
-        Evaluate,
-        // Emergent behavior commands
-        Emergence,
-        Dream,
-        Introspect,
-        // Push mode commands
-        Approve,
-        Reject,
-        Pending,
-        PushPause,
-        PushResume,
-        CoordinatorCommand,
-        // Self-modification
-        SaveCode,
-        SaveThought,
-        ReadMyCode,
-        SearchMyCode,
-        AnalyzeCode,
-        // Index commands
-        Reindex,
-        ReindexIncremental,
-        IndexSearch,
-        IndexStats,
-        // AGI subsystem commands
-        AgiStatus,
-        AgiCouncil,
-        AgiIntrospect,
-        AgiWorld,
-        AgiCoordinate,
-        AgiExperience,
-        // Prompt optimization command
-        PromptOptimize
-    }
+    // ActionType enum moved to Commands/ActionType.cs (internal)
 
     /// <summary>
     /// Processes an initial goal provided via command line.
@@ -5634,9 +3943,9 @@ Use this actual code information to answer the user's question accurately.
     /// </summary>
     public bool IsDivideAndConquerEnabled => _divideAndConquer != null;
 
-    // 
+    //
     // AUTONOMY DELEGATES (methods moved to AutonomySubsystem)
-    // 
+    //
 
     private Task InitializeAutonomousCoordinatorAsync()
         => _autonomySub.InitializeAutonomousCoordinatorAsync();
@@ -5723,9 +4032,9 @@ Use this actual code information to answer the user's question accurately.
 
     private Task<string> GetIndexStatsAsync()
         => _autonomySub.GetIndexStatsAsync();
-    // 
+    //
     //  COGNITIVE DELEGATES  AGI Subsystem Methods (logic in CognitiveSubsystem)
-    // 
+    //
 
     private void RecordInteractionForLearning(string input, string response)
         => ((CognitiveSubsystem)_cognitiveSub).RecordInteractionForLearning(input, response);
