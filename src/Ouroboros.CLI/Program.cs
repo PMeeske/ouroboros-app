@@ -142,6 +142,7 @@ rootCommand.Add(CreateCognitivePhysicsCommand(host, voiceOption));
 rootCommand.Add(CreateDoctorCommand());
 rootCommand.Add(CreateChatCommand(host));
 rootCommand.Add(CreateInteractiveCommand(host));
+rootCommand.Add(CreateQualityCommand(host));
 
 // Add a special 'serve' subcommand for running API-only mode
 rootCommand.Add(CreateServeCommand());
@@ -500,6 +501,19 @@ static Command CreateInteractiveCommand(IHost host)
         var askService = host.Services.GetRequiredService<IAskService>();
         var pipelineService = host.Services.GetRequiredService<IPipelineService>();
         await InteractiveCommand.RunAsync(askService, pipelineService, AnsiConsole.Console, cancellationToken);
+    });
+
+    return command;
+}
+
+static Command CreateQualityCommand(IHost host)
+{
+    var command = new Command("quality", "Render a rich product-quality and consistency dashboard");
+
+    command.SetAction(async (parseResult, cancellationToken) =>
+    {
+        var handler = host.Services.GetRequiredService<QualityCommandHandler>();
+        await handler.HandleAsync(cancellationToken);
     });
 
     return command;

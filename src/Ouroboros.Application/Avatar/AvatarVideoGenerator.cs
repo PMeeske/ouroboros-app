@@ -11,13 +11,13 @@ using Microsoft.Extensions.Logging;
 namespace Ouroboros.Application.Avatar;
 
 /// <summary>
-/// Generates avatar video frames via Ollama's Stable Diffusion img2img endpoint.
+/// Generates avatar video frames via the Forge/AUTOMATIC1111 Stable Diffusion img2img API.
 /// The existing Iaret portrait asset is used as the seed image.
 /// </summary>
 public sealed class AvatarVideoGenerator
 {
     private readonly HttpClient _http;
-    private readonly string _sdModel;
+    private readonly string? _sdCheckpoint;
     private readonly ILogger<AvatarVideoGenerator>? _logger;
 
     private static readonly JsonSerializerOptions JsonOpts = new()
@@ -29,20 +29,22 @@ public sealed class AvatarVideoGenerator
     /// <summary>
     /// Initializes a new instance of the <see cref="AvatarVideoGenerator"/> class.
     /// </summary>
-    /// <param name="ollamaEndpoint">Base URL of the Ollama server.</param>
-    /// <param name="sdModel">Stable Diffusion model name registered in Ollama.</param>
+    /// <param name="sdEndpoint">Base URL of the Forge/A1111 server (default: http://localhost:7860).</param>
+    /// <param name="sdModel">Optional checkpoint name to load via override_settings. Leave null/empty to use whichever model is currently loaded.</param>
     /// <param name="logger">Optional logger.</param>
     public AvatarVideoGenerator(
-        string ollamaEndpoint = "http://localhost:11434",
-        string sdModel = "stable-diffusion",
+        string sdEndpoint = "http://localhost:7860",
+        string? sdModel = null,
         ILogger<AvatarVideoGenerator>? logger = null)
     {
-        _sdModel = sdModel;
+        _sdCheckpoint = string.IsNullOrWhiteSpace(sdModel) || sdModel == "stable-diffusion"
+            ? null
+            : sdModel;
         _logger = logger;
         _http = new HttpClient
         {
-            BaseAddress = new Uri(ollamaEndpoint.TrimEnd('/')),
-            Timeout = TimeSpan.FromSeconds(60),
+            BaseAddress = new Uri(sdEndpoint.TrimEnd('/')),
+            Timeout = TimeSpan.FromSeconds(120),
         };
     }
 
@@ -86,40 +88,55 @@ public sealed class AvatarVideoGenerator
     }
 
     /// <summary>
-    /// Calls Ollama's /api/generate with the SD model, prompt, and seed image (img2img).
+    /// Calls the Forge/A1111 /sdapi/v1/img2img endpoint with the prompt and seed image.
     /// Returns a base64-encoded JPEG frame, or null on failure.
     /// </summary>
     /// <param name="prompt">Text prompt describing the desired avatar frame.</param>
     /// <param name="seedBase64">Base64-encoded seed image (existing Iaret portrait).</param>
     /// <param name="ct">Cancellation token.</param>
-    /// <returns>Base64-encoded JPEG of the generated frame, or null on error.</returns>
+    /// <returns>Base64-encoded image of the generated frame, or null on error.</returns>
     public async Task<string?> GenerateFrameAsync(string prompt, string seedBase64, CancellationToken ct)
     {
         try
         {
-            var payload = new
+            // Build the A1111/Forge img2img payload
+            var payloadObj = new Dictionary<string, object?>
             {
-                model = _sdModel,
-                prompt,
-                images = new[] { seedBase64 },
-                stream = false,
+                ["prompt"] = prompt,
+                ["negative_prompt"] = "ugly, blurry, low quality, deformed, disfigured, extra limbs",
+                ["init_images"] = new[] { seedBase64 },
+                ["denoising_strength"] = 0.45,
+                ["steps"] = 20,
+                ["cfg_scale"] = 7,
+                ["width"] = 512,
+                ["height"] = 768,
+                ["sampler_name"] = "DPM++ 2M",
             };
 
-            var json = JsonSerializer.Serialize(payload, JsonOpts);
+            if (_sdCheckpoint != null)
+            {
+                payloadObj["override_settings"] = new Dictionary<string, object>
+                {
+                    ["sd_model_checkpoint"] = _sdCheckpoint,
+                };
+            }
+
+            var json = JsonSerializer.Serialize(payloadObj);
             using var content = new StringContent(json, Encoding.UTF8, "application/json");
-            using var response = await _http.PostAsync("/api/generate", content, ct);
+            using var response = await _http.PostAsync("/sdapi/v1/img2img", content, ct);
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger?.LogWarning("Ollama SD returned {StatusCode}: {Reason}",
-                    response.StatusCode, response.ReasonPhrase);
+                var msg = $"Forge SD returned {(int)response.StatusCode} {response.ReasonPhrase}";
+                _logger?.LogWarning("{Message}", msg);
+                if (_logger == null) Console.Error.WriteLine($"[AvatarVideoGenerator] {msg}");
                 return null;
             }
 
             var responseJson = await response.Content.ReadAsStringAsync(ct);
             using var doc = JsonDocument.Parse(responseJson);
 
-            // The response may contain "images" array with base64 frames
+            // A1111/Forge returns {"images": ["base64..."]}
             if (doc.RootElement.TryGetProperty("images", out var imagesElement)
                 && imagesElement.ValueKind == JsonValueKind.Array
                 && imagesElement.GetArrayLength() > 0)
@@ -127,14 +144,9 @@ public sealed class AvatarVideoGenerator
                 return imagesElement[0].GetString();
             }
 
-            // Alternative response format: single "image" property
-            if (doc.RootElement.TryGetProperty("image", out var imageElement)
-                && imageElement.ValueKind == JsonValueKind.String)
-            {
-                return imageElement.GetString();
-            }
-
-            _logger?.LogWarning("Ollama SD response did not contain image data");
+            const string noData = "Forge SD response did not contain image data";
+            _logger?.LogWarning(noData);
+            if (_logger == null) Console.Error.WriteLine($"[AvatarVideoGenerator] {noData}");
             return null;
         }
         catch (TaskCanceledException) when (ct.IsCancellationRequested)
@@ -143,7 +155,8 @@ public sealed class AvatarVideoGenerator
         }
         catch (Exception ex)
         {
-            _logger?.LogWarning(ex, "Failed to generate avatar frame via Ollama SD");
+            _logger?.LogWarning(ex, "Failed to generate avatar frame via Forge SD");
+            if (_logger == null) Console.Error.WriteLine($"[AvatarVideoGenerator] Frame generation failed: {ex.Message}");
             return null;
         }
     }
