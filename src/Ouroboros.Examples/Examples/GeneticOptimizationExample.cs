@@ -58,7 +58,7 @@ public static class GeneticOptimizationExample
                 mutationRate: 0.2,
                 crossoverRate: 0.8,
                 elitismRate: 0.1,
-                seed: 42);
+                seed: 42, cancellationToken: CancellationToken.None);
 
         // Test with input of 10 (should evolve multiplier close to 10)
         double testInput = 10.0;
@@ -124,7 +124,8 @@ public static class GeneticOptimizationExample
                 initialPopulation,
                 generations: 30,
                 mutationRate: 0.15,
-                seed: 42);
+                seed: 42,
+                cancellationToken: CancellationToken.None);
 
         var result = await evolvedStep("Explain quantum computing");
 
@@ -189,7 +190,8 @@ public static class GeneticOptimizationExample
                 generations: 40,
                 mutationRate: 0.1,
                 crossoverRate: 0.9,
-                seed: 42);
+                seed: 42,
+                cancellationToken: CancellationToken.None);
 
         var result = await evolvedStep((10, 20));
 
@@ -236,7 +238,7 @@ public static class GeneticOptimizationExample
             this.target = targetOutput;
         }
 
-        public Task<double> EvaluateAsync(IChromosome<double> chromosome)
+        public Task<double> EvaluateAsync(IChromosome<double> chromosome, CancellationToken cancellationToken)
         {
             // Simulate evaluation with input of 10
             double multiplier = chromosome.Genes.FirstOrDefault();
@@ -254,15 +256,15 @@ public static class GeneticOptimizationExample
 
     private class PromptParameterFitnessFunction : IFitnessFunction<PromptConfig>
     {
-        public Task<double> EvaluateAsync(IChromosome<PromptConfig> chromosome)
+        public Task<double> EvaluateAsync(IChromosome<PromptConfig> chromosome, CancellationToken cancellationToken)
         {
             var config = chromosome.Genes.FirstOrDefault() ?? new PromptConfig();
-            
+
             // Fitness based on reasonable parameter ranges
             // Prefer moderate temperature and token count
             double tempScore = -Math.Abs(config.Temperature - 0.7) * 10; // Prefer around 0.7
             double tokenScore = -Math.Abs(config.MaxTokens - 300) / 10.0; // Prefer around 300
-            
+
             return Task.FromResult(tempScore + tokenScore);
         }
     }
@@ -277,13 +279,13 @@ public static class GeneticOptimizationExample
 
     private class ComplexPipelineFitnessFunction : IFitnessFunction<PipelineConfig>
     {
-        public Task<double> EvaluateAsync(IChromosome<PipelineConfig> chromosome)
+        public Task<double> EvaluateAsync(IChromosome<PipelineConfig> chromosome, CancellationToken cancellationToken)
         {
             var config = chromosome.Genes.FirstOrDefault() ?? new PipelineConfig();
-            
+
             // Simulate evaluation with test input (10, 20)
             int output = (10 * config.WeightX + 20 * config.WeightY + config.Bias) / config.Divisor;
-            
+
             // Target output is around 50
             double fitness = -Math.Abs(output - 50);
             return Task.FromResult(fitness);
