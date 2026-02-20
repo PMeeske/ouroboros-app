@@ -1372,7 +1372,7 @@ public sealed class PersonalityEngine : IAsyncDisposable
             elitismRate: 0.2);
 
         // Evolve over a few generations
-        var result = await ga.EvolveAsync(initialPopulation, generations: 5);
+        var result = await ga.EvolveAsync(initialPopulation, generations: 5, ct);
 
         if (result.IsSuccess)
         {
