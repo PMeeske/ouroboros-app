@@ -718,12 +718,12 @@ public static class CliSteps
             if (!string.IsNullOrEmpty(error)) eventSource += $":{error}";
 
             s.Branch = s.Branch.WithIngestEvent(eventSource, Array.Empty<string>());
-            
+
             // If we have a specific dependency, we might want to schedule a fix or prompt the user
             if (!string.IsNullOrEmpty(dep))
             {
                 if (s.Trace) Console.WriteLine($"[guided-install] Dependency missing: {dep}");
-                
+
                 // In a real scenario, this might trigger an interactive prompt or a specific agent flow
             }
 
