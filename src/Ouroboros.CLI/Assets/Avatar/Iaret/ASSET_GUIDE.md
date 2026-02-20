@@ -46,9 +46,11 @@ creating a deconstructed digital consciousness effect with scanlines and cyan gl
 ## Mapping Your Reference Images
 
 ### Sets 1 & 2 (10 close-up bust renders)
+
 Pick the best expression from each set for the 5 portrait files.
 
 ### Set 3 (5 full-body turnaround)
+
 - Front standing pose -> `fullbody_front.png`
 - ¾ view             -> `fullbody_threequarter.png`
 - Side profile right  -> `fullbody_side.png`
@@ -56,16 +58,20 @@ Pick the best expression from each set for the 5 portrait files.
 - Side profile left   -> `fullbody_sideleft.png`
 
 ### Set 4 (5 full-body turnaround — alternate)
+
 Use as replacements for Set 3 if the angles/quality are better.
 
 ### Set 5 (character sheet — 3x3 grid with wireframes)
+
 Extract the **holographic wireframe** columns from the character sheet:
+
 - Top row wireframes (full body)  -> `holo_front.png`, `holo_threequarter.png`, `holo_side.png`
 - Middle row wireframes (torso)   -> (alternate `holo_portrait.png` if preferred)
 - Bottom row wireframes (head)    -> `holo_portrait.png`
 - Back/left wireframes from the rear angles -> `holo_back.png`, `holo_sideleft.png`
 
 ### Additional full-body renders (rear ¾, front ¾, direct front)
+
 Use the sharpest versions for `fullbody_front.png` and `fullbody_threequarter.png`.
 
 ---
@@ -89,6 +95,7 @@ ouroboros --avatar --avatar-port 8080 # custom port
 ```
 
 ### Automatic behavior
+
 - **Idle**: regal portrait crossfade (portrait) or auto-turnaround (full-body)
 - **Listening**: attentive expression / ¾ angle
 - **Thinking**: holographic wireframe fades in over the solid render with scanlines,
@@ -97,6 +104,7 @@ ouroboros --avatar --avatar-port 8080 # custom port
 - **Encouraging**: warm smile, triggered by maternal/warm moods
 
 ### Holographic thinking mode effects
+
 - Wireframe overlay fades in at 85% opacity with `screen` blend mode
 - Scanline overlay drifts downward (4px cyan stripes)
 - Periodic glitch flicker (2px horizontal shift, cyan/violet flash)
@@ -109,11 +117,11 @@ ouroboros --avatar --avatar-port 8080 # custom port
 
 ## Keyboard Shortcuts
 
-| Key        | Portrait Mode            | Full-Body Mode            |
-|------------|--------------------------|---------------------------|
-| `1`–`5`    | Switch expression state  | Switch expression state   |
-| `F`        | Toggle to Full Body      | Toggle to Portrait        |
-| `H`        | Toggle holographic       | Toggle holographic        |
-| `Q/W/E/R/T`| —                       | Jump to angle 0–4         |
-| `←` / `→` | —                        | Rotate angle              |
-| `Space`    | —                        | Resume auto-turnaround    |
+| Key | Portrait Mode | Full-Body Mode |
+| --- | --- | --- |
+| `1`–`5` | Switch expression state | Switch expression state |
+| `F` | Toggle to Full Body | Toggle to Portrait |
+| `H` | Toggle holographic | Toggle holographic |
+| `Q/W/E/R/T` | — | Jump to angle 0–4 |
+| `←` / `→` | — | Rotate angle |
+| `Space` | — | Resume auto-turnaround |
