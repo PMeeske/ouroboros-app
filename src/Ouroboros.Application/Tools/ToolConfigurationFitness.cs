@@ -16,7 +16,8 @@ public sealed class ToolConfigurationFitness : IFitnessFunction<ToolConfiguratio
         _goal = goal;
     }
 
-    public async Task<double> EvaluateAsync(IChromosome<ToolConfigurationGene> chromosome)
+    public async Task<double> EvaluateAsync(IChromosome<ToolConfigurationGene> chromosome,
+        CancellationToken cancellationToken)
     {
         var config = ((ToolConfigurationChromosome)chromosome).ToConfiguration();
 

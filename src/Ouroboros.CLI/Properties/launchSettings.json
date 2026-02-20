@@ -2,7 +2,7 @@
   "profiles": {
     "Ouroboros": {
       "commandName": "Project",
-      "commandLineArgs": "ouroboros --text-only"
+      "commandLineArgs": "ouroboros --avatar --sd-endpoint http://localhost:7860 --sd-model v1-5-pruned-emaonly --collective-preset anthropic-ollama"
     },
     "Ouroboros-Voice": {
       "commandName": "Project",
