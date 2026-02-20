@@ -230,21 +230,11 @@ public static class CliSteps
 
     public static string ParseString(string? arg)
     {
-        if (arg is null)
-        {
-            return string.Empty;
-        }
-
-        // If the string is wrapped in double quotes (with optional surrounding whitespace),
-        // extract the content between the quotes. Otherwise, return the original string unchanged.
-        // This preserves whitespace for unquoted strings while stripping quotes and external
-        // whitespace for quoted strings.
-        Match m = Regex.Match(arg, @"^\s*""(.*)""\s*$");
-        if (m.Success)
-        {
-            return m.Groups[1].Value;
-        }
-
+        arg ??= string.Empty;
+        Match m = Regex.Match(arg, @"^'(?<s>.*)'$", RegexOptions.Singleline);
+        if (m.Success) return m.Groups["s"].Value;
+        m = Regex.Match(arg, @"^""(?<s>.*)""$", RegexOptions.Singleline);
+        if (m.Success) return m.Groups["s"].Value;
         return arg;
     }
 
@@ -728,12 +718,12 @@ public static class CliSteps
             if (!string.IsNullOrEmpty(error)) eventSource += $":{error}";
 
             s.Branch = s.Branch.WithIngestEvent(eventSource, Array.Empty<string>());
-            
+
             // If we have a specific dependency, we might want to schedule a fix or prompt the user
             if (!string.IsNullOrEmpty(dep))
             {
                 if (s.Trace) Console.WriteLine($"[guided-install] Dependency missing: {dep}");
-                
+
                 // In a real scenario, this might trigger an interactive prompt or a specific agent flow
             }
 
