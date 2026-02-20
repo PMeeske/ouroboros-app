@@ -524,7 +524,7 @@ public class OuroborosCommandOptions
 
     public System.CommandLine.Option<string?> SdEndpointOption { get; } = new("--sd-endpoint")
     {
-        Description = "Stable Diffusion endpoint for avatar video stream (defaults to Ollama:Endpoint / http://localhost:11434)"
+        Description = "Stable Diffusion (Forge/A1111) endpoint for avatar video stream (default: http://localhost:7860)"
     };
 
     public System.CommandLine.Option<string?> SdModelOption { get; } = new("--sd-model")

@@ -232,8 +232,8 @@ public sealed class EmbodimentSubsystem : IEmbodimentSubsystem
         try
         {
             var ollamaEndpoint = ctx.Config.SdEndpoint
-                ?? ctx.StaticConfiguration?["Ollama:Endpoint"]
-                ?? "http://localhost:11434";
+                ?? ctx.StaticConfiguration?["Forge:Endpoint"]
+                ?? "http://localhost:7860";
             var sdModel = string.IsNullOrWhiteSpace(ctx.Config.SdModel)
                 ? "stable-diffusion"
                 : ctx.Config.SdModel;

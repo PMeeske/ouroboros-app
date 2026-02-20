@@ -39,6 +39,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<SkillsCommandHandler>();
         services.AddScoped<OrchestratorCommandHandler>();
         services.AddScoped<CognitivePhysicsCommandHandler>();
+        services.AddScoped<QualityCommandHandler>();
         return services;
     }
 

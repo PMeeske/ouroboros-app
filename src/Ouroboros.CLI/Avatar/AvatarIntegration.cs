@@ -44,13 +44,9 @@ public static class AvatarIntegration
         service.AttachRenderer(renderer);
         await service.StartAsync(ct);
 
-        AvatarVideoStream? videoStream = null;
-        if (visionModel != null || virtualSelf != null)
-        {
-            var generator = new AvatarVideoGenerator(ollamaEndpoint, sdModel, logger: null);
-            videoStream = new AvatarVideoStream(generator, service, visionModel, virtualSelf, assetDirectory);
-            _ = videoStream.StartAsync(ct); // fire and forget — runs in background
-        }
+        var generator = new AvatarVideoGenerator(ollamaEndpoint, sdModel, logger: null);
+        var videoStream = new AvatarVideoStream(generator, service, visionModel, virtualSelf, assetDirectory);
+        _ = videoStream.StartAsync(ct); // fire and forget — runs in background
 
         return (service, videoStream);
     }

@@ -51,7 +51,11 @@
     width: min(85vh, 85vw);
     height: min(85vh, 85vw);
     z-index: 1;
-    transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Topic-based positioning — driven by JS via CSS custom properties */
+    transform: translate(var(--stage-x, 0px), var(--stage-y, 0px)) scale(var(--stage-scale, 1));
+    transition: width  0.8s cubic-bezier(0.4, 0, 0.2, 1),
+                height 0.8s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 1.6s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   body.fullbody #avatar-stage {
@@ -372,28 +376,24 @@
     height: 6%;
   }
 
-  /* Inner element clones the avatar image and applies jaw transform */
+  /* Inner element — jaw transform driven by RAF amplitude engine */
   #lip-mask-inner {
     position: absolute;
     inset: -2px;
     background: rgba(0, 0, 0, 0.3);
     border-radius: inherit;
     transform-origin: center top;
-    animation: none;
+    transform: scaleY(0.1);
+    opacity: 0;
+    will-change: transform, opacity;
   }
 
+  /* No CSS animation — RAF engine writes inline style directly */
   #lip-sync.active #lip-mask-inner {
-    animation: lip-open var(--lip-speed, 0.28s) ease-in-out infinite alternate;
+    will-change: transform, opacity;
   }
 
-  @keyframes lip-open {
-    0%   { transform: scaleY(0.2); opacity: 0.1; }
-    40%  { transform: scaleY(1.0); opacity: 0.35; }
-    70%  { transform: scaleY(0.6); opacity: 0.2; }
-    100% { transform: scaleY(0.85); opacity: 0.3; }
-  }
-
-  /* Jaw shadow — darkened chin area that shifts down during speech */
+  /* Jaw shadow — driven by RAF engine */
   #jaw-shadow {
     position: absolute;
     left: 28%;
@@ -407,7 +407,7 @@
     pointer-events: none;
     transform-origin: center top;
     opacity: 0;
-    transition: opacity 0.15s ease;
+    will-change: transform, opacity;
   }
   body.fullbody #jaw-shadow {
     left: 36%;
@@ -416,13 +416,7 @@
     height: 5%;
   }
   #lip-sync.active ~ #jaw-shadow {
-    animation: jaw-move var(--lip-speed, 0.28s) ease-in-out infinite alternate;
-  }
-
-  @keyframes jaw-move {
-    0%   { opacity: 0; transform: translateY(0) scaleY(0.5); }
-    50%  { opacity: 0.2; transform: translateY(1.5px) scaleY(1); }
-    100% { opacity: 0.1; transform: translateY(0.5px) scaleY(0.7); }
+    will-change: transform, opacity;
   }
 
   /* ── Micro-expression transforms ── */
@@ -1187,25 +1181,173 @@ const STATE_STATUS = {
 
 const EXPR_CLASSES = ['expr-idle', 'expr-listening', 'expr-thinking', 'expr-speaking', 'expr-encouraging'];
 
-// ── Lip-sync speed variation — randomizes cadence for natural feel ──
-let lipSpeedTimer = null;
+// ═══════════════════════════════════════════════
+//  Lip-sync — RAF amplitude engine
+//
+//  Replaces the old CSS-animation + timer approach with a
+//  requestAnimationFrame loop that synthesises a phoneme
+//  envelope from additive sinusoids.  The server can also
+//  push a real-time Amplitude (0–1) in the JSON snapshot
+//  to drive the jaw from actual TTS audio energy.
+// ═══════════════════════════════════════════════
+const lipMaskInnerEl = document.getElementById('lip-mask-inner');
+const jawShadowEl    = document.getElementById('jaw-shadow');
+
+let lipSyncActive     = false;  // true while Speaking
+let lipRaf            = null;   // RAF handle
+let lipAmplitude      = 0;      // smoothed amplitude (0–1)
+let lipTarget         = 0;      // instantaneous target from envelope
+let lipPhase          = 0;      // phase accumulator for phoneme synthesis
+let externalAmplitude = 0;      // set by server via snapshot.Amplitude
+let currentEnergy     = 0.5;    // from snapshot.Energy — affects speech rate
+
+// Multi-sine phoneme envelope — cheap yet natural-sounding
+// Produces 0..1 bursts at ~2–4 syllables/sec with breath-group pauses
+function phonemeEnvelope() {
+  // Phase advances faster with higher energy (excited speech = faster)
+  lipPhase += 0.032 + currentEnergy * 0.028;
+
+  const s1 = Math.sin(lipPhase * 2.35);           // primary syllable rhythm
+  const s2 = Math.sin(lipPhase * 3.75) * 0.55;    // secondary modulation
+  const s3 = Math.sin(lipPhase * 6.10) * 0.20;    // micro-detail
+  const raw = (s1 + s2 + s3) / 1.75;              // normalize
+
+  const open = Math.max(0, raw);                   // rectify — jaw never negative
+
+  // Breath-group pauses (silence every ~2 s of speech)
+  const pause = Math.sin(lipPhase * 0.52) > 0.80 ? 0.12 : 1.0;
+
+  // Blend synthesized envelope with any real amplitude from server
+  return open * pause * (0.45 + externalAmplitude * 0.55);
+}
+
+function lipSyncFrame() {
+  if (lipSyncActive) {
+    lipTarget    = phonemeEnvelope();
+    lipAmplitude += (lipTarget - lipAmplitude) * 0.20;  // smooth chase
+  } else {
+    // Decay to closed — naturally finishes the current syllable
+    lipAmplitude *= 0.80;
+    if (lipAmplitude < 0.004) {
+      // Fully closed — stop loop, reset DOM
+      lipAmplitude = 0;
+      lipPhase     = 0;
+      lipRaf       = null;
+      lipSync.classList.remove('active');
+      lipMaskInnerEl.style.transform = 'scaleY(0.1)';
+      lipMaskInnerEl.style.opacity   = '0';
+      jawShadowEl.style.opacity      = '0';
+      jawShadowEl.style.transform    = '';
+      return;
+    }
+  }
+
+  // Write directly to style — no CSS animation overhead
+  const a = lipAmplitude;
+  lipMaskInnerEl.style.transform = `scaleY(${(0.10 + a * 0.90).toFixed(3)})`;
+  lipMaskInnerEl.style.opacity   = (a * 0.38).toFixed(3);
+  jawShadowEl.style.opacity      = (a * 0.22).toFixed(3);
+  jawShadowEl.style.transform    = `translateY(${(a * 3.5).toFixed(2)}px) scaleY(${(0.5 + a * 0.5).toFixed(3)})`;
+
+  lipRaf = requestAnimationFrame(lipSyncFrame);
+}
 
 function startLipSync() {
+  lipSyncActive = true;
   lipSync.classList.add('active');
-  varyLipSpeed();
+  if (!lipRaf) lipRaf = requestAnimationFrame(lipSyncFrame);
 }
 
 function stopLipSync() {
-  lipSync.classList.remove('active');
-  if (lipSpeedTimer) { clearTimeout(lipSpeedTimer); lipSpeedTimer = null; }
+  lipSyncActive = false;
+  // RAF loop decays naturally — no abrupt cutoff
 }
 
-function varyLipSpeed() {
-  if (!lipSync.classList.contains('active')) return;
-  // Random cadence between 0.18s (fast syllable) and 0.42s (slow pause)
-  const speed = (0.18 + Math.random() * 0.24).toFixed(2) + 's';
-  document.documentElement.style.setProperty('--lip-speed', speed);
-  lipSpeedTimer = setTimeout(varyLipSpeed, 200 + Math.random() * 400);
+// ═══════════════════════════════════════════════
+//  Topic-based stage positioning
+//
+//  When the server includes a "Topic" string in the
+//  JSON snapshot, the avatar shifts position and (in
+//  fullbody mode) rotates to the angle that best suits
+//  the conversational context.
+//
+//  Stage transform is driven via --stage-x / --stage-y /
+//  --stage-scale CSS custom properties on #avatar-stage,
+//  which animate via the 1.6 s cubic-bezier transition
+//  defined in CSS.
+// ═══════════════════════════════════════════════
+const avatarStageEl = document.getElementById('avatar-stage');
+
+//  x/y in pixels (small — just enough to feel intentional)
+//  s  = scale factor around 1.0
+//  a  = preferred fullbody angle index (0=front … 4=sideleft)
+//  holo = force holographic overlay on (true) / respect state (null)
+const TOPIC_POSITIONS = {
+  default:        { x:  0,  y:  0, s: 1.000, a: 0, holo: null  },
+  // Knowledge / technical domains → centred, slight zoom, holo on
+  technical:      { x:  0,  y: -3, s: 1.005, a: 0, holo: true  },
+  analytical:     { x:  2,  y: -4, s: 1.010, a: 0, holo: true  },
+  mathematical:   { x:  1,  y: -4, s: 1.008, a: 0, holo: true  },
+  code:           { x:  0,  y: -2, s: 1.005, a: 0, holo: true  },
+  // Abstract / philosophical → slight lean and ¾ angle
+  philosophical:  { x:  6,  y: -3, s: 1.015, a: 1, holo: null  },
+  abstract:       { x:  5,  y: -2, s: 1.010, a: 1, holo: null  },
+  conceptual:     { x:  4,  y: -2, s: 1.008, a: 1, holo: null  },
+  // Inward / reflective → slight turn away, profile
+  introspective:  { x: -7,  y:  2, s: 0.980, a: 2, holo: null  },
+  reflective:     { x: -5,  y:  1, s: 0.975, a: 3, holo: null  },
+  // Emotional / relational → forward lean, warmth, front-on
+  emotional:      { x:  0,  y:  7, s: 1.025, a: 0, holo: null  },
+  empathetic:     { x:  2,  y:  6, s: 1.022, a: 0, holo: null  },
+  supportive:     { x:  1,  y:  5, s: 1.020, a: 0, holo: null  },
+  // Playful / creative → jaunty ¾ angle, slight up
+  playful:        { x:  7,  y: -6, s: 1.020, a: 1, holo: null  },
+  creative:       { x:  5,  y: -4, s: 1.015, a: 1, holo: null  },
+  // Direct engagement / debate → close, front
+  engaging:       { x:  0,  y:  5, s: 1.030, a: 0, holo: null  },
+  confrontational:{ x:  0,  y:  3, s: 1.025, a: 0, holo: null  },
+};
+
+let currentTopicKey = 'default';
+
+function applyTopicPosition(topicRaw) {
+  if (!topicRaw) return;
+  const norm = topicRaw.toLowerCase().trim();
+
+  // Exact match first, then substring scan
+  const key = TOPIC_POSITIONS[norm]
+    ? norm
+    : (Object.keys(TOPIC_POSITIONS).find(k => k !== 'default' && norm.includes(k)) || 'default');
+
+  if (key === currentTopicKey) return;
+  currentTopicKey = key;
+
+  const pos = TOPIC_POSITIONS[key];
+
+  // Animate stage position via CSS custom properties
+  avatarStageEl.style.setProperty('--stage-x',     pos.x + 'px');
+  avatarStageEl.style.setProperty('--stage-y',     pos.y + 'px');
+  avatarStageEl.style.setProperty('--stage-scale', pos.s);
+
+  // Fullbody: steer to topic-preferred angle when not mid-interaction
+  if (isFullbody && (currentState === 'Idle' || currentState === 'Speaking')) {
+    turnaroundPaused = true;
+    setAngle(pos.a);
+    // Allow turnaround to resume after 10 s of sustained idle
+    setTimeout(() => {
+      if (currentTopicKey === key && currentState === 'Idle') {
+        turnaroundPaused = false;
+        startTurnaround();
+      }
+    }, 10000);
+  }
+
+  // Holographic override — technical/analytical topics enable it
+  if (pos.holo !== null) {
+    // Only force on; never force off while Thinking
+    if (pos.holo && currentState !== 'Thinking') setHolographic(true);
+    if (!pos.holo && currentState !== 'Thinking' && holoActive) setHolographic(false);
+  }
 }
 
 function setAvatarState(state) {
@@ -1263,11 +1405,21 @@ function applySnapshot(snap) {
   moodFill.style.width = (positivity * 100) + '%';
 
   const energy = Math.max(0, Math.min(1, snap.Energy || 0.5));
+  currentEnergy = energy;   // feed into lip sync phoneme rate
+
   const auraAlpha = 0.2 + energy * 0.5;
   document.documentElement.style.setProperty(
     '--aura-color', `rgba(147, 51, 234, ${auraAlpha})`);
   document.documentElement.style.setProperty(
     '--aura-color-strong', `rgba(147, 51, 234, ${auraAlpha + 0.15})`);
+
+  // Server-driven lip sync amplitude (optional — 0..1 from real TTS audio energy)
+  if (typeof snap.Amplitude === 'number') {
+    externalAmplitude = Math.max(0, Math.min(1, snap.Amplitude));
+  }
+
+  // Topic-based stage positioning + fullbody angle selection
+  if (snap.Topic) applyTopicPosition(snap.Topic);
 }
 
 
