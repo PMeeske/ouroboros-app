@@ -2325,8 +2325,6 @@ User: goodbye
                     success => { /* spoken successfully */ },
                     error => Console.WriteLine($"  [tts: {error}]"));
             }
-            // Brief tail suppression: audio reverberates in the room for ~1 s after playback ends
-            await Task.Delay(1200, CancellationToken.None).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -2336,6 +2334,9 @@ User: goodbye
         }
         finally
         {
+            // Always hold suppression for ~1.2 s after audio ends (or after error if Azure SDK
+            // played audio before AudioPlayer failed) — prevents room-mic coupling.
+            await Task.Delay(1200, CancellationToken.None).ConfigureAwait(false);
             IsSpeaking = false;
         }
     }

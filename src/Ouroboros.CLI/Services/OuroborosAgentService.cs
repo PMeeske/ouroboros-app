@@ -86,7 +86,7 @@ public class OuroborosAgentService : IOuroborosAgentService
                         azureSpeechRegion : config.AzureSpeechRegion ?? "eastus",
                         ttsVoice          : config.TtsVoice ?? "en-US-AvaMultilingualNeural",
                         localTts          : config.LocalTts,
-                        avatarOn          : true,
+                        avatarOn          : false,  // OuroborosAgent's EmbodimentSubsystem already owns the avatar
                         avatarPort        : 9471,
                         quiet             : true,   // silent banner — ImmersiveMode owns the console
                         ct                : roomCts.Token);
