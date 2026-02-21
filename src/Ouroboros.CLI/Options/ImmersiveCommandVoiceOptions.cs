@@ -22,4 +22,10 @@ public sealed class ImmersiveCommandVoiceOptions : IVoiceOptions
     public bool Avatar   { get; set; } = true;
     public int  AvatarPort { get; set; } = 9471;
     public bool RoomMode { get; set; }
+
+    // Azure TTS (mirrors OuroborosConfig — Azure is the default voice like the rest of the agent)
+    public bool    AzureTts          { get; set; } = true;
+    public string  TtsVoice          { get; set; } = "en-US-AvaMultilingualNeural";
+    public string? AzureSpeechKey    { get; set; }
+    public string  AzureSpeechRegion { get; set; } = "eastus";
 }

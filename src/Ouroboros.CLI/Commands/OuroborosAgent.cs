@@ -239,6 +239,14 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     /// </summary>
     public PersonalityEngine? Personality => _personalityEngine;
 
+    // ── Public subsystem access for OuroborosAgentService wiring ──────────────
+    public IModelSubsystem    SubModels   => _modelsSub;
+    public IToolSubsystem     SubTools    => _toolsSub;
+    public IMemorySubsystem   SubMemory   => _memorySub;
+    public IAutonomySubsystem SubAutonomy => _autonomySub;
+    /// <summary>Iaret — the ImmersivePersona owned by the cognitive subsystem.</summary>
+    public ImmersivePersona?  IaretPersona => _immersivePersona;
+
     /// <summary>
     /// Strips tool results from text for voice output.
     /// Tool results like "[tool_name]: output" and "[TOOL-RESULT:...]" are removed.
