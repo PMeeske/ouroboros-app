@@ -103,6 +103,21 @@ public sealed class InteractiveAvatarService : IAsyncDisposable
     }
 
     /// <summary>
+    /// Updates the avatar's topic hint and optionally the status text, keeping all other state unchanged.
+    /// The HTML viewer uses the topic to shift stage position and trigger a micro-expression flash.
+    /// </summary>
+    public void SetTopicHint(string topic, string? statusText = null)
+    {
+        var current = _state.Value;
+        PushState(current with
+        {
+            Topic = topic,
+            StatusText = statusText ?? current.StatusText,
+            Timestamp = DateTime.UtcNow,
+        });
+    }
+
+    /// <summary>
     /// Directly sets the presence state (for callers without an Rx stream).
     /// </summary>
     public void SetPresenceState(string presenceState, string mood, double energy = 0.5, double positivity = 0.5)

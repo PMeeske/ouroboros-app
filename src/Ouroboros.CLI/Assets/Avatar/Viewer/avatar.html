@@ -1348,6 +1348,21 @@ function applyTopicPosition(topicRaw) {
     if (pos.holo && currentState !== 'Thinking') setHolographic(true);
     if (!pos.holo && currentState !== 'Thinking' && holoActive) setHolographic(false);
   }
+
+  // Micro-expression flash — briefly register the topic shift visually.
+  // Swaps to 'expr-thinking' for 900 ms then restores the active state class.
+  // This also momentarily starts lip sync so there is visible lip movement on shift.
+  if (key !== 'default') {
+    const savedExpr = 'expr-' + currentState.toLowerCase();
+    EXPR_CLASSES.forEach(c => document.body.classList.remove(c));
+    document.body.classList.add('expr-thinking');
+    startLipSync();
+    setTimeout(() => {
+      EXPR_CLASSES.forEach(c => document.body.classList.remove(c));
+      document.body.classList.add(savedExpr);
+      if (currentState !== 'Speaking') stopLipSync();
+    }, 900);
+  }
 }
 
 function setAvatarState(state) {

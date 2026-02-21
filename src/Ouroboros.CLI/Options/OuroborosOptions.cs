@@ -234,6 +234,9 @@ public sealed class OuroborosOptions : IVoiceOptions
     [Option("avatar-port", Required = false, HelpText = "Override avatar viewer port (default: auto-assign from 9471)", Default = 0)]
     public int AvatarPort { get; set; }
 
+    [Option("room-mode", Required = false, HelpText = "Run ambient room-presence listener alongside the interactive session", Default = false)]
+    public bool RoomMode { get; set; }
+
     // ═══════════════════════════════════════════════════════════════════════════
     // DEBUG & OUTPUT
     // ═══════════════════════════════════════════════════════════════════════════

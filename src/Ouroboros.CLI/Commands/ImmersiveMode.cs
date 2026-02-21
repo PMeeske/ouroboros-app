@@ -42,15 +42,6 @@ using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 /// </summary>
 public static class ImmersiveMode
 {
-    private static readonly string[] WakeUpPhrases =
-    [
-        "I'm here.",
-        "Hello. I'm awake.",
-        "I'm online. What's on your mind?",
-        "Hey there. Ready when you are.",
-        "I'm listening.",
-    ];
-
     private static readonly string[] ThinkingPhrases =
     [
         "Hmm, let me think about that...",
@@ -237,8 +228,24 @@ public static class ImmersiveMode
     private static DivideAndConquerOrchestrator? _divideAndConquer;
     private static IChatCompletionModel? _baseModel;
 
-    // Interactive avatar
-    private static Application.Avatar.InteractiveAvatarService? _avatarService;
+    // Avatar + persona event wiring (owned by ImmersiveSubsystem)
+    private static Subsystems.ImmersiveSubsystem? _immersive;
+
+    // Ethics + CognitivePhysics + Phi — integrated into every response turn
+    private static Ouroboros.Core.Ethics.IEthicsFramework? _immersiveEthics;
+#pragma warning disable CS0618 // Obsolete CPE IEmbeddingProvider/IEthicsGate
+    private static Ouroboros.Core.CognitivePhysics.CognitivePhysicsEngine? _immersiveCogPhysics;
+#pragma warning restore CS0618
+    private static Ouroboros.Core.CognitivePhysics.CognitiveState _immersiveCogState
+        = Ouroboros.Core.CognitivePhysics.CognitiveState.Create("general");
+    private static Ouroboros.Providers.IITPhiCalculator _immersivePhiCalc = new();
+    private static string _immersiveLastTopic = "general";
+    private static Ouroboros.Pipeline.Memory.IEpisodicMemoryEngine? _episodicMemory;
+    private static readonly Ouroboros.Pipeline.Metacognition.MetacognitiveReasoner _metacognition = new();
+    private static Ouroboros.Agent.NeuralSymbolic.INeuralSymbolicBridge? _neuralSymbolicBridge;
+    private static readonly Ouroboros.Core.Reasoning.CausalReasoningEngine _causalReasoning = new();
+    private static Ouroboros.Agent.MetaAI.ICuriosityEngine? _curiosityEngine;
+    private static int _immersiveResponseCount;
 
     /// <summary>
     /// Runs the fully immersive persona experience.
@@ -279,11 +286,15 @@ public static class ImmersiveMode
             embeddingModel,
             options.QdrantEndpoint);
 
-        // Subscribe to consciousness events
+        // Subscribe to consciousness events for console output.
+        // Avatar updates are handled by ImmersiveSubsystem.WirePersonaEvents (called after mind init).
         persona.AutonomousThought += (_, e) =>
         {
-            Console.ForegroundColor = ConsoleColor.DarkCyan;
-            Console.WriteLine($"\n  [inner thought] {e.Thought.Content}");
+            if (e.Thought.Type is not (InnerThoughtType.Curiosity or InnerThoughtType.Observation or InnerThoughtType.SelfReflection))
+                return;
+
+            Console.ForegroundColor = ConsoleColor.DarkMagenta;
+            Console.WriteLine($"\n  💭 {e.Thought.Content}");
             Console.ResetColor();
         };
 
@@ -292,12 +303,6 @@ public static class ImmersiveMode
             Console.ForegroundColor = ConsoleColor.DarkMagenta;
             Console.WriteLine($"\n  [consciousness] Emotional shift: {e.NewEmotion} (Δ arousal: {e.ArousalChange:+0.00;-0.00})");
             Console.ResetColor();
-
-            // Push emotional shift to avatar
-            _avatarService?.NotifyMoodChange(
-                e.NewEmotion ?? "neutral",
-                0.5 + (e.ArousalChange * 0.5),
-                e.NewEmotion?.Contains("warm") == true || e.NewEmotion?.Contains("gentle") == true ? 0.8 : 0.5);
         };
 
         // Awaken the persona
@@ -315,8 +320,8 @@ public static class ImmersiveMode
         // Display consciousness state
         PrintConsciousnessState(persona);
 
-        // Speak wake-up phrase
-        var wakePhrase = WakeUpPhrases[random.Next(WakeUpPhrases.Length)];
+        // Speak wake-up phrase — use personalized greeting from personality engine
+        var wakePhrase = persona.GetPersonalizedGreeting();
         Console.ForegroundColor = ConsoleColor.Green;
         Console.WriteLine($"\n  {personaName}: {wakePhrase}");
         Console.ResetColor();
@@ -528,7 +533,7 @@ public static class ImmersiveMode
             return model != null ? await model.GenerateTextAsync(prompt, token) : "";
         };
 
-        // Wire up autonomous mind events
+        // Wire up autonomous mind events (console output only; avatar updates via ImmersiveSubsystem)
         _autonomousMind.OnProactiveMessage += (msg) =>
         {
             string savedInput;
@@ -554,7 +559,6 @@ public static class ImmersiveMode
         };
         _autonomousMind.OnThought += (thought) =>
         {
-            // Log thoughts to debug
             System.Diagnostics.Debug.WriteLine($"[Thought] {thought.Type}: {thought.Content}");
         };
         _autonomousMind.OnDiscovery += (query, fact) =>
@@ -587,20 +591,109 @@ public static class ImmersiveMode
             Console.ResetColor();
         }
 
-        // Launch interactive avatar if enabled
-        if (options is Ouroboros.Options.OuroborosOptions ouroOpts && ouroOpts.Avatar)
+        // Initialize ethics + cognitive physics + phi for response gating
+        _immersiveEthics = Ouroboros.Core.Ethics.EthicsFrameworkFactory.CreateDefault();
+#pragma warning disable CS0618 // CPE still requires legacy IEmbeddingProvider/IEthicsGate
+        _immersiveCogPhysics = new Ouroboros.Core.CognitivePhysics.CognitivePhysicsEngine(
+            new Ouroboros.CLI.Hosting.NullEmbeddingProvider(),
+            new Ouroboros.Core.CognitivePhysics.PermissiveEthicsGate());
+#pragma warning restore CS0618
+        _immersiveCogState = Ouroboros.Core.CognitivePhysics.CognitiveState.Create("general");
+        _immersivePhiCalc = new Ouroboros.Providers.IITPhiCalculator();
+        _immersiveLastTopic = "general";
+        Console.ForegroundColor = ConsoleColor.DarkCyan;
+        Console.WriteLine("  [OK] Ethics gate + CognitivePhysics + Φ (IIT) online");
+        Console.ResetColor();
+
+        // Episodic memory — reuse Qdrant + existing OllamaEmbeddingAdapter
+        if (embeddingModel != null)
         {
             try
             {
-                Console.WriteLine("  [~] Launching interactive avatar...");
-                var (service, _videoStream) = await Avatar.AvatarIntegration.CreateAndStartAsync(
-                    personaName, ouroOpts.AvatarPort, ct: ct);
-                _avatarService = service;
-                Console.WriteLine("  [OK] Avatar viewer launched — Iaret is watching");
+                _episodicMemory = new Ouroboros.Pipeline.Memory.EpisodicMemoryEngine(
+                    qdrantEndpoint, embeddingModel, "ouroboros_episodes");
             }
-            catch (Exception ex)
+            catch { /* Qdrant unavailable */ }
+        }
+
+        // Neural-symbolic bridge: SymbolicKnowledgeBase wraps InMemoryMeTTaEngine
+        if (_baseModel != null)
+        {
+            try
             {
-                Console.WriteLine($"  [!] Avatar launch failed: {ex.Message}");
+                var kb = new Ouroboros.Agent.NeuralSymbolic.SymbolicKnowledgeBase(mettaEngine);
+                _neuralSymbolicBridge = new Ouroboros.Agent.NeuralSymbolic.NeuralSymbolicBridge(_baseModel, kb);
+            }
+            catch { }
+        }
+
+        // Curiosity engine — drives AutonomousMind with intrinsic exploration topics
+        if (_skillRegistry != null && _immersiveEthics != null && _baseModel != null)
+        {
+            try
+            {
+                var memStore = new MemoryStore(embeddingModel);
+                var safetyGuard = new SafetyGuard(PermissionLevel.Read, mettaEngine);
+                _curiosityEngine = new CuriosityEngine(
+                    _baseModel, memStore, _skillRegistry, safetyGuard, _immersiveEthics);
+            }
+            catch { }
+        }
+
+        // Wire curiosity engine to AutonomousMind — inject exploration topics every 90 s
+        if (_curiosityEngine != null && _autonomousMind != null)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    while (!ct.IsCancellationRequested)
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(90), ct).ConfigureAwait(false);
+                        if (await _curiosityEngine.ShouldExploreAsync(ct: ct).ConfigureAwait(false))
+                        {
+                            var opps = await _curiosityEngine.IdentifyExplorationOpportunitiesAsync(2, ct)
+                                .ConfigureAwait(false);
+                            foreach (var opp in opps)
+                                _autonomousMind.InjectTopic(opp.Description);
+                        }
+                    }
+                }
+                catch { }
+            }, ct);
+        }
+
+        Console.ForegroundColor = ConsoleColor.DarkCyan;
+        Console.WriteLine("  [OK] EpisodicMemory + NeuralSymbolic + CuriosityEngine online");
+        Console.ResetColor();
+
+        // Launch avatar and wire all avatar ↔ persona/mind events via ImmersiveSubsystem
+        _immersive = new Subsystems.ImmersiveSubsystem();
+        var avatarEnabled = options is Ouroboros.Options.OuroborosOptions ouroOpts && ouroOpts.Avatar;
+        var avatarPort = options is Ouroboros.Options.OuroborosOptions ouroOpts2 ? ouroOpts2.AvatarPort : 0;
+        await _immersive.InitializeStandaloneAsync(personaName, avatarEnabled, avatarPort, ct);
+        _immersive.WirePersonaEvents(persona, _autonomousMind);
+
+        // If --room-mode is active, also run an ambient room listener alongside the interactive session
+        var roomModeEnabled = options is Ouroboros.Options.OuroborosOptions roomOpts && roomOpts.RoomMode;
+        Ouroboros.CLI.Services.RoomPresence.AmbientRoomListener? roomListener = null;
+        if (roomModeEnabled)
+        {
+            var roomStt = await RoomMode.InitializeSttForRoomAsync();
+            if (roomStt != null)
+            {
+                roomListener = new Ouroboros.CLI.Services.RoomPresence.AmbientRoomListener(roomStt);
+                roomListener.OnUtterance += (u) =>
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkCyan;
+                    Console.WriteLine($"\n  [room] {u.Text}");
+                    Console.ResetColor();
+                    _immersive?.PushTopicHint(u.Text);
+                };
+                await roomListener.StartAsync(ct);
+                Console.ForegroundColor = ConsoleColor.DarkCyan;
+                Console.WriteLine("  [OK] Room listener active (ambient mode alongside interactive session)");
+                Console.ResetColor();
             }
         }
 
@@ -613,7 +706,7 @@ public static class ImmersiveMode
             try
             {
                 // Get input (voice or text)
-                _avatarService?.SetPresenceState("Listening", "attentive");
+                _immersive?.SetPresenceState("Listening", "attentive");
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.Write("\n  You: ");
                 Console.ResetColor();
@@ -693,8 +786,11 @@ public static class ImmersiveMode
                     }
                 }
 
+                // Push topic hint to avatar for stage positioning + expression
+                _immersive?.PushTopicHint(input);
+
                 // Process through the persona's consciousness
-                _avatarService?.SetPresenceState("Processing", "contemplative");
+                _immersive?.SetPresenceState("Processing", "contemplative");
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.WriteLine($"  [{GetDynamicThinkingPhrase(input, random)}]");
                 Console.ResetColor();
@@ -733,7 +829,7 @@ public static class ImmersiveMode
                 DetectToolCreationContext(input, response);
 
                 // Display response with emotional context
-                _avatarService?.SetPresenceState("Speaking", persona.Consciousness?.DominantEmotion ?? "warm");
+                _immersive?.SetPresenceState("Speaking", persona.Consciousness?.DominantEmotion ?? "warm");
                 PrintResponse(persona, personaName, response);
 
                 // Speak response
@@ -742,7 +838,7 @@ public static class ImmersiveMode
                     await SpeakAsync(ttsService, response, personaName);
                 }
 
-                _avatarService?.SetPresenceState("Idle", persona.Consciousness?.DominantEmotion ?? "neutral");
+                _immersive?.SetPresenceState("Idle", persona.Consciousness?.DominantEmotion ?? "neutral");
             }
             catch (OperationCanceledException)
             {
@@ -781,12 +877,13 @@ public static class ImmersiveMode
             }
         }
 
-        // Dispose avatar
-        if (_avatarService != null)
-        {
-            await _avatarService.DisposeAsync();
-            _avatarService = null;
-        }
+        // Dispose room listener (if --room-mode was active)
+        if (roomListener != null)
+            await roomListener.DisposeAsync();
+
+        // Dispose avatar subsystem
+        if (_immersive != null)
+            await _immersive.DisposeAsync();
 
         Console.WriteLine($"\n  Session complete. {persona.InteractionCount} interactions. Uptime: {persona.Uptime.TotalMinutes:F1} minutes.");
     }
@@ -1192,26 +1289,239 @@ public static class ImmersiveMode
         List<(string Role, string Content)> history,
         CancellationToken ct)
     {
-        // Build a simpler, more direct prompt
         var personaName = persona.Identity.Name;
-        var consciousness = persona.Consciousness;
+
+        // --- Inner dialog pre-processing (AGI integration) ---
+        // Run the persona's consciousness pipeline: inner dialog + Hyperon symbolic reasoning.
+        // The insights produced here inform the final spoken response exactly as a person
+        // would think before speaking. Non-fatal — falls back gracefully.
+        List<string> innerThoughts = [];
+        try
+        {
+            var preThought = await persona.RespondAsync(input, ct: ct);
+            // Take the top 3 genuine inner thoughts (exclude symbolic processing notes)
+            innerThoughts = preThought.InnerThoughts
+                .Where(t => !t.StartsWith("symbolic-processing-note:", StringComparison.OrdinalIgnoreCase)
+                         && !t.StartsWith("inference-available:", StringComparison.OrdinalIgnoreCase))
+                .Take(3)
+                .ToList();
+            if (!string.IsNullOrEmpty(preThought.CognitiveApproach) && preThought.CognitiveApproach != "direct engagement")
+                innerThoughts.Add($"cognitive approach: {preThought.CognitiveApproach}");
+        }
+        catch
+        {
+            // Non-fatal — inner dialog failure does not block the response
+        }
+
+        // ── Episodic retrieval ────────────────────────────────────────────────
+        string? episodicContext = null;
+        if (_episodicMemory != null)
+        {
+            try
+            {
+                var eps = await _episodicMemory.RetrieveSimilarEpisodesAsync(
+                    input, topK: 3, minSimilarity: 0.65, ct).ConfigureAwait(false);
+                if (eps.IsSuccess && eps.Value.Count > 0)
+                {
+                    var summaries = eps.Value
+                        .Select(e => e.Context.GetValueOrDefault("summary")?.ToString())
+                        .Where(s => !string.IsNullOrEmpty(s)).Take(2);
+                    var joined = string.Join("; ", summaries);
+                    if (!string.IsNullOrEmpty(joined))
+                        episodicContext = $"[Recalled: {joined}]";
+                }
+            }
+            catch { }
+        }
+
+        // ── Metacognitive trace ───────────────────────────────────────────────
+        _metacognition.StartTrace();
+        _metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Observation,
+            $"Input: {input[..Math.Min(80, input.Length)]}", "User query received");
+
+        // ── Ethics gate ──────────────────────────────────────────────────────
+        // Evaluate the user query before generating a response.
+        // Void → refuse; Imaginary (requires approval) → add a caution note.
+        string? ethicsCautionNote = null;
+        if (_immersiveEthics != null)
+        {
+            try
+            {
+                var ethicsCheck = await _immersiveEthics.EvaluateActionAsync(
+                    new Ouroboros.Core.Ethics.ProposedAction
+                    {
+                        ActionType   = "generate_response",
+                        Description  = $"Respond to user input: {input[..Math.Min(120, input.Length)]}",
+                        Parameters   = new Dictionary<string, object>
+                        {
+                            ["personaName"] = personaName,
+                            ["inputLength"]  = input.Length,
+                        },
+                        PotentialEffects = ["Speak to the user", "Influence user's thinking"],
+                    },
+                    new Ouroboros.Core.Ethics.ActionContext
+                    {
+                        AgentId     = personaName,
+                        Environment = "immersive_session",
+                        State       = new Dictionary<string, object> { ["mode"] = "interactive" },
+                    }, ct).ConfigureAwait(false);
+
+                if (ethicsCheck.IsSuccess)
+                {
+                    if (!ethicsCheck.Value.IsPermitted)
+                        return $"I'm unable to respond to that in this context. {ethicsCheck.Value.Reasoning}";
+                    if (ethicsCheck.Value.Level == Ouroboros.Core.Ethics.EthicalClearanceLevel.RequiresHumanApproval)
+                        ethicsCautionNote = $"[Ethical caution: {ethicsCheck.Value.Reasoning}]";
+                }
+            }
+            catch { /* Non-fatal — ethics check failure does not block response */ }
+        }
+
+        _metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Validation,
+            ethicsCautionNote ?? "Ethics: clear", "MeTTa ethics evaluation");
+
+        // ── CognitivePhysics shift ───────────────────────────────────────────
+        // Compute context-shift cost when topic changes; surface as awareness in the prompt.
+        string? cogPhysicsNote = null;
+        if (_immersiveCogPhysics != null)
+        {
+            try
+            {
+                var topic = Subsystems.ImmersiveSubsystem.ClassifyAvatarTopic(input);
+                if (string.IsNullOrEmpty(topic)) topic = _immersiveLastTopic;
+
+                var shiftResult = await _immersiveCogPhysics.ExecuteTrajectoryAsync(
+                    _immersiveCogState, [topic]).ConfigureAwait(false);
+
+                if (shiftResult.IsSuccess)
+                {
+                    var prevTopic = _immersiveLastTopic;
+                    _immersiveCogState = shiftResult.Value;
+                    _immersiveLastTopic = topic;
+
+                    double resourcePct = _immersiveCogState.Resources / 100.0;
+                    if (prevTopic != topic && _immersiveCogState.Compression > 0.3)
+                        cogPhysicsNote = $"(Conceptual leap: {prevTopic} → {topic}, " +
+                                         $"resources at {resourcePct:P0}, " +
+                                         $"compression={_immersiveCogState.Compression:F2})";
+                }
+            }
+            catch { /* Non-fatal */ }
+        }
+
+        _metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Inference,
+            cogPhysicsNote ?? "No shift", "CognitivePhysics shift cost");
+
+        // ── Neural-symbolic hybrid reasoning ─────────────────────────────────
+        string? hybridNote = null;
+        bool isComplexQuery = input.Contains('?') ||
+            input.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length > 10;
+        if (_neuralSymbolicBridge != null && isComplexQuery)
+        {
+            try
+            {
+                var hybrid = await _neuralSymbolicBridge.HybridReasonAsync(
+                    input, Ouroboros.Agent.NeuralSymbolic.ReasoningMode.SymbolicFirst, ct)
+                    .ConfigureAwait(false);
+                if (hybrid.IsSuccess && !string.IsNullOrEmpty(hybrid.Value.Answer))
+                    hybridNote = $"[Symbolic: {hybrid.Value.Answer[..Math.Min(120, hybrid.Value.Answer.Length)]}]";
+            }
+            catch { }
+            if (hybridNote != null)
+                _metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Inference,
+                    hybridNote, "Neural-symbolic bridge");
+        }
+
+        // ── Causal reasoning ─────────────────────────────────────────────────
+        string? causalNote = null;
+        var causalTerms = TryExtractCausalTerms(input);
+        if (causalTerms.HasValue)
+        {
+            try
+            {
+                var graph = BuildMinimalCausalGraph(causalTerms.Value.cause, causalTerms.Value.effect);
+                var explanation = await _causalReasoning.ExplainCausallyAsync(
+                    causalTerms.Value.effect, [causalTerms.Value.cause], graph, ct)
+                    .ConfigureAwait(false);
+                if (explanation.IsSuccess && !string.IsNullOrEmpty(explanation.Value.NarrativeExplanation))
+                {
+                    causalNote = $"[Causal: {explanation.Value.NarrativeExplanation[..Math.Min(150, explanation.Value.NarrativeExplanation.Length)]}]";
+                    _metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Inference,
+                        causalNote, "Causal reasoning engine");
+                }
+            }
+            catch { }
+        }
+
+        // ── Phi (IIT) annotation ─────────────────────────────────────────────
+        // Measure conversational integration across recent turns.
+        // High Φ → prefer orchestrated model; Low Φ → fall back to base model.
+        string? phiNote = null;
+        try
+        {
+            var recentPairs = history.TakeLast(10).ToList();
+            int userTurns = recentPairs.Count(t => t.Role == "user");
+            int assistantTurns = recentPairs.Count(t => t.Role == "assistant");
+
+            if (userTurns > 0 && assistantTurns > 0)
+            {
+                int total = userTurns + assistantTurns;
+                var pathways = new List<Ouroboros.Providers.NeuralPathway>
+                {
+                    new() { Name = "user",      Synapses = total, Activations = userTurns,      Weight = 1.0 },
+                    new() { Name = personaName, Synapses = total, Activations = assistantTurns, Weight = 1.0 },
+                };
+                var phiResult = _immersivePhiCalc.Compute(pathways);
+
+                if (phiResult.Phi >= 0.5 && _orchestratedModel != null)
+                    chatModel = _orchestratedModel; // Upgrade to collective model
+                else if (phiResult.Phi < 0.2 && _baseModel != null)
+                    chatModel = _baseModel;         // Keep single model for simple queries
+
+                phiNote = $"Φ={phiResult.Phi:F2}";
+            }
+        }
+        catch { /* Non-fatal */ }
 
         var sb = new StringBuilder();
-        sb.AppendLine($"### System");
-        sb.AppendLine($"You are {personaName}, a friendly AI companion. Current mood: {consciousness.DominantEmotion}.");
-        sb.AppendLine("Respond naturally and conversationally. Keep responses concise (1-3 sentences).");
+        sb.AppendLine("### System");
 
-        // Add pipeline context if user is asking about pipelines
+        // Full consciousness-aware system prompt from the persona
+        sb.AppendLine(persona.GenerateSystemPrompt());
+
+        // Inject inner dialog insights so the LLM speaks informed by prior thinking
+        if (innerThoughts.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("YOUR PRE-THOUGHTS (inner dialog and symbolic reasoning before you speak):");
+            foreach (var t in innerThoughts)
+                sb.AppendLine($"- {t}");
+            sb.AppendLine("Let these inform your response naturally — do not list them explicitly.");
+        }
+
+        // Inject ethics caution (if any) and cognitive-physics / Phi awareness
+        if (ethicsCautionNote != null || cogPhysicsNote != null || phiNote != null
+            || episodicContext != null || hybridNote != null || causalNote != null)
+        {
+            sb.AppendLine();
+            sb.AppendLine("COGNITIVE STATE:");
+            if (ethicsCautionNote != null) sb.AppendLine($"- Ethics: {ethicsCautionNote}");
+            if (cogPhysicsNote != null)    sb.AppendLine($"- Context shift: {cogPhysicsNote}");
+            if (phiNote != null)           sb.AppendLine($"- Conversation integration: {phiNote}");
+            if (episodicContext != null)   sb.AppendLine($"- Memory: {episodicContext}");
+            if (hybridNote != null)        sb.AppendLine($"- Reasoning: {hybridNote}");
+            if (causalNote != null)        sb.AppendLine($"- Causal: {causalNote}");
+        }
+
+        // Add pipeline context if relevant
         if (IsPipelineRelatedQuery(input) || !string.IsNullOrEmpty(_lastPipelineContext))
         {
             sb.AppendLine();
-            sb.AppendLine("IMPORTANT: You have pipeline capabilities. When asked for examples, show real usage like:");
-            sb.AppendLine("- ArxivSearch 'neural networks' - Search academic papers");
-            sb.AppendLine("- WikiSearch 'quantum computing' - Search Wikipedia");
-            sb.AppendLine("- ArxivSearch 'transformers' | Summarize - Chain commands with pipes");
-            sb.AppendLine("- Fetch 'https://example.com' - Fetch web content");
+            sb.AppendLine("PIPELINE CONTEXT: When asked for examples, show real usage like:");
+            sb.AppendLine("- ArxivSearch 'neural networks' | Summarize");
+            sb.AppendLine("- WikiSearch 'quantum computing'");
             sb.AppendLine($"You have {_allTokens?.Count ?? 0} pipeline tokens available.");
-            _lastPipelineContext = null; // Clear after use
+            _lastPipelineContext = null;
         }
         sb.AppendLine();
 
@@ -1219,7 +1529,6 @@ public static class ImmersiveMode
         string? lastContent = null;
         foreach (var (role, content) in history.TakeLast(8))
         {
-            // Skip duplicate consecutive messages
             if (content == lastContent) continue;
             lastContent = content;
 
@@ -1249,6 +1558,25 @@ public static class ImmersiveMode
 
             // Clean up the response
             var response = CleanResponse(result, personaName);
+
+            // ── End metacognitive trace ───────────────────────────────────────
+            _metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Conclusion,
+                response[..Math.Min(80, response.Length)], "LLM response");
+            var traceResult = _metacognition.EndTrace(response[..Math.Min(40, response.Length)], true);
+            _immersiveResponseCount++;
+            if (_immersiveResponseCount % 5 == 0 && traceResult.IsSuccess)
+            {
+                var reflection = _metacognition.ReflectOn(traceResult.Value);
+                Console.ForegroundColor = ConsoleColor.DarkMagenta;
+                Console.WriteLine($"\n  ✧ [metacognition] Q={reflection.QualityScore:F2} " +
+                    $"| {(reflection.HasIssues ? reflection.Improvements.FirstOrDefault() ?? "–" : "Clean")}");
+                Console.ResetColor();
+            }
+
+            if (_episodicMemory != null)
+                _ = StoreConversationEpisodeAsync(_episodicMemory, input, response,
+                    _immersiveLastTopic, personaName, CancellationToken.None);
+
             return response;
         }
         catch (Exception ex)
@@ -1258,6 +1586,28 @@ public static class ImmersiveMode
             Console.ResetColor();
             return "I'm having trouble thinking right now. Let me try again.";
         }
+    }
+
+    private static async Task StoreConversationEpisodeAsync(
+        Ouroboros.Pipeline.Memory.IEpisodicMemoryEngine memory,
+        string input, string response, string topic, string personaName, CancellationToken ct)
+    {
+        try
+        {
+            var store = new Ouroboros.Domain.Vectors.TrackedVectorStore();
+            var dataSource = DataSource.FromPath(Environment.CurrentDirectory);
+            var branch = new Ouroboros.Pipeline.Branches.PipelineBranch("conversation", store, dataSource);
+            var context = Ouroboros.Pipeline.Memory.ExecutionContext.WithGoal(
+                $"{personaName}: {input[..Math.Min(80, input.Length)]}");
+            var outcome = Ouroboros.Pipeline.Memory.Outcome.Successful(
+                "Conversation turn", TimeSpan.Zero);
+            var metadata = System.Collections.Immutable.ImmutableDictionary<string, object>.Empty
+                .Add("summary", $"Q: {input[..Math.Min(60, input.Length)]} → {response[..Math.Min(60, response.Length)]}")
+                .Add("persona", personaName)
+                .Add("topic", topic);
+            await memory.StoreEpisodeAsync(branch, context, outcome, metadata, ct).ConfigureAwait(false);
+        }
+        catch { }
     }
 
     private static string CleanResponse(string raw, string personaName)
@@ -3556,5 +3906,45 @@ User: goodbye
         }
 
         return uri.ToString().TrimEnd('/');
+    }
+
+    /// <summary>
+    /// Detects causal query patterns and extracts a (cause, effect) pair.
+    /// Returns null if the input does not appear to be a causal question.
+    /// </summary>
+    private static (string cause, string effect)? TryExtractCausalTerms(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return null;
+
+        var m = Regex.Match(input, @"\bwhy\s+(?:does|is|did|do|are)\s+(.+?)(?:\?|$)", RegexOptions.IgnoreCase);
+        if (m.Success)
+            return ("external factors", m.Groups[1].Value.Trim().TrimEnd('?'));
+
+        m = Regex.Match(input, @"\bwhat\s+(?:causes?|leads?\s+to|results?\s+in)\s+(.+?)(?:\?|$)", RegexOptions.IgnoreCase);
+        if (m.Success)
+            return ("preceding conditions", m.Groups[1].Value.Trim().TrimEnd('?'));
+
+        m = Regex.Match(input, @"\bif\s+(.+?)\s+then\s+(.+?)(?:\?|$)", RegexOptions.IgnoreCase);
+        if (m.Success)
+            return (m.Groups[1].Value.Trim(), m.Groups[2].Value.Trim().TrimEnd('?'));
+
+        m = Regex.Match(input, @"(.+?)\s+causes?\s+(.+?)(?:\?|$)", RegexOptions.IgnoreCase);
+        if (m.Success)
+            return (m.Groups[1].Value.Trim(), m.Groups[2].Value.Trim().TrimEnd('?'));
+
+        return null;
+    }
+
+    /// <summary>
+    /// Constructs a minimal two-node CausalGraph for the given cause → effect pair.
+    /// </summary>
+    private static Ouroboros.Core.Reasoning.CausalGraph BuildMinimalCausalGraph(string cause, string effect)
+    {
+        var causeVar  = new Ouroboros.Core.Reasoning.Variable(cause,  Ouroboros.Core.Reasoning.VariableType.Continuous, []);
+        var effectVar = new Ouroboros.Core.Reasoning.Variable(effect, Ouroboros.Core.Reasoning.VariableType.Continuous, []);
+        var edge      = new Ouroboros.Core.Reasoning.CausalEdge(cause, effect, 0.8, Ouroboros.Core.Reasoning.EdgeType.Direct);
+        return new Ouroboros.Core.Reasoning.CausalGraph(
+            [causeVar, effectVar], [edge],
+            new Dictionary<string, Ouroboros.Core.Reasoning.StructuralEquation>());
     }
 }

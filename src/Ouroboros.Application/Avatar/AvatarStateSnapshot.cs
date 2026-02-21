@@ -16,6 +16,9 @@ public sealed record AvatarStateSnapshot(
     string PersonaName,
     DateTime Timestamp)
 {
+    /// <summary>Conversational topic hint for stage positioning and facial expression (e.g. "technical", "emotional").</summary>
+    public string? Topic { get; init; }
+
     /// <summary>Creates a default idle snapshot.</summary>
     public static AvatarStateSnapshot Default(string persona = "Iaret") => new(
         AvatarVisualState.Idle,

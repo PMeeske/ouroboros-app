@@ -2,6 +2,7 @@
 namespace Ouroboros.CLI.Subsystems;
 
 using System.Text;
+using System.Text.RegularExpressions;
 using Ouroboros.Application.Personality;
 using Ouroboros.Application.Services;
 using Ouroboros.Application.Tools;
@@ -35,6 +36,14 @@ public sealed class ChatSubsystem : IChatSubsystem
     private string? _lastUserInput;
     private DateTime _lastInteractionStart;
 
+    // High-priority integrated systems
+    private Ouroboros.Pipeline.Memory.IEpisodicMemoryEngine? _episodicMemory;
+    private readonly Ouroboros.Pipeline.Metacognition.MetacognitiveReasoner _metacognition = new();
+    private Ouroboros.Agent.NeuralSymbolic.INeuralSymbolicBridge? _neuralSymbolicBridge;
+    private readonly Ouroboros.Core.Reasoning.CausalReasoningEngine _causalReasoning = new();
+    private Ouroboros.Agent.MetaAI.ICuriosityEngine? _curiosityEngine;
+    private int _responseCount;
+
     // Delegates wired by agent during WireCrossSubsystemDependencies
     internal Func<InnerThought, string?, Task> PersistThoughtFunc { get; set; } =
         (_, _) => Task.CompletedTask;
@@ -55,6 +64,67 @@ public sealed class ChatSubsystem : IChatSubsystem
         _cognitiveSub = ctx.Cognitive;
         _autonomySub = ctx.Autonomy;
         IsInitialized = true;
+
+        // ── Episodic memory ───────────────────────────────────────────────────
+        if (ctx.Models.Embedding != null && !string.IsNullOrEmpty(ctx.Config.QdrantEndpoint))
+        {
+            try
+            {
+                _episodicMemory = new Ouroboros.Pipeline.Memory.EpisodicMemoryEngine(
+                    ctx.Config.QdrantEndpoint, ctx.Models.Embedding, "ouroboros_episodes");
+            }
+            catch { }
+        }
+
+        // ── Neural-symbolic bridge ────────────────────────────────────────────
+        if (ctx.Models.ChatModel != null && ctx.Memory.MeTTaEngine != null)
+        {
+            try
+            {
+                var kb = new Ouroboros.Agent.NeuralSymbolic.SymbolicKnowledgeBase(ctx.Memory.MeTTaEngine);
+                _neuralSymbolicBridge = new Ouroboros.Agent.NeuralSymbolic.NeuralSymbolicBridge(ctx.Models.ChatModel, kb);
+            }
+            catch { }
+        }
+
+        // ── Curiosity engine ──────────────────────────────────────────────────
+        if (ctx.Models.ChatModel != null && ctx.Memory.Skills != null)
+        {
+            try
+            {
+                var ethics = Ouroboros.Core.Ethics.EthicsFrameworkFactory.CreateDefault();
+                var memStore = new Ouroboros.Agent.MetaAI.MemoryStore(ctx.Models.Embedding);
+                var safetyGuard = new Ouroboros.Agent.MetaAI.SafetyGuard(
+                    Ouroboros.Agent.MetaAI.PermissionLevel.Read, ctx.Memory.MeTTaEngine);
+                _curiosityEngine = new Ouroboros.Agent.MetaAI.CuriosityEngine(
+                    ctx.Models.ChatModel, memStore, ctx.Memory.Skills, safetyGuard, ethics);
+
+                var mind = ctx.Autonomy.AutonomousMind;
+                if (mind != null)
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            while (true)
+                            {
+                                await Task.Delay(TimeSpan.FromSeconds(90)).ConfigureAwait(false);
+                                if (await _curiosityEngine.ShouldExploreAsync().ConfigureAwait(false))
+                                {
+                                    var opps = await _curiosityEngine
+                                        .IdentifyExplorationOpportunitiesAsync(2).ConfigureAwait(false);
+                                    foreach (var opp in opps)
+                                        mind.InjectTopic(opp.Description);
+                                }
+                            }
+                        }
+                        catch { }
+                    });
+                }
+            }
+            catch { }
+        }
+
         ctx.Output.RecordInit("Chat", true, "pipeline ready");
         return Task.CompletedTask;
     }
@@ -120,10 +190,83 @@ Use this actual code information to answer the user's question accurately.
 
         string toolInstruction = BuildToolInstruction(input);
 
+        // ── Episodic retrieval ────────────────────────────────────────────────
+        string episodicContext = "";
+        if (_episodicMemory != null)
+        {
+            try
+            {
+                var eps = await _episodicMemory.RetrieveSimilarEpisodesAsync(
+                    input, topK: 3, minSimilarity: 0.65).ConfigureAwait(false);
+                if (eps.IsSuccess && eps.Value.Count > 0)
+                {
+                    var summaries = eps.Value
+                        .Select(e => e.Context.GetValueOrDefault("summary")?.ToString())
+                        .Where(s => !string.IsNullOrEmpty(s)).Take(2).ToList();
+                    if (summaries.Count > 0)
+                        episodicContext = $"\n[EPISODIC MEMORY — recalled from similar past exchanges]\n" +
+                            string.Join("\n", summaries.Select(s => $"  • {s}")) +
+                            "\n[END EPISODIC]\n";
+                }
+            }
+            catch { }
+        }
+
+        // ── Metacognitive trace ───────────────────────────────────────────────
+        _metacognition.StartTrace();
+        _metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Observation,
+            $"Input: {input[..Math.Min(80, input.Length)]}", "User query received");
+
+        // ── Neural-symbolic hybrid reasoning ─────────────────────────────────
+        string hybridContext = "";
+        bool isComplexQuery = input.Contains('?') ||
+            input.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length > 10;
+        if (_neuralSymbolicBridge != null && isComplexQuery)
+        {
+            try
+            {
+                var hybrid = await _neuralSymbolicBridge.HybridReasonAsync(
+                    input, Ouroboros.Agent.NeuralSymbolic.ReasoningMode.SymbolicFirst)
+                    .ConfigureAwait(false);
+                if (hybrid.IsSuccess && !string.IsNullOrEmpty(hybrid.Value.Answer))
+                {
+                    hybridContext = $"\n[SYMBOLIC REASONING]\n" +
+                        $"{hybrid.Value.Answer[..Math.Min(200, hybrid.Value.Answer.Length)]}" +
+                        "\n[END SYMBOLIC]\n";
+                    _metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Inference,
+                        hybridContext[..Math.Min(80, hybridContext.Length)], "Neural-symbolic bridge");
+                }
+            }
+            catch { }
+        }
+
+        // ── Causal reasoning ─────────────────────────────────────────────────
+        string causalContext = "";
+        var causalTerms = TryExtractCausalTerms(input);
+        if (causalTerms.HasValue)
+        {
+            try
+            {
+                var graph = BuildMinimalCausalGraph(causalTerms.Value.cause, causalTerms.Value.effect);
+                var explanation = await _causalReasoning.ExplainCausallyAsync(
+                    causalTerms.Value.effect, [causalTerms.Value.cause], graph)
+                    .ConfigureAwait(false);
+                if (explanation.IsSuccess && !string.IsNullOrEmpty(explanation.Value.NarrativeExplanation))
+                {
+                    causalContext = $"\n[CAUSAL ANALYSIS]\n" +
+                        $"{explanation.Value.NarrativeExplanation[..Math.Min(200, explanation.Value.NarrativeExplanation.Length)]}" +
+                        "\n[END CAUSAL]\n";
+                    _metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Inference,
+                        causalContext[..Math.Min(80, causalContext.Length)], "Causal reasoning");
+                }
+            }
+            catch { }
+        }
+
         _lastUserInput = input;
         _lastInteractionStart = DateTime.UtcNow;
 
-        string prompt = $"{languageDirective}{costAwarenessPrompt}{toolAvailabilityStatement}{personalityPrompt}{persistentThoughtContext}{qdrantReflectiveContext}{toolInstruction}{injectedContext}\n\nRecent conversation:\n{context}\n\nUser: {input}\n\n{_voiceService.ActivePersona.Name}:";
+        string prompt = $"{languageDirective}{costAwarenessPrompt}{toolAvailabilityStatement}{personalityPrompt}{persistentThoughtContext}{qdrantReflectiveContext}{episodicContext}{hybridContext}{causalContext}{toolInstruction}{injectedContext}\n\nRecent conversation:\n{context}\n\nUser: {input}\n\n{_voiceService.ActivePersona.Name}:";
 
         try
         {
@@ -180,6 +323,24 @@ Use this actual code information to answer the user's question accurately.
 
             _cognitiveSub.RecordInteractionForLearning(input, response);
             _cognitiveSub.RecordCognitiveEvent(input, response, tools);
+
+            // ── End metacognitive trace ───────────────────────────────────────
+            _metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Conclusion,
+                response[..Math.Min(80, response.Length)], "LLM response");
+            var traceResult = _metacognition.EndTrace(response[..Math.Min(40, response.Length)], true);
+            _responseCount++;
+            if (_responseCount % 5 == 0 && traceResult.IsSuccess)
+            {
+                var reflection = _metacognition.ReflectOn(traceResult.Value);
+                Console.ForegroundColor = ConsoleColor.DarkMagenta;
+                Console.WriteLine($"\n  ✧ [metacognition] Q={reflection.QualityScore:F2} " +
+                    $"| {(reflection.HasIssues ? reflection.Improvements.FirstOrDefault() ?? "–" : "Clean")}");
+                Console.ResetColor();
+            }
+
+            // ── Store episode ─────────────────────────────────────────────────
+            if (_episodicMemory != null)
+                _ = StoreAgentEpisodeAsync(input, response, ExtractTopicFromResponse(input));
 
             if (!string.IsNullOrWhiteSpace(response))
             {
@@ -436,5 +597,75 @@ Use this actual code information to answer the user's question accurately.
         return text.Length > 60 ? text[..60] + "..." : text;
     }
 
+    private async Task StoreAgentEpisodeAsync(string input, string response, string topic)
+    {
+        if (_episodicMemory == null) return;
+        try
+        {
+            var store = new Ouroboros.Domain.Vectors.TrackedVectorStore();
+            var dataSource = LangChain.DocumentLoaders.DataSource.FromPath(System.Environment.CurrentDirectory);
+            var branch = new Ouroboros.Pipeline.Branches.PipelineBranch("agent_chat", store, dataSource);
+            var ctx = Ouroboros.Pipeline.Memory.ExecutionContext.WithGoal(
+                $"{_voiceService.ActivePersona.Name}: {input[..Math.Min(80, input.Length)]}");
+            var outcome = Ouroboros.Pipeline.Memory.Outcome.Successful("Agent chat turn", TimeSpan.Zero);
+            var metadata = System.Collections.Immutable.ImmutableDictionary<string, object>.Empty
+                .Add("summary", $"Q: {input[..Math.Min(60, input.Length)]} → {response[..Math.Min(60, response.Length)]}")
+                .Add("persona", _voiceService.ActivePersona.Name)
+                .Add("topic", topic);
+            await _episodicMemory.StoreEpisodeAsync(branch, ctx, outcome, metadata).ConfigureAwait(false);
+        }
+        catch { }
+    }
+
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+
+    /// <summary>
+    /// Detects causal query patterns and extracts a (cause, effect) pair.
+    /// Returns null if the input does not appear to be a causal question.
+    /// </summary>
+    private static (string cause, string effect)? TryExtractCausalTerms(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return null;
+        var lower = input.ToLowerInvariant();
+
+        // "why does X" / "why is X"
+        var m = Regex.Match(input, @"\bwhy\s+(?:does|is|did|do|are)\s+(.+?)(?:\?|$)", RegexOptions.IgnoreCase);
+        if (m.Success)
+        {
+            var effect = m.Groups[1].Value.Trim().TrimEnd('?');
+            return ("external factors", effect);
+        }
+
+        // "what causes X" / "what leads to X"
+        m = Regex.Match(input, @"\bwhat\s+(?:causes?|leads?\s+to|results?\s+in)\s+(.+?)(?:\?|$)", RegexOptions.IgnoreCase);
+        if (m.Success)
+        {
+            var effect = m.Groups[1].Value.Trim().TrimEnd('?');
+            return ("preceding conditions", effect);
+        }
+
+        // "if X then Y" / "X causes Y"
+        m = Regex.Match(input, @"\bif\s+(.+?)\s+then\s+(.+?)(?:\?|$)", RegexOptions.IgnoreCase);
+        if (m.Success)
+            return (m.Groups[1].Value.Trim(), m.Groups[2].Value.Trim().TrimEnd('?'));
+
+        m = Regex.Match(input, @"(.+?)\s+causes?\s+(.+?)(?:\?|$)", RegexOptions.IgnoreCase);
+        if (m.Success)
+            return (m.Groups[1].Value.Trim(), m.Groups[2].Value.Trim().TrimEnd('?'));
+
+        return null;
+    }
+
+    /// <summary>
+    /// Constructs a minimal two-node CausalGraph for the given cause → effect pair.
+    /// </summary>
+    private static Ouroboros.Core.Reasoning.CausalGraph BuildMinimalCausalGraph(string cause, string effect)
+    {
+        var causeVar  = new Ouroboros.Core.Reasoning.Variable(cause,  Ouroboros.Core.Reasoning.VariableType.Continuous, []);
+        var effectVar = new Ouroboros.Core.Reasoning.Variable(effect, Ouroboros.Core.Reasoning.VariableType.Continuous, []);
+        var edge      = new Ouroboros.Core.Reasoning.CausalEdge(cause, effect, 0.8, Ouroboros.Core.Reasoning.EdgeType.Direct);
+        return new Ouroboros.Core.Reasoning.CausalGraph(
+            [causeVar, effectVar], [edge],
+            new Dictionary<string, Ouroboros.Core.Reasoning.StructuralEquation>());
+    }
 }

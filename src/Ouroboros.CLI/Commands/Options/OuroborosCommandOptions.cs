@@ -532,6 +532,14 @@ public class OuroborosCommandOptions
         Description = "Stable Diffusion model name for avatar video stream (default: stable-diffusion)"
     };
 
+    // ── Room Presence ─────────────────────────────────────────────────────
+
+    public System.CommandLine.Option<bool> RoomModeOption { get; } = new("--room-mode")
+    {
+        Description = "Run ambient room-presence listener alongside the normal interactive session",
+        DefaultValueFactory = _ => false
+    };
+
     /// <summary>
     /// Adds all ouroboros command options to the given command.
     /// </summary>
@@ -646,6 +654,9 @@ public class OuroborosCommandOptions
         command.Add(AvatarPortOption);
         command.Add(SdEndpointOption);
         command.Add(SdModelOption);
+
+        // Room Presence
+        command.Add(RoomModeOption);
     }
 
     /// <summary>
@@ -769,6 +780,9 @@ public class OuroborosCommandOptions
         var sdEndpoint    = parseResult.GetValue(SdEndpointOption);
         var sdModel       = parseResult.GetValue(SdModelOption);
 
+        // Room Presence
+        var roomMode      = parseResult.GetValue(RoomModeOption);
+
         // Derive Azure TTS
         var azureKey = azureSpeechKey ?? Environment.GetEnvironmentVariable("AZURE_SPEECH_KEY");
         var useAzureTts = localTts ? false : (azureTts && !string.IsNullOrEmpty(azureKey));
@@ -844,7 +858,8 @@ public class OuroborosCommandOptions
             Avatar: avatar,
             AvatarPort: avatarPort,
             SdEndpoint: sdEndpoint,
-            SdModel: sdModel
+            SdModel: sdModel,
+            RoomMode: roomMode
         );
     }
 }
