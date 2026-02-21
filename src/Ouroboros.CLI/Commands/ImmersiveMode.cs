@@ -924,12 +924,14 @@ public static class ImmersiveMode
             try
             {
                 Console.WriteLine("  [~] Persisting learnings...");
+                // Use CancellationToken.None — session token is already cancelled at this point
+                // (Ctrl+C fired), but we still want the final snapshot to complete.
                 await _networkStateProjector.ProjectAndPersistAsync(
                     System.Collections.Immutable.ImmutableDictionary<string, string>.Empty
                         .Add("event", "session_end")
                         .Add("interactions", persona.InteractionCount.ToString())
                         .Add("uptime_minutes", persona.Uptime.TotalMinutes.ToString("F1")),
-                    ct);
+                    CancellationToken.None);
                 Console.WriteLine($"  [OK] State saved (epoch {_networkStateProjector.CurrentEpoch}, {_networkStateProjector.RecentLearnings.Count} learnings)");
                 await _networkStateProjector.DisposeAsync();
             }
