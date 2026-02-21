@@ -229,7 +229,7 @@ public sealed class AvatarVideoGenerator
                 new Rectangle(0, 0, seedBmp.Width, solidH),
                 new RectangleF(0, 0, faceResultBmp.Width, (float)solidH / faceH * faceResultBmp.Height),
                 GraphicsUnit.Pixel);
-
+    
             // Feathered blend strips
             using var ia = new ImageAttributes();
             for (int i = 0; i < BlendSteps; i++)
