@@ -43,6 +43,27 @@ public interface IConsoleOutput
     /// </summary>
     ISpinnerHandle StartSpinner(string label);
 
+    // ── Tool display (Crush-style) ─────────────────────────────
+
+    /// <summary>
+    /// Prints a pending tool header: <c>  ● ToolName  param</c>
+    /// </summary>
+    void WriteToolCall(string toolName, string? param = null);
+
+    /// <summary>
+    /// Prints a completed tool line (✓/✗) followed by a truncated result body.
+    /// </summary>
+    void WriteToolResult(string toolName, bool success, string? output = null, int maxLines = 10);
+
+    // ── Status bar ─────────────────────────────────────────────
+
+    /// <summary>
+    /// Writes a compact status line modelled on Crush's header:
+    /// <c>  model · dir  contextPct%</c>
+    /// Only shown in Normal/Verbose verbosity.
+    /// </summary>
+    void WriteStatusBar(string model, string? workingDir = null, int? contextPct = null);
+
     // ── Welcome / Banner ───────────────────────────────────────
 
     void WriteWelcome(string personaName, string model, string? mood = null);
