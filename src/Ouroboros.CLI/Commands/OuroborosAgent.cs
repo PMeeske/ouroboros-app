@@ -1248,6 +1248,10 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
             return "Tool not found";
         };
 
+        // Register subsystem instances in the Scrutor-backed IServiceProvider
+        // so ServiceDiscoveryTool can list and invoke them at runtime.
+        Ouroboros.Application.Tools.ServiceContainerFactory.RegisterSingleton(_autonomousMind);
+
         // Seed baseline interests so autonomous learning keeps research/philosophy active.
         _autonomousMind.AddInterest("research");
         _autonomousMind.AddInterest("philosophy");
@@ -2128,6 +2132,10 @@ $synth.Dispose()
             {
                 _autonomousMind?.InjectTopic(result.WarmupThought);
             }
+
+            // Trigger Scrutor assembly scan now that all subsystems are registered —
+            // discovers all ITool implementations and builds the IServiceProvider.
+            _ = Ouroboros.Application.Tools.ServiceContainerFactory.Build();
         }
         catch (Exception ex)
         {

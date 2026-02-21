@@ -7,49 +7,33 @@ namespace Ouroboros.Application.Tools;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Ouroboros.Core.Monads;
 using Ouroboros.Tools;
 
 /// <summary>
-/// Static registry of named service instances that Iaret can call at runtime.
-/// Subsystems register themselves here during wiring so the DI scan tool can discover and invoke them.
-/// </summary>
-public static class ServiceRegistry
-{
-    private static readonly Dictionary<string, object> _services = new(StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>Registers a service under a given name.</summary>
-    public static void Register(string name, object instance)
-    {
-        _services[name] = instance;
-    }
-
-    /// <summary>Returns all registered services.</summary>
-    public static IReadOnlyDictionary<string, object> All => _services;
-
-    /// <summary>Tries to retrieve a registered service.</summary>
-    public static bool TryGet(string name, out object? service)
-        => _services.TryGetValue(name, out service);
-}
-
-/// <summary>
-/// Tool that scans loaded assemblies for service interfaces and callable methods,
-/// and allows Iaret to invoke any registered service method at runtime.
-/// Emulates Scrutor-style assembly scanning without the DI package.
+/// Tool that uses Scrutor-assembled <see cref="IServiceProvider"/> to discover
+/// and invoke any registered service at runtime.
+///
+/// Subsystems register themselves via <see cref="ServiceContainerFactory.RegisterSingleton{T}"/>
+/// during startup wiring, and <see cref="ServiceContainerFactory.Build"/> scans all Ouroboros
+/// assemblies for <see cref="ITool"/> implementations via Scrutor.
 ///
 /// Commands:
-///   list                     — list all registered services and their public methods
-///   scan                     — scan current assemblies for ITool implementations
-///   invoke ServiceName.MethodName [json_args]  — call a service method
+///   list                            — list all services registered in the IServiceProvider
+///   tools                           — list all ITool implementations discovered by Scrutor
+///   invoke ServiceType.MethodName   — invoke a method on a resolved service instance
+///   invoke ServiceType.MethodName {"arg":"val"} — invoke with JSON args
 /// </summary>
 public sealed class ServiceDiscoveryTool : ITool
 {
     public string Name => "service_discovery";
 
     public string Description =>
-        "Scans available services and calls their methods. " +
-        "Use 'list' to see all registered services, 'scan' to discover ITool implementations in loaded assemblies, " +
-        "or 'invoke ServiceName.MethodName {\"arg\":\"value\"}' to call a service method.";
+        "Scrutor-based service discovery and runtime invocation. " +
+        "Commands: 'list' (all IServiceProvider registrations), " +
+        "'tools' (Scrutor-discovered ITool types), " +
+        "'invoke TypeName.MethodName [json_args]' (call any registered service method).";
 
     public string? JsonSchema => null;
 
@@ -63,115 +47,102 @@ public sealed class ServiceDiscoveryTool : ITool
         if (trimmed.Equals("list", StringComparison.OrdinalIgnoreCase))
             return Result<string, string>.Ok(BuildServiceList());
 
-        if (trimmed.Equals("scan", StringComparison.OrdinalIgnoreCase))
-            return Result<string, string>.Ok(await ScanAssembliesAsync());
+        if (trimmed.Equals("tools", StringComparison.OrdinalIgnoreCase))
+            return Result<string, string>.Ok(BuildToolList());
 
         if (trimmed.StartsWith("invoke ", StringComparison.OrdinalIgnoreCase))
             return await InvokeServiceMethodAsync(trimmed["invoke ".Length..].Trim(), ct);
 
-        return Result<string, string>.Err($"Unknown command '{trimmed}'. Use: list | scan | invoke ServiceName.MethodName [args]");
+        return Result<string, string>.Err(
+            $"Unknown command '{trimmed}'. Use: list | tools | invoke TypeName.MethodName [args]");
     }
 
     // ── list ──────────────────────────────────────────────────────────────────
 
     private static string BuildServiceList()
     {
+        var descriptors = ServiceContainerFactory.GetRegisteredServices().ToList();
         var sb = new StringBuilder();
-        sb.AppendLine($"Registered services ({ServiceRegistry.All.Count}):");
+        sb.AppendLine($"IServiceProvider registrations ({descriptors.Count}):");
+        sb.AppendLine();
 
-        foreach (var (name, svc) in ServiceRegistry.All.OrderBy(kv => kv.Key))
+        foreach (var group in descriptors
+            .GroupBy(d => d.Lifetime)
+            .OrderBy(g => g.Key.ToString()))
         {
-            var methods = GetCallableMethods(svc.GetType());
-            sb.AppendLine();
-            sb.AppendLine($"  [{name}] ({svc.GetType().Name})");
-            foreach (var method in methods.Take(10))
+            sb.AppendLine($"  [{group.Key}]");
+            foreach (var d in group.Take(50))
             {
-                var paramList = string.Join(", ", method.GetParameters()
-                    .Where(p => p.ParameterType != typeof(CancellationToken))
-                    .Select(p => $"{p.ParameterType.Name} {p.Name}"));
-                sb.AppendLine($"    • {method.Name}({paramList}) → {method.ReturnType.Name}");
+                var impl = d.ImplementationType?.Name
+                    ?? d.ImplementationInstance?.GetType().Name
+                    ?? "factory";
+                sb.AppendLine($"    {d.ServiceType.Name} → {impl}");
             }
-
-            if (methods.Count > 10)
-                sb.AppendLine($"    ... and {methods.Count - 10} more");
+            if (group.Count() > 50)
+                sb.AppendLine($"    ... and {group.Count() - 50} more");
+            sb.AppendLine();
         }
 
-        return sb.Length > 0 ? sb.ToString() : "No services registered. Subsystems call ServiceRegistry.Register() during wiring.";
+        return sb.ToString();
     }
 
-    // ── scan ──────────────────────────────────────────────────────────────────
+    // ── tools ─────────────────────────────────────────────────────────────────
 
-    private static Task<string> ScanAssembliesAsync()
+    private static string BuildToolList()
     {
+        var provider = ServiceContainerFactory.Provider;
+        var tools = provider.GetServices<ITool>().ToList();
+
         var sb = new StringBuilder();
-        var assemblies = AppDomain.CurrentDomain.GetAssemblies()
-            .Where(a => !a.IsDynamic && a.FullName?.StartsWith("Ouroboros") == true)
-            .ToList();
-
-        sb.AppendLine($"Scanning {assemblies.Count} Ouroboros assemblies for ITool implementations...");
+        sb.AppendLine($"Scrutor-discovered ITool implementations ({tools.Count}):");
         sb.AppendLine();
 
-        int count = 0;
-        foreach (var asm in assemblies)
-        {
-            try
-            {
-                var toolTypes = asm.GetExportedTypes()
-                    .Where(t => !t.IsAbstract && !t.IsInterface && typeof(ITool).IsAssignableFrom(t))
-                    .ToList();
+        foreach (var tool in tools.OrderBy(t => t.Name))
+            sb.AppendLine($"  • {tool.Name,-30} {tool.Description[..Math.Min(80, tool.Description.Length)]}");
 
-                if (toolTypes.Count == 0) continue;
-
-                sb.AppendLine($"  {asm.GetName().Name}:");
-                foreach (var t in toolTypes)
-                    sb.AppendLine($"    • {t.Name}");
-
-                count += toolTypes.Count;
-            }
-            catch
-            {
-                // Skip assemblies that can't be reflected
-            }
-        }
-
-        sb.AppendLine();
-        sb.AppendLine($"Total ITool implementations found: {count}");
-        return Task.FromResult(sb.ToString());
+        return sb.ToString();
     }
 
     // ── invoke ────────────────────────────────────────────────────────────────
 
     private static async Task<Result<string, string>> InvokeServiceMethodAsync(string spec, CancellationToken ct)
     {
-        // Format: ServiceName.MethodName [json_args_object]
+        // Format: TypeName.MethodName [json_args]
         var dotIdx = spec.IndexOf('.');
         if (dotIdx < 0)
-            return Result<string, string>.Err("Expected format: invoke ServiceName.MethodName [json_args]");
+            return Result<string, string>.Err("Expected: invoke TypeName.MethodName [json_args]");
 
-        var serviceName = spec[..dotIdx].Trim();
+        var typeName = spec[..dotIdx].Trim();
         var rest = spec[(dotIdx + 1)..].Trim();
         string methodName;
         string? argsJson = null;
 
         var spaceIdx = rest.IndexOf(' ');
         if (spaceIdx < 0)
-        {
             methodName = rest;
-        }
         else
         {
             methodName = rest[..spaceIdx].Trim();
             argsJson = rest[(spaceIdx + 1)..].Trim();
         }
 
-        if (!ServiceRegistry.TryGet(serviceName, out var service) || service == null)
-            return Result<string, string>.Err($"Service '{serviceName}' not found. Use 'list' to see registered services.");
+        // Resolve the service from the IServiceProvider
+        var provider = ServiceContainerFactory.Provider;
+        var serviceType = ResolveServiceType(typeName, provider);
+        if (serviceType == null)
+            return Result<string, string>.Err($"No service registered for type '{typeName}'. Use 'list' to see available services.");
 
-        var method = GetCallableMethods(service.GetType())
+        var service = provider.GetService(serviceType);
+        if (service == null)
+            return Result<string, string>.Err($"Service '{typeName}' is registered but could not be resolved.");
+
+        var method = service.GetType()
+            .GetMethods(BindingFlags.Public | BindingFlags.Instance)
+            .Where(m => !m.IsSpecialName && m.DeclaringType != typeof(object))
             .FirstOrDefault(m => m.Name.Equals(methodName, StringComparison.OrdinalIgnoreCase));
 
         if (method == null)
-            return Result<string, string>.Err($"Method '{methodName}' not found on '{serviceName}'. Use 'list' to see available methods.");
+            return Result<string, string>.Err($"Method '{methodName}' not found on '{typeName}'.");
 
         try
         {
@@ -180,12 +151,12 @@ public sealed class ServiceDiscoveryTool : ITool
 
             string output = rawResult switch
             {
-                Task<string> ts    => await ts,
-                Task<object> to    => (await to)?.ToString() ?? "(null)",
-                Task t             => await t.ContinueWith(_ => "(void)"),
-                string s           => s,
-                null               => "(null)",
-                _                  => rawResult.ToString() ?? "(object)"
+                Task<string> ts  => await ts,
+                Task<object> to  => (await to)?.ToString() ?? "(null)",
+                Task t           => await t.ContinueWith(_ => "(void)", ct),
+                string s         => s,
+                null             => "(null)",
+                _                => rawResult.ToString() ?? "(object)"
             };
 
             return Result<string, string>.Ok(output);
@@ -198,10 +169,28 @@ public sealed class ServiceDiscoveryTool : ITool
 
     // ── helpers ───────────────────────────────────────────────────────────────
 
-    private static List<MethodInfo> GetCallableMethods(Type type)
-        => type.GetMethods(BindingFlags.Public | BindingFlags.Instance)
-               .Where(m => !m.IsSpecialName && m.DeclaringType != typeof(object))
-               .ToList();
+    private static Type? ResolveServiceType(string typeName, IServiceProvider provider)
+    {
+        // Try exact match first, then suffix match on ServiceType name
+        foreach (var descriptor in ServiceContainerFactory.GetRegisteredServices())
+        {
+            var st = descriptor.ServiceType;
+            if (st.Name.Equals(typeName, StringComparison.OrdinalIgnoreCase)
+             || st.FullName?.Equals(typeName, StringComparison.OrdinalIgnoreCase) == true)
+                return st;
+        }
+
+        // Also check implementation types
+        foreach (var descriptor in ServiceContainerFactory.GetRegisteredServices())
+        {
+            var it = descriptor.ImplementationType
+                ?? descriptor.ImplementationInstance?.GetType();
+            if (it?.Name.Equals(typeName, StringComparison.OrdinalIgnoreCase) == true)
+                return descriptor.ServiceType;
+        }
+
+        return null;
+    }
 
     private static object?[] BuildArguments(MethodInfo method, string? argsJson, CancellationToken ct)
     {
@@ -209,15 +198,12 @@ public sealed class ServiceDiscoveryTool : ITool
         if (parameters.Length == 0) return [];
 
         var result = new object?[parameters.Length];
-        JsonElement? jsonDoc = null;
+        JsonElement? jsonRoot = null;
 
         if (!string.IsNullOrWhiteSpace(argsJson))
         {
-            try
-            {
-                jsonDoc = JsonDocument.Parse(argsJson).RootElement;
-            }
-            catch { /* plain string fallback */ }
+            try { jsonRoot = JsonDocument.Parse(argsJson).RootElement; }
+            catch { /* plain-string fallback */ }
         }
 
         for (int i = 0; i < parameters.Length; i++)
@@ -230,16 +216,15 @@ public sealed class ServiceDiscoveryTool : ITool
                 continue;
             }
 
-            if (jsonDoc.HasValue && jsonDoc.Value.ValueKind == JsonValueKind.Object
-                && jsonDoc.Value.TryGetProperty(p.Name ?? "", out var propEl))
+            if (jsonRoot.HasValue && jsonRoot.Value.ValueKind == JsonValueKind.Object
+                && jsonRoot.Value.TryGetProperty(p.Name ?? "", out var propEl))
             {
                 result[i] = JsonSerializer.Deserialize(propEl.GetRawText(), p.ParameterType);
                 continue;
             }
 
-            // Positional plain-string for single string param
             if (p.ParameterType == typeof(string) && !string.IsNullOrWhiteSpace(argsJson)
-                && jsonDoc?.ValueKind != JsonValueKind.Object)
+                && jsonRoot?.ValueKind != JsonValueKind.Object)
             {
                 result[i] = argsJson;
                 continue;
@@ -253,18 +238,19 @@ public sealed class ServiceDiscoveryTool : ITool
 
     private static string BuildHelp() =>
         """
-        service_discovery tool — Scrutor-style assembly scanning and runtime service invocation.
+        service_discovery — Scrutor + IServiceProvider runtime discovery tool.
 
         Commands:
-          list                           List all registered services and their callable methods
-          scan                           Scan Ouroboros assemblies for ITool implementations
-          invoke ServiceName.Method      Call a method on a registered service (no args)
-          invoke ServiceName.Method args Call with a JSON object or plain string argument
+          list                             All types registered in the IServiceProvider
+          tools                            All ITool implementations discovered by Scrutor scan
+          invoke TypeName.MethodName       Call a method on a resolved service (no args)
+          invoke TypeName.MethodName args  Call with plain string or JSON object argument
 
         Examples:
           service_discovery list
-          service_discovery scan
-          service_discovery invoke Memory.GetStatsAsync
-          service_discovery invoke AutonomousMind.AddInterest "philosophy"
+          service_discovery tools
+          service_discovery invoke AutonomousMind.GetStatus
+          service_discovery invoke QdrantNeuralMemory.GetStatsAsync
+          service_discovery invoke AutonomousMind.AddInterest "consciousness"
         """;
 }

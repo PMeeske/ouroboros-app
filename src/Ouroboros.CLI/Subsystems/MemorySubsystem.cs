@@ -112,6 +112,7 @@ public sealed class MemorySubsystem : IMemorySubsystem
             var testEmbed = await embedding.CreateEmbeddingsAsync("test");
             await NeuralMemory.InitializeAsync(testEmbed.Length);
             var stats = await NeuralMemory.GetStatsAsync();
+            Ouroboros.Application.Tools.ServiceContainerFactory.RegisterSingleton(NeuralMemory);
             ctx.Output.RecordInit("Neural Memory", true, $"Qdrant @ {qdrantRest}");
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.WriteLine($"    Messages: {stats.NeuronMessagesCount} | Intentions: {stats.IntentionsCount} | Memories: {stats.MemoriesCount}");
