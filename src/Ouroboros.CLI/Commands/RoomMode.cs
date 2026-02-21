@@ -42,6 +42,7 @@ public static class RoomMode
     private static Ouroboros.Agent.NeuralSymbolic.INeuralSymbolicBridge? _roomNeuralSymbolic;
     private static readonly Ouroboros.Core.Reasoning.CausalReasoningEngine _roomCausalReasoning = new();
     private static Ouroboros.Agent.MetaAI.ICuriosityEngine? _roomCuriosity;
+    private static Ouroboros.CLI.Sovereignty.PersonaSovereigntyGate? _roomSovereigntyGate;
 
     /// <summary>
     /// Entry point wired by Program.cs. Parses the System.CommandLine result
@@ -207,6 +208,10 @@ public static class RoomMode
             _roomCuriosity = new Ouroboros.Agent.MetaAI.CuriosityEngine(
                 chatModel, memStore, skills, safetyGuard, roomEthics);
 
+            // Iaret's sovereignty gate
+            try { _roomSovereigntyGate = new Ouroboros.CLI.Sovereignty.PersonaSovereigntyGate(chatModel); }
+            catch { }
+
             _ = Task.Run(async () =>
             {
                 try
@@ -219,7 +224,16 @@ public static class RoomMode
                             var opps = await _roomCuriosity.IdentifyExplorationOpportunitiesAsync(2, ct)
                                 .ConfigureAwait(false);
                             foreach (var opp in opps)
+                            {
+                                if (_roomSovereigntyGate != null)
+                                {
+                                    var v = await _roomSovereigntyGate
+                                        .EvaluateExplorationAsync(opp.Description, ct)
+                                        .ConfigureAwait(false);
+                                    if (!v.Approved) continue;
+                                }
                                 mind.InjectTopic(opp.Description);
+                            }
                         }
                     }
                 }

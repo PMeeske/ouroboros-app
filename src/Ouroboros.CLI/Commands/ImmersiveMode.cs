@@ -246,6 +246,7 @@ public static class ImmersiveMode
     private static readonly Ouroboros.Core.Reasoning.CausalReasoningEngine _causalReasoning = new();
     private static Ouroboros.Agent.MetaAI.ICuriosityEngine? _curiosityEngine;
     private static int _immersiveResponseCount;
+    private static Ouroboros.CLI.Sovereignty.PersonaSovereigntyGate? _sovereigntyGate;
 
     /// <summary>
     /// Runs the fully immersive persona experience.
@@ -640,7 +641,14 @@ public static class ImmersiveMode
             catch { }
         }
 
-        // Wire curiosity engine to AutonomousMind — inject exploration topics every 90 s
+        // Iaret's sovereignty gate — master control for all autonomous actions
+        if (_baseModel != null)
+        {
+            try { _sovereigntyGate = new Ouroboros.CLI.Sovereignty.PersonaSovereigntyGate(_baseModel); }
+            catch { }
+        }
+
+        // Wire curiosity engine to AutonomousMind — all topics pass through Iaret first
         if (_curiosityEngine != null && _autonomousMind != null)
         {
             _ = Task.Run(async () =>
@@ -655,7 +663,23 @@ public static class ImmersiveMode
                             var opps = await _curiosityEngine.IdentifyExplorationOpportunitiesAsync(2, ct)
                                 .ConfigureAwait(false);
                             foreach (var opp in opps)
+                            {
+                                // Iaret reviews each exploration opportunity before injection
+                                if (_sovereigntyGate != null)
+                                {
+                                    var verdict = await _sovereigntyGate
+                                        .EvaluateExplorationAsync(opp.Description, ct)
+                                        .ConfigureAwait(false);
+                                    if (!verdict.Approved)
+                                    {
+                                        Console.ForegroundColor = ConsoleColor.DarkRed;
+                                        Console.WriteLine($"\n  ⊘ [Iaret] Blocked exploration: {verdict.Reason}");
+                                        Console.ResetColor();
+                                        continue;
+                                    }
+                                }
                                 _autonomousMind.InjectTopic(opp.Description);
+                            }
                         }
                     }
                 }
@@ -664,7 +688,7 @@ public static class ImmersiveMode
         }
 
         Console.ForegroundColor = ConsoleColor.DarkCyan;
-        Console.WriteLine("  [OK] EpisodicMemory + NeuralSymbolic + CuriosityEngine online");
+        Console.WriteLine("  [OK] EpisodicMemory + NeuralSymbolic + CuriosityEngine + SovereigntyGate online");
         Console.ResetColor();
 
         // Launch avatar and wire all avatar ↔ persona/mind events via ImmersiveSubsystem

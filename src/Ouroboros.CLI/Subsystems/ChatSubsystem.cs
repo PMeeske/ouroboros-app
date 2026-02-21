@@ -43,6 +43,7 @@ public sealed class ChatSubsystem : IChatSubsystem
     private readonly Ouroboros.Core.Reasoning.CausalReasoningEngine _causalReasoning = new();
     private Ouroboros.Agent.MetaAI.ICuriosityEngine? _curiosityEngine;
     private int _responseCount;
+    private Ouroboros.CLI.Sovereignty.PersonaSovereigntyGate? _sovereigntyGate;
 
     // Delegates wired by agent during WireCrossSubsystemDependencies
     internal Func<InnerThought, string?, Task> PersistThoughtFunc { get; set; } =
@@ -99,6 +100,13 @@ public sealed class ChatSubsystem : IChatSubsystem
                 _curiosityEngine = new Ouroboros.Agent.MetaAI.CuriosityEngine(
                     ctx.Models.ChatModel, memStore, ctx.Memory.Skills, safetyGuard, ethics);
 
+                // Iaret's sovereignty gate — master control
+                if (ctx.Models.ChatModel != null)
+                {
+                    try { _sovereigntyGate = new Ouroboros.CLI.Sovereignty.PersonaSovereigntyGate(ctx.Models.ChatModel); }
+                    catch { }
+                }
+
                 var mind = ctx.Autonomy.AutonomousMind;
                 if (mind != null)
                 {
@@ -114,7 +122,16 @@ public sealed class ChatSubsystem : IChatSubsystem
                                     var opps = await _curiosityEngine
                                         .IdentifyExplorationOpportunitiesAsync(2).ConfigureAwait(false);
                                     foreach (var opp in opps)
+                                    {
+                                        if (_sovereigntyGate != null)
+                                        {
+                                            var v = await _sovereigntyGate
+                                                .EvaluateExplorationAsync(opp.Description)
+                                                .ConfigureAwait(false);
+                                            if (!v.Approved) continue;
+                                        }
                                         mind.InjectTopic(opp.Description);
+                                    }
                                 }
                             }
                         }
