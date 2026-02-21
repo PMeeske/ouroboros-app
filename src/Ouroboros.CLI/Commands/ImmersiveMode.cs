@@ -199,6 +199,13 @@ public static class ImmersiveMode
     /// </summary>
     public static bool HasSubsystems => _modelsSub != null;
 
+    /// <summary>
+    /// Set to true while Iaret is speaking (TTS playback active).
+    /// RoomMode checks this to suppress utterances that are actually Iaret's own voice
+    /// being picked up by the room microphone (acoustic echo / coupling prevention).
+    /// </summary>
+    public static volatile bool IsSpeaking = false;
+
     private static ImmersivePersona? _configuredPersona;
 
     /// <summary>
@@ -714,7 +721,9 @@ public static class ImmersiveMode
 
         // Launch avatar and wire all avatar ↔ persona/mind events via ImmersiveSubsystem
         _immersive = new Subsystems.ImmersiveSubsystem();
-        var avatarEnabled = options switch {
+        // When OuroborosAgent is wired, its EmbodimentSubsystem already owns the avatar —
+        // skip standalone avatar startup to avoid double-bind on the same port/HttpListener.
+        var avatarEnabled = !HasSubsystems && options switch {
             Ouroboros.Options.OuroborosOptions o => o.Avatar,
             Ouroboros.Options.ImmersiveCommandVoiceOptions i => i.Avatar,
             _ => false,
@@ -1003,7 +1012,11 @@ public static class ImmersiveMode
             _ => ConsoleColor.White
         };
 
-        Console.WriteLine($"\n  {personaName}: {response}");
+        var responseLines = response.Split('\n');
+        Console.Write($"\n  {personaName}: {responseLines[0]}");
+        foreach (var line in responseLines.Skip(1))
+            Console.Write($"\n  {line}");
+        Console.WriteLine();
         Console.ResetColor();
 
         // Show subtle consciousness indicator
@@ -1378,7 +1391,12 @@ public static class ImmersiveMode
             // Take the top 3 genuine inner thoughts (exclude symbolic processing notes)
             innerThoughts = preThought.InnerThoughts
                 .Where(t => !t.StartsWith("symbolic-processing-note:", StringComparison.OrdinalIgnoreCase)
-                         && !t.StartsWith("inference-available:", StringComparison.OrdinalIgnoreCase))
+                         && !t.StartsWith("inference-available:", StringComparison.OrdinalIgnoreCase)
+                         // Exclude AI-identity echoes — generic AI self-descriptions confuse the LLM
+                         && !t.StartsWith("I am an AI", StringComparison.OrdinalIgnoreCase)
+                         && !t.StartsWith("As an AI", StringComparison.OrdinalIgnoreCase)
+                         && !t.Contains("I cannot answer", StringComparison.OrdinalIgnoreCase)
+                         && !t.Contains("designed to provide helpful", StringComparison.OrdinalIgnoreCase))
                 .Take(3)
                 .ToList();
             if (!string.IsNullOrEmpty(preThought.CognitiveApproach) && preThought.CognitiveApproach != "direct engagement")
@@ -1717,7 +1735,7 @@ public static class ImmersiveMode
         // Remove any remaining ### markers
         response = Regex.Replace(response, @"###\s*(System|Human|Assistant)\s*", "", RegexOptions.IgnoreCase).Trim();
 
-        // If response contains prompt keywords, it's echoing - provide fallback
+        // If response contains prompt keywords, it's echoing the system prompt - provide fallback
         if (response.Contains("friendly AI companion", StringComparison.OrdinalIgnoreCase) ||
             response.Contains("Current mood:", StringComparison.OrdinalIgnoreCase) ||
             response.Contains("Keep responses concise", StringComparison.OrdinalIgnoreCase) ||
@@ -1727,6 +1745,22 @@ public static class ImmersiveMode
         {
             return "Hey there! What's up?";
         }
+
+        // Strip Iaret-as-AI self-introduction lines — the persona should never introduce herself as "an AI"
+        // These are usually echoes from a confused model or safety-filter responses
+        var selfIntroLines = response.Split('\n')
+            .Where(l =>
+            {
+                var t = l.Trim();
+                return !t.StartsWith("I am an AI", StringComparison.OrdinalIgnoreCase)
+                    && !t.StartsWith("As an AI", StringComparison.OrdinalIgnoreCase)
+                    && !t.StartsWith("I'm an AI", StringComparison.OrdinalIgnoreCase)
+                    && !(t.StartsWith("I am " + personaName, StringComparison.OrdinalIgnoreCase)
+                         && t.Length < 80); // short identity sentences like "I am Iaret, your AI companion"
+            })
+            .ToList();
+        if (selfIntroLines.Count > 0)
+            response = string.Join("\n", selfIntroLines).Trim();
 
         // Remove persona name prefix if echoed
         if (response.StartsWith($"{personaName}:", StringComparison.OrdinalIgnoreCase))
@@ -1739,6 +1773,25 @@ public static class ImmersiveMode
             !l.TrimStart().StartsWith("###", StringComparison.OrdinalIgnoreCase)).ToList();
         if (cleanedLines.Count > 0)
             response = string.Join("\n", cleanedLines).Trim();
+
+        // Deduplicate repeated lines (LLM repetition loop symptom)
+        var deduped = new List<string>();
+        string? prevLine = null;
+        foreach (var line in response.Split('\n'))
+        {
+            var trimmed = line.Trim();
+            if (trimmed != prevLine)
+                deduped.Add(line);
+            prevLine = trimmed;
+        }
+        response = string.Join("\n", deduped).Trim();
+
+        // Detect generic AI safety refusals — model is confused by the prompt
+        if (response.Contains("I cannot answer that question", StringComparison.OrdinalIgnoreCase) ||
+            response.Contains("I am an AI assistant designed to provide helpful and harmless", StringComparison.OrdinalIgnoreCase))
+        {
+            return "I'm here with you. What would you like to explore?";
+        }
 
         // If still empty after cleaning, provide fallback
         if (string.IsNullOrWhiteSpace(response))
@@ -2252,6 +2305,8 @@ User: goodbye
 
     private static async Task SpeakAsync(ITextToSpeechService tts, string text, string personaName)
     {
+        // Suppress room microphone pickup of Iaret's own voice during and briefly after TTS.
+        IsSpeaking = true;
         try
         {
             // If it's LocalWindowsTtsService, use SpeakDirectAsync for faster playback
@@ -2270,12 +2325,18 @@ User: goodbye
                     success => { /* spoken successfully */ },
                     error => Console.WriteLine($"  [tts: {error}]"));
             }
+            // Brief tail suppression: audio reverberates in the room for ~1 s after playback ends
+            await Task.Delay(1200, CancellationToken.None).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.WriteLine($"  [tts error: {ex.Message}]");
             Console.ResetColor();
+        }
+        finally
+        {
+            IsSpeaking = false;
         }
     }
 
