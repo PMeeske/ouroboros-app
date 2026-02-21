@@ -17,26 +17,23 @@ public static class AvatarIntegration
 {
     /// <summary>
     /// Creates, configures, and starts the avatar system with the web renderer.
-    /// When <paramref name="visionModel"/> or <paramref name="virtualSelf"/> is provided,
-    /// also starts the live AI-generated video stream via Stable Diffusion.
+    /// Always starts the algorithmic expression video stream (GDI+ pixel transforms, no external service).
+    /// When <paramref name="visionModel"/> is provided, the vision model path is used instead
+    /// (generates expression descriptions; CSS renders visually).
     /// </summary>
     /// <param name="personaName">Active persona name (e.g. "Iaret").</param>
     /// <param name="port">WebSocket port for the avatar viewer (0 = auto-assign from default).</param>
     /// <param name="assetDirectory">Optional override for the avatar asset directory.</param>
     /// <param name="visionModel">Optional vision model for the video stream perception loop.</param>
     /// <param name="virtualSelf">Optional VirtualSelf for closed-loop perception publishing.</param>
-    /// <param name="ollamaEndpoint">Ollama server endpoint for SD generation.</param>
-    /// <param name="sdModel">Stable Diffusion model name for generation.</param>
     /// <param name="ct">Cancellation token.</param>
-    /// <returns>The running avatar service and optional video stream (caller must dispose both).</returns>
-    public static async Task<(InteractiveAvatarService Service, AvatarVideoStream? VideoStream)> CreateAndStartAsync(
+    /// <returns>The running avatar service and video stream (caller must dispose both).</returns>
+    public static async Task<(InteractiveAvatarService Service, AvatarVideoStream VideoStream)> CreateAndStartAsync(
         string personaName = "Iaret",
         int port = 0,
         string? assetDirectory = null,
         IVisionModel? visionModel = null,
         VirtualSelf? virtualSelf = null,
-        string ollamaEndpoint = "http://localhost:11434",
-        string sdModel = "stable-diffusion",
         CancellationToken ct = default)
     {
         var service = new InteractiveAvatarService(personaName);
@@ -44,9 +41,7 @@ public static class AvatarIntegration
         service.AttachRenderer(renderer);
         await service.StartAsync(ct);
 
-        var generator = new AvatarVideoGenerator(ollamaEndpoint, sdModel, logger: null, visionModel: visionModel);
-        await generator.LoadCheckpointAsync(ct); // load once — never per-frame
-        var videoStream = new AvatarVideoStream(generator, service, visionModel, virtualSelf, assetDirectory);
+        var videoStream = new AvatarVideoStream(service, visionModel, virtualSelf, assetDirectory);
         _ = videoStream.StartAsync(ct); // fire and forget — runs in background
 
         return (service, videoStream);
