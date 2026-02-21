@@ -39,4 +39,18 @@ public sealed record SubsystemInitContext
 
     /// <summary>Agent's RegisterCameraCaptureTool method (for Tapo devices).</summary>
     public Action? RegisterCameraCaptureAction { get; init; }
+
+    // ── Crush-inspired agentic infrastructure ──
+
+    /// <summary>
+    /// Interactive tool-approval broker (Crush-style [a]/[s]/[d] dialog).
+    /// When set, sensitive tools block until the user grants or denies execution.
+    /// </summary>
+    public ToolPermissionBroker? PermissionBroker { get; init; }
+
+    /// <summary>
+    /// Non-blocking event bus that publishes tool and agent lifecycle events
+    /// to any subscribed UI component without coupling agent to console.
+    /// </summary>
+    public EventBroker<AgentEvent>? AgentEventBus { get; init; }
 }

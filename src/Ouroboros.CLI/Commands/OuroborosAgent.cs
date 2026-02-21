@@ -1038,6 +1038,14 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
         if (_config.Verbosity == OutputVerbosity.Verbose)
             PrintFeatureStatus();
 
+        // Crush-inspired: shared permission broker and agent event bus.
+        // SkipAll mirrors the existing YoloMode flag (--yolo = bypass all approvals).
+        var permissionBroker = new CLI.Infrastructure.ToolPermissionBroker
+        {
+            SkipAll = _config.YoloMode,
+        };
+        var agentEventBus = new CLI.Infrastructure.EventBroker<CLI.Infrastructure.AgentEvent>();
+
         // Create shared initialization context (mediator pattern)
         var ctx = new Subsystems.SubsystemInitContext
         {
@@ -1053,6 +1061,8 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
             Autonomy = _autonomySub,
             Embodiment = _embodimentSub,
             RegisterCameraCaptureAction = () => RegisterCameraCaptureTool(),
+            PermissionBroker = permissionBroker,
+            AgentEventBus    = agentEventBus,
         };
 
         // ── Phase 1: Infrastructure (standalone) ──

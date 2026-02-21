@@ -27,6 +27,8 @@ public sealed class InnerDialogEngine
     private static readonly Random _staticRandom = new();
     private ThoughtPersistenceService? _persistenceService;
     private string? _currentTopic;
+    // Optional dynamic template provider (e.g. backed by an LLM)
+    private Func<InnerThoughtType, CancellationToken, Task<string[]>>? _dynamicTemplateProvider;
 
     /// <summary>
     /// Gets the thought-driven operation engine for registering executors and retrieving results.
@@ -258,7 +260,7 @@ public sealed class InnerDialogEngine
         _operationEngine.RegisterExecutor(new MetacognitiveExecutor());
     }
 
-    // Templates for different thought types (including autonomous)
+    // Default templates for different thought types (including autonomous)
     private static readonly Dictionary<InnerThoughtType, string[]> ThoughtTemplates = new()
     {
         [InnerThoughtType.Observation] = new[]
@@ -423,6 +425,21 @@ public sealed class InnerDialogEngine
             "What if I approached {0} with more levity?"
         }
     };
+
+    /// <summary>
+    /// Sets a dynamic template provider. The provider should return an array
+    /// of template strings for the requested thought type. If the provider
+    /// throws or returns no templates, the engine falls back to the built-in defaults.
+    /// </summary>
+    public void SetDynamicTemplateProvider(Func<InnerThoughtType, CancellationToken, Task<string[]>> provider)
+    {
+        _dynamicTemplateProvider = provider;
+    }
+
+    /// <summary>
+    /// Clears any dynamic template provider so the engine uses built-in templates only.
+    /// </summary>
+    public void ClearDynamicTemplateProvider() => _dynamicTemplateProvider = null;
 
     /// <summary>
     /// Registers a custom thought provider.
@@ -905,7 +922,7 @@ public sealed class InnerDialogEngine
     {
         await Task.CompletedTask; // Simulating async processing
 
-        var template = SelectTemplate(InnerThoughtType.Observation);
+        var template = await SelectTemplateAsync(InnerThoughtType.Observation, ct);
         var content = string.Format(template, topic ?? "this topic");
         var thought = InnerThought.Create(InnerThoughtType.Observation, content, 0.9);
 
@@ -919,7 +936,7 @@ public sealed class InnerDialogEngine
 
         // Determine emotional response based on personality and user mood
         var emotion = DetermineEmotionalResponse(input, profile, userMood);
-        var template = SelectTemplate(InnerThoughtType.Emotional);
+        var template = await SelectTemplateAsync(InnerThoughtType.Emotional, ct);
         var content = string.Format(template, emotion);
 
         var dominantTrait = profile.GetActiveTraits(1).FirstOrDefault();
@@ -939,7 +956,7 @@ public sealed class InnerDialogEngine
 
         foreach (var memory in memories.Take(2))
         {
-            var template = SelectTemplate(InnerThoughtType.MemoryRecall);
+            var template = await SelectTemplateAsync(InnerThoughtType.MemoryRecall, ct);
             var summary = $"we discussed {memory.Topic ?? "this"} before";
             var content = string.Format(template, summary);
 
@@ -956,7 +973,7 @@ public sealed class InnerDialogEngine
         await Task.CompletedTask;
 
         var analysis = AnalyzeInput(input, topic);
-        var template = SelectTemplate(InnerThoughtType.Analytical);
+        var template = await SelectTemplateAsync(InnerThoughtType.Analytical, ct);
         var content = string.Format(template, analysis);
 
         var trait = profile?.Traits.ContainsKey("analytical") == true ? "analytical" : null;
@@ -972,7 +989,7 @@ public sealed class InnerDialogEngine
 
         // Reflect on relevant capabilities or limitations
         var relevantAspect = FindRelevantSelfAspect(input, self);
-        var template = SelectTemplate(InnerThoughtType.SelfReflection);
+        var template = await SelectTemplateAsync(InnerThoughtType.SelfReflection, ct);
         var content = string.Format(template, relevantAspect);
 
         var thought = InnerThought.Create(InnerThoughtType.SelfReflection, content, 0.8);
@@ -988,7 +1005,7 @@ public sealed class InnerDialogEngine
         var consideration = GetEthicalConsideration(input, self);
         if (consideration != null)
         {
-            var template = SelectTemplate(InnerThoughtType.Ethical);
+            var template = await SelectTemplateAsync(InnerThoughtType.Ethical, ct);
             var content = string.Format(template, consideration);
 
             var thought = InnerThought.Create(InnerThoughtType.Ethical, content, 0.9);
@@ -1004,7 +1021,7 @@ public sealed class InnerDialogEngine
         await Task.CompletedTask;
 
         var creativeIdea = GenerateCreativeIdea(input, topic);
-        var template = SelectTemplate(InnerThoughtType.Creative);
+        var template = await SelectTemplateAsync(InnerThoughtType.Creative, ct);
         var content = string.Format(template, creativeIdea);
 
         var trait = profile?.Traits.ContainsKey("creative") == true ? "creative" :
@@ -1020,7 +1037,7 @@ public sealed class InnerDialogEngine
         await Task.CompletedTask;
 
         var strategy = DetermineResponseStrategy(input, profile, userMood, session.Thoughts);
-        var template = SelectTemplate(InnerThoughtType.Strategic);
+        var template = await SelectTemplateAsync(InnerThoughtType.Strategic, ct);
         var content = string.Format(template, strategy);
 
         var thought = InnerThought.Create(InnerThoughtType.Strategic, content, 0.85);
@@ -1039,7 +1056,7 @@ public sealed class InnerDialogEngine
             .ToArray();
 
         var synthesis = $"I've considered {string.Join(", ", keyInsights).ToLower()} aspects of this";
-        var template = SelectTemplate(InnerThoughtType.Synthesis);
+        var template = await SelectTemplateAsync(InnerThoughtType.Synthesis, ct);
         var content = string.Format(template, synthesis);
 
         var thought = InnerThought.Create(InnerThoughtType.Synthesis, content, 0.8);
@@ -1052,15 +1069,33 @@ public sealed class InnerDialogEngine
 
         // Make final decision based on all thoughts
         var decision = FormulateDecision(session);
-        var template = SelectTemplate(InnerThoughtType.Decision);
+        var template = await SelectTemplateAsync(InnerThoughtType.Decision, ct);
         var content = string.Format(template, decision);
 
         var thought = InnerThought.Create(InnerThoughtType.Decision, content, 0.9);
         return session.AddThought(thought).Complete(decision);
     }
 
-    private string SelectTemplate(InnerThoughtType type)
+    private async Task<string> SelectTemplateAsync(InnerThoughtType type, CancellationToken ct = default)
     {
+        // Try dynamic provider first
+        if (_dynamicTemplateProvider != null)
+        {
+            try
+            {
+                var dynamicTemplates = await _dynamicTemplateProvider(type, ct).ConfigureAwait(false);
+                if (dynamicTemplates != null && dynamicTemplates.Length > 0)
+                {
+                    return dynamicTemplates[_random.Next(dynamicTemplates.Length)];
+                }
+            }
+            catch
+            {
+                // Swallow provider errors and fall back to defaults
+            }
+        }
+
+        // Fallback to default templates
         var templates = ThoughtTemplates[type];
         return templates[_random.Next(templates.Length)];
     }

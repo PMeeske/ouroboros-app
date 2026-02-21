@@ -154,6 +154,9 @@ public sealed class ToolSubsystem : IToolSubsystem
                 // CRITICAL: Recreate Llm with ALL tools (immutable ToolRegistry)
                 Llm = new ToolAwareChatModel(effectiveModel, Tools);
                 System.Diagnostics.Debug.WriteLine($"[Tools] Final Llm created with {Tools.Count} tools");
+
+                // Wire Crush-style permission + event hooks onto the final LLM instance
+                WireHooks(Llm);
             }
             else
             {
@@ -214,12 +217,10 @@ public sealed class ToolSubsystem : IToolSubsystem
                         _ => "stop"
                     };
 
-                    Console.ForegroundColor = ConsoleColor.DarkCyan;
-                    Console.WriteLine($"[Auto-Tool] PTZ: {ptzCommand}");
-                    Console.ResetColor();
-
-                    var ptzResult = await ptzTool.InvokeAsync(ptzCommand, CancellationToken.None);
-                    var ptzOutput = ptzResult.Match(ok => ok, err => $"[PTZ error: {err}]");
+                    var ptzInvoke = await ExecuteWithUiAsync(ptzTool, ptzCommand, ptzCommand);
+                    if (ptzInvoke is null)
+                        return "PTZ MOVEMENT DENIED: User rejected the camera movement request.";
+                    var ptzOutput = ptzInvoke.Value.Match(ok => ok, err => $"[PTZ error: {err}]");
                     return $"PTZ MOVEMENT RESULT:\n{ptzOutput}\n\nReport the camera movement result to the user. If it succeeded, let them know. If it failed, explain the error honestly.";
                 }
                 catch (Exception ex)
@@ -242,12 +243,10 @@ public sealed class ToolSubsystem : IToolSubsystem
             {
                 try
                 {
-                    Console.ForegroundColor = ConsoleColor.DarkCyan;
-                    Console.WriteLine("[Auto-Tool] Capturing camera frame...");
-                    Console.ResetColor();
-
-                    var captureResult = await cameraTool.InvokeAsync("", CancellationToken.None);
-                    var captureOutput = captureResult.Match(ok => ok, err => $"[Camera error: {err}]");
+                    var captureInvoke = await ExecuteWithUiAsync(cameraTool, "", "capture frame");
+                    if (captureInvoke is null)
+                        return "CAMERA CAPTURE DENIED: User rejected camera access.";
+                    var captureOutput = captureInvoke.Value.Match(ok => ok, err => $"[Camera error: {err}]");
                     return $"LIVE CAMERA FEED:\n{captureOutput}\n\nDescribe what the camera captured above. Do NOT make up or hallucinate any visual details - only report what appears in the camera output. If it shows an error, explain the error honestly.";
                 }
                 catch (Exception ex)
@@ -273,12 +272,10 @@ public sealed class ToolSubsystem : IToolSubsystem
                 {
                     var smartCommand = ParseSmartHomeCommand(inputLower);
 
-                    Console.ForegroundColor = ConsoleColor.DarkCyan;
-                    Console.WriteLine($"[Auto-Tool] Smart Home: {smartCommand}");
-                    Console.ResetColor();
-
-                    var smartResult = await smartHomeTool.InvokeAsync(smartCommand, CancellationToken.None);
-                    var smartOutput = smartResult.Match(ok => ok, err => $"[Smart home error: {err}]");
+                    var smartInvoke = await ExecuteWithUiAsync(smartHomeTool, smartCommand, smartCommand);
+                    if (smartInvoke is null)
+                        return "SMART HOME DENIED: User rejected the smart home command.";
+                    var smartOutput = smartInvoke.Value.Match(ok => ok, err => $"[Smart home error: {err}]");
                     return $"SMART HOME RESULT:\n{smartOutput}\n\nReport the smart home action result to the user.";
                 }
                 catch (Exception ex)
@@ -335,12 +332,8 @@ public sealed class ToolSubsystem : IToolSubsystem
         {
             try
             {
-                Console.ForegroundColor = ConsoleColor.DarkCyan;
-                Console.WriteLine($"[Auto-Tool] Searching codebase for: {searchTerm}");
-                Console.ResetColor();
-
-                var searchResultResult = await searchTool.InvokeAsync(searchTerm, CancellationToken.None);
-                var searchResult = searchResultResult.Match(ok => ok, err => null);
+                var searchResultResult = await ExecuteWithUiAsync(searchTool, searchTerm, searchTerm);
+                var searchResult = searchResultResult?.Match(ok => ok, err => null);
                 if (!string.IsNullOrEmpty(searchResult))
                 {
                     results.Add($"Search results for '{searchTerm}':\n{searchResult}");
@@ -353,12 +346,8 @@ public sealed class ToolSubsystem : IToolSubsystem
                         {
                             try
                             {
-                                Console.ForegroundColor = ConsoleColor.DarkCyan;
-                                Console.WriteLine($"[Auto-Tool] Reading file: {fileMatch.Value}");
-                                Console.ResetColor();
-
-                                var fileContentResult = await readTool.InvokeAsync(fileMatch.Value, CancellationToken.None);
-                                var fileContent = fileContentResult.Match(ok => ok, err => null);
+                                var fileInvoke = await ExecuteWithUiAsync(readTool, fileMatch.Value, fileMatch.Value);
+                                var fileContent = fileInvoke?.Match(ok => ok, err => null);
                                 if (!string.IsNullOrEmpty(fileContent) && fileContent.Length < 5000)
                                 {
                                     results.Add($"File content ({fileMatch.Value}):\n{fileContent}");
@@ -397,12 +386,8 @@ public sealed class ToolSubsystem : IToolSubsystem
                     var searchTool = Tools.All.FirstOrDefault(t => t.Name == "search_my_code");
                     if (searchTool != null)
                     {
-                        Console.ForegroundColor = ConsoleColor.Magenta;
-                        Console.WriteLine($"[Thought→Action] Searching: {searchTarget}");
-                        Console.ResetColor();
-
-                        var result = await searchTool.InvokeAsync(searchTarget, CancellationToken.None);
-                        var content = result.Match(ok => ok, err => null);
+                        var invoke = await ExecuteWithUiAsync(searchTool, searchTarget, searchTarget);
+                        var content = invoke?.Match(ok => ok, err => null);
                         if (!string.IsNullOrEmpty(content))
                         {
                             Memory.LastThoughtContent = $"Search results for '{searchTarget}': {CognitiveSubsystem.TruncateText(content, 500)}";
@@ -420,12 +405,8 @@ public sealed class ToolSubsystem : IToolSubsystem
                     var readTool = Tools.All.FirstOrDefault(t => t.Name == "read_my_file");
                     if (readTool != null)
                     {
-                        Console.ForegroundColor = ConsoleColor.Magenta;
-                        Console.WriteLine($"[Thought→Action] Reading: {fileMatch.Value}");
-                        Console.ResetColor();
-
-                        var result = await readTool.InvokeAsync(fileMatch.Value, CancellationToken.None);
-                        var content = result.Match(ok => ok, err => null);
+                        var invoke = await ExecuteWithUiAsync(readTool, fileMatch.Value, fileMatch.Value);
+                        var content = invoke?.Match(ok => ok, err => null);
                         if (!string.IsNullOrEmpty(content))
                         {
                             Memory.LastThoughtContent = $"File content ({fileMatch.Value}): {CognitiveSubsystem.TruncateText(content, 500)}";
@@ -443,12 +424,8 @@ public sealed class ToolSubsystem : IToolSubsystem
                     var calcTool = Tools.All.FirstOrDefault(t => t.Name == "calculator");
                     if (calcTool != null)
                     {
-                        Console.ForegroundColor = ConsoleColor.Magenta;
-                        Console.WriteLine($"[Thought→Action] Calculating: {mathMatch.Value.Trim()}");
-                        Console.ResetColor();
-
-                        var result = await calcTool.InvokeAsync(mathMatch.Value.Trim(), CancellationToken.None);
-                        var content = result.Match(ok => ok, err => null);
+                        var invoke = await ExecuteWithUiAsync(calcTool, mathMatch.Value.Trim(), mathMatch.Value.Trim());
+                        var content = invoke?.Match(ok => ok, err => null);
                         if (!string.IsNullOrEmpty(content))
                         {
                             Memory.LastThoughtContent = $"Calculation result: {content}";
@@ -464,12 +441,8 @@ public sealed class ToolSubsystem : IToolSubsystem
                 var fetchTool = Tools.All.FirstOrDefault(t => t.Name == "fetch_url");
                 if (fetchTool != null)
                 {
-                    Console.ForegroundColor = ConsoleColor.Magenta;
-                    Console.WriteLine($"[Thought→Action] Fetching: {urlMatch.Value}");
-                    Console.ResetColor();
-
-                    var result = await fetchTool.InvokeAsync(urlMatch.Value, CancellationToken.None);
-                    var content = result.Match(ok => ok, err => null);
+                    var invoke = await ExecuteWithUiAsync(fetchTool, urlMatch.Value, urlMatch.Value);
+                    var content = invoke?.Match(ok => ok, err => null);
                     if (!string.IsNullOrEmpty(content))
                     {
                         Memory.LastThoughtContent = $"Fetched content from {urlMatch.Value}: {CognitiveSubsystem.TruncateText(content, 500)}";
@@ -488,12 +461,8 @@ public sealed class ToolSubsystem : IToolSubsystem
                                ?? Tools.All.FirstOrDefault(t => t.Name == "duckduckgo_search");
                     if (webTool != null)
                     {
-                        Console.ForegroundColor = ConsoleColor.Magenta;
-                        Console.WriteLine($"[Thought→Action] Web research: {searchTarget}");
-                        Console.ResetColor();
-
-                        var result = await webTool.InvokeAsync(searchTarget, CancellationToken.None);
-                        var content = result.Match(ok => ok, err => null);
+                        var invoke = await ExecuteWithUiAsync(webTool, searchTarget, searchTarget);
+                        var content = invoke?.Match(ok => ok, err => null);
                         if (!string.IsNullOrEmpty(content))
                         {
                             Memory.LastThoughtContent = $"Web research results for '{searchTarget}': {CognitiveSubsystem.TruncateText(content, 500)}";
@@ -508,12 +477,8 @@ public sealed class ToolSubsystem : IToolSubsystem
                 var qdrantTool = Tools.All.FirstOrDefault(t => t.Name == "qdrant_admin");
                 if (qdrantTool != null)
                 {
-                    Console.ForegroundColor = ConsoleColor.Magenta;
-                    Console.WriteLine($"[Thought→Action] Checking Qdrant status");
-                    Console.ResetColor();
-
-                    var result = await qdrantTool.InvokeAsync("{\"command\":\"status\"}", CancellationToken.None);
-                    var content = result.Match(ok => ok, err => null);
+                    var invoke = await ExecuteWithUiAsync(qdrantTool, "{\"command\":\"status\"}", "status");
+                    var content = invoke?.Match(ok => ok, err => null);
                     if (!string.IsNullOrEmpty(content))
                     {
                         Memory.LastThoughtContent = $"Qdrant status: {CognitiveSubsystem.TruncateText(content, 500)}";
@@ -619,12 +584,8 @@ public sealed class ToolSubsystem : IToolSubsystem
                     var searchTool = Tools.All.FirstOrDefault(t => t.Name == "search_my_code");
                     if (searchTool != null)
                     {
-                        Console.ForegroundColor = ConsoleColor.Yellow;
-                        Console.WriteLine($"[Post-Process] LLM claimed to search - actually searching: {searchTarget}");
-                        Console.ResetColor();
-
-                        var result = await searchTool.InvokeAsync(searchTarget, CancellationToken.None);
-                        var content = result.Match(ok => ok, err => $"Error: {err}");
+                        var invoke = await ExecuteWithUiAsync(searchTool, searchTarget, searchTarget);
+                        var content = invoke?.Match(ok => ok, err => $"Error: {err}") ?? string.Empty;
 
                         executedTools.Add(new ToolExecution("search_my_code", searchTarget, content, DateTime.UtcNow));
                         enhancedParts.Add($"\n\n📎 **Actual search results for '{searchTarget}':**\n{CognitiveSubsystem.TruncateText(content, 1000)}");
@@ -644,12 +605,8 @@ public sealed class ToolSubsystem : IToolSubsystem
                     var readTool = Tools.All.FirstOrDefault(t => t.Name == "read_my_file");
                     if (readTool != null)
                     {
-                        Console.ForegroundColor = ConsoleColor.Yellow;
-                        Console.WriteLine($"[Post-Process] LLM mentioned file - actually reading: {fileMatch.Value}");
-                        Console.ResetColor();
-
-                        var result = await readTool.InvokeAsync(fileMatch.Value, CancellationToken.None);
-                        var content = result.Match(ok => ok, err => $"Error: {err}");
+                        var invoke = await ExecuteWithUiAsync(readTool, fileMatch.Value, fileMatch.Value);
+                        var content = invoke?.Match(ok => ok, err => $"Error: {err}") ?? string.Empty;
 
                         if (!content.StartsWith("Error"))
                         {
@@ -669,12 +626,8 @@ public sealed class ToolSubsystem : IToolSubsystem
                 if (calcTool != null)
                 {
                     var expr = mathMatch.Value;
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine($"[Post-Process] LLM mentioned calculation - actually calculating: {expr}");
-                    Console.ResetColor();
-
-                    var result = await calcTool.InvokeAsync(expr, CancellationToken.None);
-                    var content = result.Match(ok => ok, err => $"Error: {err}");
+                    var invoke = await ExecuteWithUiAsync(calcTool, expr, expr);
+                    var content = invoke?.Match(ok => ok, err => $"Error: {err}") ?? string.Empty;
 
                     executedTools.Add(new ToolExecution("calculator", expr, content, DateTime.UtcNow));
                     enhancedParts.Add($"\n\n🔢 **Calculation result:** {expr} = {content}");
@@ -690,12 +643,8 @@ public sealed class ToolSubsystem : IToolSubsystem
                 var fetchTool = Tools.All.FirstOrDefault(t => t.Name == "fetch_url");
                 if (fetchTool != null && !urlMatch.Value.Contains("example.com"))
                 {
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine($"[Post-Process] LLM mentioned URL - actually fetching: {urlMatch.Value}");
-                    Console.ResetColor();
-
-                    var result = await fetchTool.InvokeAsync(urlMatch.Value, CancellationToken.None);
-                    var content = result.Match(ok => ok, err => $"Error: {err}");
+                    var invoke = await ExecuteWithUiAsync(fetchTool, urlMatch.Value, urlMatch.Value);
+                    var content = invoke?.Match(ok => ok, err => $"Error: {err}") ?? string.Empty;
 
                     if (!content.StartsWith("Error"))
                     {
@@ -876,5 +825,97 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
             await PlaywrightTool.DisposeAsync();
 
         IsInitialized = false;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CRUSH-STYLE UI + PERMISSION + EVENT WIRING
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Tools that require interactive approval before execution.
+    /// Matches Crush's "destructive / privacy-sensitive" classification.
+    /// </summary>
+    private static readonly HashSet<string> SensitiveTools = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "modify_my_code",
+        "rebuild_self",
+        "camera_ptz",
+        "capture_camera",
+        "smart_home",
+    };
+
+    /// <summary>
+    /// Executes a tool with full Crush-style UI pipeline:
+    ///   1. <c>●</c> pending header via <see cref="IConsoleOutput.WriteToolCall"/>
+    ///   2. Permission check for sensitive tools via <see cref="SubsystemInitContext.PermissionBroker"/>
+    ///   3. Tool invocation
+    ///   4. <c>✓/✗</c> result line via <see cref="IConsoleOutput.WriteToolResult"/>
+    ///   5. <see cref="Infrastructure.ToolCompletedEvent"/> published on the agent event bus
+    /// Returns <c>null</c> when the user denied the call.
+    /// </summary>
+    internal async Task<Ouroboros.Abstractions.Monads.Result<string, string>?> ExecuteWithUiAsync(
+        ITool tool,
+        string args,
+        string? displayParam = null,
+        CancellationToken ct = default)
+    {
+        var label = displayParam ?? (args.Length > 60 ? args[..59] + "…" : args);
+        Output.WriteToolCall(tool.Name, label);
+
+        // Permission gate for sensitive tools
+        if (SensitiveTools.Contains(tool.Name) && Ctx.PermissionBroker != null)
+        {
+            var action = await Ctx.PermissionBroker.RequestAsync(tool.Name, "invoke", label, ct);
+            if (action == Infrastructure.PermissionAction.Deny)
+            {
+                Output.WriteToolResult(tool.Name, false, "Denied by user");
+                Ctx.AgentEventBus?.Publish(new Infrastructure.ToolCompletedEvent(tool.Name, false, "denied", TimeSpan.Zero));
+                return null;
+            }
+        }
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var result = await tool.InvokeAsync(args, ct);
+        sw.Stop();
+
+        var outputText = result.Match(ok => ok, err => $"error: {err}");
+        Output.WriteToolResult(tool.Name, result.IsSuccess, outputText);
+        Ctx.AgentEventBus?.Publish(new Infrastructure.ToolCompletedEvent(tool.Name, result.IsSuccess, outputText, sw.Elapsed));
+
+        return result;
+    }
+
+    /// <summary>
+    /// Wires the Crush-inspired <see cref="ToolAwareChatModel.BeforeInvoke"/> and
+    /// <see cref="ToolAwareChatModel.AfterInvoke"/> hooks onto <paramref name="llm"/>
+    /// so LLM-driven tool calls go through the same UI and event pipeline.
+    /// </summary>
+    internal void WireHooks(ToolAwareChatModel llm)
+    {
+        var broker = Ctx.PermissionBroker;
+        var bus    = Ctx.AgentEventBus;
+
+        if (broker != null)
+        {
+            llm.BeforeInvoke = async (toolName, args, ct) =>
+            {
+                if (!SensitiveTools.Contains(toolName)) return true;
+                Output.WriteToolCall(toolName, args.Length > 60 ? args[..59] + "…" : args);
+                var action = await broker.RequestAsync(toolName, "invoke", args, ct);
+                return action == Infrastructure.PermissionAction.Allow;
+            };
+        }
+
+        if (bus != null || broker != null)
+        {
+            llm.AfterInvoke = (toolName, _, output, elapsed, success) =>
+            {
+                // Only show result line for sensitive tools (already shown by BeforeInvoke path)
+                if (SensitiveTools.Contains(toolName))
+                    Output.WriteToolResult(toolName, success, output);
+
+                bus?.Publish(new Infrastructure.ToolCompletedEvent(toolName, success, output, elapsed));
+            };
+        }
     }
 }
