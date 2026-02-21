@@ -66,8 +66,7 @@ public sealed class WebAvatarRenderer : IAvatarRenderer, IVideoFrameRenderer
         // Prepare holographic assets from character sheet (if needed)
         AvatarAssetPreparer.PrepareIaretHolographics(Path.Combine(_assetDirectory, "Iaret"));
 
-        _listener = new HttpListener();
-        _port = StartOnAvailablePort(_listener, _port);
+        (_listener, _port) = StartOnAvailablePort(_port);
 
         _serverTask = Task.Run(() => ServerLoop(_cts.Token), _cts.Token);
 
@@ -84,13 +83,16 @@ public sealed class WebAvatarRenderer : IAvatarRenderer, IVideoFrameRenderer
 
     /// <summary>
     /// Tries to start the listener on the preferred port, scanning forward on conflict.
+    /// Creates a fresh <see cref="HttpListener"/> per attempt — on Windows, a listener
+    /// that throws <see cref="HttpListenerException"/> during Start() enters a partially
+    /// invalid state where subsequent method calls throw <see cref="ObjectDisposedException"/>.
     /// </summary>
-    private static int StartOnAvailablePort(HttpListener listener, int preferredPort)
+    private static (HttpListener Listener, int Port) StartOnAvailablePort(int preferredPort)
     {
         for (var attempt = 0; attempt < MaxPortRetries; attempt++)
         {
             var port = preferredPort + attempt;
-            listener.Prefixes.Clear();
+            var listener = new HttpListener();
             listener.Prefixes.Add($"http://localhost:{port}/");
 
             try
@@ -101,21 +103,22 @@ public sealed class WebAvatarRenderer : IAvatarRenderer, IVideoFrameRenderer
                     Console.Error.WriteLine($"  [Avatar] Port {preferredPort} busy, using {port}");
                 }
 
-                return port;
+                return (listener, port);
             }
             catch (HttpListenerException)
             {
-                // Port in use — try next
+                // Port in use — discard this listener and try next port
+                listener.Close();
             }
         }
 
         // Last resort: find any free port via the OS
         var freePort = FindFreePort();
-        listener.Prefixes.Clear();
-        listener.Prefixes.Add($"http://localhost:{freePort}/");
-        listener.Start();
+        var lastResortListener = new HttpListener();
+        lastResortListener.Prefixes.Add($"http://localhost:{freePort}/");
+        lastResortListener.Start();
         Console.Error.WriteLine($"  [Avatar] Using OS-assigned port {freePort}");
-        return freePort;
+        return (lastResortListener, freePort);
     }
 
     private static int FindFreePort()
