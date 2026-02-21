@@ -1,1 +1,10 @@
-﻿[
+﻿[submodule "libs/foundation"]
+path = libs/foundation
+url = https://github.com/PMeeske/ouroboros-foundation.git
+[submodule "libs/engine"]
+path = libs/engine
+url = https://github.com/PMeeske/ouroboros-engine.git
+[submodule "libs/.build"]
+path = libs/.build
+url = https://github.com/PMeeske/ouroboros-build.git
+
