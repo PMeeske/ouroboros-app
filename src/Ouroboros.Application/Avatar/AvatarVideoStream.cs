@@ -8,20 +8,24 @@ using Ouroboros.Core.EmbodiedInteraction;
 namespace Ouroboros.Application.Avatar;
 
 /// <summary>
-/// Runs the avatar video generation loop.
+/// Runs the avatar inner-thought loop.
 /// <list type="number">
-///   <item>On each tick: reads the current <see cref="AvatarStateSnapshot"/>.</item>
-///   <item>When a vision model is present: calls it to generate an expression description (text only; CSS renders).</item>
-///   <item>Otherwise: applies <see cref="AlgorithmicExpressionGenerator"/> (GDI+ pixel transforms) and broadcasts the frame.</item>
-///   <item>Publishes visual perception to <see cref="VirtualSelf"/> (closes the perception loop).</item>
+///   <item>Polls the current <see cref="AvatarStateSnapshot"/> on each tick.</item>
+///   <item>On state or mood change, generates Iaret's first-person inner thought.</item>
+///   <item>When a vision model is present: asks it directly ("what are you thinking?").</item>
+///   <item>Otherwise: picks from <see cref="AlgorithmicExpressionGenerator.GetInnerThought"/>.</item>
+///   <item>Pushes the thought as <c>StatusText</c> via <see cref="InteractiveAvatarService.NotifyMoodChange"/>.</item>
+///   <item>Publishes the thought as visual perception to <see cref="VirtualSelf"/>.</item>
 /// </list>
+/// Visual expression changes (idle / listening / thinking / speaking / encouraging) are
+/// handled automatically by CSS state classes in the HTML viewer — no frame generation needed.
 /// </summary>
 /// <param name="avatarService">The avatar service for state + broadcasting.</param>
-/// <param name="visionModel">Optional vision model. When supplied, the vision model generates an expression
-/// description on each state change (CSS renders visually). When absent, <see cref="AlgorithmicExpressionGenerator"/>
-/// applies GDI+ pixel transforms and broadcasts JPEG frames directly.</param>
+/// <param name="visionModel">Optional vision model. When supplied, the vision model generates Iaret's
+/// first-person inner thought on each state change. When absent, a lookup table is used.</param>
 /// <param name="virtualSelf">Optional VirtualSelf for perception loop closure.</param>
-/// <param name="assetDirectory">Directory containing avatar image assets.</param>
+/// <param name="assetDirectory">Directory containing avatar image assets (used to load the seed
+/// image that is passed to the vision model for context).</param>
 /// <param name="logger">Optional logger.</param>
 public sealed class AvatarVideoStream(
     InteractiveAvatarService avatarService,
@@ -35,19 +39,18 @@ public sealed class AvatarVideoStream(
     private Task? _loopTask;
 
     /// <summary>
-    /// Frame generation interval in milliseconds.
-    /// Algorithmic generation is fast; default of 200 ms gives ~5 FPS.
-    /// The vision-model path only fires on state changes so the interval there acts as a poll cadence.
+    /// State-change poll interval in milliseconds.
+    /// The loop only acts when state or mood changes, so a 1-second cadence is sufficient.
     /// </summary>
-    public int FrameIntervalMs { get; set; } = 200;
+    public int FrameIntervalMs { get; set; } = 1000;
 
     /// <summary>
-    /// Gets whether the video stream loop is currently running.
+    /// Gets whether the loop is currently running.
     /// </summary>
     public bool IsRunning => _loopTask != null && !_loopTask.IsCompleted;
 
     /// <summary>
-    /// Starts the generation loop in the background.
+    /// Starts the inner-thought loop in the background.
     /// </summary>
     public Task StartAsync(CancellationToken ct = default)
     {
@@ -55,12 +58,12 @@ public sealed class AvatarVideoStream(
 
         _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         _loopTask = Task.Run(() => RunLoopAsync(_cts.Token), _cts.Token);
-        logger?.LogInformation("Avatar video stream started (interval: {Interval}ms)", FrameIntervalMs);
+        logger?.LogInformation("Avatar thought loop started (poll: {Interval}ms)", FrameIntervalMs);
         return Task.CompletedTask;
     }
 
     /// <summary>
-    /// Stops the generation loop.
+    /// Stops the loop.
     /// </summary>
     public async Task StopAsync()
     {
@@ -74,7 +77,7 @@ public sealed class AvatarVideoStream(
             }
         }
 
-        logger?.LogInformation("Avatar video stream stopped");
+        logger?.LogInformation("Avatar thought loop stopped");
     }
 
     /// <inheritdoc/>
@@ -86,78 +89,76 @@ public sealed class AvatarVideoStream(
 
     private async Task RunLoopAsync(CancellationToken ct)
     {
-        AvatarVisualState? lastAnalyzedState = null;
+        AvatarVisualState? lastState = null;
+        string? lastMood = null;
 
         while (!ct.IsCancellationRequested)
         {
             try
             {
                 var state = avatarService.CurrentState;
-                var seedPath = AvatarVideoGenerator.GetSeedAssetPath(state.VisualState, _assetDirectory);
 
-                if (!File.Exists(seedPath))
+                // Only act when visual state or mood changes.
+                bool changed = state.VisualState != lastState || state.Mood != lastMood;
+                if (changed)
                 {
-                    logger?.LogWarning("Seed asset not found: {Path}", seedPath);
-                    await Task.Delay(FrameIntervalMs, ct);
-                    continue;
-                }
+                    lastState = state.VisualState;
+                    lastMood  = state.Mood;
 
-                byte[] seedBytes = await File.ReadAllBytesAsync(seedPath, ct);
+                    string thought;
 
-                if (visionModel != null)
-                {
-                    // ── Pure vision model path ──────────────────────────────────────
-                    // Only re-analyse when the visual state actually changes — the seed
-                    // image is static per state so calling on every tick is wasteful.
-                    if (state.VisualState != lastAnalyzedState)
+                    if (visionModel != null)
                     {
-                        lastAnalyzedState = state.VisualState;
-                        string expressionTarget = AvatarVideoGenerator.BuildPrompt(state);
+                        // ── Vision model path ───────────────────────────────────────
+                        // Load the seed image so the model has visual context of Iaret's
+                        // current face, then ask for her first-person inner thought.
+                        var seedPath = AvatarVideoGenerator.GetSeedAssetPath(state.VisualState, _assetDirectory);
+                        byte[]? seedBytes = File.Exists(seedPath)
+                            ? await File.ReadAllBytesAsync(seedPath, ct)
+                            : null;
 
-                        // Vision model generates the expression description
-                        var generated = await visionModel.AnswerQuestionAsync(
-                            seedBytes, "png",
-                            $"Describe this face's expression in 8 words or less, focusing on: {expressionTarget}",
-                            ct);
+                        string prompt =
+                            $"You are Iaret. You are {state.VisualState.ToString().ToLower()}, " +
+                            $"feeling {state.Mood ?? "neutral"}. " +
+                            "What is your inner thought right now? " +
+                            "First person only, 10 words or less, no quotes.";
+
+                        Result<string, string> generated = seedBytes != null
+                            ? await visionModel.AnswerQuestionAsync(seedBytes, "png", prompt, ct)
+                            : Result<string, string>.Failure("no seed image");
 
                         if (generated.IsSuccess)
                         {
-                            string description = generated.Value.Trim();
-
-                            // Push generated description as avatar status text
-                            avatarService.NotifyMoodChange(
-                                mood: state.Mood ?? "neutral",
-                                energy: 0.5,
-                                positivity: 0.5,
-                                statusText: description);
-
-                            // Publish visual perception to VirtualSelf
-                            virtualSelf?.PublishVisualPerception(
-                                description: description,
-                                objects: Array.Empty<DetectedObject>(),
-                                faces: Array.Empty<DetectedFace>(),
-                                sceneType: "avatar",
-                                emotion: state.Mood,
-                                rawFrame: seedBytes);
-
-                            logger?.LogDebug("Vision model generated: {Description}", description);
+                            thought = generated.Value.Trim();
+                            logger?.LogDebug("Vision model thought: {Thought}", thought);
+                        }
+                        else
+                        {
+                            // Fallback to lookup if vision model fails
+                            thought = AlgorithmicExpressionGenerator.GetInnerThought(state);
                         }
                     }
-                }
-                else
-                {
-                    // ── Algorithmic expression path (no vision model) ───────────────
-                    // Pure GDI+ pixel transforms: brightness/warmth per state + brow offset.
-                    // No external service required — deterministic and instant.
-                    byte[] frameBytes = AlgorithmicExpressionGenerator.ApplyExpression(seedBytes, state);
-                    await avatarService.BroadcastVideoFrameAsync(frameBytes);
+                    else
+                    {
+                        // ── Lookup path ─────────────────────────────────────────────
+                        thought = AlgorithmicExpressionGenerator.GetInnerThought(state);
+                    }
+
+                    // Push thought as avatar status text
+                    avatarService.NotifyMoodChange(
+                        mood:       state.Mood ?? "neutral",
+                        energy:     state.Energy,
+                        positivity: state.Positivity,
+                        statusText: thought);
+
+                    // Publish to VirtualSelf (closes perception loop)
                     virtualSelf?.PublishVisualPerception(
-                        description: AvatarVideoGenerator.BuildPrompt(state),
-                        objects: Array.Empty<DetectedObject>(),
-                        faces: Array.Empty<DetectedFace>(),
-                        sceneType: "avatar",
-                        emotion: state.Mood,
-                        rawFrame: frameBytes);
+                        description: thought,
+                        objects:     Array.Empty<DetectedObject>(),
+                        faces:       Array.Empty<DetectedFace>(),
+                        sceneType:   "avatar",
+                        emotion:     state.Mood,
+                        rawFrame:    null);
                 }
             }
             catch (TaskCanceledException) when (ct.IsCancellationRequested)
@@ -166,7 +167,7 @@ public sealed class AvatarVideoStream(
             }
             catch (Exception ex)
             {
-                logger?.LogWarning(ex, "Error in avatar video generation loop");
+                logger?.LogWarning(ex, "Error in avatar thought loop");
             }
 
             await Task.Delay(FrameIntervalMs, ct);
