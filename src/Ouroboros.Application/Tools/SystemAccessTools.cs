@@ -65,6 +65,9 @@ public static class SystemAccessTools
         yield return new SearchMyThoughtsTool();
         yield return new PersistenceStatsTool();
 
+        // Service discovery — Scrutor + IServiceProvider runtime invocation
+        yield return new ServiceDiscoveryTool();
+
         // System tools
         yield return new ProcessListTool();
         yield return new ProcessStartTool();
