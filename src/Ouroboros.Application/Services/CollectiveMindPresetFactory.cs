@@ -70,6 +70,10 @@ public static class CollectiveMindPresetFactory
             mind.SetFirstAsMaster();
         }
 
+        // Racing mode: master (Claude) and sub-models race; master wins and cancels the rest.
+        // This prevents slow cloud sub-models from blocking responses.
+        mind.ThinkingMode = CollectiveThinkingMode.Racing;
+
         return mind;
     }
 

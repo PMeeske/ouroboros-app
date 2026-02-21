@@ -117,15 +117,22 @@ public sealed class ModelSubsystem : IModelSubsystem
                     ctx.Output.RecordInit("Collective Mind", true, $"{mind.HealthyPathwayCount} providers");
                 }
 
-                // Apply thinking mode from CLI option
-                mind.ThinkingMode = config.CollectiveThinkingMode.ToLowerInvariant() switch
+                // Apply thinking mode from CLI option only if explicitly set (not the default "adaptive").
+                // For multi-model presets, CollectiveMindPresetFactory already chose an optimal mode;
+                // overriding with the default would silently break preset behaviour.
+                bool explicitMode = !string.Equals(config.CollectiveThinkingMode, "adaptive",
+                    StringComparison.OrdinalIgnoreCase);
+                if (explicitMode)
                 {
-                    "racing"     => CollectiveThinkingMode.Racing,
-                    "sequential" => CollectiveThinkingMode.Sequential,
-                    "ensemble"   => CollectiveThinkingMode.Ensemble,
-                    "decomposed" => CollectiveThinkingMode.Decomposed,
-                    _            => CollectiveThinkingMode.Adaptive,
-                };
+                    mind.ThinkingMode = config.CollectiveThinkingMode.ToLowerInvariant() switch
+                    {
+                        "racing"     => CollectiveThinkingMode.Racing,
+                        "sequential" => CollectiveThinkingMode.Sequential,
+                        "ensemble"   => CollectiveThinkingMode.Ensemble,
+                        "decomposed" => CollectiveThinkingMode.Decomposed,
+                        _            => CollectiveThinkingMode.Adaptive,
+                    };
+                }
 
                 ChatModel = mind;
                 CostTracker = mind.CostTracker ?? CostTracker;
