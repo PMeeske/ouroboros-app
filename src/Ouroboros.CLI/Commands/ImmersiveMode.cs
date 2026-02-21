@@ -199,6 +199,16 @@ public static class ImmersiveMode
     /// </summary>
     public static bool HasSubsystems => _modelsSub != null;
 
+    private static ImmersivePersona? _configuredPersona;
+
+    /// <summary>
+    /// Configures ImmersiveMode to use the Iaret persona owned by OuroborosAgent.
+    /// When set, RunImmersiveAsync uses this instance instead of creating its own.
+    /// Pass null to revert to standalone behavior.
+    /// </summary>
+    public static void ConfigurePersona(ImmersivePersona? persona)
+        => _configuredPersona = persona;
+
     // Skill registry for this session
     private static ISkillRegistry? _skillRegistry;
     private static DynamicToolFactory? _dynamicToolFactory;
@@ -279,13 +289,24 @@ public static class ImmersiveMode
             Console.WriteLine($"  [!] Memory unavailable: {ex.Message}");
         }
 
-        // Create the immersive persona
-        Console.WriteLine("  [~] Awakening persona...");
-        await using var persona = new ImmersivePersona(
-            personaName,
-            mettaEngine,
-            embeddingModel,
-            options.QdrantEndpoint);
+        // Create the immersive persona (or use the one from OuroborosAgent master control)
+        ImmersivePersona? ownedPersona = null;
+        ImmersivePersona persona;
+        if (_configuredPersona != null)
+        {
+            persona = _configuredPersona;
+            Console.WriteLine("  [OK] Using Iaret persona from OuroborosAgent (master control)");
+        }
+        else
+        {
+            Console.WriteLine("  [~] Awakening persona...");
+            ownedPersona = new ImmersivePersona(
+                personaName,
+                mettaEngine,
+                embeddingModel,
+                options.QdrantEndpoint);
+            persona = ownedPersona;
+        }
 
         // Subscribe to consciousness events for console output.
         // Avatar updates are handled by ImmersiveSubsystem.WirePersonaEvents (called after mind init).
@@ -316,7 +337,7 @@ public static class ImmersiveMode
         await InitializeSkillsAsync(options, embeddingModel, mettaEngine);
 
         // Initialize speech services
-        var (ttsService, sttService, speechDetector) = await InitializeSpeechServicesAsync();
+        var (ttsService, sttService, speechDetector) = await InitializeSpeechServicesAsync(options);
 
         // Display consciousness state
         PrintConsciousnessState(persona);
@@ -918,6 +939,10 @@ public static class ImmersiveMode
             await _immersive.DisposeAsync();
 
         Console.WriteLine($"\n  Session complete. {persona.InteractionCount} interactions. Uptime: {persona.Uptime.TotalMinutes:F1} minutes.");
+
+        // Dispose persona only if we own it (not provided by OuroborosAgent)
+        if (ownedPersona != null)
+            await ownedPersona.DisposeAsync();
     }
 
     private static void PrintImmersiveBanner(string personaName)
@@ -987,16 +1012,35 @@ public static class ImmersiveMode
         Console.ResetColor();
     }
 
-    private static async Task<(ITextToSpeechService?, ISpeechToTextService?, AdaptiveSpeechDetector?)> InitializeSpeechServicesAsync()
+    private static async Task<(ITextToSpeechService?, ISpeechToTextService?, AdaptiveSpeechDetector?)> InitializeSpeechServicesAsync(IVoiceOptions? options = null)
     {
         ITextToSpeechService? tts = null;
         ISpeechToTextService? stt = null;
         AdaptiveSpeechDetector? detector = null;
 
+        // Azure Neural TTS takes first priority when configured (matches OuroborosAgent default)
+        if (options is ImmersiveCommandVoiceOptions ico && ico.AzureTts)
+        {
+            var azureKey = ico.AzureSpeechKey
+                ?? Environment.GetEnvironmentVariable("AZURE_SPEECH_KEY");
+            if (!string.IsNullOrEmpty(azureKey))
+            {
+                try
+                {
+                    tts = new AzureNeuralTtsService(azureKey, ico.AzureSpeechRegion, ico.Persona ?? "Iaret");
+                    Console.WriteLine($"  [OK] Voice output: Azure Neural TTS ({ico.TtsVoice})");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"  [!] Azure TTS unavailable: {ex.Message}");
+                }
+            }
+        }
+
         string? openAiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
 
-        // Initialize TTS
-        if (LocalWindowsTtsService.IsAvailable())
+        // Initialize TTS (fallbacks when Azure not configured or unavailable)
+        if (tts == null && LocalWindowsTtsService.IsAvailable())
         {
             try
             {

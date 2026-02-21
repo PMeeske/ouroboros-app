@@ -44,6 +44,25 @@ public static class RoomMode
     private static Ouroboros.Agent.MetaAI.ICuriosityEngine? _roomCuriosity;
     private static Ouroboros.CLI.Sovereignty.PersonaSovereigntyGate? _roomSovereigntyGate;
 
+    // ── Agent subsystem references (set by OuroborosAgentService when using OuroborosAgent) ──
+    private static IModelSubsystem?    _agentModels;
+    private static IMemorySubsystem?   _agentMemory;
+    private static IAutonomySubsystem? _agentAutonomy;
+
+    /// <summary>
+    /// Configures RoomMode to use shared subsystem instances from an OuroborosAgent.
+    /// When set, RunRoomAsync uses the agent's model instead of creating its own.
+    /// </summary>
+    public static void ConfigureSubsystems(
+        IModelSubsystem    models,
+        IMemorySubsystem   memory,
+        IAutonomySubsystem autonomy)
+    {
+        _agentModels   = models;
+        _agentMemory   = memory;
+        _agentAutonomy = autonomy;
+    }
+
     /// <summary>
     /// Entry point wired by Program.cs. Parses the System.CommandLine result
     /// and starts the room presence loop.
@@ -168,7 +187,10 @@ public static class RoomMode
 
         // ─── 8. LLM model for interjection decisions ──────────────────────────
         var settings = new ChatRuntimeSettings(0.8, 256, 60, false);
-        var chatModel = new OllamaCloudChatModel(endpoint, "ollama", model, settings);
+        IChatCompletionModel chatModel = new OllamaCloudChatModel(endpoint, "ollama", model, settings);
+        // Use agent's model if wired from OuroborosAgent (single source of truth)
+        if (_agentModels?.GetEffectiveModel() is { } agentModel)
+            chatModel = agentModel;
 
         // ─── 9. CognitivePhysics & Phi ────────────────────────────────────────
 #pragma warning disable CS0618 // Obsolete IEmbeddingProvider/IEthicsGate — CPE requires them
