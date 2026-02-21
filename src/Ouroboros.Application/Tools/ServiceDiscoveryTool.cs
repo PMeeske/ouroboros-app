@@ -40,20 +40,20 @@ public sealed class ServiceDiscoveryTool : ITool
     public async Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(input))
-            return Result<string, string>.Ok(BuildHelp());
+            return Result<string, string>.Success(BuildHelp());
 
         var trimmed = input.Trim();
 
         if (trimmed.Equals("list", StringComparison.OrdinalIgnoreCase))
-            return Result<string, string>.Ok(BuildServiceList());
+            return Result<string, string>.Success(BuildServiceList());
 
         if (trimmed.Equals("tools", StringComparison.OrdinalIgnoreCase))
-            return Result<string, string>.Ok(BuildToolList());
+            return Result<string, string>.Success(BuildToolList());
 
         if (trimmed.StartsWith("invoke ", StringComparison.OrdinalIgnoreCase))
             return await InvokeServiceMethodAsync(trimmed["invoke ".Length..].Trim(), ct);
 
-        return Result<string, string>.Err(
+        return Result<string, string>.Failure(
             $"Unknown command '{trimmed}'. Use: list | tools | invoke TypeName.MethodName [args]");
     }
 
@@ -110,7 +110,7 @@ public sealed class ServiceDiscoveryTool : ITool
         // Format: TypeName.MethodName [json_args]
         var dotIdx = spec.IndexOf('.');
         if (dotIdx < 0)
-            return Result<string, string>.Err("Expected: invoke TypeName.MethodName [json_args]");
+            return Result<string, string>.Failure("Expected: invoke TypeName.MethodName [json_args]");
 
         var typeName = spec[..dotIdx].Trim();
         var rest = spec[(dotIdx + 1)..].Trim();
@@ -130,11 +130,11 @@ public sealed class ServiceDiscoveryTool : ITool
         var provider = ServiceContainerFactory.Provider;
         var serviceType = ResolveServiceType(typeName, provider);
         if (serviceType == null)
-            return Result<string, string>.Err($"No service registered for type '{typeName}'. Use 'list' to see available services.");
+            return Result<string, string>.Failure($"No service registered for type '{typeName}'. Use 'list' to see available services.");
 
         var service = provider.GetService(serviceType);
         if (service == null)
-            return Result<string, string>.Err($"Service '{typeName}' is registered but could not be resolved.");
+            return Result<string, string>.Failure($"Service '{typeName}' is registered but could not be resolved.");
 
         var method = service.GetType()
             .GetMethods(BindingFlags.Public | BindingFlags.Instance)
@@ -142,7 +142,7 @@ public sealed class ServiceDiscoveryTool : ITool
             .FirstOrDefault(m => m.Name.Equals(methodName, StringComparison.OrdinalIgnoreCase));
 
         if (method == null)
-            return Result<string, string>.Err($"Method '{methodName}' not found on '{typeName}'.");
+            return Result<string, string>.Failure($"Method '{methodName}' not found on '{typeName}'.");
 
         try
         {
@@ -159,11 +159,11 @@ public sealed class ServiceDiscoveryTool : ITool
                 _                => rawResult.ToString() ?? "(object)"
             };
 
-            return Result<string, string>.Ok(output);
+            return Result<string, string>.Success(output);
         }
         catch (Exception ex)
         {
-            return Result<string, string>.Err($"Invocation failed: {ex.InnerException?.Message ?? ex.Message}");
+            return Result<string, string>.Failure($"Invocation failed: {ex.InnerException?.Message ?? ex.Message}");
         }
     }
 
