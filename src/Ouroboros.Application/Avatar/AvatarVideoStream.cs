@@ -11,52 +11,35 @@ namespace Ouroboros.Application.Avatar;
 /// Runs the avatar video generation loop.
 /// <list type="number">
 ///   <item>On each tick: reads the current <see cref="AvatarStateSnapshot"/>.</item>
-///   <item>Calls <see cref="AvatarVideoGenerator.GenerateFrameAsync"/> with the seed asset + emotional prompt.</item>
-///   <item>Broadcasts binary frame via <see cref="InteractiveAvatarService"/>.</item>
+///   <item>When a vision model is present: calls it to generate an expression description (text only; CSS renders).</item>
+///   <item>Otherwise: applies <see cref="AlgorithmicExpressionGenerator"/> (GDI+ pixel transforms) and broadcasts the frame.</item>
 ///   <item>Publishes visual perception to <see cref="VirtualSelf"/> (closes the perception loop).</item>
 /// </list>
 /// </summary>
-public sealed class AvatarVideoStream : IAsyncDisposable
+/// <param name="avatarService">The avatar service for state + broadcasting.</param>
+/// <param name="visionModel">Optional vision model. When supplied, the vision model generates an expression
+/// description on each state change (CSS renders visually). When absent, <see cref="AlgorithmicExpressionGenerator"/>
+/// applies GDI+ pixel transforms and broadcasts JPEG frames directly.</param>
+/// <param name="virtualSelf">Optional VirtualSelf for perception loop closure.</param>
+/// <param name="assetDirectory">Directory containing avatar image assets.</param>
+/// <param name="logger">Optional logger.</param>
+public sealed class AvatarVideoStream(
+    InteractiveAvatarService avatarService,
+    IVisionModel? visionModel = null,
+    VirtualSelf? virtualSelf = null,
+    string? assetDirectory = null,
+    ILogger<AvatarVideoStream>? logger = null) : IAsyncDisposable
 {
-    private readonly AvatarVideoGenerator _generator;
-    private readonly InteractiveAvatarService _avatarService;
-    private readonly IVisionModel? _visionModel;
-    private readonly VirtualSelf? _virtualSelf;
-    private readonly string _assetDirectory;
-    private readonly ILogger<AvatarVideoStream>? _logger;
+    private readonly string _assetDirectory = assetDirectory ?? GetDefaultAssetDirectory();
     private CancellationTokenSource? _cts;
     private Task? _loopTask;
 
     /// <summary>
-    /// Default frame generation interval in milliseconds.
-    /// SD is computationally expensive, so ~1/3 FPS is a reasonable default.
+    /// Frame generation interval in milliseconds.
+    /// Algorithmic generation is fast; default of 200 ms gives ~5 FPS.
+    /// The vision-model path only fires on state changes so the interval there acts as a poll cadence.
     /// </summary>
-    public int FrameIntervalMs { get; set; } = 3000;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="AvatarVideoStream"/> class.
-    /// </summary>
-    /// <param name="generator">The Ollama SD frame generator.</param>
-    /// <param name="avatarService">The avatar service for state + broadcasting.</param>
-    /// <param name="visionModel">Optional vision model (not required for generation, but available for future use).</param>
-    /// <param name="virtualSelf">Optional VirtualSelf for perception loop closure.</param>
-    /// <param name="assetDirectory">Directory containing avatar image assets.</param>
-    /// <param name="logger">Optional logger.</param>
-    public AvatarVideoStream(
-        AvatarVideoGenerator generator,
-        InteractiveAvatarService avatarService,
-        IVisionModel? visionModel = null,
-        VirtualSelf? virtualSelf = null,
-        string? assetDirectory = null,
-        ILogger<AvatarVideoStream>? logger = null)
-    {
-        _generator = generator;
-        _avatarService = avatarService;
-        _visionModel = visionModel;
-        _virtualSelf = virtualSelf;
-        _assetDirectory = assetDirectory ?? GetDefaultAssetDirectory();
-        _logger = logger;
-    }
+    public int FrameIntervalMs { get; set; } = 200;
 
     /// <summary>
     /// Gets whether the video stream loop is currently running.
@@ -72,7 +55,7 @@ public sealed class AvatarVideoStream : IAsyncDisposable
 
         _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         _loopTask = Task.Run(() => RunLoopAsync(_cts.Token), _cts.Token);
-        _logger?.LogInformation("Avatar video stream started (interval: {Interval}ms)", FrameIntervalMs);
+        logger?.LogInformation("Avatar video stream started (interval: {Interval}ms)", FrameIntervalMs);
         return Task.CompletedTask;
     }
 
@@ -91,7 +74,7 @@ public sealed class AvatarVideoStream : IAsyncDisposable
             }
         }
 
-        _logger?.LogInformation("Avatar video stream stopped");
+        logger?.LogInformation("Avatar video stream stopped");
     }
 
     /// <inheritdoc/>
@@ -109,19 +92,19 @@ public sealed class AvatarVideoStream : IAsyncDisposable
         {
             try
             {
-                var state = _avatarService.CurrentState;
+                var state = avatarService.CurrentState;
                 var seedPath = AvatarVideoGenerator.GetSeedAssetPath(state.VisualState, _assetDirectory);
 
                 if (!File.Exists(seedPath))
                 {
-                    _logger?.LogWarning("Seed asset not found: {Path}", seedPath);
+                    logger?.LogWarning("Seed asset not found: {Path}", seedPath);
                     await Task.Delay(FrameIntervalMs, ct);
                     continue;
                 }
 
                 byte[] seedBytes = await File.ReadAllBytesAsync(seedPath, ct);
 
-                if (_visionModel != null)
+                if (visionModel != null)
                 {
                     // ── Pure vision model path ──────────────────────────────────────
                     // Only re-analyse when the visual state actually changes — the seed
@@ -132,7 +115,7 @@ public sealed class AvatarVideoStream : IAsyncDisposable
                         string expressionTarget = AvatarVideoGenerator.BuildPrompt(state);
 
                         // Vision model generates the expression description
-                        var generated = await _visionModel.AnswerQuestionAsync(
+                        var generated = await visionModel.AnswerQuestionAsync(
                             seedBytes, "png",
                             $"Describe this face's expression in 8 words or less, focusing on: {expressionTarget}",
                             ct);
@@ -142,14 +125,14 @@ public sealed class AvatarVideoStream : IAsyncDisposable
                             string description = generated.Value.Trim();
 
                             // Push generated description as avatar status text
-                            _avatarService.NotifyMoodChange(
+                            avatarService.NotifyMoodChange(
                                 mood: state.Mood ?? "neutral",
                                 energy: 0.5,
                                 positivity: 0.5,
                                 statusText: description);
 
                             // Publish visual perception to VirtualSelf
-                            _virtualSelf?.PublishVisualPerception(
+                            virtualSelf?.PublishVisualPerception(
                                 description: description,
                                 objects: Array.Empty<DetectedObject>(),
                                 faces: Array.Empty<DetectedFace>(),
@@ -157,29 +140,24 @@ public sealed class AvatarVideoStream : IAsyncDisposable
                                 emotion: state.Mood,
                                 rawFrame: seedBytes);
 
-                            _logger?.LogDebug("Vision model generated: {Description}", description);
+                            logger?.LogDebug("Vision model generated: {Description}", description);
                         }
                     }
                 }
                 else
                 {
-                    // ── SD fallback path (no vision model) ─────────────────────────
-                    string seedBase64 = Convert.ToBase64String(seedBytes);
-                    string prompt = AvatarVideoGenerator.BuildPrompt(state);
-                    string? frameBase64 = await _generator.GenerateFrameAsync(prompt, seedBase64, ct);
-
-                    if (frameBase64 != null)
-                    {
-                        byte[] frameBytes = Convert.FromBase64String(frameBase64);
-                        await _avatarService.BroadcastVideoFrameAsync(frameBytes);
-                        _virtualSelf?.PublishVisualPerception(
-                            description: prompt,
-                            objects: Array.Empty<DetectedObject>(),
-                            faces: Array.Empty<DetectedFace>(),
-                            sceneType: "avatar",
-                            emotion: state.Mood,
-                            rawFrame: frameBytes);
-                    }
+                    // ── Algorithmic expression path (no vision model) ───────────────
+                    // Pure GDI+ pixel transforms: brightness/warmth per state + brow offset.
+                    // No external service required — deterministic and instant.
+                    byte[] frameBytes = AlgorithmicExpressionGenerator.ApplyExpression(seedBytes, state);
+                    await avatarService.BroadcastVideoFrameAsync(frameBytes);
+                    virtualSelf?.PublishVisualPerception(
+                        description: AvatarVideoGenerator.BuildPrompt(state),
+                        objects: Array.Empty<DetectedObject>(),
+                        faces: Array.Empty<DetectedFace>(),
+                        sceneType: "avatar",
+                        emotion: state.Mood,
+                        rawFrame: frameBytes);
                 }
             }
             catch (TaskCanceledException) when (ct.IsCancellationRequested)
@@ -188,7 +166,7 @@ public sealed class AvatarVideoStream : IAsyncDisposable
             }
             catch (Exception ex)
             {
-                _logger?.LogWarning(ex, "Error in avatar video generation loop");
+                logger?.LogWarning(ex, "Error in avatar video generation loop");
             }
 
             await Task.Delay(FrameIntervalMs, ct);

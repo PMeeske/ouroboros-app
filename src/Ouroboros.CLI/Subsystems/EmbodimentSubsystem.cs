@@ -231,27 +231,17 @@ public sealed class EmbodimentSubsystem : IEmbodimentSubsystem
 
         try
         {
-            var ollamaEndpoint = ctx.Config.SdEndpoint
-                ?? ctx.StaticConfiguration?["Forge:Endpoint"]
-                ?? "http://localhost:7860";
-            var sdModel = string.IsNullOrWhiteSpace(ctx.Config.SdModel)
-                ? "stable-diffusion"
-                : ctx.Config.SdModel;
-
             var (service, videoStream) = await Avatar.AvatarIntegration.CreateAndStartAsync(
                 ctx.Config.Persona,
                 ctx.Config.AvatarPort,
                 visionModel: ctx.Models.VisionModel,
                 virtualSelf: VirtualSelf,
-                ollamaEndpoint: ollamaEndpoint,
-                sdModel: sdModel,
                 ct: CancellationToken.None);
 
             AvatarService = service;
             AvatarVideoStream = videoStream;
 
-            var streamInfo = videoStream != null ? " + video stream" : "";
-            ctx.Output.RecordInit("Avatar", true, $"port {ctx.Config.AvatarPort}{streamInfo}");
+            ctx.Output.RecordInit("Avatar", true, $"port {ctx.Config.AvatarPort} + video stream");
         }
         catch (Exception ex)
         {
