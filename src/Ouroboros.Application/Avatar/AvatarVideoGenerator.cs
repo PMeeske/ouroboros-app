@@ -90,6 +90,36 @@ public sealed class AvatarVideoGenerator
     }
 
     /// <summary>
+    /// Loads the configured SD checkpoint via /sdapi/v1/options (once at startup).
+    /// Must be awaited before the first <see cref="GenerateFrameAsync"/> call.
+    /// </summary>
+    public async Task LoadCheckpointAsync(CancellationToken ct = default)
+    {
+        if (_sdCheckpoint == null) return;
+        try
+        {
+            var body = JsonSerializer.Serialize(new Dictionary<string, object>
+            {
+                ["sd_model_checkpoint"] = _sdCheckpoint,
+            });
+            using var content = new StringContent(body, Encoding.UTF8, "application/json");
+            using var response = await _http.PostAsync("/sdapi/v1/options", content, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                var err = await response.Content.ReadAsStringAsync(ct);
+                var msg = $"Could not set SD checkpoint '{_sdCheckpoint}': {(int)response.StatusCode} {err}";
+                _logger?.LogWarning("{Message}", msg);
+                if (_logger == null) Console.Error.WriteLine($"[AvatarVideoGenerator] {msg}");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to set SD checkpoint");
+            if (_logger == null) Console.Error.WriteLine($"[AvatarVideoGenerator] Failed to set SD checkpoint: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// Calls the Forge/A1111 /sdapi/v1/img2img endpoint with the prompt and seed image.
     /// Returns a base64-encoded JPEG frame, or null on failure.
     /// </summary>
@@ -101,10 +131,9 @@ public sealed class AvatarVideoGenerator
     {
         try
         {
-            // Build the A1111/Forge img2img payload
-            // Low-resource settings: 384×512 + 8 steps keeps generation under ~60s even when
-            // the model must CPU-swap (GPU VRAM < model size). "Euler a" converges faster at
-            // low step counts than DPM++ 2M.
+            // Low-resource payload: 384×512, 8 steps, Euler.
+            // Checkpoint is loaded once via LoadCheckpointAsync — never per-request,
+            // because override_settings forces a full model reload each call and OOMs Forge.
             var payloadObj = new Dictionary<string, object?>
             {
                 ["prompt"] = prompt,
@@ -117,14 +146,6 @@ public sealed class AvatarVideoGenerator
                 ["height"] = 512,
                 ["sampler_name"] = "Euler",
             };
-
-            if (_sdCheckpoint != null)
-            {
-                payloadObj["override_settings"] = new Dictionary<string, object>
-                {
-                    ["sd_model_checkpoint"] = _sdCheckpoint,
-                };
-            }
 
             var json = JsonSerializer.Serialize(payloadObj);
             using var content = new StringContent(json, Encoding.UTF8, "application/json");
