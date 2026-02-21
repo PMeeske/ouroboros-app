@@ -144,6 +144,73 @@ public sealed class ConsoleOutput : IConsoleOutput
         }
     }
 
+    // ── Tool display (Crush-style) ─────────────────────────────
+
+    public void WriteToolCall(string toolName, string? param = null)
+    {
+        if (Verbosity == OutputVerbosity.Quiet) return;
+
+        lock (_lock)
+        {
+            ToolRenderer.WriteHeaderRaw("●", toolName, param);
+        }
+    }
+
+    public void WriteToolResult(string toolName, bool success, string? output = null, int maxLines = 10)
+    {
+        if (Verbosity == OutputVerbosity.Quiet) return;
+
+        lock (_lock)
+        {
+            ToolRenderer.WriteHeaderRaw(success ? "✓" : "✗", toolName, param: null);
+            if (!string.IsNullOrWhiteSpace(output))
+                ToolRenderer.WriteBodyRaw(output, maxLines);
+        }
+    }
+
+    // ── Status bar ─────────────────────────────────────────────
+
+    public void WriteStatusBar(string model, string? workingDir = null, int? contextPct = null)
+    {
+        if (Verbosity == OutputVerbosity.Quiet) return;
+
+        lock (_lock)
+        {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+
+            var dir = workingDir != null
+                ? TruncatePath(workingDir, 30)
+                : null;
+
+            var parts = new List<string> { model };
+            if (dir != null) parts.Add(dir);
+
+            Console.Write($"  {string.Join(" · ", parts)}");
+
+            if (contextPct.HasValue)
+            {
+                var color = contextPct.Value switch
+                {
+                    >= 80 => ConsoleColor.Red,
+                    >= 50 => ConsoleColor.Yellow,
+                    _     => ConsoleColor.DarkGray,
+                };
+                Console.ForegroundColor = color;
+                Console.Write($"  {contextPct.Value}%");
+            }
+
+            Console.ResetColor();
+            Console.WriteLine();
+        }
+    }
+
+    private static string TruncatePath(string path, int max)
+    {
+        if (path.Length <= max) return path;
+        var parts = path.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length > 1 ? "…/" + parts[^1] : "…" + path[^(max - 1)..];
+    }
+
     // ── Spinner ────────────────────────────────────────────────
 
     public ISpinnerHandle StartSpinner(string label)
