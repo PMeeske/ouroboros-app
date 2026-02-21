@@ -103,14 +103,15 @@ public sealed class AvatarVideoStream : IAsyncDisposable
 
     private async Task RunLoopAsync(CancellationToken ct)
     {
+        AvatarVisualState? lastAnalyzedState = null;
+
         while (!ct.IsCancellationRequested)
         {
             try
             {
                 var state = _avatarService.CurrentState;
-
-                // 1. Determine seed image from current visual state
                 var seedPath = AvatarVideoGenerator.GetSeedAssetPath(state.VisualState, _assetDirectory);
+
                 if (!File.Exists(seedPath))
                 {
                     _logger?.LogWarning("Seed asset not found: {Path}", seedPath);
@@ -118,35 +119,67 @@ public sealed class AvatarVideoStream : IAsyncDisposable
                     continue;
                 }
 
-                var seedBase64 = Convert.ToBase64String(await File.ReadAllBytesAsync(seedPath, ct));
+                byte[] seedBytes = await File.ReadAllBytesAsync(seedPath, ct);
 
-                // 2. Build emotional prompt
-                var prompt = AvatarVideoGenerator.BuildPrompt(state);
-
-                // 3. Generate frame via Ollama SD
-                var frameBase64 = await _generator.GenerateFrameAsync(prompt, seedBase64, ct);
-
-                if (frameBase64 != null)
+                if (_visionModel != null)
                 {
-                    var frameBytes = Convert.FromBase64String(frameBase64);
+                    // ── Pure vision model path ──────────────────────────────────────
+                    // Only re-analyse when the visual state actually changes — the seed
+                    // image is static per state so calling on every tick is wasteful.
+                    if (state.VisualState != lastAnalyzedState)
+                    {
+                        lastAnalyzedState = state.VisualState;
+                        string expressionTarget = AvatarVideoGenerator.BuildPrompt(state);
 
-                    // 4. Broadcast binary frame over WebSocket to all connected viewers
-                    await _avatarService.BroadcastVideoFrameAsync(frameBytes);
+                        // Vision model generates the expression description
+                        var generated = await _visionModel.AnswerQuestionAsync(
+                            seedBytes, "png",
+                            $"Describe this face's expression in 8 words or less, focusing on: {expressionTarget}",
+                            ct);
 
-                    // 5. Publish visual perception to VirtualSelf (closes the perception loop)
-                    _virtualSelf?.PublishVisualPerception(
-                        description: prompt,
-                        objects: Array.Empty<DetectedObject>(),
-                        faces: Array.Empty<DetectedFace>(),
-                        sceneType: "avatar",
-                        emotion: state.Mood,
-                        rawFrame: frameBytes);
+                        if (generated.IsSuccess)
+                        {
+                            string description = generated.Value.Trim();
 
-                    _logger?.LogDebug("Avatar frame generated and broadcast ({Size} bytes)", frameBytes.Length);
+                            // Push generated description as avatar status text
+                            _avatarService.NotifyMoodChange(
+                                mood: state.Mood ?? "neutral",
+                                energy: 0.5,
+                                positivity: 0.5,
+                                statusText: description);
+
+                            // Publish visual perception to VirtualSelf
+                            _virtualSelf?.PublishVisualPerception(
+                                description: description,
+                                objects: Array.Empty<DetectedObject>(),
+                                faces: Array.Empty<DetectedFace>(),
+                                sceneType: "avatar",
+                                emotion: state.Mood,
+                                rawFrame: seedBytes);
+
+                            _logger?.LogDebug("Vision model generated: {Description}", description);
+                        }
+                    }
                 }
                 else
                 {
-                    _logger?.LogDebug("Frame generation returned null (Ollama SD may be unavailable)");
+                    // ── SD fallback path (no vision model) ─────────────────────────
+                    string seedBase64 = Convert.ToBase64String(seedBytes);
+                    string prompt = AvatarVideoGenerator.BuildPrompt(state);
+                    string? frameBase64 = await _generator.GenerateFrameAsync(prompt, seedBase64, ct);
+
+                    if (frameBase64 != null)
+                    {
+                        byte[] frameBytes = Convert.FromBase64String(frameBase64);
+                        await _avatarService.BroadcastVideoFrameAsync(frameBytes);
+                        _virtualSelf?.PublishVisualPerception(
+                            description: prompt,
+                            objects: Array.Empty<DetectedObject>(),
+                            faces: Array.Empty<DetectedFace>(),
+                            sceneType: "avatar",
+                            emotion: state.Mood,
+                            rawFrame: frameBytes);
+                    }
                 }
             }
             catch (TaskCanceledException) when (ct.IsCancellationRequested)
