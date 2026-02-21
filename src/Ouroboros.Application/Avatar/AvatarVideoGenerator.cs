@@ -147,10 +147,15 @@ public sealed class AvatarVideoGenerator
             var faceRect = new Rectangle(0, 0, seedBmp.Width, faceH);
             using var faceBmp = (Bitmap)seedBmp.Clone(faceRect, seedBmp.PixelFormat);
 
+            // Save as JPEG (24bpp RGB) — avoids Windows PNG metadata/ICC profile
+            // that Forge's Python PIL cannot decode.
             string faceSeedBase64;
-            using (var faceMs = new MemoryStream())
+            using (var rgb = new Bitmap(faceBmp.Width, faceBmp.Height, PixelFormat.Format24bppRgb))
             {
-                faceBmp.Save(faceMs, ImageFormat.Png);
+                using (var gRgb = Graphics.FromImage(rgb))
+                    gRgb.DrawImage(faceBmp, 0, 0, faceBmp.Width, faceBmp.Height);
+                using var faceMs = new MemoryStream();
+                rgb.Save(faceMs, ImageFormat.Jpeg);
                 faceSeedBase64 = Convert.ToBase64String(faceMs.ToArray());
             }
 
