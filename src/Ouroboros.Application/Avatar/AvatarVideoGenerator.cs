@@ -115,7 +115,7 @@ public sealed class AvatarVideoGenerator
                 ["cfg_scale"] = 7,
                 ["width"] = 384,
                 ["height"] = 512,
-                ["sampler_name"] = "Euler a",
+                ["sampler_name"] = "Euler",
             };
 
             if (_sdCheckpoint != null)
@@ -132,7 +132,8 @@ public sealed class AvatarVideoGenerator
 
             if (!response.IsSuccessStatusCode)
             {
-                var msg = $"Forge SD returned {(int)response.StatusCode} {response.ReasonPhrase}";
+                var errorBody = await response.Content.ReadAsStringAsync(ct);
+                var msg = $"Forge SD returned {(int)response.StatusCode} {response.ReasonPhrase}: {errorBody}";
                 _logger?.LogWarning("{Message}", msg);
                 if (_logger == null) Console.Error.WriteLine($"[AvatarVideoGenerator] {msg}");
                 return null;
