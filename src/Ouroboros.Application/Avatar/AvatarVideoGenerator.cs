@@ -10,18 +10,21 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
+using Ouroboros.Core.EmbodiedInteraction;
 
 namespace Ouroboros.Application.Avatar;
 
 /// <summary>
 /// Generates avatar video frames via the Forge/AUTOMATIC1111 Stable Diffusion img2img API.
 /// The existing Iaret portrait asset is used as the seed image.
+/// On SD error the pipeline falls through: gatekeeper → corrector → CSS fallback (null).
 /// </summary>
 public sealed class AvatarVideoGenerator
 {
     private readonly HttpClient _http;
     private readonly string? _sdCheckpoint;
     private readonly ILogger<AvatarVideoGenerator>? _logger;
+    private readonly IVisionModel? _visionModel;
 
     private static readonly JsonSerializerOptions JsonOpts = new()
     {
@@ -36,16 +39,19 @@ public sealed class AvatarVideoGenerator
     /// <param name="sdModel">Optional checkpoint name to load via override_settings. Leave null/empty to use whichever model is currently loaded.</param>
     /// <param name="timeoutSeconds">HTTP request timeout in seconds (default: 300). SD img2img can take several minutes on slower hardware.</param>
     /// <param name="logger">Optional logger.</param>
+    /// <param name="visionModel">Optional vision model (Qwen VL) used for gatekeeper and corrector stages.</param>
     public AvatarVideoGenerator(
         string sdEndpoint = "http://localhost:7860",
         string? sdModel = null,
         int timeoutSeconds = 300,
-        ILogger<AvatarVideoGenerator>? logger = null)
+        ILogger<AvatarVideoGenerator>? logger = null,
+        IVisionModel? visionModel = null)
     {
         _sdCheckpoint = string.IsNullOrWhiteSpace(sdModel) || sdModel == "stable-diffusion"
             ? null
             : sdModel;
         _logger = logger;
+        _visionModel = visionModel;
         _http = new HttpClient
         {
             BaseAddress = new Uri(sdEndpoint.TrimEnd('/')),
@@ -124,31 +130,26 @@ public sealed class AvatarVideoGenerator
     }
 
     /// <summary>
-    /// Calls the Forge/A1111 /sdapi/v1/img2img endpoint with the prompt and seed image.
-    /// Only the face region (top 48%) is sent to SD; the result is composited back onto
-    /// the original image with a feathered seam so the body and background are untouched.
-    /// Returns a base64-encoded JPEG frame, or null on failure.
+    /// Generates a composited avatar frame.
+    /// Pipeline: SD face crop → Gatekeeper (Qwen VL) → Corrector (Qwen VL) → CSS fallback (null).
+    /// Only the face region (top 48 %) is sent to SD; the result is blended back onto the
+    /// full seed image with a feathered seam so body and background are never touched.
     /// </summary>
-    /// <param name="prompt">Text prompt describing the desired avatar frame.</param>
-    /// <param name="seedBase64">Base64-encoded seed image (existing Iaret portrait).</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <returns>Base64-encoded JPEG of the composited frame, or null on error.</returns>
     public async Task<string?> GenerateFrameAsync(string prompt, string seedBase64, CancellationToken ct)
     {
         try
         {
-            // ── 1. Decode seed image ──────────────────────────────────────────────
+            // ── 1. Decode seed ────────────────────────────────────────────────────
             byte[] seedBytes = Convert.FromBase64String(seedBase64);
             using var seedMs = new MemoryStream(seedBytes);
             using var seedBmp = new Bitmap(seedMs);
 
-            // ── 2. Face crop: top 48 %, width snapped to multiple of 8 for SD ────
+            // ── 2. Face crop: top 48 %, snapped to multiple of 8 for SD ──────────
             int faceH = (int)(seedBmp.Height * 0.48) / 8 * 8;
             var faceRect = new Rectangle(0, 0, seedBmp.Width, faceH);
             using var faceBmp = (Bitmap)seedBmp.Clone(faceRect, seedBmp.PixelFormat);
 
-            // Save as JPEG (24bpp RGB) — avoids Windows PNG metadata/ICC profile
-            // that Forge's Python PIL cannot decode.
+            // Encode as 24bpp JPEG — avoids Windows PNG ICC metadata that Forge PIL rejects
             string faceSeedBase64;
             using (var rgb = new Bitmap(faceBmp.Width, faceBmp.Height, PixelFormat.Format24bppRgb))
             {
@@ -159,62 +160,50 @@ public sealed class AvatarVideoGenerator
                 faceSeedBase64 = Convert.ToBase64String(faceMs.ToArray());
             }
 
-            // ── 3. Send just the face crop to Forge SD ───────────────────────────
-            var payloadObj = new Dictionary<string, object?>
-            {
-                ["prompt"] = prompt,
-                ["negative_prompt"] = "ugly, blurry, low quality, deformed, disfigured, extra limbs, changed hair, different person, different clothes, different background, style change, color change",
-                ["init_images"] = new[] { faceSeedBase64 },
-                ["denoising_strength"] = 0.22,
-                ["steps"] = 8,
-                ["cfg_scale"] = 5,
-                ["width"] = seedBmp.Width,
-                ["height"] = faceH,
-                ["sampler_name"] = "Euler",
-            };
+            // ── 3. SD call ────────────────────────────────────────────────────────
+            string? faceResultBase64 = await CallSdFaceAsync(prompt, faceSeedBase64, seedBmp.Width, faceH, ct);
+            if (faceResultBase64 == null) return null; // Fallback: CSS layers
 
-            var json = JsonSerializer.Serialize(payloadObj);
-            using var content = new StringContent(json, Encoding.UTF8, "application/json");
-            using var response = await _http.PostAsync("/sdapi/v1/img2img", content, ct);
-
-            if (!response.IsSuccessStatusCode)
+            // ── 4. Gatekeeper — Qwen VL verifies the expression is correct ────────
+            if (_visionModel != null)
             {
-                var errorBody = await response.Content.ReadAsStringAsync(ct);
-                var msg = $"Forge SD returned {(int)response.StatusCode} {response.ReasonPhrase}: {errorBody}";
-                _logger?.LogWarning("{Message}", msg);
-                if (_logger == null) Console.Error.WriteLine($"[AvatarVideoGenerator] {msg}");
-                return null;
+                byte[] faceResultBytes = Convert.FromBase64String(faceResultBase64);
+                string expressionLabel = prompt.Split(',')[0].Trim();
+
+                var gate = await _visionModel.AnswerQuestionAsync(
+                    faceResultBytes, "jpeg",
+                    $"Does this face clearly show a {expressionLabel}? Answer only yes or no.",
+                    ct);
+
+                bool passed = gate.IsSuccess &&
+                              gate.Value.Trim().StartsWith("yes", StringComparison.OrdinalIgnoreCase);
+
+                if (!passed)
+                {
+                    // ── 5. Corrector — ask Qwen for a better prompt, retry SD ─────
+                    var fix = await _visionModel.AnswerQuestionAsync(
+                        faceResultBytes, "jpeg",
+                        $"Target expression: {prompt}. What does this face actually show and what 1-line expression prompt would correct it? Output only the corrected prompt.",
+                        ct);
+
+                    if (fix.IsSuccess)
+                    {
+                        string correctedPrompt = fix.Value.Trim();
+                        faceResultBase64 = await CallSdFaceAsync(correctedPrompt, faceSeedBase64, seedBmp.Width, faceH, ct);
+                        if (faceResultBase64 == null) return null; // Fallback: CSS layers
+                    }
+                    else
+                    {
+                        return null; // Fallback: CSS layers
+                    }
+                }
             }
 
-            var responseJson = await response.Content.ReadAsStringAsync(ct);
-            using var doc = JsonDocument.Parse(responseJson);
-
-            if (!doc.RootElement.TryGetProperty("images", out var imagesElement)
-                || imagesElement.ValueKind != JsonValueKind.Array
-                || imagesElement.GetArrayLength() == 0)
-            {
-                const string noData = "Forge SD response did not contain image data";
-                _logger?.LogWarning(noData);
-                if (_logger == null) Console.Error.WriteLine($"[AvatarVideoGenerator] {noData}");
-                return null;
-            }
-
-            string? faceResultBase64 = imagesElement[0].GetString();
-            if (faceResultBase64 == null) return null;
-
-            // ── 4. Decode SD face result ──────────────────────────────────────────
-            byte[] faceResultBytes = Convert.FromBase64String(faceResultBase64);
-            using var faceResultMs = new MemoryStream(faceResultBytes);
+            // ── 6. Composite: SD face + feathered seam + original body ────────────
+            byte[] resultBytes = Convert.FromBase64String(faceResultBase64);
+            using var faceResultMs = new MemoryStream(resultBytes);
             using var faceResultBmp = new Bitmap(faceResultMs);
 
-            // ── 5. Composite: original base + SD face with feathered seam ─────────
-            //   Layout (seedBmp.Height total):
-            //     [0 .. solidH)        → SD face result (opaque)
-            //     [solidH .. faceH)    → feathered blend (SD fades to original)
-            //     [faceH .. height)    → original body (untouched)
-            //
-            //   The blend zone is the bottom 22 % of the face crop, divided into
-            //   16 thin strips each with linearly decreasing alpha.
             int blendZoneH = faceH * 22 / 100;
             int solidH = faceH - blendZoneH;
             const int BlendSteps = 16;
@@ -225,40 +214,30 @@ public sealed class AvatarVideoGenerator
             g.InterpolationMode = InterpolationMode.HighQualityBicubic;
             g.SmoothingMode = SmoothingMode.HighQuality;
 
-            // Base layer: full original
-            g.DrawImage(seedBmp, 0, 0, seedBmp.Width, seedBmp.Height);
+            g.DrawImage(seedBmp, 0, 0, seedBmp.Width, seedBmp.Height); // base: full original
 
-            // Solid SD face region
-            g.DrawImage(
+            g.DrawImage(                                                // solid face region
                 faceResultBmp,
                 new Rectangle(0, 0, seedBmp.Width, solidH),
                 new RectangleF(0, 0, faceResultBmp.Width, (float)solidH / faceH * faceResultBmp.Height),
                 GraphicsUnit.Pixel);
-    
-            // Feathered blend strips
+
             using var ia = new ImageAttributes();
-            for (int i = 0; i < BlendSteps; i++)
+            for (int i = 0; i < BlendSteps; i++)                       // feathered seam
             {
-                float alpha = 1.0f - (float)(i + 1) / BlendSteps; // 1.0 → ~0.0
+                float alpha = 1.0f - (float)(i + 1) / BlendSteps;
                 int dstY = solidH + i * stripH;
-                int dstH = (i == BlendSteps - 1) ? (faceH - dstY) : stripH; // last strip fills gap
+                int dstH = i == BlendSteps - 1 ? faceH - dstY : stripH;
                 if (dstH <= 0) continue;
 
-                float srcY = (float)dstY / faceH * faceResultBmp.Height;
-                float srcH = (float)dstH / faceH * faceResultBmp.Height;
-
-                var cm = new ColorMatrix { Matrix33 = alpha };
-                ia.SetColorMatrix(cm);
-
-                g.DrawImage(
-                    faceResultBmp,
+                ia.SetColorMatrix(new ColorMatrix { Matrix33 = alpha });
+                g.DrawImage(faceResultBmp,
                     new Rectangle(0, dstY, seedBmp.Width, dstH),
-                    0, srcY, faceResultBmp.Width, srcH,
-                    GraphicsUnit.Pixel,
-                    ia);
+                    0, (float)dstY / faceH * faceResultBmp.Height,
+                    faceResultBmp.Width, (float)dstH / faceH * faceResultBmp.Height,
+                    GraphicsUnit.Pixel, ia);
             }
 
-            // ── 6. Encode composite as JPEG ───────────────────────────────────────
             using var outMs = new MemoryStream();
             composite.Save(outMs, ImageFormat.Jpeg);
             return Convert.ToBase64String(outMs.ToArray());
@@ -273,6 +252,47 @@ public sealed class AvatarVideoGenerator
             if (_logger == null) Console.Error.WriteLine($"[AvatarVideoGenerator] Frame generation failed: {ex.Message}");
             return null;
         }
+    }
+
+    /// <summary>
+    /// Sends a face crop to Forge SD img2img. Returns null on any failure (→ CSS fallback).
+    /// </summary>
+    private async Task<string?> CallSdFaceAsync(string prompt, string faceSeedBase64, int width, int height, CancellationToken ct)
+    {
+        var payload = new Dictionary<string, object?>
+        {
+            ["prompt"] = prompt,
+            ["negative_prompt"] = "ugly, blurry, low quality, deformed, disfigured, extra limbs, changed hair, different person, different clothes, different background, style change, color change",
+            ["init_images"] = new[] { faceSeedBase64 },
+            ["denoising_strength"] = 0.22,
+            ["steps"] = 8,
+            ["cfg_scale"] = 5,
+            ["width"] = width,
+            ["height"] = height,
+            ["sampler_name"] = "Euler",
+        };
+
+        using var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+        using var response = await _http.PostAsync("/sdapi/v1/img2img", content, ct);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var err = await response.Content.ReadAsStringAsync(ct);
+            var msg = $"Forge SD returned {(int)response.StatusCode} {response.ReasonPhrase}: {err}";
+            _logger?.LogWarning("{Message}", msg);
+            if (_logger == null) Console.Error.WriteLine($"[AvatarVideoGenerator] {msg}");
+            return null;
+        }
+
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+        if (doc.RootElement.TryGetProperty("images", out var imgs)
+            && imgs.ValueKind == JsonValueKind.Array
+            && imgs.GetArrayLength() > 0)
+        {
+            return imgs[0].GetString();
+        }
+
+        return null;
     }
 
     /// <summary>
