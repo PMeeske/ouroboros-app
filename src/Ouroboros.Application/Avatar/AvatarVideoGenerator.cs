@@ -56,37 +56,38 @@ public sealed class AvatarVideoGenerator
     /// </summary>
     public static string BuildPrompt(AvatarStateSnapshot state)
     {
-        var basePrompt = state.VisualState switch
+        // Focus only on the facial expression change — avoid re-describing the full
+        // scene so that img2img with low denoising_strength doesn't drift appearance.
+        var expressionPrompt = state.VisualState switch
         {
             AvatarVisualState.Idle =>
-                "Egyptian goddess Iaret, regal serpent deity, composed expression, golden crown, ambient light, photorealistic portrait",
+                "neutral composed expression, relaxed face, eyes forward",
             AvatarVisualState.Listening =>
-                "Egyptian goddess Iaret, attentive gaze, leaning forward slightly, warm expression, photorealistic",
+                "attentive listening expression, soft focused gaze, slightly raised brows",
             AvatarVisualState.Thinking =>
-                "Egyptian goddess Iaret, contemplative expression, glowing aura, holographic patterns, photorealistic",
+                "contemplative expression, eyes slightly upward, subtle furrowed brow",
             AvatarVisualState.Speaking =>
-                "Egyptian goddess Iaret, speaking with authority, animated expression, golden light, photorealistic",
+                "speaking expression, slightly open mouth, animated face, engaged eyes",
             AvatarVisualState.Encouraging =>
-                "Egyptian goddess Iaret, gentle maternal smile, warm golden light, nurturing expression, photorealistic",
+                "warm gentle smile, kind eyes, soft encouraging expression",
             _ =>
-                "Egyptian goddess Iaret, regal serpent deity, photorealistic portrait",
+                "neutral expression",
         };
 
-        // Append mood modifiers
+        // Append mood as a micro-expression modifier only
         var moodModifier = state.Mood?.ToLowerInvariant() switch
         {
-            "warm" or "happy" => ", soft warm lighting",
-            "resolute" or "determined" => ", strong confident expression",
-            "curious" or "intrigued" => ", inquisitive gaze, subtle light shift",
-            "calm" or "serene" => ", peaceful atmosphere, gentle diffused light",
-            "concerned" or "worried" => ", slight furrowed brow, cooler light tones",
-            "excited" or "enthusiastic" => ", vibrant golden aura, energetic expression",
-            "sad" or "melancholic" => ", subdued lighting, thoughtful distant gaze",
-            "neutral" => string.Empty,
+            "warm" or "happy" => ", happy eyes, slight smile",
+            "resolute" or "determined" => ", firm set jaw, confident gaze",
+            "curious" or "intrigued" => ", curious raised eyebrow, interested look",
+            "calm" or "serene" => ", peaceful relaxed face",
+            "concerned" or "worried" => ", slight worried frown",
+            "excited" or "enthusiastic" => ", bright wide eyes, energetic expression",
+            "sad" or "melancholic" => ", sad eyes, downward gaze",
             _ => string.Empty,
         };
 
-        return basePrompt + moodModifier;
+        return expressionPrompt + moodModifier;
     }
 
     /// <summary>
@@ -131,17 +132,17 @@ public sealed class AvatarVideoGenerator
     {
         try
         {
-            // Low-resource payload: 384×512, 8 steps, Euler.
-            // Checkpoint is loaded once via LoadCheckpointAsync — never per-request,
-            // because override_settings forces a full model reload each call and OOMs Forge.
+            // Expression-only img2img: very low denoising_strength (0.15) so only subtle
+            // facial expression changes are applied, preserving Iaret's full appearance.
+            // Checkpoint is loaded once via LoadCheckpointAsync — never per-request.
             var payloadObj = new Dictionary<string, object?>
             {
                 ["prompt"] = prompt,
-                ["negative_prompt"] = "ugly, blurry, low quality, deformed, disfigured, extra limbs",
+                ["negative_prompt"] = "ugly, blurry, low quality, deformed, disfigured, extra limbs, changed hair, different person, different clothes, different background, style change, color change",
                 ["init_images"] = new[] { seedBase64 },
-                ["denoising_strength"] = 0.45,
+                ["denoising_strength"] = 0.15,
                 ["steps"] = 8,
-                ["cfg_scale"] = 7,
+                ["cfg_scale"] = 5,
                 ["width"] = 384,
                 ["height"] = 512,
                 ["sampler_name"] = "Euler",

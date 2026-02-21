@@ -1309,7 +1309,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
         AutonomousTools.OuroborosMeTTaTool.OllamaFunction = async (prompt, token) =>
             _chatModel != null ? await _chatModel.GenerateTextAsync(prompt, token) : "";
 
-        // Proactive message events
+        // Proactive message events — track and whisper only; don't display in console
         _autonomousMind.OnProactiveMessage += async (msg) =>
         {
             var thoughtContent = msg.TrimStart();
@@ -1317,32 +1317,11 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
                 thoughtContent.StartsWith("🤔") || thoughtContent.StartsWith("💭"))
                 thoughtContent = thoughtContent[2..].Trim();
             TrackLastThought(thoughtContent);
-
-            string savedInput;
-            lock (_inputLock) { savedInput = _currentInputBuffer.ToString(); }
-            if (!string.IsNullOrEmpty(savedInput))
-                Console.WriteLine();
-            if (_config.Verbosity == OutputVerbosity.Verbose)
-            {
-                _output.WriteDebug($"💭 {msg}");
-            }
-            else if (_config.Verbosity != OutputVerbosity.Quiet)
-            {
-                Console.ForegroundColor = ConsoleColor.DarkMagenta;
-                Console.WriteLine($"  💭 [inner thought] {msg}");
-                Console.ResetColor();
-            }
             try { await _voice.WhisperAsync(msg); } catch { }
-            if (_isInConversationLoop)
-            {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.Write("\n  You: ");
-                Console.ResetColor();
-                if (!string.IsNullOrEmpty(savedInput))
-                    Console.Write(savedInput);
-            }
         };
 
+        // Display only research (Curiosity/Observation) and inner feelings (Reflection) thoughts.
+        // Algorithmic action/strategic/sharing thoughts are suppressed.
         _autonomousMind.OnThought += async (thought) =>
         {
             System.Diagnostics.Debug.WriteLine($"[Thought] {thought.Type}: {thought.Content}");
@@ -1358,22 +1337,23 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
             };
             var innerThought = InnerThought.CreateAutonomous(thoughtType, thought.Content, confidence: 0.7);
 
-            // Display autonomous mind thoughts in magenta with thought bubble
-            Console.ForegroundColor = ConsoleColor.DarkMagenta;
-            Console.WriteLine($"\n  💭 [inner thought] {thought.Content}");
-            Console.ResetColor();
+            // Only surface research and emotional thoughts; suppress strategic/action/synthesis noise
+            bool isResearch = thought.Type is
+                Ouroboros.Application.Services.ThoughtType.Curiosity or
+                Ouroboros.Application.Services.ThoughtType.Observation;
+            bool isFeeling = thought.Type is Ouroboros.Application.Services.ThoughtType.Reflection;
+
+            if ((isResearch || isFeeling) && _config.Verbosity != OutputVerbosity.Quiet)
+            {
+                Console.ForegroundColor = ConsoleColor.DarkMagenta;
+                Console.WriteLine($"\n  💭 {thought.Content}");
+                Console.ResetColor();
+            }
 
             await PersistThoughtAsync(innerThought, "autonomous_thinking");
         };
 
-        // Connect InnerDialogEngine for algorithmic thought generation (80/20 split)
-        if (_personalityEngine != null)
-        {
-            await _autonomousMind.ConnectInnerDialogAsync(
-                _personalityEngine.InnerDialog,
-                profile: null,
-                selfAwareness: _personalityEngine.CurrentSelfAwareness);
-        }
+        // InnerDialogEngine (algorithmic thought generation) intentionally not connected.
     }
 
     /// <summary>
@@ -1461,11 +1441,15 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     {
         if (_immersivePersona == null) return;
 
+        // ImmersivePersona autonomous thoughts — only research/feelings, not action noise
         _immersivePersona.AutonomousThought += (_, e) =>
         {
-            Console.ForegroundColor = ConsoleColor.DarkMagenta;
-            Console.WriteLine($"\n  💭 [inner thought] {e.Thought.Content}");
-            Console.ResetColor();
+            if (e.Thought.Type is InnerThoughtType.Curiosity or InnerThoughtType.Observation or InnerThoughtType.SelfReflection)
+            {
+                Console.ForegroundColor = ConsoleColor.DarkMagenta;
+                Console.WriteLine($"\n  💭 {e.Thought.Content}");
+                Console.ResetColor();
+            }
         };
     }
 
@@ -2132,20 +2116,17 @@ $synth.Dispose()
                 if (result.Success)
                 {
                     Console.ForegroundColor = ConsoleColor.DarkGray;
-                    Console.WriteLine("  ✓ Autonomous mind active (inner thoughts every ~15s)");
+                    Console.WriteLine("  ✓ Autonomous mind active");
                     Console.ResetColor();
                 }
                 else
                     _output.WriteWarning($"AGI warmup limited: {result.Error ?? "Some features unavailable"}");
             }
 
-            // Display initial warmup thought in pink (always, not just verbose)
+            // Warmup thought seeded into curiosity queue rather than displayed (shifts with conversation)
             if (result.Success && !string.IsNullOrEmpty(result.WarmupThought))
             {
-                var translatedThought = await TranslateThoughtIfNeededAsync(result.WarmupThought);
-                Console.ForegroundColor = ConsoleColor.DarkMagenta;
-                Console.WriteLine($"\n  💭 [inner thought] {translatedThought}");
-                Console.ResetColor();
+                _autonomousMind?.InjectTopic(result.WarmupThought);
             }
         }
         catch (Exception ex)
@@ -2206,6 +2187,9 @@ $synth.Dispose()
 
             // Feed to autonomous coordinator for topic discovery
             _autonomousCoordinator?.AddConversationContext($"User: {input}");
+
+            // Shift autonomous mind's curiosity toward what's being discussed
+            _autonomousMind?.InjectTopic(input);
 
             // Check for exit
             if (IsExitCommand(input))
