@@ -86,4 +86,6 @@ public sealed record OuroborosConfig(
     bool Avatar = true,
     int AvatarPort = 9471,
     string? SdEndpoint = null,
-    string? SdModel = null);
+    string? SdModel = null,
+    // Room Presence
+    bool RoomMode = false);

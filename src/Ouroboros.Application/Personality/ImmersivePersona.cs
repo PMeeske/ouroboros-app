@@ -50,6 +50,9 @@ public sealed class ImmersivePersona : IAsyncDisposable
     /// <summary>Gets the Hyperon flow integration for symbolic reasoning.</summary>
     public HyperonFlowIntegration? HyperonFlow => _hyperonFlow;
 
+    /// <summary>Gets the underlying personality engine (for room presence, person identification, etc.).</summary>
+    public PersonalityEngine Personality => _personality;
+
     /// <summary>Gets how long this persona has been active.</summary>
     public TimeSpan Uptime => DateTime.UtcNow - _awakenedAt;
 
@@ -475,6 +478,12 @@ public sealed class ImmersivePersona : IAsyncDisposable
         public string? CognitiveApproach { get; set; }
         public List<string>? RelevantMemories { get; set; }
     }
+
+    /// <summary>
+    /// Gets a greeting personalized for the detected person via the personality engine.
+    /// Falls back to a contextual greeting if no person has been identified.
+    /// </summary>
+    public string GetPersonalizedGreeting() => _personality.GetPersonalizedGreeting();
 
     /// <summary>
     /// Updates the inner dialog context for context-aware thought generation.
