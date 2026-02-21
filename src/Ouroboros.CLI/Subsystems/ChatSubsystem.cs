@@ -91,6 +91,9 @@ Use this actual code information to answer the user's question accurately.
 
         string context = string.Join("\n", _memorySub.ConversationHistory.TakeLast(6));
 
+        // Retrieve semantically related past thoughts/answers from Qdrant for reflection
+        string qdrantReflectiveContext = await BuildQdrantReflectiveContextAsync(input);
+
         string languageDirective = string.Empty;
         if (!string.IsNullOrEmpty(_config.Culture) && _config.Culture != "en-US")
         {
@@ -120,7 +123,7 @@ Use this actual code information to answer the user's question accurately.
         _lastUserInput = input;
         _lastInteractionStart = DateTime.UtcNow;
 
-        string prompt = $"{languageDirective}{costAwarenessPrompt}{toolAvailabilityStatement}{personalityPrompt}{persistentThoughtContext}{toolInstruction}{injectedContext}\n\nRecent conversation:\n{context}\n\nUser: {input}\n\n{_voiceService.ActivePersona.Name}:";
+        string prompt = $"{languageDirective}{costAwarenessPrompt}{toolAvailabilityStatement}{personalityPrompt}{persistentThoughtContext}{qdrantReflectiveContext}{toolInstruction}{injectedContext}\n\nRecent conversation:\n{context}\n\nUser: {input}\n\n{_voiceService.ActivePersona.Name}:";
 
         try
         {
@@ -345,6 +348,54 @@ Use this actual code information to answer the user's question accurately.
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Searches Qdrant for semantically related past thoughts, memories, and answers
+    /// and formats them as a reflective context block for the LLM prompt.
+    /// </summary>
+    private async Task<string> BuildQdrantReflectiveContextAsync(string input)
+    {
+        var memory = _memorySub.NeuralMemory;
+        if (memory?.EmbedFunction == null) return "";
+
+        try
+        {
+            var embedding = await memory.EmbedFunction(input, CancellationToken.None);
+
+            // Search stored memories and past message threads in parallel
+            var memoriesTask = memory.SearchMemoriesAsync(embedding, limit: 4);
+            var messagesTask = memory.SearchSimilarMessagesAsync(embedding, limit: 4);
+            await Task.WhenAll(memoriesTask, messagesTask);
+
+            var memories = memoriesTask.Result.Where(m => !string.IsNullOrWhiteSpace(m)).Take(3).ToList();
+            var messages = messagesTask.Result
+                .Where(m => !string.IsNullOrWhiteSpace(m.Payload?.ToString()))
+                .Take(3)
+                .ToList();
+
+            if (memories.Count == 0 && messages.Count == 0) return "";
+
+            var sb = new StringBuilder();
+            sb.AppendLine("\n[REFLECTIVE MEMORY — related thoughts and past answers from your memory]");
+
+            foreach (var mem in memories)
+                sb.AppendLine($"  • {mem}");
+
+            foreach (var msg in messages)
+            {
+                var content = msg.Payload?.ToString() ?? "";
+                var label = string.IsNullOrWhiteSpace(msg.Topic) ? "" : $"[{msg.Topic}] ";
+                sb.AppendLine($"  • {label}{content}");
+            }
+
+            sb.AppendLine("[END REFLECTIVE MEMORY]\n");
+            return sb.ToString();
+        }
+        catch
+        {
+            return "";
+        }
     }
 
     private string BuildPersistentThoughtContext()
