@@ -2,6 +2,7 @@
 namespace Ouroboros.CLI.Subsystems;
 
 using LangChain.Providers.Ollama;
+using Ouroboros.Application.Configuration;
 using Ouroboros.Application.Services;
 using Ouroboros.Application.Tools;
 using Ouroboros.Options;
@@ -75,13 +76,59 @@ public sealed class ModelSubsystem : IModelSubsystem
 
             CostTracker = new LlmCostTracker(config.Model);
 
-            if (config.CollectiveMode)
+            bool hasPreset = !string.IsNullOrWhiteSpace(config.CollectivePreset);
+            if (config.CollectiveMode || hasPreset)
             {
-                var mind = CollectiveMindFactory.CreateFromConfig(
-                    config.Model, config.Endpoint, config.ApiKey, config.EndpointType, settings);
+                CollectiveMind mind;
+
+                if (hasPreset)
+                {
+                    // Multi-model presets (e.g. anthropic-ollama) take priority
+                    var multiPreset = MultiModelPresets.GetByName(config.CollectivePreset!);
+                    if (multiPreset != null)
+                    {
+                        mind = CollectiveMindPresetFactory.CreateFromPreset(multiPreset, settings);
+                        ctx.Output.RecordInit("Collective Mind", true,
+                            $"preset={config.CollectivePreset} ({mind.Pathways.Count} pathways)");
+                    }
+                    else
+                    {
+                        // Built-in factory presets: balanced|fast|premium|budget|local|decomposed|single
+                        mind = config.CollectivePreset!.ToLowerInvariant() switch
+                        {
+                            "balanced"   => CollectiveMindFactory.CreateBalanced(settings),
+                            "fast"       => CollectiveMindFactory.CreateFast(settings),
+                            "premium"    => CollectiveMindFactory.CreatePremium(settings),
+                            "budget"     => CollectiveMindFactory.CreateBudget(settings),
+                            "local"      => CollectiveMindFactory.CreateLocal(settings: settings),
+                            "decomposed" => CollectiveMindFactory.CreateDecomposed(settings),
+                            _            => CollectiveMindFactory.CreateFromConfig(
+                                                config.Model, config.Endpoint, config.ApiKey,
+                                                config.EndpointType, settings),
+                        };
+                        ctx.Output.RecordInit("Collective Mind", true,
+                            $"preset={config.CollectivePreset} ({mind.HealthyPathwayCount} providers)");
+                    }
+                }
+                else
+                {
+                    mind = CollectiveMindFactory.CreateFromConfig(
+                        config.Model, config.Endpoint, config.ApiKey, config.EndpointType, settings);
+                    ctx.Output.RecordInit("Collective Mind", true, $"{mind.HealthyPathwayCount} providers");
+                }
+
+                // Apply thinking mode from CLI option
+                mind.ThinkingMode = config.CollectiveThinkingMode.ToLowerInvariant() switch
+                {
+                    "racing"     => CollectiveThinkingMode.Racing,
+                    "sequential" => CollectiveThinkingMode.Sequential,
+                    "ensemble"   => CollectiveThinkingMode.Ensemble,
+                    "decomposed" => CollectiveThinkingMode.Decomposed,
+                    _            => CollectiveThinkingMode.Adaptive,
+                };
+
                 ChatModel = mind;
                 CostTracker = mind.CostTracker ?? CostTracker;
-                ctx.Output.RecordInit("Collective Mind", true, $"{mind.HealthyPathwayCount} providers");
                 return;
             }
 
