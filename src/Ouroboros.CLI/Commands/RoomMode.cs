@@ -186,11 +186,11 @@ public static class RoomMode
         immersive.WirePersonaEvents(persona, mind);
 
         // ─── 8. LLM model for interjection decisions ──────────────────────────
+        // RoomMode always creates its own model instance — it must NOT share the ImmersiveMode
+        // model instance because concurrent calls on the same object corrupt the conversation state.
+        // Both will call the same Ollama endpoint; the endpoint handles concurrency correctly.
         var settings = new ChatRuntimeSettings(0.8, 256, 60, false);
         IChatCompletionModel chatModel = new OllamaCloudChatModel(endpoint, "ollama", model, settings);
-        // Use agent's model if wired from OuroborosAgent (single source of truth)
-        if (_agentModels?.GetEffectiveModel() is { } agentModel)
-            chatModel = agentModel;
 
         // ─── 9. CognitivePhysics & Phi ────────────────────────────────────────
 #pragma warning disable CS0618 // Obsolete IEmbeddingProvider/IEthicsGate — CPE requires them
@@ -326,6 +326,11 @@ public static class RoomMode
         // ─── 14. Main utterance handler ───────────────────────────────────────
         listener.OnUtterance += async (utterance) =>
         {
+            // Suppress utterances while Iaret is speaking — acoustic echo / coupling prevention.
+            // The room mic picks up Iaret's TTS voice; we must not loop it back as input.
+            if (ImmersiveMode.IsSpeaking)
+                return;
+
             // Identify speaker
             var person = await personIdentifier.IdentifyAsync(utterance, CancellationToken.None)
                                                .ConfigureAwait(false);
