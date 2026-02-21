@@ -693,8 +693,16 @@ public static class ImmersiveMode
 
         // Launch avatar and wire all avatar ↔ persona/mind events via ImmersiveSubsystem
         _immersive = new Subsystems.ImmersiveSubsystem();
-        var avatarEnabled = options is Ouroboros.Options.OuroborosOptions ouroOpts && ouroOpts.Avatar;
-        var avatarPort = options is Ouroboros.Options.OuroborosOptions ouroOpts2 ? ouroOpts2.AvatarPort : 0;
+        var avatarEnabled = options switch {
+            Ouroboros.Options.OuroborosOptions o => o.Avatar,
+            Ouroboros.Options.ImmersiveCommandVoiceOptions i => i.Avatar,
+            _ => false,
+        };
+        var avatarPort = options switch {
+            Ouroboros.Options.OuroborosOptions o => o.AvatarPort,
+            Ouroboros.Options.ImmersiveCommandVoiceOptions i => i.AvatarPort,
+            _ => 0,
+        };
         await _immersive.InitializeStandaloneAsync(personaName, avatarEnabled, avatarPort, ct);
         _immersive.WirePersonaEvents(persona, _autonomousMind);
 
@@ -1550,16 +1558,21 @@ public static class ImmersiveMode
         sb.AppendLine();
 
         // Add recent history (includes current user input, deduplicated)
+        // Strip the [From date]: prefix injected by PersistentConversationMemory for recalled sessions —
+        // it is temporal metadata for our use, not a response format the LLM should mimic.
         string? lastContent = null;
         foreach (var (role, content) in history.TakeLast(8))
         {
             if (content == lastContent) continue;
             lastContent = content;
 
+            var cleanContent = System.Text.RegularExpressions.Regex.Replace(
+                content, @"^\[From [^\]]+\]:\s*", string.Empty);
+
             if (role == "user")
-                sb.AppendLine($"### Human\n{content}");
+                sb.AppendLine($"### Human\n{cleanContent}");
             else
-                sb.AppendLine($"### Assistant\n{content}");
+                sb.AppendLine($"### Assistant\n{cleanContent}");
         }
 
         sb.AppendLine();
