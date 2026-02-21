@@ -1321,6 +1321,12 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
                 thoughtContent.StartsWith("🤔") || thoughtContent.StartsWith("💭"))
                 thoughtContent = thoughtContent[2..].Trim();
             TrackLastThought(thoughtContent);
+
+            // Push the proactive thought as Iaret's StatusText — these are the most
+            // conversation-contextual LLM-generated thoughts (research findings, feelings).
+            if (_avatarService is { } svc)
+                svc.NotifyMoodChange(svc.CurrentState.Mood, svc.CurrentState.Energy, svc.CurrentState.Positivity, statusText: thoughtContent);
+
             try { await _voice.WhisperAsync(msg); } catch { }
         };
 
@@ -1347,11 +1353,18 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
                 Ouroboros.Application.Services.ThoughtType.Observation;
             bool isFeeling = thought.Type is Ouroboros.Application.Services.ThoughtType.Reflection;
 
-            if ((isResearch || isFeeling) && _config.Verbosity != OutputVerbosity.Quiet)
+            if (isResearch || isFeeling)
             {
-                Console.ForegroundColor = ConsoleColor.DarkMagenta;
-                Console.WriteLine($"\n  💭 {thought.Content}");
-                Console.ResetColor();
+                if (_config.Verbosity != OutputVerbosity.Quiet)
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkMagenta;
+                    Console.WriteLine($"\n  💭 {thought.Content}");
+                    Console.ResetColor();
+                }
+
+                // Push the real thought as Iaret's StatusText
+                if (_avatarService is { } svc)
+                    svc.NotifyMoodChange(svc.CurrentState.Mood, svc.CurrentState.Energy, svc.CurrentState.Positivity, statusText: thought.Content);
             }
 
             await PersistThoughtAsync(innerThought, "autonomous_thinking");
@@ -1445,7 +1458,9 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     {
         if (_immersivePersona == null) return;
 
-        // ImmersivePersona autonomous thoughts — only research/feelings, not action noise
+        // ImmersivePersona autonomous thoughts — surface research/feelings, skip pure templates.
+        // Metacognitive and Musing types come from InnerDialogEngine string templates
+        // ("I notice that I tend to {0}") and are not genuine LLM thoughts — skip those.
         _immersivePersona.AutonomousThought += (_, e) =>
         {
             if (e.Thought.Type is InnerThoughtType.Curiosity or InnerThoughtType.Observation or InnerThoughtType.SelfReflection)
@@ -1453,6 +1468,11 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
                 Console.ForegroundColor = ConsoleColor.DarkMagenta;
                 Console.WriteLine($"\n  💭 {e.Thought.Content}");
                 Console.ResetColor();
+
+                // Push genuine persona thoughts to avatar — excludes Metacognitive/Musing
+                // templates which are filled from topic keywords, not LLM generation.
+                if (_avatarService is { } svc)
+                    svc.NotifyMoodChange(svc.CurrentState.Mood, svc.CurrentState.Energy, svc.CurrentState.Positivity, statusText: e.Thought.Content);
             }
         };
     }
