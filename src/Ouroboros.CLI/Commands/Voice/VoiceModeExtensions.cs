@@ -84,7 +84,7 @@ public static class VoiceModeExtensions
         }
     }
 
-    private static bool IsExitCommand(string input)
+    public static bool IsExitCommand(string input)
     {
         var exitWords = new[] { "exit", "quit", "goodbye", "bye", "later", "see you", "q!" };
         return exitWords.Any(w => input.Equals(w, StringComparison.OrdinalIgnoreCase) ||

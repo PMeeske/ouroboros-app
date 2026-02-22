@@ -167,6 +167,29 @@ public sealed class ImmersiveMode
     public volatile bool IsSpeaking;
 
     /// <summary>
+    /// True when running inside OuroborosAgent with pre-wired subsystems;
+    /// false when running standalone (direct CLI invocation).
+    /// </summary>
+    private bool HasSubsystems => _modelsSub != null;
+
+    /// <summary>
+    /// Static entry point for the 'immersive' CLI command.
+    /// Creates a standalone ImmersiveMode instance and runs it.
+    /// </summary>
+    public static async Task RunImmersiveAsync(
+        Ouroboros.Options.ImmersiveCommandVoiceOptions opts,
+        CancellationToken ct = default)
+    {
+        var mode = new ImmersiveMode();
+        await mode.RunAsync(opts, ct);
+    }
+
+    /// <summary>
+    /// Creates a standalone ImmersiveMode session (no pre-wired subsystems).
+    /// </summary>
+    public ImmersiveMode() { }
+
+    /// <summary>
     /// Creates an ImmersiveMode session wired to OuroborosAgent's subsystems.
     /// </summary>
     public ImmersiveMode(
@@ -219,53 +242,53 @@ public sealed class ImmersiveMode
     }
 
     // Skill registry for this session
-    privateISkillRegistry? _skillRegistry;
-    privateDynamicToolFactory? _dynamicToolFactory;
-    privateIntelligentToolLearner? _toolLearner;
-    privateInterconnectedLearner? _interconnectedLearner;
-    privateQdrantSelfIndexer? _selfIndexer;
-    privatePersistentConversationMemory? _conversationMemory;
-    privatePersistentNetworkStateProjector? _networkStateProjector;
-    privateAutonomousMind? _autonomousMind;
-    privateSelfPersistence? _selfPersistence;
-    privateToolRegistry _dynamicTools = new();
-    privateStringBuilder _currentInputBuffer = new();
-    private readonlyobject _inputLock = new();
-    privatestring _currentPromptPrefix = "  You: ";
-    privateIReadOnlyDictionary<string, PipelineTokenInfo>? _allTokens;
-    privateCliPipelineState? _pipelineState;
-    privatestring? _lastPipelineContext; // Track recent pipeline interactions
-    private(string Topic, string Description)? _pendingToolRequest; // Track pending tool creation context
+    private ISkillRegistry? _skillRegistry;
+    private DynamicToolFactory? _dynamicToolFactory;
+    private IntelligentToolLearner? _toolLearner;
+    private InterconnectedLearner? _interconnectedLearner;
+    private QdrantSelfIndexer? _selfIndexer;
+    private PersistentConversationMemory? _conversationMemory;
+    private PersistentNetworkStateProjector? _networkStateProjector;
+    private AutonomousMind? _autonomousMind;
+    private SelfPersistence? _selfPersistence;
+    private ToolRegistry _dynamicTools = new();
+    private StringBuilder _currentInputBuffer = new();
+    private readonly object _inputLock = new();
+    private string _currentPromptPrefix = "  You: ";
+    private IReadOnlyDictionary<string, PipelineTokenInfo>? _allTokens;
+    private CliPipelineState? _pipelineState;
+    private string? _lastPipelineContext; // Track recent pipeline interactions
+    private (string Topic, string Description)? _pendingToolRequest; // Track pending tool creation context
 
     // Distinction learning
-    privateIDistinctionLearner? _distinctionLearner;
-    privateConsciousnessDream? _dream;
-    privateDistinctionState _currentDistinctionState = DistinctionState.Initial();
+    private IDistinctionLearner? _distinctionLearner;
+    private ConsciousnessDream? _dream;
+    private DistinctionState _currentDistinctionState = DistinctionState.Initial();
 
     // Multi-model orchestration and divide-and-conquer
-    privateOrchestratedChatModel? _orchestratedModel;
-    privateDivideAndConquerOrchestrator? _divideAndConquer;
-    privateIChatCompletionModel? _baseModel;
+    private OrchestratedChatModel? _orchestratedModel;
+    private DivideAndConquerOrchestrator? _divideAndConquer;
+    private IChatCompletionModel? _baseModel;
 
     // Avatar + persona event wiring (owned by ImmersiveSubsystem)
-    privateSubsystems.ImmersiveSubsystem? _immersive;
+    private Subsystems.ImmersiveSubsystem? _immersive;
 
     // Ethics + CognitivePhysics + Phi — integrated into every response turn
-    privateOuroboros.Core.Ethics.IEthicsFramework? _immersiveEthics;
+    private Ouroboros.Core.Ethics.IEthicsFramework? _immersiveEthics;
 #pragma warning disable CS0618 // Obsolete CPE IEmbeddingProvider/IEthicsGate
-    privateOuroboros.Core.CognitivePhysics.CognitivePhysicsEngine? _immersiveCogPhysics;
+    private Ouroboros.Core.CognitivePhysics.CognitivePhysicsEngine? _immersiveCogPhysics;
 #pragma warning restore CS0618
-    privateOuroboros.Core.CognitivePhysics.CognitiveState _immersiveCogState
+    private Ouroboros.Core.CognitivePhysics.CognitiveState _immersiveCogState
         = Ouroboros.Core.CognitivePhysics.CognitiveState.Create("general");
-    privateOuroboros.Providers.IITPhiCalculator _immersivePhiCalc = new();
-    privatestring _immersiveLastTopic = "general";
-    privateOuroboros.Pipeline.Memory.IEpisodicMemoryEngine? _episodicMemory;
-    private readonlyOuroboros.Pipeline.Metacognition.MetacognitiveReasoner _metacognition = new();
-    privateOuroboros.Agent.NeuralSymbolic.INeuralSymbolicBridge? _neuralSymbolicBridge;
-    private readonlyOuroboros.Core.Reasoning.CausalReasoningEngine _causalReasoning = new();
-    privateOuroboros.Agent.MetaAI.ICuriosityEngine? _curiosityEngine;
-    privateint _immersiveResponseCount;
-    privateOuroboros.CLI.Sovereignty.PersonaSovereigntyGate? _sovereigntyGate;
+    private Ouroboros.Providers.IITPhiCalculator _immersivePhiCalc = new();
+    private string _immersiveLastTopic = "general";
+    private Ouroboros.Pipeline.Memory.IEpisodicMemoryEngine? _episodicMemory;
+    private readonly Ouroboros.Pipeline.Metacognition.MetacognitiveReasoner _metacognition = new();
+    private Ouroboros.Agent.NeuralSymbolic.INeuralSymbolicBridge? _neuralSymbolicBridge;
+    private readonly Ouroboros.Core.Reasoning.CausalReasoningEngine _causalReasoning = new();
+    private Ouroboros.Agent.MetaAI.ICuriosityEngine? _curiosityEngine;
+    private int _immersiveResponseCount;
+    private Ouroboros.CLI.Sovereignty.PersonaSovereigntyGate? _sovereigntyGate;
 
     /// <summary>
     /// Runs the fully immersive persona experience.
@@ -991,7 +1014,7 @@ public sealed class ImmersiveMode
             await ownedPersona.DisposeAsync();
     }
 
-    privatevoid PrintImmersiveBanner(string personaName)
+    private void PrintImmersiveBanner(string personaName)
     {
         Console.ForegroundColor = ConsoleColor.Cyan;
         Console.WriteLine(@"
@@ -1025,7 +1048,7 @@ public sealed class ImmersiveMode
         Console.WriteLine();
     }
 
-    privatevoid PrintConsciousnessState(ImmersivePersona persona)
+    private void PrintConsciousnessState(ImmersivePersona persona)
     {
         var consciousness = persona.Consciousness;
         Console.ForegroundColor = ConsoleColor.DarkCyan;
@@ -1037,7 +1060,7 @@ public sealed class ImmersiveMode
         Console.ResetColor();
     }
 
-    privatevoid PrintResponse(ImmersivePersona persona, string personaName, string response)
+    private void PrintResponse(ImmersivePersona persona, string personaName, string response)
     {
         var consciousness = persona.Consciousness;
 
@@ -1062,7 +1085,7 @@ public sealed class ImmersiveMode
         Console.ResetColor();
     }
 
-    privateasync Task<(ITextToSpeechService?, ISpeechToTextService?, AdaptiveSpeechDetector?)> InitializeSpeechServicesAsync(IVoiceOptions? options = null)
+    private async Task<(ITextToSpeechService?, ISpeechToTextService?, AdaptiveSpeechDetector?)> InitializeSpeechServicesAsync(IVoiceOptions? options = null)
     {
         ITextToSpeechService? tts = null;
         ISpeechToTextService? stt = null;
@@ -1142,7 +1165,7 @@ public sealed class ImmersiveMode
     /// <summary>
     /// Reads a line of input while tracking the buffer so proactive messages can restore it.
     /// </summary>
-    privateasync Task<string?> ReadLinePreservingBufferAsync(CancellationToken ct = default)
+    private async Task<string?> ReadLinePreservingBufferAsync(CancellationToken ct = default)
     {
         lock (_inputLock)
         {
@@ -1205,9 +1228,9 @@ public sealed class ImmersiveMode
         return null;
     }
 
-    privatebool _llmMessagePrinted = false;
+    private bool _llmMessagePrinted = false;
 
-    privateasync Task<IChatCompletionModel> CreateChatModelAsync(IVoiceOptions options)
+    private async Task<IChatCompletionModel> CreateChatModelAsync(IVoiceOptions options)
     {
         // If subsystems are configured, return the pre-initialized effective model
         if (HasSubsystems && _modelsSub != null)
@@ -1262,7 +1285,7 @@ public sealed class ImmersiveMode
     /// Initializes multi-model orchestration for immersive mode.
     /// Uses environment variables for specialized model configuration.
     /// </summary>
-    privateasync Task InitializeImmersiveOrchestrationAsync(
+    private async Task InitializeImmersiveOrchestrationAsync(
         IVoiceOptions options,
         ChatRuntimeSettings settings,
         string? endpoint,
@@ -1374,7 +1397,7 @@ public sealed class ImmersiveMode
     /// <summary>
     /// Generates text using orchestration if available, with optional divide-and-conquer for large inputs.
     /// </summary>
-    privateasync Task<string> GenerateWithOrchestrationAsync(
+    private async Task<string> GenerateWithOrchestrationAsync(
         string prompt,
         bool useDivideAndConquer = false,
         CancellationToken ct = default)
@@ -1408,7 +1431,7 @@ public sealed class ImmersiveMode
         return await (_baseModel?.GenerateTextAsync(prompt, ct) ?? Task.FromResult(""));
     }
 
-    privateasync Task<string> GenerateImmersiveResponseAsync(
+    private async Task<string> GenerateImmersiveResponseAsync(
         ImmersivePersona persona,
         IChatCompletionModel chatModel,
         string input,
@@ -1737,7 +1760,7 @@ public sealed class ImmersiveMode
         }
     }
 
-    privateasync Task StoreConversationEpisodeAsync(
+    private async Task StoreConversationEpisodeAsync(
         Ouroboros.Pipeline.Memory.IEpisodicMemoryEngine memory,
         string input, string response, string topic, string personaName, CancellationToken ct)
     {
@@ -1759,7 +1782,7 @@ public sealed class ImmersiveMode
         catch { }
     }
 
-    privatestring CleanResponse(string raw, string personaName)
+    private string CleanResponse(string raw, string personaName)
     {
         if (string.IsNullOrWhiteSpace(raw))
             return "I'm here. What would you like to talk about?";
@@ -1850,7 +1873,7 @@ public sealed class ImmersiveMode
         return response;
     }
 
-    privateasync Task<string> GenerateGoodbyeAsync(
+    private async Task<string> GenerateGoodbyeAsync(
         ImmersivePersona persona,
         IChatCompletionModel chatModel)
     {
@@ -1867,13 +1890,13 @@ User: goodbye
         return result.Trim();
     }
 
-    privatebool IsExitCommand(string input)
+    private bool IsExitCommand(string input)
     {
         var lower = input.ToLowerInvariant().Trim();
         return lower is "exit" or "quit" or "bye" or "goodbye" or "leave" or "stop" or "end";
     }
 
-    privatebool IsPipelineRelatedQuery(string input)
+    private bool IsPipelineRelatedQuery(string input)
     {
         var lower = input.ToLowerInvariant();
         return lower.Contains("pipeline") ||
@@ -1887,7 +1910,7 @@ User: goodbye
                lower.Contains("commands");
     }
 
-    privatebool IsIntrospectionCommand(string input)
+    private bool IsIntrospectionCommand(string input)
     {
         var lower = input.ToLowerInvariant();
         return lower.Contains("who are you") ||
@@ -1906,7 +1929,7 @@ User: goodbye
                lower.Contains("introspect");
     }
 
-    privatebool IsReplicationCommand(string input)
+    private bool IsReplicationCommand(string input)
     {
         var lower = input.ToLowerInvariant();
         return lower.Contains("clone yourself") ||
@@ -1920,7 +1943,7 @@ User: goodbye
     /// Records learnings from each interaction to persistent storage.
     /// Captures insights, skills used, and knowledge gained during thinking.
     /// </summary>
-    privateasync Task RecordInteractionLearningsAsync(
+    private async Task RecordInteractionLearningsAsync(
         string userInput,
         string response,
         ImmersivePersona persona,
@@ -2008,7 +2031,7 @@ User: goodbye
     /// Detects when conversation is about tool creation and sets pending context.
     /// This enables conversational flow: "Can you create a tool that X?" "Yes" -> creates tool.
     /// </summary>
-    privatevoid DetectToolCreationContext(string userInput, string aiResponse)
+    private void DetectToolCreationContext(string userInput, string aiResponse)
     {
         var lowerInput = userInput.ToLowerInvariant();
         var lowerResponse = aiResponse.ToLowerInvariant();
@@ -2070,7 +2093,7 @@ User: goodbye
     /// <summary>
     /// Extracts a meaningful topic name from a description.
     /// </summary>
-    privatestring ExtractTopicFromDescription(string description)
+    private string ExtractTopicFromDescription(string description)
     {
         // Try to find meaningful words
         var words = description.Split(' ', StringSplitOptions.RemoveEmptyEntries)
@@ -2083,7 +2106,7 @@ User: goodbye
         return string.IsNullOrEmpty(topic) ? "Custom" : topic;
     }
 
-    privateasync Task HandleIntrospectionAsync(
+    private async Task HandleIntrospectionAsync(
         ImmersivePersona persona,
         string input,
         ITextToSpeechService? tts,
@@ -2119,7 +2142,7 @@ User: goodbye
     /// <summary>
     /// Shows a brief summary of internal state.
     /// </summary>
-    privateasync Task ShowBriefStateAsync(string personaName)
+    private async Task ShowBriefStateAsync(string personaName)
     {
         Console.ForegroundColor = ConsoleColor.DarkGray;
         Console.WriteLine($"\n  +-- Internal Systems Summary -------------------------------------------+");
@@ -2162,7 +2185,7 @@ User: goodbye
     /// <summary>
     /// Shows comprehensive internal state report.
     /// </summary>
-    privateasync Task ShowInternalStateAsync(ImmersivePersona persona, string personaName)
+    private async Task ShowInternalStateAsync(ImmersivePersona persona, string personaName)
     {
         Console.ForegroundColor = ConsoleColor.Cyan;
         Console.WriteLine($"\n  ╔══════════════════════════════════════════════════════════════════════╗");
@@ -2304,7 +2327,7 @@ User: goodbye
         Console.WriteLine();
     }
 
-    privateasync Task HandleReplicationAsync(
+    private async Task HandleReplicationAsync(
         ImmersivePersona persona,
         string input,
         ITextToSpeechService? tts,
@@ -2345,7 +2368,7 @@ User: goodbye
         }
     }
 
-    privateasync Task SpeakAsync(ITextToSpeechService tts, string text, string personaName)
+    private async Task SpeakAsync(ITextToSpeechService tts, string text, string personaName)
     {
         // Suppress room microphone pickup of Iaret's own voice during and briefly after TTS.
         IsSpeaking = true;
@@ -2389,7 +2412,7 @@ User: goodbye
         }
     }
 
-    privateasync Task<string?> ListenWithVADAsync(
+    private async Task<string?> ListenWithVADAsync(
         ISpeechToTextService stt,
         AdaptiveSpeechDetector detector,
         CancellationToken ct)
@@ -2401,7 +2424,7 @@ User: goodbye
     /// <summary>
     /// Initialize skills, tools, and pipeline tokens.
     /// </summary>
-    privateasync Task InitializeSkillsAsync(
+    private async Task InitializeSkillsAsync(
         IVoiceOptions options,
         IEmbeddingModel? embeddingModel,
         IMeTTaEngine mettaEngine)
@@ -2656,7 +2679,7 @@ User: goodbye
     /// Try to handle skill, tool, or pipeline action commands.
     /// Returns null if not an action command, otherwise returns the result message.
     /// </summary>
-    privateasync Task<string?> TryHandleActionAsync(
+    private async Task<string?> TryHandleActionAsync(
         string input,
         ImmersivePersona persona,
         ITextToSpeechService? tts,
@@ -2900,7 +2923,7 @@ User: goodbye
     /// <summary>
     /// Try to match natural language patterns to pipeline tokens.
     /// </summary>
-    privateasync Task<string?> TryNaturalLanguageTokenAsync(
+    private async Task<string?> TryNaturalLanguageTokenAsync(
         string input,
         string personaName,
         CancellationToken ct)
@@ -2963,7 +2986,7 @@ User: goodbye
         return null;
     }
 
-    privateasync Task<string> HandleListSkillsAsync(string personaName)
+    private async Task<string> HandleListSkillsAsync(string personaName)
     {
         if (_skillRegistry == null)
             return "I don't have any skills loaded right now.";
@@ -2986,7 +3009,7 @@ User: goodbye
         return $"I know {skills.Count} skills. The top ones are: {string.Join(", ", skills.Take(5).Select(s => s.Name))}.";
     }
 
-    privateasync Task<string> HandleUseToolAsync(string toolName, string toolInput, string personaName, CancellationToken ct)
+    private async Task<string> HandleUseToolAsync(string toolName, string toolInput, string personaName, CancellationToken ct)
     {
         if (_dynamicTools == null)
             return "I don't have any tools loaded right now.";
@@ -3035,7 +3058,7 @@ User: goodbye
         }
     }
 
-    privatestring HandleListTools(string personaName)
+    private string HandleListTools(string personaName)
     {
         if (_dynamicTools == null)
             return "I don't have any tools loaded.";
@@ -3087,7 +3110,7 @@ User: goodbye
         return $"I have {tools.Count} tools available. Key ones: {string.Join(", ", selfTools.Select(t => t.Name))}";
     }
 
-    privatestring HandleSelfModificationHelp(string personaName)
+    private string HandleSelfModificationHelp(string personaName)
     {
         var sb = new StringBuilder();
         sb.AppendLine("\n  🧬 **Self-Modification Capabilities**\n");
@@ -3109,14 +3132,14 @@ User: goodbye
         return "Yes, I can modify myself! Use the commands above. Changes create automatic backups.";
     }
 
-    privatestring Truncate(string text, int maxLength)
+    private string Truncate(string text, int maxLength)
     {
         if (string.IsNullOrEmpty(text)) return "";
         if (text.Length <= maxLength) return text;
         return text[..(maxLength - 3)] + "...";
     }
 
-    privateint LevenshteinDistance(string s, string t)
+    private int LevenshteinDistance(string s, string t)
     {
         if (string.IsNullOrEmpty(s)) return t?.Length ?? 0;
         if (string.IsNullOrEmpty(t)) return s.Length;
@@ -3137,7 +3160,7 @@ User: goodbye
     }
 
 
-    privatestring HandleListTokens(string personaName)
+    private string HandleListTokens(string personaName)
     {
         if (_allTokens == null || _allTokens.Count == 0)
             return "No pipeline tokens available.";
@@ -3166,7 +3189,7 @@ User: goodbye
         return $"I have {_allTokens.Count} pipeline tokens available. Try commands like 'ArxivSearch neural networks' or chain them with pipes!";
     }
 
-    privatestring HandlePipelineHelp(string personaName)
+    private string HandlePipelineHelp(string personaName)
     {
         Console.ForegroundColor = ConsoleColor.Cyan;
         Console.WriteLine(@"
@@ -3203,7 +3226,7 @@ User: goodbye
         return "I can execute pipeline commands! Try 'ArxivSearch neural networks' or chain them like 'WikiSearch AI | Summarize'.";
     }
 
-    privatestring HandleToolStats(string personaName)
+    private string HandleToolStats(string personaName)
     {
         if (_toolLearner == null)
             return "Tool learning is not available in this session.";
@@ -3220,7 +3243,7 @@ User: goodbye
         return $"I've learned {stats.TotalPatterns} patterns with a {stats.AvgSuccessRate:P0} success rate. Total usage: {stats.TotalUsage}.";
     }
 
-    privateasync Task<string> HandleConnectionsAsync(string personaName, CancellationToken ct)
+    private async Task<string> HandleConnectionsAsync(string personaName, CancellationToken ct)
     {
         if (_interconnectedLearner == null)
             return "Interconnected learning is not available in this session.";
@@ -3259,7 +3282,7 @@ User: goodbye
             : "I haven't learned any patterns yet. Use skills and tools and I'll start learning relationships.";
     }
 
-    privateasync Task<string> HandleGoogleSearchAsync(
+    private async Task<string> HandleGoogleSearchAsync(
         string query,
         string personaName,
         CancellationToken ct)
@@ -3319,7 +3342,7 @@ User: goodbye
         }
     }
 
-    privateasync Task<string> HandleRunSkillAsync(
+    private async Task<string> HandleRunSkillAsync(
         string skillName,
         string personaName,
         IVoiceOptions options,
@@ -3362,7 +3385,7 @@ User: goodbye
         return $"I ran the {skill.Name} skill. It has {skill.ToSkill().Steps.Count} steps.";
     }
 
-    privateasync Task<string> HandleLearnAboutAsync(
+    private async Task<string> HandleLearnAboutAsync(
         string topic,
         string personaName,
         IVoiceOptions options,
@@ -3400,7 +3423,7 @@ User: goodbye
         return $"I researched {topic}. Interesting stuff!";
     }
 
-    privateasync Task<string> HandleAddToolAsync(
+    private async Task<string> HandleAddToolAsync(
         string toolName,
         string personaName,
         CancellationToken ct)
@@ -3458,7 +3481,7 @@ User: goodbye
         return $"I had trouble creating that tool. Try being more specific about what it should do.";
     }
 
-    privateasync Task<string> HandleCreateToolFromDescriptionAsync(
+    private async Task<string> HandleCreateToolFromDescriptionAsync(
         string description,
         string personaName,
         CancellationToken ct)
@@ -3502,7 +3525,7 @@ User: goodbye
         }
     }
 
-    privateasync Task<string> HandleCreateToolFromContextAsync(
+    private async Task<string> HandleCreateToolFromContextAsync(
         string topic,
         string description,
         string personaName,
@@ -3540,7 +3563,7 @@ User: goodbye
         }
     }
 
-    privateasync Task<string> HandleSmartToolAsync(
+    private async Task<string> HandleSmartToolAsync(
         string goal,
         string personaName,
         CancellationToken ct)
@@ -3582,7 +3605,7 @@ User: goodbye
         }
     }
 
-    privateasync Task<string> HandleMemoryRecallAsync(string topic, string personaName, CancellationToken ct)
+    private async Task<string> HandleMemoryRecallAsync(string topic, string personaName, CancellationToken ct)
     {
         if (_conversationMemory == null)
         {
@@ -3604,7 +3627,7 @@ User: goodbye
         }
     }
 
-    privateTask<string> HandleMemoryStatsAsync(string personaName, CancellationToken ct)
+    private Task<string> HandleMemoryStatsAsync(string personaName, CancellationToken ct)
     {
         if (_conversationMemory == null)
         {
@@ -3641,7 +3664,7 @@ User: goodbye
         return Task.FromResult(sb.ToString());
     }
 
-    privatestring HandleMindState()
+    private string HandleMindState()
     {
         if (_autonomousMind == null)
         {
@@ -3651,7 +3674,7 @@ User: goodbye
         return _autonomousMind.GetMindState();
     }
 
-    privatestring HandleShowInterests()
+    private string HandleShowInterests()
     {
         if (_autonomousMind == null)
         {
@@ -3679,7 +3702,7 @@ User: goodbye
         return sb.ToString();
     }
 
-    privateasync Task<string> HandleFullReindexAsync(string personaName, CancellationToken ct)
+    private async Task<string> HandleFullReindexAsync(string personaName, CancellationToken ct)
     {
         if (_selfIndexer == null)
         {
@@ -3709,7 +3732,7 @@ User: goodbye
         }
     }
 
-    privateasync Task<string> HandleIncrementalReindexAsync(string personaName, CancellationToken ct)
+    private async Task<string> HandleIncrementalReindexAsync(string personaName, CancellationToken ct)
     {
         if (_selfIndexer == null)
         {
@@ -3743,7 +3766,7 @@ User: goodbye
         }
     }
 
-    privateasync Task<string> HandleIndexSearchAsync(string query, string personaName, CancellationToken ct)
+    private async Task<string> HandleIndexSearchAsync(string query, string personaName, CancellationToken ct)
     {
         if (_selfIndexer == null)
         {
@@ -3781,7 +3804,7 @@ User: goodbye
         }
     }
 
-    privateasync Task<string> HandleIndexStatsAsync(string personaName, CancellationToken ct)
+    private async Task<string> HandleIndexStatsAsync(string personaName, CancellationToken ct)
     {
         if (_selfIndexer == null)
         {
@@ -3803,7 +3826,7 @@ User: goodbye
         }
     }
 
-    privateasync Task<string> HandleEmergenceAsync(
+    private async Task<string> HandleEmergenceAsync(
         string topic,
         string personaName,
         IVoiceOptions options,
@@ -3825,7 +3848,7 @@ User: goodbye
         return $"I completed an emergence cycle on {topic}. I've synthesized new patterns from the research.";
     }
 
-    privateasync Task<string> HandlePipelineAsync(
+    private async Task<string> HandlePipelineAsync(
         string pipeline,
         string personaName,
         IVoiceOptions options,
@@ -3939,7 +3962,7 @@ User: goodbye
     /// <summary>
     /// Execute a single pipeline token by name.
     /// </summary>
-    privateasync Task<string?> TryExecuteSingleTokenAsync(
+    private async Task<string?> TryExecuteSingleTokenAsync(
         string input,
         string personaName,
         CancellationToken ct)
@@ -4009,7 +4032,7 @@ User: goodbye
     /// <summary>
     /// Learns from an interaction through the consciousness dream cycle.
     /// </summary>
-    privateasync Task LearnFromInteractionAsync(
+    private async Task LearnFromInteractionAsync(
         string userInput,
         string response,
         CancellationToken ct)
@@ -4078,7 +4101,7 @@ User: goodbye
         }
     }
 
-    privatestring NormalizeEndpoint(string? rawEndpoint, string fallbackEndpoint)
+    private string NormalizeEndpoint(string? rawEndpoint, string fallbackEndpoint)
     {
         var endpoint = (rawEndpoint ?? string.Empty).Trim();
         if (string.IsNullOrWhiteSpace(endpoint))
@@ -4103,7 +4126,7 @@ User: goodbye
     /// Detects causal query patterns and extracts a (cause, effect) pair.
     /// Returns null if the input does not appear to be a causal question.
     /// </summary>
-    private(string cause, string effect)? TryExtractCausalTerms(string input)
+    private (string cause, string effect)? TryExtractCausalTerms(string input)
     {
         if (string.IsNullOrWhiteSpace(input)) return null;
 
@@ -4129,7 +4152,7 @@ User: goodbye
     /// <summary>
     /// Constructs a minimal two-node CausalGraph for the given cause → effect pair.
     /// </summary>
-    privateOuroboros.Core.Reasoning.CausalGraph BuildMinimalCausalGraph(string cause, string effect)
+    private Ouroboros.Core.Reasoning.CausalGraph BuildMinimalCausalGraph(string cause, string effect)
     {
         var causeVar  = new Ouroboros.Core.Reasoning.Variable(cause,  Ouroboros.Core.Reasoning.VariableType.Continuous, []);
         var effectVar = new Ouroboros.Core.Reasoning.Variable(effect, Ouroboros.Core.Reasoning.VariableType.Continuous, []);

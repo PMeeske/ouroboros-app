@@ -382,7 +382,7 @@ public static class AskCommands
             if (string.IsNullOrWhiteSpace(input)) continue;
 
             // Exit commands
-            if (IsExitCommand(input))
+            if (VoiceModeExtensions.IsExitCommand(input))
             {
                 await voiceService.SayAsync("Goodbye! Feel free to ask me anything next time.");
                 running = false;
@@ -413,10 +413,4 @@ public static class AskCommands
         voiceService.Dispose();
     }
 
-    private static bool IsExitCommand(string input)
-    {
-        var exitWords = new[] { "exit", "quit", "goodbye", "bye", "later", "see you", "q!" };
-        return exitWords.Any(w => input.Equals(w, StringComparison.OrdinalIgnoreCase) ||
-                                  input.StartsWith(w + " ", StringComparison.OrdinalIgnoreCase));
-    }
 }

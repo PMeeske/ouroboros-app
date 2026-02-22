@@ -1,4 +1,5 @@
 using Spectre.Console;
+using Ouroboros.CLI.Abstractions;
 using Ouroboros.CLI.Infrastructure;
 using Rule = Spectre.Console.Rule;
 
@@ -8,7 +9,7 @@ namespace Ouroboros.CLI.Commands.Handlers;
 /// Handler for the 'quality' command — renders a rich Spectre.Console
 /// product-quality and consistency dashboard for the Ouroboros project.
 /// </summary>
-public sealed class QualityCommandHandler
+public sealed class QualityCommandHandler : ICommandHandler
 {
     private readonly ISpectreConsoleService _console;
 

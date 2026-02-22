@@ -133,6 +133,7 @@ rootCommand.Add(CreateDoctorCommand());
 rootCommand.Add(CreateChatCommand(host));
 rootCommand.Add(CreateInteractiveCommand(host));
 rootCommand.Add(CreateQualityCommand(host));
+rootCommand.Add(CreateMeTTaCommand(host, voiceOption));
 
 // Immersive persona mode and ambient room presence
 rootCommand.Add(CreateImmersiveCommand(host, voiceOption));
@@ -175,34 +176,8 @@ static Command CreatePipelineCommand(IHost host, System.CommandLine.Option<bool>
 {
     var options = new PipelineCommandOptions();
     var command = new Command("pipeline", "Execute a DSL pipeline");
-
-    // Add all options using the helper
     options.AddToCommand(command);
-
-    command.SetAction(async (parseResult, cancellationToken) =>
-    {
-        var pipelineService = host.Services.GetRequiredService<IPipelineService>();
-        var console = host.Services.GetRequiredService<ISpectreConsoleService>();
-        var voiceService = host.Services.GetRequiredService<IVoiceIntegrationService>();
-
-        var dsl = parseResult.GetValue(options.DslOption);
-        var useVoice = parseResult.GetValue(globalVoiceOption);
-
-        if (useVoice)
-        {
-            await voiceService.HandleVoiceCommandAsync("pipeline", ["--dsl", dsl ?? ""], cancellationToken);
-            return;
-        }
-
-        await console.Status().StartAsync("Executing pipeline...", async ctx =>
-        {
-            var result = await pipelineService.ExecutePipelineAsync(dsl ?? "");
-            ctx.Status = "Done";
-            console.MarkupLine($"[green]Result:[/] {result}");
-        });
-    });
-
-    return command;
+    return command.ConfigurePipelineCommand(host, options, globalVoiceOption);
 }
 
 static Command CreateOuroborosCommand(IHost host, System.CommandLine.Option<bool> globalVoiceOption)
@@ -225,243 +200,24 @@ static Command CreateSkillsCommand(IHost host, System.CommandLine.Option<bool> g
 {
     var options = new SkillsCommandOptions();
     var command = new Command("skills", "Manage research skills");
-
-    // Add all options using the helper
     options.AddToCommand(command);
-
-    command.SetAction(async (parseResult, cancellationToken) =>
-    {
-        var skillsService = host.Services.GetRequiredService<ISkillsService>();
-        var console = host.Services.GetRequiredService<ISpectreConsoleService>();
-        var voiceService = host.Services.GetRequiredService<IVoiceIntegrationService>();
-
-        var list = parseResult.GetValue(options.ListOption);
-        var fetch = parseResult.GetValue(options.FetchOption);
-        var useVoice = parseResult.GetValue(globalVoiceOption);
-
-        if (useVoice)
-        {
-            var voiceArgs = new List<string>();
-            if (list) voiceArgs.AddRange(["--list", "true"]);
-            if (!string.IsNullOrEmpty(fetch)) voiceArgs.AddRange(["--fetch", fetch]);
-            await voiceService.HandleVoiceCommandAsync("skills", voiceArgs.ToArray(), cancellationToken);
-            return;
-        }
-
-        if (list)
-        {
-            var skills = await skillsService.ListSkillsAsync();
-            var table = new Table();
-            table.AddColumn("Name");
-            table.AddColumn("Description");
-            table.AddColumn("Success Rate");
-
-            foreach (var skill in skills)
-            {
-                table.AddRow(skill.Name, skill.Description, $"{skill.SuccessRate:P0}");
-            }
-
-            console.Write(table);
-        }
-        else if (!string.IsNullOrEmpty(fetch))
-        {
-            await console.Status().StartAsync("Fetching research...", async ctx =>
-            {
-                var result = await skillsService.FetchAndExtractSkillAsync(fetch);
-                ctx.Status = "Done";
-                console.MarkupLine($"[green]Extracted skill:[/] {result}");
-            });
-        }
-    });
-
-    return command;
+    return command.ConfigureSkillsCommand(host, options, globalVoiceOption);
 }
 
 static Command CreateOrchestratorCommand(IHost host, System.CommandLine.Option<bool> globalVoiceOption)
 {
     var options = new OrchestratorCommandOptions();
     var command = new Command("orchestrator", "Run multi-model orchestrator");
-
-    // Add all options using the helper
     options.AddToCommand(command);
-
-    command.SetAction(async (parseResult, cancellationToken) =>
-    {
-        var orchestratorService = host.Services.GetRequiredService<IOrchestratorService>();
-        var console = host.Services.GetRequiredService<ISpectreConsoleService>();
-        var voiceService = host.Services.GetRequiredService<IVoiceIntegrationService>();
-
-        var goal = parseResult.GetValue(options.GoalOption);
-        var useVoice = parseResult.GetValue(globalVoiceOption);
-
-        if (useVoice)
-        {
-            await voiceService.HandleVoiceCommandAsync("orchestrator", ["--goal", goal ?? ""], cancellationToken);
-            return;
-        }
-
-        await console.Status().StartAsync("Orchestrating models...", async ctx =>
-        {
-            var result = await orchestratorService.OrchestrateAsync(goal ?? "");
-            ctx.Status = "Done";
-            console.MarkupLine($"[green]Result:[/] {result}");
-        });
-    });
-
-    return command;
+    return command.ConfigureOrchestratorCommand(host, options, globalVoiceOption);
 }
 
 static Command CreateCognitivePhysicsCommand(IHost host, System.CommandLine.Option<bool> globalVoiceOption)
 {
     var options = new CognitivePhysicsCommandOptions();
     var command = new Command("cognitive-physics", "Execute Cognitive Physics Engine operations (ZeroShift, superposition, chaos, evolution)");
-
-    // Add all options using the helper
     options.AddToCommand(command);
-
-    command.SetAction(async (parseResult, cancellationToken) =>
-    {
-        var cpeService = host.Services.GetRequiredService<ICognitivePhysicsService>();
-        var console = host.Services.GetRequiredService<ISpectreConsoleService>();
-
-        var operation = parseResult.GetValue(options.OperationOption) ?? "shift";
-        var focus     = parseResult.GetValue(options.FocusOption) ?? "general";
-        var target    = parseResult.GetValue(options.TargetOption);
-        var targets   = parseResult.GetValue(options.TargetsOption);
-        var resources = parseResult.GetValue(options.ResourcesOption);
-        var jsonOut   = parseResult.GetValue(options.JsonOutputOption);
-        var verbose   = parseResult.GetValue(options.VerboseOption);
-
-        switch (operation.ToLowerInvariant())
-        {
-            case "shift":
-            {
-                if (string.IsNullOrWhiteSpace(target))
-                {
-                    console.MarkupLine("[red]Error:[/] --target is required for shift operation.");
-                    return;
-                }
-
-                await console.Status().StartAsync($"ZeroShift: {focus} → {target}...", async ctx =>
-                {
-                    var result = await cpeService.ShiftAsync(focus, target, resources);
-                    ctx.Status = "Done";
-
-                    if (result.IsSuccess)
-                    {
-                        var s = result.Value;
-                        console.MarkupLine($"[green]Shift succeeded[/]");
-                        console.MarkupLine($"  Focus:       [cyan]{s.Focus}[/]");
-                        console.MarkupLine($"  Resources:   [yellow]{s.Resources:F1}[/]");
-                        console.MarkupLine($"  Compression: [yellow]{s.Compression:F3}[/]");
-                        console.MarkupLine($"  Cooldown:    [yellow]{s.Cooldown:F1}[/]");
-                        if (verbose)
-                            console.MarkupLine($"  History:     {string.Join(" → ", s.History)}");
-                    }
-                    else
-                    {
-                        console.MarkupLine($"[red]Shift failed:[/] {result.Error}");
-                    }
-                });
-                break;
-            }
-
-            case "trajectory":
-            {
-                var targetList = targets?.ToList() ?? [];
-                if (targetList.Count == 0)
-                {
-                    console.MarkupLine("[red]Error:[/] --targets is required for trajectory operation.");
-                    return;
-                }
-
-                await console.Status().StartAsync($"Trajectory: {focus} → [{string.Join(" → ", targetList)}]...", async ctx =>
-                {
-                    var result = await cpeService.ExecuteTrajectoryAsync(focus, targetList, resources);
-                    ctx.Status = "Done";
-
-                    if (result.IsSuccess)
-                    {
-                        var s = result.Value;
-                        console.MarkupLine($"[green]Trajectory completed[/]");
-                        console.MarkupLine($"  Final Focus: [cyan]{s.Focus}[/]");
-                        console.MarkupLine($"  Resources:   [yellow]{s.Resources:F1}[/]");
-                        console.MarkupLine($"  Compression: [yellow]{s.Compression:F3}[/]");
-                        if (verbose)
-                            console.MarkupLine($"  Path:        {string.Join(" → ", s.History)}");
-                    }
-                    else
-                    {
-                        console.MarkupLine($"[red]Trajectory failed:[/] {result.Error}");
-                    }
-                });
-                break;
-            }
-
-            case "entangle":
-            {
-                var branchTargets = targets?.ToList() ?? [];
-                if (branchTargets.Count == 0)
-                {
-                    console.MarkupLine("[red]Error:[/] --targets is required for entangle operation.");
-                    return;
-                }
-
-                await console.Status().StartAsync($"Entangling: {focus} → [{string.Join(", ", branchTargets)}]...", async ctx =>
-                {
-                    var branches = await cpeService.EntangleAsync(focus, branchTargets, resources);
-                    ctx.Status = "Done";
-
-                    console.MarkupLine($"[green]Entangled into {branches.Count} branches[/]");
-                    var table = new Table();
-                    table.AddColumn("Branch");
-                    table.AddColumn("Focus");
-                    table.AddColumn("Weight");
-                    table.AddColumn("Resources");
-
-                    for (int i = 0; i < branches.Count; i++)
-                    {
-                        var b = branches[i];
-                        table.AddRow(
-                            $"#{i + 1}",
-                            b.State.Focus,
-                            $"{b.Weight:F3}",
-                            $"{b.State.Resources:F1}");
-                    }
-
-                    console.Write(table);
-                });
-                break;
-            }
-
-            case "chaos":
-            {
-                var result = cpeService.InjectChaos(focus, resources);
-
-                if (result.IsSuccess)
-                {
-                    var s = result.Value;
-                    console.MarkupLine($"[green]Chaos injected[/]");
-                    console.MarkupLine($"  Focus:       [cyan]{s.Focus}[/]");
-                    console.MarkupLine($"  Resources:   [yellow]{s.Resources:F1}[/]");
-                    console.MarkupLine($"  Compression: [yellow]{s.Compression:F3}[/]");
-                    if (verbose && s.Entanglement.Count > 0)
-                        console.MarkupLine($"  Entangled:   {string.Join(", ", s.Entanglement)}");
-                }
-                else
-                {
-                    console.MarkupLine($"[red]Chaos injection failed:[/] {result.Error}");
-                }
-                break;
-            }
-
-            default:
-                console.MarkupLine($"[red]Unknown operation:[/] {operation}. Use: shift, trajectory, entangle, chaos");
-                break;
-        }
-    });
-
-    return command;
+    return command.ConfigureCognitivePhysicsCommand(host, options, globalVoiceOption);
 }
 
 static Command CreateDoctorCommand()
@@ -515,6 +271,14 @@ static Command CreateQualityCommand(IHost host)
     });
 
     return command;
+}
+
+static Command CreateMeTTaCommand(IHost host, System.CommandLine.Option<bool> globalVoiceOption)
+{
+    var options = new MeTTaCommandOptions();
+    var command = new Command("metta", "Run MeTTa orchestrator with symbolic reasoning");
+    options.AddToCommand(command);
+    return command.ConfigureMeTTaCommand(host, options, globalVoiceOption);
 }
 
 /// <summary>
@@ -609,7 +373,7 @@ static Command CreateRoomCommand()
 
     command.SetAction(async (parseResult, cancellationToken) =>
     {
-        await Ouroboros.CLI.Commands.RoomMode.RunAsync(parseResult, opts, cancellationToken);
+        await new Ouroboros.CLI.Commands.RoomMode().RunAsync(parseResult, opts, cancellationToken);
     });
 
     return command;

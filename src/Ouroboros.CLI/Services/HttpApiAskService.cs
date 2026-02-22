@@ -22,6 +22,10 @@ internal sealed class HttpApiAskService : IAskService
     }
 
     /// <inheritdoc/>
+    public Task<string> AskAsync(AskRequest request, CancellationToken cancellationToken = default)
+        => _client.AskAsync(request.Question, request.UseRag);
+
+    /// <inheritdoc/>
     public Task<string> AskAsync(string question, bool useRag = false)
         => _client.AskAsync(question, useRag);
 }

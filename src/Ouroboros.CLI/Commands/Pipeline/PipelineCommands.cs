@@ -233,7 +233,7 @@ public static class PipelineCommands
             var input = await voiceService.GetInputAsync("\n  Pipeline: ");
             if (string.IsNullOrWhiteSpace(input)) continue;
 
-            if (IsExitCommand(input))
+            if (VoiceModeExtensions.IsExitCommand(input))
             {
                 await voiceService.SayAsync("Goodbye! Your pipelines will be here when you return.");
                 running = false;
@@ -277,10 +277,4 @@ public static class PipelineCommands
         voiceService.Dispose();
     }
 
-    private static bool IsExitCommand(string input)
-    {
-        var exitWords = new[] { "exit", "quit", "goodbye", "bye", "later", "see you", "q!" };
-        return exitWords.Any(w => input.Equals(w, StringComparison.OrdinalIgnoreCase) ||
-                                  input.StartsWith(w + " ", StringComparison.OrdinalIgnoreCase));
-    }
 }
