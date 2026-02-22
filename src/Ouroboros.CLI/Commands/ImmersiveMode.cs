@@ -226,6 +226,28 @@ public static class ImmersiveMode
     public static void ConfigureAvatarService(Application.Avatar.InteractiveAvatarService? service)
         => _configuredAvatarService = service;
 
+    /// <summary>
+    /// Displays a room interjection from Iaret in the foreground chat pane.
+    /// Subscribed to <see cref="Services.RoomPresence.RoomIntentBus.OnIaretInterjected"/>.
+    /// </summary>
+    public static void ShowRoomInterjection(string personaName, string speech)
+    {
+        Console.ForegroundColor = ConsoleColor.DarkGreen;
+        Console.WriteLine($"\n  [room] {personaName}: {speech}");
+        Console.ResetColor();
+    }
+
+    /// <summary>
+    /// Displays when someone in the room addresses Iaret directly by name.
+    /// Subscribed to <see cref="Services.RoomPresence.RoomIntentBus.OnUserAddressedIaret"/>.
+    /// </summary>
+    public static void ShowRoomAddress(string speaker, string utterance)
+    {
+        Console.ForegroundColor = ConsoleColor.DarkCyan;
+        Console.WriteLine($"\n  [room→Iaret] {speaker}: {utterance}");
+        Console.ResetColor();
+    }
+
     // Skill registry for this session
     private static ISkillRegistry? _skillRegistry;
     private static DynamicToolFactory? _dynamicToolFactory;
