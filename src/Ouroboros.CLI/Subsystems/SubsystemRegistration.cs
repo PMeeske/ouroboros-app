@@ -40,6 +40,7 @@ public static class SubsystemRegistration
         services.AddSingleton<IAutonomySubsystem, AutonomySubsystem>();
         services.AddSingleton<IEmbodimentSubsystem, EmbodimentSubsystem>();
         services.AddSingleton<ILocalizationSubsystem, LocalizationSubsystem>();
+        services.AddSingleton<ILanguageSubsystem, LanguageSubsystem>();
         services.AddSingleton<ISelfAssemblySubsystem, SelfAssemblySubsystem>();
         services.AddSingleton<IPipeProcessingSubsystem, PipeProcessingSubsystem>();
         services.AddSingleton<IChatSubsystem, ChatSubsystem>();

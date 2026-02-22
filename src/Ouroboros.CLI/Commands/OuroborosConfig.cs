@@ -59,6 +59,7 @@ public sealed record OuroborosConfig(
     string? ReasonModel = null,
     string? SummarizeModel = null,
     string? VisionModel = null,
+    string? LanguageModel = null,    // language detection sub-model (default: aya-expanse:8b)
     // Piping & Batch mode
     bool PipeMode = false,
     string? BatchFile = null,

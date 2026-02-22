@@ -601,7 +601,8 @@ public static class RoomMode
             ? $"\n{speaker} has addressed you directly by name — you MUST respond."
             : string.Empty;
 
-        var detectedLang = Ouroboros.CLI.Services.LanguageDetector.Detect(utterance.Text);
+        var detectedLang = await Ouroboros.CLI.Subsystems.LanguageSubsystem
+            .DetectStaticAsync(utterance.Text, ct).ConfigureAwait(false);
         var langNote = detectedLang.Culture != "en-US"
             ? $"\nLANGUAGE INSTRUCTION: The speaker is using {detectedLang.Language}. Your interjection MUST be in {detectedLang.Language}."
             : "\nLANGUAGE INSTRUCTION: Reply in the same language as the speaker.";

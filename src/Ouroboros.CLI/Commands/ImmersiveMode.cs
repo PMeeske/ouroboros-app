@@ -1636,8 +1636,9 @@ public static class ImmersiveMode
         // Full consciousness-aware system prompt from the persona
         sb.AppendLine(persona.GenerateSystemPrompt());
 
-        // Language detection: instruct model to respond in the user's language
-        var detectedLang = Ouroboros.CLI.Services.LanguageDetector.Detect(input);
+        // Language detection via LanguageSubsystem (aya-expanse:8b cloud model, heuristic fallback)
+        var detectedLang = await Ouroboros.CLI.Subsystems.LanguageSubsystem
+            .DetectStaticAsync(input, ct).ConfigureAwait(false);
         _lastDetectedCulture = detectedLang.Culture;
         sb.AppendLine();
         if (detectedLang.Culture != "en-US")
