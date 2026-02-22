@@ -470,7 +470,7 @@ public sealed class RoomMode
 
     // ── Interjection pipeline ─────────────────────────────────────────────────
 
-    privateasync Task TryInterjectAsync(
+    private async Task TryInterjectAsync(
         RoomUtterance utterance,
         string speaker,
         List<(string Speaker, string Text, DateTime When)> transcript,
@@ -728,7 +728,7 @@ Do NOT explain your choice. If in doubt{(forceSpeak ? ", still reply SPEAK" : ",
     /// Computes Phi from the room transcript using synthetic NeuralPathway objects
     /// (one per unique speaker), where activation rates represent conversation share.
     /// </summary>
-    privatePhiResult ComputeConversationPhi(
+    private PhiResult ComputeConversationPhi(
         IITPhiCalculator calc,
         List<(string Speaker, string Text, DateTime When)> transcript)
     {
@@ -757,7 +757,7 @@ Do NOT explain your choice. If in doubt{(forceSpeak ? ", still reply SPEAK" : ",
     }
 
     /// <summary>Displays the last N transcript lines, clearing the area each time.</summary>
-    privatevoid PrintTranscript(
+    private void PrintTranscript(
         List<(string Speaker, string Text, DateTime When)> transcript,
         int displayLines,
         string personaName)
@@ -778,7 +778,7 @@ Do NOT explain your choice. If in doubt{(forceSpeak ? ", still reply SPEAK" : ",
 
     /// <summary>Checks if this is the first utterance from a known person in this session.</summary>
     private readonlyHashSet<string> _seenPersonsThisSession = new();
-    privatebool IsFirstUtteranceThisSession(DetectedPerson person)
+    private bool IsFirstUtteranceThisSession(DetectedPerson person)
     {
         if (_seenPersonsThisSession.Contains(person.Id)) return false;
         _seenPersonsThisSession.Add(person.Id);
@@ -793,7 +793,7 @@ Do NOT explain your choice. If in doubt{(forceSpeak ? ", still reply SPEAK" : ",
         => InitializeSttAsync(null, "eastus");
 
     /// <summary>Initializes the best available STT backend.</summary>
-    privateasync Task<Ouroboros.Providers.SpeechToText.ISpeechToTextService?> InitializeSttAsync(
+    private async Task<Ouroboros.Providers.SpeechToText.ISpeechToTextService?> InitializeSttAsync(
         string? azureKey, string azureRegion)
     {
         // Try Whisper.net (local, no API key needed)
@@ -816,7 +816,7 @@ Do NOT explain your choice. If in doubt{(forceSpeak ? ", still reply SPEAK" : ",
     /// Detects causal query patterns and extracts a (cause, effect) pair.
     /// Returns null if the utterance does not appear to be a causal question.
     /// </summary>
-    private(string cause, string effect)? TryExtractCausalTerms(string input)
+    private (string cause, string effect)? TryExtractCausalTerms(string input)
     {
         if (string.IsNullOrWhiteSpace(input)) return null;
 
@@ -850,7 +850,7 @@ Do NOT explain your choice. If in doubt{(forceSpeak ? ", still reply SPEAK" : ",
     /// <summary>
     /// Constructs a minimal two-node CausalGraph for the given cause → effect pair.
     /// </summary>
-    privateOuroboros.Core.Reasoning.CausalGraph BuildMinimalCausalGraph(string cause, string effect)
+    private Ouroboros.Core.Reasoning.CausalGraph BuildMinimalCausalGraph(string cause, string effect)
     {
         var causeVar  = new Ouroboros.Core.Reasoning.Variable(cause,  Ouroboros.Core.Reasoning.VariableType.Continuous, []);
         var effectVar = new Ouroboros.Core.Reasoning.Variable(effect, Ouroboros.Core.Reasoning.VariableType.Continuous, []);
