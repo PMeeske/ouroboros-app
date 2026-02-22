@@ -4,8 +4,6 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OpenApi;
-using Ouroboros.Agent.MetaAI;
-using Ouroboros.Agent.MetaAI.SelfModel;
 using Ouroboros.ApiHost.Client;
 
 namespace Ouroboros.ApiHost.Extensions;
@@ -32,6 +30,12 @@ public static class WebApiServiceCollectionExtensions
         this IServiceCollection services,
         string[]? allowedOrigins = null)
     {
+        // ── Shared engine + foundational dependencies ────────────────────────
+        // Cognitive physics, self-model, health checks — shared with CLI host.
+        services.AddOuroborosEngine();
+
+        // ── Web API–specific services ────────────────────────────────────────
+
         // Swagger / OpenAPI
         services.AddEndpointsApiExplorer();
         services.AddLocalization(options => options.ResourcesPath = "Resources");
@@ -45,28 +49,8 @@ public static class WebApiServiceCollectionExtensions
             });
         });
 
-        // Pipeline service
+        // Pipeline service (Web API flavour — accepts AskRequest / PipelineRequest DTOs)
         services.AddSingleton<IPipelineService, PipelineService>();
-
-        // Self-model components (Phase 2)
-        services.AddSingleton<IGlobalWorkspace>(_ => new GlobalWorkspace());
-        services.AddSingleton<IPredictiveMonitor>(_ => new PredictiveMonitor());
-
-        services.AddSingleton<IIdentityGraph>(_ =>
-        {
-            var registry = new CapabilityRegistry(
-                new MockChatModel(),
-                new ToolRegistry(),
-                new CapabilityRegistryConfig());
-
-            return new IdentityGraph(
-                Guid.NewGuid(),
-                "OuroborosAgent",
-                registry,
-                Path.Combine(Path.GetTempPath(), "ouroboros_identity.json"));
-        });
-
-        services.AddSingleton<ISelfModelService, SelfModelService>();
 
         // CORS
         services.AddCors(options =>
@@ -89,9 +73,6 @@ public static class WebApiServiceCollectionExtensions
                 }
             });
         });
-
-        // Health checks (Kubernetes liveness/readiness probes)
-        services.AddHealthChecks();
 
         return services;
     }

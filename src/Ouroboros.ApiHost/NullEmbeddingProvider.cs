@@ -1,6 +1,10 @@
-﻿using Ouroboros.Core.CognitivePhysics;
+// <copyright file="NullEmbeddingProvider.cs" company="PlaceholderCompany">
+// Copyright (c) PlaceholderCompany. All rights reserved.
+// </copyright>
 
-namespace Ouroboros.CLI.Hosting;
+using Ouroboros.Core.CognitivePhysics;
+
+namespace Ouroboros.ApiHost;
 
 /// <summary>
 /// No-op embedding provider used as a default when no real embedding model
@@ -8,7 +12,7 @@ namespace Ouroboros.CLI.Hosting;
 /// will always be zero which means minimal resource cost).
 /// </summary>
 #pragma warning disable CS0618 // Obsolete IEmbeddingProvider — CPE requires it
-internal sealed class NullEmbeddingProvider : IEmbeddingProvider
+public sealed class NullEmbeddingProvider : IEmbeddingProvider
 {
     public ValueTask<float[]> GetEmbeddingAsync(string text) =>
         ValueTask.FromResult(new float[384]);
