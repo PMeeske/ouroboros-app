@@ -32,8 +32,6 @@
     <PackageReference Include="LangChain" Version="0.17.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.3" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.1.3" />
-    <!-- HttpClient factory for upstream API client -->
-    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.3" />
   </ItemGroup>
 
   <ItemGroup>
