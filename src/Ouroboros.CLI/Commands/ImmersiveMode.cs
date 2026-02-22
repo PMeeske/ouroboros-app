@@ -1791,14 +1791,6 @@ public static class ImmersiveMode
         if (string.IsNullOrWhiteSpace(response))
             return "I'm listening. Tell me more.";
 
-        // Limit response length for voice (spoken responses should be concise)
-        if (response.Length > 500)
-        {
-            var cutoff = response.LastIndexOf('.', 500);
-            if (cutoff > 100)
-                response = response[..(cutoff + 1)];
-        }
-
         return response;
     }
 
