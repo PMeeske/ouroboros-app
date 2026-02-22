@@ -30,7 +30,7 @@ public sealed record RoomUtterance(
 public sealed class AmbientRoomListener : IAsyncDisposable
 {
     private const int ChunkSeconds = 3;
-    private const int MinWords = 3;
+    private const int MinWords = 2;
 
     private readonly ISpeechToTextService _stt;
     private readonly AdaptiveSpeechDetector _vad;
@@ -126,6 +126,13 @@ public sealed class AmbientRoomListener : IAsyncDisposable
                     continue;
 
                 var audioBytes = recordResult.Value;
+
+                // VAD pre-filter: skip Whisper call on silent/noise chunks.
+                // WAV data starts after the 44-byte header; pass raw PCM to the VAD.
+                var pcmForVad = audioBytes.Length > 44 ? audioBytes[44..] : audioBytes;
+                var vadResult = _vad.AnalyzeAudio(pcmForVad);
+                if (vadResult.SuggestedAction == AdaptiveSpeechDetector.SuggestedAction.DiscardSegment)
+                    continue;
 
                 // Transcribe the chunk via Whisper (or whichever STT service was injected)
                 var transcribeResult = await _stt.TranscribeBytesAsync(

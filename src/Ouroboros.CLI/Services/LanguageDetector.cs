@@ -8,7 +8,7 @@ namespace Ouroboros.CLI.Services;
 /// Supports: English, German, French, Spanish, Italian, Dutch, Portuguese,
 ///           Russian, Japanese, Chinese, Korean, Arabic.
 ///
-/// Accuracy: reliable for utterances of 3+ words. Single-word input returns English.
+/// Accuracy: reliable for utterances of 3+ words. Short or ambiguous input returns English.
 /// </summary>
 public static class LanguageDetector
 {
@@ -52,6 +52,7 @@ public static class LanguageDetector
 
         if (words.Length == 0) return English;
 
+        int en = Score(words, EnglishWords);
         int de = Score(words, GermanWords);
         int fr = Score(words, FrenchWords);
         int es = Score(words, SpanishWords);
@@ -59,17 +60,22 @@ public static class LanguageDetector
         int nl = Score(words, DutchWords);
         int pt = Score(words, PortugueseWords);
 
-        int maxScore = Math.Max(de, Math.Max(fr, Math.Max(es, Math.Max(it, Math.Max(nl, pt)))));
+        // Require at least 2 non-English hits to avoid single-word false positives.
+        // English needs only 1 hit (it wins all ties).
+        int maxForeign = Math.Max(de, Math.Max(fr, Math.Max(es, Math.Max(it, Math.Max(nl, pt)))));
 
-        if (maxScore < 1) return English;
+        if (maxForeign < 2) return English;
 
-        // Tie-breaking: prefer the highest scorer; if tied pick deterministically
-        if (de == maxScore) return new("German",     "de-DE");
-        if (fr == maxScore) return new("French",     "fr-FR");
-        if (es == maxScore) return new("Spanish",    "es-ES");
-        if (it == maxScore) return new("Italian",    "it-IT");
-        if (nl == maxScore) return new("Dutch",      "nl-NL");
-        if (pt == maxScore) return new("Portuguese", "pt-PT");
+        // If English scored as well as the best foreign language, stay English.
+        if (en >= maxForeign) return English;
+
+        // Pick the highest-scoring foreign language; ties broken by order.
+        if (de == maxForeign) return new("German",     "de-DE");
+        if (fr == maxForeign) return new("French",     "fr-FR");
+        if (es == maxForeign) return new("Spanish",    "es-ES");
+        if (it == maxForeign) return new("Italian",    "it-IT");
+        if (nl == maxForeign) return new("Dutch",      "nl-NL");
+        if (pt == maxForeign) return new("Portuguese", "pt-PT");
 
         return English;
     }
@@ -80,6 +86,29 @@ public static class LanguageDetector
         => words.Count(vocab.Contains);
 
     // ── Stop-word vocabularies ────────────────────────────────────────────────
+
+    private static readonly HashSet<string> EnglishWords = new(StringComparer.Ordinal)
+    {
+        // Articles / determiners
+        "the", "a", "an", "this", "that", "these", "those",
+        // Pronouns
+        "i", "you", "he", "she", "it", "we", "they", "me", "him", "her", "us",
+        "them", "my", "your", "his", "its", "our", "their",
+        // Verbs
+        "is", "are", "was", "were", "be", "been", "being",
+        "have", "has", "had", "do", "does", "did",
+        "will", "would", "could", "should", "may", "might", "can",
+        "get", "got", "make", "just", "let", "know", "think", "want",
+        // Conjunctions / prepositions
+        "and", "or", "but", "not", "no", "so", "as", "if",
+        "of", "on", "in", "to", "for", "with", "at", "by", "from",
+        "up", "out", "into", "than", "then", "over", "also",
+        // Common adverbs / adjectives
+        "how", "what", "when", "where", "who", "why", "which",
+        "all", "about", "more", "here", "there", "now", "very",
+        "well", "even", "back", "still", "too", "both", "each",
+        "same", "off", "such", "own", "few", "new", "good", "great",
+    };
 
     private static readonly HashSet<string> GermanWords = new(StringComparer.Ordinal)
     {
@@ -112,32 +141,32 @@ public static class LanguageDetector
     {
         "yo", "tú", "él", "ella", "nosotros", "vosotros", "ellos", "ellas",
         "es", "son", "estar", "ser", "tener", "hacer", "ir", "poder", "querer",
-        "no", "sí", "pero", "y", "o", "que", "quien", "qué", "cómo", "cuándo",
-        "con", "en", "de", "del", "la", "el", "los", "las", "un", "una",
+        "sí", "pero", "y", "que", "quien", "qué", "cómo", "cuándo",
+        "con", "en", "del", "la", "el", "los", "las", "un", "una",
         "unos", "unas", "este", "esta", "estos", "estas", "mi", "tu", "su",
         "muy", "más", "también", "ya", "bien", "hola", "gracias", "siempre",
         "aquí", "allí", "cuando", "donde", "porque", "como", "todo", "todos",
-        "me", "te", "se", "nos", "os", "le", "les", "hay", "tiene", "tienen",
+        "hay", "tiene", "tienen",
     };
 
     private static readonly HashSet<string> ItalianWords = new(StringComparer.Ordinal)
     {
         "io", "tu", "lui", "lei", "noi", "voi", "loro", "è", "sono", "essere",
         "avere", "fare", "andare", "potere", "volere", "sapere", "vedere",
-        "non", "sì", "no", "ma", "e", "o", "che", "chi", "cosa", "come",
-        "con", "su", "in", "di", "da", "la", "il", "lo", "le", "gli", "i",
-        "un", "una", "del", "della", "dei", "delle", "questo", "questa",
+        "non", "sì", "ma", "che", "chi", "cosa", "come",
+        "con", "su", "di", "la", "il", "lo", "le", "gli",
+        "del", "della", "dei", "delle", "questo", "questa",
         "ciao", "grazie", "prego", "bene", "molto", "anche", "già", "sempre",
-        "qui", "lì", "quando", "dove", "perché", "tutto", "tutti", "mi",
-        "ti", "si", "ci", "vi", "ne", "ha", "hanno", "ho", "hai",
+        "qui", "lì", "quando", "dove", "perché", "tutto", "tutti",
+        "mi", "ti", "si", "ci", "vi", "ne", "ha", "hanno", "ho", "hai",
     };
 
     private static readonly HashSet<string> DutchWords = new(StringComparer.Ordinal)
     {
-        "ik", "jij", "hij", "zij", "wij", "jullie", "is", "zijn", "was", "waren",
+        "ik", "jij", "hij", "zij", "wij", "jullie", "zijn", "was", "waren",
         "hebben", "heeft", "heb", "worden", "kan", "moet", "zal", "zou",
         "niet", "geen", "maar", "en", "of", "dat", "die", "wat", "wie", "waar",
-        "met", "op", "van", "te", "in", "aan", "de", "het", "een", "ook", "nog",
+        "met", "op", "van", "te", "aan", "de", "het", "een", "ook", "nog",
         "hallo", "dank", "goed", "heel", "altijd", "wel", "al", "zoals",
         "mij", "jou", "hem", "haar", "ons", "hun", "ze", "dit", "deze",
         "hier", "daar", "wanneer", "waarom", "hoe", "alles", "iets",
@@ -145,12 +174,15 @@ public static class LanguageDetector
 
     private static readonly HashSet<string> PortugueseWords = new(StringComparer.Ordinal)
     {
+        // Kept only words that are distinctly Portuguese and rarely appear in English text.
         "eu", "tu", "ele", "ela", "nós", "vós", "eles", "elas", "é", "são",
         "ser", "estar", "ter", "fazer", "ir", "poder", "querer", "saber", "ver",
-        "não", "sim", "mas", "e", "ou", "que", "quem", "como", "quando",
-        "com", "em", "de", "da", "do", "a", "o", "as", "os", "um", "uma",
+        "não", "sim", "mas", "que", "quem", "como", "quando",
+        "com", "em", "da", "do", "um", "uma",
         "este", "esta", "isso", "aqui", "já", "bem", "muito", "mais", "também",
         "olá", "obrigado", "obrigada", "sempre", "tudo", "nada", "todo",
-        "me", "te", "se", "nos", "lhe", "lhes", "meu", "minha", "seu", "sua",
+        "lhe", "lhes", "meu", "minha", "seu", "sua",
+        // Removed: "a", "o", "as", "os", "de", "e", "ou", "me", "te", "se", "nos"
+        // — all appear frequently in English and caused Portuguese false positives.
     };
 }
