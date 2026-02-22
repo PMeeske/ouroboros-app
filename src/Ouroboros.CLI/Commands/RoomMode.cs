@@ -80,7 +80,7 @@ public static class RoomMode
         var speechKey    = parseResult.GetValue(opts.AzureSpeechKeyOption)
                           ?? Environment.GetEnvironmentVariable("AZURE_SPEECH_KEY");
         var speechRegion = parseResult.GetValue(opts.AzureSpeechRegionOption) ?? "eastus";
-        var ttsVoice     = parseResult.GetValue(opts.TtsVoiceOption) ?? "en-US-AvaMultilingualNeural";
+        var ttsVoice     = parseResult.GetValue(opts.TtsVoiceOption) ?? "en-US-JennyMultilingualNeural";
         var localTts     = parseResult.GetValue(opts.LocalTtsOption);
         var avatarOn     = parseResult.GetValue(opts.AvatarOption);
         var avatarPort   = parseResult.GetValue(opts.AvatarPortOption);
@@ -106,7 +106,7 @@ public static class RoomMode
         string qdrant      = "http://localhost:6334",
         string? azureSpeechKey    = null,
         string azureSpeechRegion  = "eastus",
-        string ttsVoice           = "en-US-AvaMultilingualNeural",
+        string ttsVoice           = "en-US-JennyMultilingualNeural",
         bool   localTts           = false,
         bool   avatarOn           = true,
         int    avatarPort         = 9471,
@@ -269,7 +269,19 @@ public static class RoomMode
 
         // ─── 10. TTS for interjections ────────────────────────────────────────
         ITextToSpeechService? ttsService = null;
-        if (localTts && LocalWindowsTtsService.IsAvailable())
+        if (!string.IsNullOrEmpty(azureSpeechKey))
+        {
+            try
+            {
+                ttsService = new AzureNeuralTtsService(azureSpeechKey, azureSpeechRegion, personaName);
+                Console.WriteLine($"  [OK] Voice output: Azure Neural TTS ({ttsVoice})");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"  [!] Azure TTS unavailable: {ex.Message}");
+            }
+        }
+        if (ttsService == null && localTts && LocalWindowsTtsService.IsAvailable())
         {
             try { ttsService = new LocalWindowsTtsService(rate: 1, volume: 100, useEnhancedProsody: true); }
             catch { }
@@ -319,7 +331,17 @@ public static class RoomMode
             if (ttsService != null)
             {
                 listener.NotifySelfSpeechStarted();
-                try { await ttsService.SpeakAsync(msg, null, CancellationToken.None).ConfigureAwait(false); }
+                try
+                {
+                    if (ttsService is AzureNeuralTtsService azureTtsP)
+                    {
+                        var msgLang = await LanguageSubsystem
+                            .DetectStaticAsync(msg, CancellationToken.None).ConfigureAwait(false);
+                        await azureTtsP.SpeakAsync(msg, msgLang.Culture, CancellationToken.None).ConfigureAwait(false);
+                    }
+                    else
+                        await ttsService.SpeakAsync(msg, null, CancellationToken.None).ConfigureAwait(false);
+                }
                 finally { listener.NotifySelfSpeechEnded(); }
             }
         };
@@ -601,7 +623,7 @@ public static class RoomMode
             ? $"\n{speaker} has addressed you directly by name — you MUST respond."
             : string.Empty;
 
-        var detectedLang = await Ouroboros.CLI.Subsystems.LanguageSubsystem
+        var detectedLang = await LanguageSubsystem
             .DetectStaticAsync(utterance.Text, ct).ConfigureAwait(false);
         var langNote = detectedLang.Culture != "en-US"
             ? $"\nLANGUAGE INSTRUCTION: The speaker is using {detectedLang.Language}. Your interjection MUST be in {detectedLang.Language}."
@@ -678,7 +700,17 @@ Do NOT explain your choice. If in doubt{(forceSpeak ? ", still reply SPEAK" : ",
         if (tts != null)
         {
             listener.NotifySelfSpeechStarted();
-            try { await tts.SpeakAsync(speech, null, ct).ConfigureAwait(false); }
+            try
+            {
+                if (tts is AzureNeuralTtsService azureTts)
+                {
+                    var responseLang = await LanguageSubsystem
+                        .DetectStaticAsync(speech, ct).ConfigureAwait(false);
+                    await azureTts.SpeakAsync(speech, responseLang.Culture, ct).ConfigureAwait(false);
+                }
+                else
+                    await tts.SpeakAsync(speech, null, ct).ConfigureAwait(false);
+            }
             finally { listener.NotifySelfSpeechEnded(); }
         }
 
