@@ -5,15 +5,38 @@ using Ouroboros.CLI.Commands;
 using Ouroboros.CLI.Commands.Handlers;
 using Ouroboros.CLI.Infrastructure;
 using Ouroboros.CLI.Services;
-using Ouroboros.Core.CognitivePhysics;
 
 namespace Ouroboros.CLI.Hosting;
 
 /// <summary>
-/// Extension methods for service registration.
+/// Extension methods for CLI service registration.
 /// </summary>
 public static class ServiceCollectionExtensions
 {
+    /// <summary>
+    /// Registers the full CLI host: shared engine + foundational dependencies
+    /// (cognitive physics, self-model, health checks) followed by all CLI-specific
+    /// services, command handlers, and infrastructure. This is the single entry
+    /// point for bootstrapping the CLI's DI container and mirrors the Web API's
+    /// <see cref="WebApiServiceCollectionExtensions.AddOuroborosWebApi"/> pattern.
+    /// </summary>
+    /// <param name="services">The DI container.</param>
+    /// <returns><paramref name="services"/> for fluent chaining.</returns>
+    public static IServiceCollection AddCliHost(this IServiceCollection services)
+    {
+        // ── Shared engine + foundational dependencies ────────────────────────
+        // Cognitive physics, self-model, health checks — same call the Web API uses.
+        services.AddOuroborosEngine();
+
+        // ── CLI-specific services ────────────────────────────────────────────
+        services.AddCliServices();
+        services.AddCommandHandlers();
+        services.AddInfrastructureServices();
+        services.AddExistingBusinessLogic();
+
+        return services;
+    }
+
     /// <summary>
     /// Registers CLI business-logic services.
     /// </summary>
@@ -54,20 +77,6 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Registers Cognitive Physics Engine dependencies.
-    /// </summary>
-    public static IServiceCollection AddCognitivePhysicsDefaults(this IServiceCollection services)
-    {
-#pragma warning disable CS0618 // Obsolete IEmbeddingProvider/IEthicsGate — CPE still requires them
-        services.TryAddSingleton<IEthicsGate, PermissiveEthicsGate>();
-        services.TryAddSingleton<IEmbeddingProvider>(sp =>
-            new NullEmbeddingProvider());
-#pragma warning restore CS0618
-        services.TryAddSingleton<CognitivePhysicsConfig>(CognitivePhysicsConfig.Default);
-        return services;
-    }
-
-    /// <summary>
     /// Registers existing business logic services.
     /// </summary>
     public static IServiceCollection AddExistingBusinessLogic(this IServiceCollection services)
@@ -101,5 +110,3 @@ public static class ServiceCollectionExtensions
         return services;
     }
 }
-
-#pragma warning restore CS0618
