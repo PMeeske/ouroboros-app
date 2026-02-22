@@ -946,26 +946,30 @@ public static class ImmersiveMode
                 _immersive?.SetPresenceState("Speaking", persona.Consciousness?.DominantEmotion ?? "warm");
                 PrintResponse(persona, personaName, response);
 
-                // Speak response (sync TTS culture whenever the detected language changes)
+                // Speak response — Iaret detects the RESPONSE language and passes it
+                // directly to Azure TTS. The model may respond in a different language than
+                // the user's input (e.g. user types "hi :)" but Iaret replies in German).
                 if (ttsService != null)
                 {
-                    if (ttsService is Ouroboros.Providers.TextToSpeech.AzureNeuralTtsService azureTts)
+                    if (ttsService is Ouroboros.Providers.TextToSpeech.AzureNeuralTtsService azureDirect)
                     {
-                        if (azureTts.Culture != _lastDetectedCulture)
-                        {
-                            Console.ForegroundColor = ConsoleColor.DarkCyan;
-                            Console.WriteLine($"  [tts: {azureTts.Culture} → {_lastDetectedCulture}]");
-                            Console.ResetColor();
-                            azureTts.Culture = _lastDetectedCulture;
-                        }
-                        else
-                        {
-                            Console.ForegroundColor = ConsoleColor.DarkGray;
-                            Console.WriteLine($"  [tts: {azureTts.Culture}]");
-                            Console.ResetColor();
-                        }
+                        // Detect response language (zero-latency heuristic — no LLM needed).
+                        var responseLang  = Services.LanguageDetector.Detect(response);
+                        var targetCulture = responseLang.Culture;
+                        // Keep _lastDetectedCulture in sync for OuroborosAgent's direct TTS path.
+                        _lastDetectedCulture = targetCulture;
+
+                        Console.ForegroundColor = ConsoleColor.DarkGray;
+                        Console.WriteLine($"  [tts: {responseLang.Language} ({targetCulture})]");
+                        Console.ResetColor();
+
+                        // Pass culture explicitly — no state mutation, no synthesizer re-init.
+                        await azureDirect.SpeakAsync(response, targetCulture, CancellationToken.None);
                     }
-                    await SpeakAsync(ttsService, response, personaName);
+                    else
+                    {
+                        await SpeakAsync(ttsService, response, personaName);
+                    }
                 }
 
                 _immersive?.SetPresenceState("Idle", persona.Consciousness?.DominantEmotion ?? "neutral");
