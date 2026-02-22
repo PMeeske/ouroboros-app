@@ -943,10 +943,21 @@ public static class ImmersiveMode
                 // Speak response (sync TTS culture whenever the detected language changes)
                 if (ttsService != null)
                 {
-                    if (ttsService is Ouroboros.Providers.TextToSpeech.AzureNeuralTtsService azureTts &&
-                        azureTts.Culture != _lastDetectedCulture)
+                    if (ttsService is Ouroboros.Providers.TextToSpeech.AzureNeuralTtsService azureTts)
                     {
-                        azureTts.Culture = _lastDetectedCulture;
+                        if (azureTts.Culture != _lastDetectedCulture)
+                        {
+                            Console.ForegroundColor = ConsoleColor.DarkCyan;
+                            Console.WriteLine($"  [tts: {azureTts.Culture} → {_lastDetectedCulture}]");
+                            Console.ResetColor();
+                            azureTts.Culture = _lastDetectedCulture;
+                        }
+                        else
+                        {
+                            Console.ForegroundColor = ConsoleColor.DarkGray;
+                            Console.WriteLine($"  [tts: {azureTts.Culture}]");
+                            Console.ResetColor();
+                        }
                     }
                     await SpeakAsync(ttsService, response, personaName);
                 }
@@ -1640,6 +1651,9 @@ public static class ImmersiveMode
         var detectedLang = await Ouroboros.CLI.Subsystems.LanguageSubsystem
             .DetectStaticAsync(input, ct).ConfigureAwait(false);
         _lastDetectedCulture = detectedLang.Culture;
+        Console.ForegroundColor = ConsoleColor.DarkCyan;
+        Console.WriteLine($"  [lang: {detectedLang.Language} ({detectedLang.Culture})]");
+        Console.ResetColor();
         sb.AppendLine();
         if (detectedLang.Culture != "en-US")
             sb.AppendLine($"LANGUAGE INSTRUCTION: The user is writing in {detectedLang.Language}. Respond ENTIRELY in {detectedLang.Language}. Do not switch to English.");
