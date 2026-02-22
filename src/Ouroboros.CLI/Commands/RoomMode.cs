@@ -30,47 +30,51 @@ using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 ///
 /// Launch with: <c>ouroboros room</c> or <c>ouroboros room --quiet</c>
 /// </summary>
-public static class RoomMode
+public sealed class RoomMode
 {
-    // Interjection rate limiting + CogPhysics state (reset on each RunRoomAsync call)
-    private static DateTime _lastInterjection = DateTime.MinValue;
-    private static readonly Queue<DateTime> _recentInterjections = new();
-    private static CognitiveState _roomCogState = CognitiveState.Create("general");
-    private static string _roomLastTopic = "general";
-    private static Ouroboros.Pipeline.Memory.IEpisodicMemoryEngine? _roomEpisodic;
-    private static readonly Ouroboros.Pipeline.Metacognition.MetacognitiveReasoner _roomMetacognition = new();
-    private static Ouroboros.Agent.NeuralSymbolic.INeuralSymbolicBridge? _roomNeuralSymbolic;
-    private static readonly Ouroboros.Core.Reasoning.CausalReasoningEngine _roomCausalReasoning = new();
-    private static Ouroboros.Agent.MetaAI.ICuriosityEngine? _roomCuriosity;
-    private static Ouroboros.CLI.Sovereignty.PersonaSovereigntyGate? _roomSovereigntyGate;
+    // Interjection rate limiting + CogPhysics state (reset on each RunAsync call)
+    private DateTime _lastInterjection = DateTime.MinValue;
+    private readonly Queue<DateTime> _recentInterjections = new();
+    private CognitiveState _roomCogState = CognitiveState.Create("general");
+    private string _roomLastTopic = "general";
+    private Ouroboros.Pipeline.Memory.IEpisodicMemoryEngine? _roomEpisodic;
+    private readonly Ouroboros.Pipeline.Metacognition.MetacognitiveReasoner _roomMetacognition = new();
+    private Ouroboros.Agent.NeuralSymbolic.INeuralSymbolicBridge? _roomNeuralSymbolic;
+    private readonly Ouroboros.Core.Reasoning.CausalReasoningEngine _roomCausalReasoning = new();
+    private Ouroboros.Agent.MetaAI.ICuriosityEngine? _roomCuriosity;
+    private Ouroboros.CLI.Sovereignty.PersonaSovereigntyGate? _roomSovereigntyGate;
 
-    // ── Agent subsystem references (set by OuroborosAgentService when using OuroborosAgent) ──
-    private static IModelSubsystem?    _agentModels;
-    private static IMemorySubsystem?   _agentMemory;
-    private static IAutonomySubsystem? _agentAutonomy;
+    // ── Agent subsystem references ────────────────────────────────────────────
+    private readonly IModelSubsystem?    _agentModels;
+    private readonly IMemorySubsystem?   _agentMemory;
+    private readonly IAutonomySubsystem? _agentAutonomy;
+
+    // ── ImmersiveMode reference for IsSpeaking check ──────────────────────────
+    private readonly ImmersiveMode? _immersiveMode;
 
     // ── Voice signature service (speaker biometric identification) ─────────────
-    private static readonly VoiceSignatureService _voiceSignatures = new();
+    private readonly VoiceSignatureService _voiceSignatures = new();
 
     /// <summary>
-    /// Configures RoomMode to use shared subsystem instances from an OuroborosAgent.
-    /// When set, RunRoomAsync uses the agent's model instead of creating its own.
+    /// Creates a RoomMode instance wired to the agent's subsystems.
     /// </summary>
-    public static void ConfigureSubsystems(
-        IModelSubsystem    models,
-        IMemorySubsystem   memory,
-        IAutonomySubsystem autonomy)
+    public RoomMode(
+        ImmersiveMode?    immersiveMode = null,
+        IModelSubsystem?    agentModels   = null,
+        IMemorySubsystem?   agentMemory   = null,
+        IAutonomySubsystem? agentAutonomy = null)
     {
-        _agentModels   = models;
-        _agentMemory   = memory;
-        _agentAutonomy = autonomy;
+        _immersiveMode = immersiveMode;
+        _agentModels   = agentModels;
+        _agentMemory   = agentMemory;
+        _agentAutonomy = agentAutonomy;
     }
 
     /// <summary>
     /// Entry point wired by Program.cs. Parses the System.CommandLine result
     /// and starts the room presence loop.
     /// </summary>
-    public static Task RunAsync(ParseResult parseResult, RoomCommandOptions opts, CancellationToken ct)
+    public Task RunAsync(ParseResult parseResult, RoomCommandOptions opts, CancellationToken ct)
     {
         var personaName  = parseResult.GetValue(opts.PersonaOption) ?? "Iaret";
         var model        = parseResult.GetValue(opts.ModelOption) ?? "llama3:latest";
@@ -89,7 +93,7 @@ public static class RoomMode
         var maxPer10     = parseResult.GetValue(opts.MaxInterjectionsOption);
         var phiThreshold = parseResult.GetValue(opts.PhiThresholdOption);
 
-        return RunRoomAsync(
+        return RunAsync(
             personaName, model, endpoint, embedModel, qdrant,
             speechKey, speechRegion, ttsVoice, localTts,
             avatarOn, avatarPort,
@@ -98,7 +102,7 @@ public static class RoomMode
 
     // ── Main entry point ─────────────────────────────────────────────────────
 
-    public static async Task RunRoomAsync(
+    public async Task RunAsync(
         string personaName = "Iaret",
         string model       = "llama3:latest",
         string endpoint    = "http://localhost:11434",
@@ -353,7 +357,7 @@ public static class RoomMode
         {
             // Suppress utterances while Iaret is speaking — acoustic echo / coupling prevention.
             // The room mic picks up Iaret's TTS voice; we must not loop it back as input.
-            if (ImmersiveMode.IsSpeaking)
+            if (_immersiveMode?.IsSpeaking ?? false)
                 return;
 
             // ── Voice signature matching (biometric speaker ID) ────────────────
@@ -466,7 +470,7 @@ public static class RoomMode
 
     // ── Interjection pipeline ─────────────────────────────────────────────────
 
-    private static async Task TryInterjectAsync(
+    privateasync Task TryInterjectAsync(
         RoomUtterance utterance,
         string speaker,
         List<(string Speaker, string Text, DateTime When)> transcript,
@@ -724,7 +728,7 @@ Do NOT explain your choice. If in doubt{(forceSpeak ? ", still reply SPEAK" : ",
     /// Computes Phi from the room transcript using synthetic NeuralPathway objects
     /// (one per unique speaker), where activation rates represent conversation share.
     /// </summary>
-    private static PhiResult ComputeConversationPhi(
+    privatePhiResult ComputeConversationPhi(
         IITPhiCalculator calc,
         List<(string Speaker, string Text, DateTime When)> transcript)
     {
@@ -753,7 +757,7 @@ Do NOT explain your choice. If in doubt{(forceSpeak ? ", still reply SPEAK" : ",
     }
 
     /// <summary>Displays the last N transcript lines, clearing the area each time.</summary>
-    private static void PrintTranscript(
+    privatevoid PrintTranscript(
         List<(string Speaker, string Text, DateTime When)> transcript,
         int displayLines,
         string personaName)
@@ -773,8 +777,8 @@ Do NOT explain your choice. If in doubt{(forceSpeak ? ", still reply SPEAK" : ",
     }
 
     /// <summary>Checks if this is the first utterance from a known person in this session.</summary>
-    private static readonly HashSet<string> _seenPersonsThisSession = new();
-    private static bool IsFirstUtteranceThisSession(DetectedPerson person)
+    private readonlyHashSet<string> _seenPersonsThisSession = new();
+    privatebool IsFirstUtteranceThisSession(DetectedPerson person)
     {
         if (_seenPersonsThisSession.Contains(person.Id)) return false;
         _seenPersonsThisSession.Add(person.Id);
@@ -785,11 +789,11 @@ Do NOT explain your choice. If in doubt{(forceSpeak ? ", still reply SPEAK" : ",
     /// Initializes the best available STT backend for room listening.
     /// Internal so <see cref="ImmersiveMode"/> can call it for <c>--room-mode</c>.
     /// </summary>
-    internal static Task<Ouroboros.Providers.SpeechToText.ISpeechToTextService?> InitializeSttForRoomAsync()
+    internal Task<Ouroboros.Providers.SpeechToText.ISpeechToTextService?> InitializeSttForRoomAsync()
         => InitializeSttAsync(null, "eastus");
 
     /// <summary>Initializes the best available STT backend.</summary>
-    private static async Task<Ouroboros.Providers.SpeechToText.ISpeechToTextService?> InitializeSttAsync(
+    privateasync Task<Ouroboros.Providers.SpeechToText.ISpeechToTextService?> InitializeSttAsync(
         string? azureKey, string azureRegion)
     {
         // Try Whisper.net (local, no API key needed)
@@ -812,7 +816,7 @@ Do NOT explain your choice. If in doubt{(forceSpeak ? ", still reply SPEAK" : ",
     /// Detects causal query patterns and extracts a (cause, effect) pair.
     /// Returns null if the utterance does not appear to be a causal question.
     /// </summary>
-    private static (string cause, string effect)? TryExtractCausalTerms(string input)
+    private(string cause, string effect)? TryExtractCausalTerms(string input)
     {
         if (string.IsNullOrWhiteSpace(input)) return null;
 
@@ -846,7 +850,7 @@ Do NOT explain your choice. If in doubt{(forceSpeak ? ", still reply SPEAK" : ",
     /// <summary>
     /// Constructs a minimal two-node CausalGraph for the given cause → effect pair.
     /// </summary>
-    private static Ouroboros.Core.Reasoning.CausalGraph BuildMinimalCausalGraph(string cause, string effect)
+    privateOuroboros.Core.Reasoning.CausalGraph BuildMinimalCausalGraph(string cause, string effect)
     {
         var causeVar  = new Ouroboros.Core.Reasoning.Variable(cause,  Ouroboros.Core.Reasoning.VariableType.Continuous, []);
         var effectVar = new Ouroboros.Core.Reasoning.Variable(effect, Ouroboros.Core.Reasoning.VariableType.Continuous, []);

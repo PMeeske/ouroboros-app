@@ -3707,6 +3707,87 @@ $synth.Dispose()
             or Ouroboros.Providers.Tapo.TapoDeviceType.C500
             or Ouroboros.Providers.Tapo.TapoDeviceType.C520;
 
+    /// <summary>
+    /// Runs ImmersiveMode (foreground) and RoomMode (background) as a unified experience.
+    /// Both are created here with this agent's subsystems as the single source of truth.
+    /// </summary>
+    public async Task RunAsync(CancellationToken ct = default)
+    {
+        // 1. Create ImmersiveMode — Iaret's interactive face
+        var immersive = new ImmersiveMode(
+            _modelsSub, _toolsSub, _memorySub, _autonomySub,
+            _immersivePersona, AvatarService);
+
+        // 2. Create RoomMode — ambient presence
+        var room = new RoomMode(immersive, _modelsSub, _memorySub, _autonomySub);
+
+        // 3. Wire RoomIntentBus → ImmersiveMode (room events appear in the chat pane)
+        Ouroboros.CLI.Services.RoomPresence.RoomIntentBus.Reset();
+        Ouroboros.CLI.Services.RoomPresence.RoomIntentBus.OnIaretInterjected   += immersive.ShowRoomInterjection;
+        Ouroboros.CLI.Services.RoomPresence.RoomIntentBus.OnUserAddressedIaret += immersive.ShowRoomAddress;
+
+        // 4. Build voice/TTS options from agent config
+        var opts = new Ouroboros.Options.ImmersiveCommandVoiceOptions
+        {
+            Persona           = _config.Persona ?? "Iaret",
+            Model             = _config.Model   ?? "llama3:latest",
+            Endpoint          = _config.Endpoint ?? "http://localhost:11434",
+            EmbedModel        = _config.EmbedModel ?? "nomic-embed-text",
+            QdrantEndpoint    = _config.QdrantEndpoint ?? "http://localhost:6334",
+            Voice             = _config.Voice,
+            VoiceOnly         = _config.VoiceOnly,
+            LocalTts          = _config.LocalTts,
+            AzureTts          = _config.AzureTts,
+            TtsVoice          = _config.TtsVoice ?? "en-US-JennyMultilingualNeural",
+            AzureSpeechKey    = _config.AzureSpeechKey,
+            AzureSpeechRegion = _config.AzureSpeechRegion ?? "eastus",
+            Avatar            = true,
+            AvatarPort        = 9471,
+            RoomMode          = false,
+        };
+
+        // 5. Start RoomMode in background
+        using var roomCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var roomTask = Task.Run(async () =>
+        {
+            try
+            {
+                await room.RunAsync(
+                    personaName       : opts.Persona,
+                    model             : opts.Model,
+                    endpoint          : opts.Endpoint,
+                    embedModel        : opts.EmbedModel,
+                    qdrant            : opts.QdrantEndpoint,
+                    azureSpeechKey    : _config.AzureSpeechKey,
+                    azureSpeechRegion : _config.AzureSpeechRegion ?? "eastus",
+                    ttsVoice          : _config.TtsVoice ?? "en-US-JennyMultilingualNeural",
+                    localTts          : _config.LocalTts,
+                    avatarOn          : false,
+                    avatarPort        : 9471,
+                    quiet             : true,
+                    ct                : roomCts.Token);
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[RoomMode] exited: {ex.Message}");
+            }
+        }, roomCts.Token);
+
+        // 6. Run ImmersiveMode in foreground (Iaret's interactive face)
+        try
+        {
+            await immersive.RunAsync(opts, ct);
+        }
+        finally
+        {
+            Ouroboros.CLI.Services.RoomPresence.RoomIntentBus.Reset();
+            await roomCts.CancelAsync();
+            try { await roomTask.WaitAsync(TimeSpan.FromSeconds(3)); }
+            catch { /* best-effort */ }
+        }
+    }
+
     /// <inheritdoc/>
     public async ValueTask DisposeAsync()
     {
