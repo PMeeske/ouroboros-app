@@ -928,10 +928,13 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
                 catch { /* Best effort */ }
             });
 
+            // Detect the response language via LanguageSubsystem (Ollama LLM → heuristic fallback).
             // For cross-lingual voices <speak> carries the voice's primary locale,
             // <voice xml:lang> carries the target language.
             var voicePrimaryLocale = voiceName.Length >= 5 ? voiceName[..5] : "en-US";
-            var voiceLang = ImmersiveMode.LastDetectedCulture ?? _config.Culture ?? voicePrimaryLocale;
+            var responseLang = await Subsystems.LanguageSubsystem
+                .DetectStaticAsync(text, ct).ConfigureAwait(false);
+            var voiceLang = responseLang.Culture;
             var ssml = $@"<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='{voicePrimaryLocale}'>
     <voice name='{voiceName}' xml:lang='{voiceLang}'>
         {System.Net.WebUtility.HtmlEncode(text)}
@@ -1776,9 +1779,11 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
 
             var config = Microsoft.CognitiveServices.Speech.SpeechConfig.FromSubscription(key, region);
 
-            // Check if culture override is set
-            var culture = _staticCulture ?? "en-US";
-            var isGerman = culture.Equals("de-DE", StringComparison.OrdinalIgnoreCase);
+            // Detect the response language via LanguageSubsystem (Ollama LLM → heuristic fallback).
+            var detectedLang = await Ouroboros.CLI.Subsystems.LanguageSubsystem
+                .DetectStaticAsync(text, ct).ConfigureAwait(false);
+            var culture = detectedLang.Culture;
+            var isGerman = culture.StartsWith("de", StringComparison.OrdinalIgnoreCase);
 
             // Select Azure Neural voice based on culture and persona
             string azureVoice;
@@ -1787,6 +1792,8 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
                 // German voices for all personas
                 azureVoice = voice.PersonaName.ToUpperInvariant() switch
                 {
+                    // Iaret: multilingual voice, speaks German via cross-lingual SSML — no locale switch needed.
+                    "IARET" => "en-US-JennyMultilingualNeural",
                     "OUROBOROS" => "de-DE-KatjaNeural",   // German female (Cortana-like)
                     "ARIA" => "de-DE-AmalaNeural",        // German expressive female
                     "ECHO" => "de-AT-IngridNeural",       // Austrian German female
@@ -1800,9 +1807,11 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
             }
             else
             {
-                // English voices (default)
+                // English/other voices (default)
                 azureVoice = voice.PersonaName.ToUpperInvariant() switch
                 {
+                    // Iaret: always Cortana/Jenny multilingual voice.
+                    "IARET" => "en-US-JennyMultilingualNeural",
                     "OUROBOROS" => "en-US-JennyNeural",    // Cortana-like voice!
                     "ARIA" => "en-US-AriaNeural",          // Expressive female
                     "ECHO" => "en-GB-SoniaNeural",         // UK female
