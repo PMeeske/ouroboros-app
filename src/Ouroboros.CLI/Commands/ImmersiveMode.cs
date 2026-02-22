@@ -657,7 +657,7 @@ public static class ImmersiveMode
         _immersiveEthics = Ouroboros.Core.Ethics.EthicsFrameworkFactory.CreateDefault();
 #pragma warning disable CS0618 // CPE still requires legacy IEmbeddingProvider/IEthicsGate
         _immersiveCogPhysics = new Ouroboros.Core.CognitivePhysics.CognitivePhysicsEngine(
-            new Ouroboros.CLI.Hosting.NullEmbeddingProvider(),
+            new Ouroboros.ApiHost.NullEmbeddingProvider(),
             new Ouroboros.Core.CognitivePhysics.PermissiveEthicsGate());
 #pragma warning restore CS0618
         _immersiveCogState = Ouroboros.Core.CognitivePhysics.CognitiveState.Create("general");

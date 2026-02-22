@@ -6,7 +6,7 @@ using Ouroboros.Abstractions.Monads;
 using Ouroboros.Application.Personality;
 using Ouroboros.Application.Services;
 using Ouroboros.CLI.Commands.Options;
-using Ouroboros.CLI.Hosting;
+using Ouroboros.ApiHost;
 using Ouroboros.CLI.Services.RoomPresence;
 using Ouroboros.CLI.Subsystems;
 using Ouroboros.Core.CognitivePhysics;
