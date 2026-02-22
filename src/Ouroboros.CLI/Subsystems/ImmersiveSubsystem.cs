@@ -24,6 +24,11 @@ public sealed class ImmersiveSubsystem : IImmersiveSubsystem
     private int _avatarPort;
     private string _personaName = "Iaret";
 
+    // Dedup: prevent the same thought being printed multiple times when several
+    // event handlers (OuroborosAgent + ImmersiveSubsystem) subscribe to the same persona.
+    private static string? _lastThoughtContent;
+    private static DateTime _lastThoughtTime = DateTime.MinValue;
+
     /// <summary>
     /// Configures the subsystem before calling <see cref="InitializeAsync"/>.
     /// </summary>
@@ -101,13 +106,39 @@ public sealed class ImmersiveSubsystem : IImmersiveSubsystem
                                     or InnerThoughtType.SelfReflection))
                 return;
 
+            var content = e.Thought.Content;
+
+            // Filter: skip empty, very short, or unresolved template placeholders.
+            // Template artifacts look like "[Symbolic context: inference-available: ..." where
+            // a bracket-enclosed tag was never substituted with real content by the engine.
+            if (string.IsNullOrWhiteSpace(content) || content.Length < 12)
+                return;
+            var bracketIdx = content.IndexOf('[');
+            if (bracketIdx >= 0 && content.IndexOf(':', bracketIdx) > bracketIdx)
+                return;
+
+            // Dedup: multiple handlers (OuroborosAgent + ImmersiveSubsystem) can subscribe
+            // to the same ImmersivePersona instance. Skip if the same thought printed < 8s ago.
+            var now = DateTime.UtcNow;
+            if (content == _lastThoughtContent && (now - _lastThoughtTime).TotalSeconds < 8)
+            {
+                // Still wire avatar even if we skip the console print
+                if (AvatarService is { } avatarSvc)
+                    avatarSvc.NotifyMoodChange(avatarSvc.CurrentState.Mood, avatarSvc.CurrentState.Energy,
+                                               avatarSvc.CurrentState.Positivity, content);
+                return;
+            }
+
+            _lastThoughtContent = content;
+            _lastThoughtTime = now;
+
             Console.ForegroundColor = ConsoleColor.DarkMagenta;
-            Console.WriteLine($"\n  💭 {e.Thought.Content}");
+            Console.WriteLine($"\n  💭 {content}");
             Console.ResetColor();
 
             if (AvatarService is { } svc)
                 svc.NotifyMoodChange(svc.CurrentState.Mood, svc.CurrentState.Energy,
-                                     svc.CurrentState.Positivity, e.Thought.Content);
+                                     svc.CurrentState.Positivity, content);
         };
 
         // Mirror OuroborosAgent.WireAvatarMoodTransitions

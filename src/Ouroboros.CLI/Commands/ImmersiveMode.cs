@@ -315,17 +315,9 @@ public static class ImmersiveMode
             persona = ownedPersona;
         }
 
-        // Subscribe to consciousness events for console output.
-        // Avatar updates are handled by ImmersiveSubsystem.WirePersonaEvents (called after mind init).
-        persona.AutonomousThought += (_, e) =>
-        {
-            if (e.Thought.Type is not (InnerThoughtType.Curiosity or InnerThoughtType.Observation or InnerThoughtType.SelfReflection))
-                return;
-
-            Console.ForegroundColor = ConsoleColor.DarkMagenta;
-            Console.WriteLine($"\n  💭 {e.Thought.Content}");
-            Console.ResetColor();
-        };
+        // AutonomousThought console output + avatar wiring is handled entirely by
+        // ImmersiveSubsystem.WirePersonaEvents (called after mind init at line ~737).
+        // Do NOT subscribe here — ImmersiveSubsystem is the single print point.
 
         persona.ConsciousnessShift += (_, e) =>
         {

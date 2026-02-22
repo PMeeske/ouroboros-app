@@ -1481,17 +1481,31 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
         // ("I notice that I tend to {0}") and are not genuine LLM thoughts — skip those.
         _immersivePersona.AutonomousThought += (_, e) =>
         {
-            if (e.Thought.Type is InnerThoughtType.Curiosity or InnerThoughtType.Observation or InnerThoughtType.SelfReflection)
-            {
-                Console.ForegroundColor = ConsoleColor.DarkMagenta;
-                Console.WriteLine($"\n  💭 {e.Thought.Content}");
-                Console.ResetColor();
+            if (e.Thought.Type is not (InnerThoughtType.Curiosity or InnerThoughtType.Observation or InnerThoughtType.SelfReflection))
+                return;
 
-                // Push genuine persona thoughts to avatar — excludes Metacognitive/Musing
-                // templates which are filled from topic keywords, not LLM generation.
-                if (_avatarService is { } svc)
-                    svc.NotifyMoodChange(svc.CurrentState.Mood, svc.CurrentState.Energy, svc.CurrentState.Positivity, statusText: e.Thought.Content);
-            }
+            var content = e.Thought.Content;
+
+            // Filter: skip empty, very short, or unresolved template placeholders.
+            // Template artifacts contain bracket-enclosed tags like "[Symbolic context: ...]"
+            // that were never substituted with real content.
+            if (string.IsNullOrWhiteSpace(content) || content.Length < 12)
+                return;
+            var bracketIdx = content.IndexOf('[');
+            if (bracketIdx >= 0 && content.IndexOf(':', bracketIdx) > bracketIdx)
+                return;
+
+            // NOTE: when ImmersiveMode is running, ImmersiveSubsystem.WirePersonaEvents also
+            // subscribes to this persona and will print the same thought within milliseconds.
+            // ImmersiveSubsystem's dedup guard (8 s window) suppresses the duplicate print.
+            Console.ForegroundColor = ConsoleColor.DarkMagenta;
+            Console.WriteLine($"\n  💭 {content}");
+            Console.ResetColor();
+
+            // Push genuine persona thoughts to avatar — excludes Metacognitive/Musing
+            // templates which are filled from topic keywords, not LLM generation.
+            if (_avatarService is { } svc)
+                svc.NotifyMoodChange(svc.CurrentState.Mood, svc.CurrentState.Energy, svc.CurrentState.Positivity, statusText: content);
         };
     }
 
