@@ -45,6 +45,13 @@ public sealed class AmbientRoomListener : IAsyncDisposable
     /// <summary>True while the capture loop is active.</summary>
     public bool IsActive { get; private set; }
 
+    /// <summary>
+    /// Set to <c>true</c> by ImmersiveMode while it is actively recording the user's
+    /// voice input. The ambient capture loop will yield the microphone and skip chunks
+    /// until this flag is cleared, preventing both modes from recording simultaneously.
+    /// </summary>
+    public static volatile bool ImmersiveListeningActive;
+
     public AmbientRoomListener(ISpeechToTextService stt)
     {
         _stt = stt;
@@ -103,10 +110,11 @@ public sealed class AmbientRoomListener : IAsyncDisposable
         {
             try
             {
-                // Skip chunk if Iaret is speaking (self-voice suppression)
-                if (_selfSpeaking)
+                // Skip chunk if Iaret is speaking (self-voice suppression) or
+                // if ImmersiveMode is actively recording the user's voice (mic mutual exclusion).
+                if (_selfSpeaking || ImmersiveListeningActive)
                 {
-                    await Task.Delay(500, ct).ConfigureAwait(false);
+                    await Task.Delay(300, ct).ConfigureAwait(false);
                     continue;
                 }
 

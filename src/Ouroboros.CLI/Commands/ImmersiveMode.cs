@@ -814,7 +814,16 @@ public static class ImmersiveMode
                 string? input;
                 if (sttService != null && speechDetector != null)
                 {
-                    input = await ListenWithVADAsync(sttService, speechDetector, ct);
+                    // Claim the microphone — room listener yields until we're done.
+                    Ouroboros.CLI.Services.RoomPresence.AmbientRoomListener.ImmersiveListeningActive = true;
+                    try
+                    {
+                        input = await ListenWithVADAsync(sttService, speechDetector, ct);
+                    }
+                    finally
+                    {
+                        Ouroboros.CLI.Services.RoomPresence.AmbientRoomListener.ImmersiveListeningActive = false;
+                    }
                     if (!string.IsNullOrEmpty(input))
                     {
                         Console.WriteLine(input);
