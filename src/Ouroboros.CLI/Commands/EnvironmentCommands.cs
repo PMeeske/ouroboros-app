@@ -220,7 +220,9 @@ public static class EnvironmentCommands
         // Create policy
         IPolicy policy = options.Policy.ToLowerInvariant() switch
         {
-            "epsilon-greedy" => new EpsilonGreedyPolicy(options.Epsilon, options.Seed),
+            "epsilon-greedy" => options.Seed.HasValue
+                ? new EpsilonGreedyPolicy(options.Epsilon, options.Seed.Value)
+                : new EpsilonGreedyPolicy(options.Epsilon),
             "bandit" => new BanditPolicy(),
             "random" => new RandomPolicy(options.Seed),
             _ => throw new ArgumentException($"Unknown policy: {options.Policy}")
