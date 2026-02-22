@@ -222,6 +222,12 @@ public static class ImmersiveMode
     private static string _lastDetectedCulture = "en-US";
 
     /// <summary>
+    /// The BCP-47 culture last detected from user input.
+    /// Shared with OuroborosAgent so its direct TTS path applies the same language.
+    /// </summary>
+    public static string? LastDetectedCulture => _lastDetectedCulture == "en-US" ? null : _lastDetectedCulture;
+
+    /// <summary>
     /// Injects the avatar service owned by OuroborosAgent's EmbodimentSubsystem.
     /// ImmersiveMode will use this for presence-state animations (speaking/listening/idle)
     /// instead of starting a second avatar instance.

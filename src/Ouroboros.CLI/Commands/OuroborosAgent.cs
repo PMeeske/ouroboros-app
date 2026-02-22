@@ -928,8 +928,12 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
                 catch { /* Best effort */ }
             });
 
-            var ssml = $@"<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='{(_config.Culture ?? "en-US")}'>
-    <voice name='{voiceName}'>
+            // For cross-lingual voices <speak> carries the voice's primary locale,
+            // <voice xml:lang> carries the target language.
+            var voicePrimaryLocale = voiceName.Length >= 5 ? voiceName[..5] : "en-US";
+            var voiceLang = ImmersiveMode.LastDetectedCulture ?? _config.Culture ?? voicePrimaryLocale;
+            var ssml = $@"<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='{voicePrimaryLocale}'>
+    <voice name='{voiceName}' xml:lang='{voiceLang}'>
         {System.Net.WebUtility.HtmlEncode(text)}
     </voice>
 </speak>";
@@ -1815,10 +1819,11 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
 
             // Use mythic SSML styling for Cortana-like voices (Jenny or Katja)
             var useFriendlyStyle = azureVoice.Contains("Jenny") || azureVoice.Contains("Katja");
+            var azureVoicePrimaryLocale = azureVoice.Length >= 5 ? azureVoice[..5] : culture;
             var ssml = useFriendlyStyle
                 ? $@"<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis'
-                    xmlns:mstts='https://www.w3.org/2001/mstts' xml:lang='{culture}'>
-                    <voice name='{azureVoice}'>
+                    xmlns:mstts='https://www.w3.org/2001/mstts' xml:lang='{azureVoicePrimaryLocale}'>
+                    <voice name='{azureVoice}' xml:lang='{culture}'>
                         <mstts:express-as style='friendly' styledegree='0.8'>
                             <prosody rate='-5%' pitch='+8%' volume='+3%'>
                                 <mstts:audioduration value='1.1'/>
@@ -1828,8 +1833,8 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
                         <mstts:audioeffect type='eq_car'/>
                     </voice>
                 </speak>"
-                : $@"<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='{culture}'>
-                    <voice name='{azureVoice}'>
+                : $@"<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='{azureVoicePrimaryLocale}'>
+                    <voice name='{azureVoice}' xml:lang='{culture}'>
                         <prosody rate='0%'>{System.Security.SecurityElement.Escape(text)}</prosody>
                     </voice>
                 </speak>";
