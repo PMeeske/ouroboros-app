@@ -601,12 +601,17 @@ public static class RoomMode
             ? $"\n{speaker} has addressed you directly by name — you MUST respond."
             : string.Empty;
 
+        var detectedLang = Ouroboros.CLI.Services.LanguageDetector.Detect(utterance.Text);
+        var langNote = detectedLang.Culture != "en-US"
+            ? $"\nLANGUAGE INSTRUCTION: The speaker is using {detectedLang.Language}. Your interjection MUST be in {detectedLang.Language}."
+            : "\nLANGUAGE INSTRUCTION: Reply in the same language as the speaker.";
+
         var personaSystemPrompt = $@"You are {personaName}, an ambient AI presence quietly listening to a room conversation.
 You occasionally interject naturally, like a thoughtful person in the room — briefly, helpfully, or with genuine curiosity.
 You do NOT interrupt unless you have something genuinely useful or interesting to add.
 Current conversation Φ={phiResult.Phi:F2} (integrated information — higher means richer conversation).
 CognitivePhysics resources remaining: {_roomCogState.Resources:F0}/100.
-Topic: {topic}.{directNote}
+Topic: {topic}.{directNote}{langNote}
 
 Given the conversation below, decide whether to speak. Reply ONLY with:
   SPEAK: <your interjection — one or two sentences>
