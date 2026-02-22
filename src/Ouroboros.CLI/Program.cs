@@ -26,29 +26,19 @@ for (int i = 0; i < args.Length; i++)
         servePreparse = true;
 }
 
-// Create the host builder
+// Create the host builder — unified bootstrapping via AddCliHost() which
+// calls AddOuroborosEngine() (shared with WebApi) then layers CLI-specific services.
 var hostBuilder = Host.CreateDefaultBuilder(args)
     .ConfigureServices((context, services) =>
     {
-        // Register CLI services
-        services.AddCliServices();
+        // Engine + foundational deps (cognitive physics, self-model, health checks)
+        // plus CLI services, command handlers, infrastructure, and business logic.
+        services.AddCliHost();
 
         // If --api-url was provided, redirect IAskService and IPipelineService
         // to the remote Ouroboros Web API (upstream provider mode).
         if (!string.IsNullOrWhiteSpace(apiUrlPreparse))
             services.AddUpstreamApiProvider(apiUrlPreparse);
-
-        // Register command handlers
-        services.AddCommandHandlers();
-
-        // Register infrastructure
-        services.AddInfrastructureServices();
-
-        // Cognitive Physics Engine defaults (IEmbeddingProvider, IEthicsGate, config)
-        services.AddCognitivePhysicsDefaults();
-
-        // Register existing business logic
-        services.AddExistingBusinessLogic();
     })
     .ConfigureLogging((context, logging) =>
     {
