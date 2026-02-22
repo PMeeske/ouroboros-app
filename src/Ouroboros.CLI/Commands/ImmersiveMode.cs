@@ -953,8 +953,10 @@ public static class ImmersiveMode
                 {
                     if (ttsService is Ouroboros.Providers.TextToSpeech.AzureNeuralTtsService azureDirect)
                     {
-                        // Detect response language (zero-latency heuristic — no LLM needed).
-                        var responseLang  = Services.LanguageDetector.Detect(response);
+                        // Detect response language via LanguageSubsystem (Ollama LLM with heuristic fallback).
+                        var responseLang  = await Subsystems.LanguageSubsystem
+                            .DetectStaticAsync(response, CancellationToken.None)
+                            .ConfigureAwait(false);
                         var targetCulture = responseLang.Culture;
                         // Keep _lastDetectedCulture in sync for OuroborosAgent's direct TTS path.
                         _lastDetectedCulture = targetCulture;
