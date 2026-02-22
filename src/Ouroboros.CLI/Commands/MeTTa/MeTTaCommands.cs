@@ -237,7 +237,7 @@ public static class MeTTaCommands
             var input = await voiceService.GetInputAsync("\n  Goal: ");
             if (string.IsNullOrWhiteSpace(input)) continue;
 
-            if (IsExitCommand(input))
+            if (VoiceModeExtensions.IsExitCommand(input))
             {
                 await voiceService.SayAsync("Goodbye! The symbolic reasoning engine awaits your return.");
                 running = false;
@@ -310,10 +310,4 @@ public static class MeTTaCommands
         }
     }
 
-    private static bool IsExitCommand(string input)
-    {
-        var exitWords = new[] { "exit", "quit", "goodbye", "bye", "later", "see you", "q!" };
-        return exitWords.Any(w => input.Equals(w, StringComparison.OrdinalIgnoreCase) ||
-                                  input.StartsWith(w + " ", StringComparison.OrdinalIgnoreCase));
-    }
 }

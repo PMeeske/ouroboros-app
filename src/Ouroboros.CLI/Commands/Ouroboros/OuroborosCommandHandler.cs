@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Ouroboros.CLI.Abstractions;
 using Ouroboros.CLI.Commands.Options;
 using Ouroboros.CLI.Infrastructure;
 using Ouroboros.CLI.Services;
@@ -10,7 +11,7 @@ namespace Ouroboros.CLI.Commands.Handlers;
 /// <see cref="OuroborosCommandOptions.BindConfig"/> and agent lifecycle to
 /// <see cref="IOuroborosAgentService"/>.
 /// </summary>
-public sealed class OuroborosCommandHandler
+public sealed class OuroborosCommandHandler : ICommandHandler<OuroborosConfig>
 {
     private readonly IOuroborosAgentService _agentService;
     private readonly ISpectreConsoleService _console;

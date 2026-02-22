@@ -274,7 +274,7 @@ public static class OrchestratorCommands
             var input = await voiceService.GetInputAsync("\n  Goal: ");
             if (string.IsNullOrWhiteSpace(input)) continue;
 
-            if (IsExitCommand(input))
+            if (VoiceModeExtensions.IsExitCommand(input))
             {
                 await voiceService.SayAsync("Goodbye! The orchestrator is always here when you need multi-model intelligence.");
                 running = false;
@@ -309,10 +309,4 @@ public static class OrchestratorCommands
         voiceService.Dispose();
     }
 
-    private static bool IsExitCommand(string input)
-    {
-        var exitWords = new[] { "exit", "quit", "goodbye", "bye", "later", "see you", "q!" };
-        return exitWords.Any(w => input.Equals(w, StringComparison.OrdinalIgnoreCase) ||
-                                  input.StartsWith(w + " ", StringComparison.OrdinalIgnoreCase));
-    }
 }

@@ -1,4 +1,3 @@
-using System.CommandLine.Parsing;
 using Microsoft.Extensions.Logging;
 using Ouroboros.CLI.Infrastructure;
 using Ouroboros.CLI.Services;
@@ -28,8 +27,7 @@ public sealed class AskCommandHandler
     }
 
     public async Task<int> HandleAsync(
-        string question,
-        bool rag,
+        AskRequest request,
         bool useVoice,
         CancellationToken cancellationToken = default)
     {
@@ -39,14 +37,14 @@ public sealed class AskCommandHandler
             {
                 await _voiceService.HandleVoiceCommandAsync(
                     "ask",
-                    ["--question", question, "--rag", rag.ToString()],
+                    ["--question", request.Question, "--rag", request.UseRag.ToString()],
                     cancellationToken);
                 return 0;
             }
 
             await _console.Status().StartAsync("Processing question...", async ctx =>
             {
-                var result = await _askService.AskAsync(question, rag);
+                var result = await _askService.AskAsync(request, cancellationToken);
                 ctx.Status = "Done";
                 _console.MarkupLine($"[green]Answer:[/] {result}");
             });

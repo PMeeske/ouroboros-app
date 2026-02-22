@@ -777,7 +777,7 @@ Do NOT explain your choice. If in doubt{(forceSpeak ? ", still reply SPEAK" : ",
     }
 
     /// <summary>Checks if this is the first utterance from a known person in this session.</summary>
-    private readonlyHashSet<string> _seenPersonsThisSession = new();
+    private readonly HashSet<string> _seenPersonsThisSession = new();
     private bool IsFirstUtteranceThisSession(DetectedPerson person)
     {
         if (_seenPersonsThisSession.Contains(person.Id)) return false;
@@ -789,11 +789,11 @@ Do NOT explain your choice. If in doubt{(forceSpeak ? ", still reply SPEAK" : ",
     /// Initializes the best available STT backend for room listening.
     /// Internal so <see cref="ImmersiveMode"/> can call it for <c>--room-mode</c>.
     /// </summary>
-    internal Task<Ouroboros.Providers.SpeechToText.ISpeechToTextService?> InitializeSttForRoomAsync()
+    internal static Task<Ouroboros.Providers.SpeechToText.ISpeechToTextService?> InitializeSttForRoomAsync()
         => InitializeSttAsync(null, "eastus");
 
     /// <summary>Initializes the best available STT backend.</summary>
-    private async Task<Ouroboros.Providers.SpeechToText.ISpeechToTextService?> InitializeSttAsync(
+    private static async Task<Ouroboros.Providers.SpeechToText.ISpeechToTextService?> InitializeSttAsync(
         string? azureKey, string azureRegion)
     {
         // Try Whisper.net (local, no API key needed)

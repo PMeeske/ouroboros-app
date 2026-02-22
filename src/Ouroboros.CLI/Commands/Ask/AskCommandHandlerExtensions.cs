@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Ouroboros.CLI.Commands.Options;
+using Ouroboros.CLI.Services;
 
 namespace Ouroboros.CLI.Commands.Handlers;
 
@@ -26,9 +27,37 @@ public static class AskCommandHandlerExtensions
         {
             var handler = host.Services.GetRequiredService<AskCommandHandler>();
 
+            var request = new AskRequest(
+                Question:       parseResult.GetValue(options.QuestionOption) ?? string.Empty,
+                UseRag:         parseResult.GetValue(options.RagOption),
+                ModelName:      parseResult.GetValue(options.Model.ModelOption) ?? "llama3",
+                Endpoint:       parseResult.GetValue(options.Endpoint.EndpointOption),
+                ApiKey:         parseResult.GetValue(options.Endpoint.ApiKeyOption),
+                EndpointType:   parseResult.GetValue(options.Endpoint.EndpointTypeOption),
+                Temperature:    parseResult.GetValue(options.Model.TemperatureOption),
+                MaxTokens:      parseResult.GetValue(options.Model.MaxTokensOption),
+                TimeoutSeconds: parseResult.GetValue(options.Model.TimeoutSecondsOption),
+                Stream:         parseResult.GetValue(options.Model.StreamOption),
+                Culture:        parseResult.GetValue(options.CultureOption),
+                AgentMode:      parseResult.GetValue(options.AgentLoop.AgentOption),
+                AgentModeType:  parseResult.GetValue(options.AgentLoop.AgentModeOption) ?? "lc",
+                AgentMaxSteps:  parseResult.GetValue(options.AgentLoop.AgentMaxStepsOption),
+                StrictModel:    parseResult.GetValue(options.Diagnostics.StrictModelOption),
+                Router:         parseResult.GetValue(options.MultiModel.RouterOption) ?? "off",
+                CoderModel:     parseResult.GetValue(options.MultiModel.CoderModelOption),
+                SummarizeModel: parseResult.GetValue(options.MultiModel.SummarizeModelOption),
+                ReasonModel:    parseResult.GetValue(options.MultiModel.ReasonModelOption),
+                GeneralModel:   parseResult.GetValue(options.MultiModel.GeneralModelOption),
+                EmbedModel:     parseResult.GetValue(options.Embedding.EmbedModelOption) ?? "nomic-embed-text",
+                TopK:           parseResult.GetValue(options.TopKOption),
+                Debug:          parseResult.GetValue(options.Diagnostics.DebugOption),
+                JsonTools:      parseResult.GetValue(options.Diagnostics.JsonToolsOption),
+                VoiceOnly:      parseResult.GetValue(options.Voice.VoiceOnlyOption),
+                LocalTts:       parseResult.GetValue(options.Voice.LocalTtsOption),
+                VoiceLoop:      parseResult.GetValue(options.Voice.VoiceLoopOption));
+
             await handler.HandleAsync(
-                question: parseResult.GetValue(options.QuestionOption) ?? string.Empty,
-                rag: parseResult.GetValue(options.RagOption),
+                request,
                 useVoice: parseResult.GetValue(globalVoiceOption),
                 cancellationToken);
         });
