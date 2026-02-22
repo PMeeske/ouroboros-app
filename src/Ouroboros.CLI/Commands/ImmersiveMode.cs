@@ -940,11 +940,11 @@ public static class ImmersiveMode
                 _immersive?.SetPresenceState("Speaking", persona.Consciousness?.DominantEmotion ?? "warm");
                 PrintResponse(persona, personaName, response);
 
-                // Speak response (update TTS culture for language switching)
+                // Speak response (sync TTS culture whenever the detected language changes)
                 if (ttsService != null)
                 {
-                    if (_lastDetectedCulture != "en-US" &&
-                        ttsService is Ouroboros.Providers.TextToSpeech.AzureNeuralTtsService azureTts)
+                    if (ttsService is Ouroboros.Providers.TextToSpeech.AzureNeuralTtsService azureTts &&
+                        azureTts.Culture != _lastDetectedCulture)
                     {
                         azureTts.Culture = _lastDetectedCulture;
                     }
