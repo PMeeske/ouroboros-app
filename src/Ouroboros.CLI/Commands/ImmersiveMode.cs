@@ -2386,6 +2386,12 @@ User: goodbye
                     success => { /* spoken successfully */ },
                     error => Console.WriteLine($"  [tts: {error}]"));
             }
+            else if (tts is Ouroboros.Providers.TextToSpeech.AzureNeuralTtsService azureDirect)
+            {
+                // Use Azure SDK direct playback — bypasses AudioPlayer/temp-file/PowerShell chain.
+                // SpeakAsync plays via the SDK's default audio sink and respects the SSML language.
+                await azureDirect.SpeakAsync(text, CancellationToken.None);
+            }
             else
             {
                 // Use the extension method to synthesize and play audio
