@@ -192,6 +192,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     private readonly AutonomySubsystem _autonomySub;
     private readonly EmbodimentSubsystem _embodimentSub;
     private readonly LocalizationSubsystem _localizationSub;
+    private readonly LanguageSubsystem     _languageSub;
     private readonly SelfAssemblySubsystem _selfAssemblySub;
     private readonly PipeProcessingSubsystem _pipeSub;
     private readonly ChatSubsystem _chatSub;
@@ -252,6 +253,8 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     /// when running alongside OuroborosAgent rather than starting its own avatar instance.
     /// </summary>
     public Application.Avatar.InteractiveAvatarService? AvatarService => _avatarService;
+    /// <summary>Language detection subsystem (aya-expanse:8b cloud model).</summary>
+    public ILanguageSubsystem SubLanguage => _languageSub;
 
     /// <summary>
     /// Strips tool results from text for voice output.
@@ -967,6 +970,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
         IAutonomySubsystem autonomy,
         IEmbodimentSubsystem embodiment,
         ILocalizationSubsystem localization,
+        ILanguageSubsystem language,
         ISelfAssemblySubsystem selfAssembly,
         IPipeProcessingSubsystem pipeProcessing,
         IChatSubsystem chat,
@@ -983,6 +987,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
         _autonomySub = (AutonomySubsystem)autonomy;
         _embodimentSub = (EmbodimentSubsystem)embodiment;
         _localizationSub = (LocalizationSubsystem)localization;
+        _languageSub     = (LanguageSubsystem)language;
         _selfAssemblySub = (SelfAssemblySubsystem)selfAssembly;
         _pipeSub = (PipeProcessingSubsystem)pipeProcessing;
         _chatSub = (ChatSubsystem)chat;
@@ -993,7 +998,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
         [
             _voiceSub, _modelsSub, _toolsSub, _memorySub,
             _cognitiveSub, _autonomySub, _embodimentSub,
-            _localizationSub, _selfAssemblySub, _pipeSub, _chatSub, _commandRoutingSub
+            _localizationSub, _languageSub, _selfAssemblySub, _pipeSub, _chatSub, _commandRoutingSub
         ];
 
         // Register process exit handler to kill speech processes on forceful exit
@@ -1027,6 +1032,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
             new AutonomySubsystem(),
             new EmbodimentSubsystem(),
             new LocalizationSubsystem(),
+            new LanguageSubsystem(),
             new SelfAssemblySubsystem(),
             new PipeProcessingSubsystem(),
             new ChatSubsystem(),
@@ -1089,8 +1095,9 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
         // ── Phase 2: Models (standalone) ──
         await _modelsSub.InitializeAsync(ctx);
 
-        // ── Phase 2.5: Localization (needs Config; Llm wired after Phase 8) ──
+        // ── Phase 2.5: Localization + Language detection (need Config; Language Llm is remote) ──
         await _localizationSub.InitializeAsync(ctx);
+        await _languageSub.InitializeAsync(ctx);
 
         // Wire LLM sanitizer on voice side channel
         if (_config.VoiceChannel && _voiceSideChannel != null && _chatModel != null)
