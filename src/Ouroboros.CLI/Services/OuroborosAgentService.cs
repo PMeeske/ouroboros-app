@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Ouroboros.CLI.Commands;
+using Ouroboros.CLI.Services.RoomPresence;
 using Ouroboros.CLI.Setup;
 using Ouroboros.Options;
 
@@ -50,6 +51,11 @@ public class OuroborosAgentService : IOuroborosAgentService
 
             // 4. Wire RoomMode — same agent subsystems for model + memory sharing
             RoomMode.ConfigureSubsystems(agent.SubModels, agent.SubMemory, agent.SubAutonomy);
+
+            // 4b. Wire RoomIntentBus → ImmersiveMode so room events appear in the chat pane
+            RoomIntentBus.Reset();
+            RoomIntentBus.OnIaretInterjected   += ImmersiveMode.ShowRoomInterjection;
+            RoomIntentBus.OnUserAddressedIaret += ImmersiveMode.ShowRoomAddress;
 
             // 5. Build ImmersiveMode options (voice/TTS passthrough — models come from agent)
             var immersiveOpts = new ImmersiveCommandVoiceOptions

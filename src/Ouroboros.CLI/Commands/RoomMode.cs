@@ -49,6 +49,9 @@ public static class RoomMode
     private static IMemorySubsystem?   _agentMemory;
     private static IAutonomySubsystem? _agentAutonomy;
 
+    // ── Voice signature service (speaker biometric identification) ─────────────
+    private static readonly VoiceSignatureService _voiceSignatures = new();
+
     /// <summary>
     /// Configures RoomMode to use shared subsystem instances from an OuroborosAgent.
     /// When set, RunRoomAsync uses the agent's model instead of creating its own.
@@ -331,10 +334,65 @@ public static class RoomMode
             if (ImmersiveMode.IsSpeaking)
                 return;
 
-            // Identify speaker
-            var person = await personIdentifier.IdentifyAsync(utterance, CancellationToken.None)
-                                               .ConfigureAwait(false);
-            var speaker = person.Name ?? $"Person-{person.Id[..4]}";
+            // ── Voice signature matching (biometric speaker ID) ────────────────
+            // Try to match or update acoustic profile before text-based identification.
+            string? voiceMatchedId = null;
+            bool isOwnerVoice = false;
+            if (utterance.Voice is { } sig)
+            {
+                // Check if this matches a known profile
+                var match = _voiceSignatures.TryMatch(sig);
+                if (match.HasValue)
+                {
+                    voiceMatchedId = match.Value.SpeakerId;
+                    isOwnerVoice   = match.Value.IsOwner;
+                    RoomIntentBus.FireSpeakerIdentified(
+                        isOwnerVoice ? "User" : voiceMatchedId, isOwnerVoice);
+                }
+            }
+
+            // ── Enrollment request ────────────────────────────────────────────
+            if (utterance.Voice != null &&
+                VoiceSignatureService.IsEnrollmentRequest(utterance.Text, personaName))
+            {
+                // Identify speaker via text style so we have a stable ID to pin
+                var enrollPerson = await personIdentifier.IdentifyAsync(utterance, CancellationToken.None)
+                                                         .ConfigureAwait(false);
+                _voiceSignatures.EnrollOwner(enrollPerson.Id, utterance.Voice);
+                var ack = $"I'll remember your voice. From now on I'll know it's you.";
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"\n  ✦ {personaName}: {ack}");
+                Console.ResetColor();
+                RoomIntentBus.FireInterjection(personaName, ack);
+                if (ttsService != null)
+                {
+                    listener.NotifySelfSpeechStarted();
+                    try { await ttsService.SpeakAsync(ack, null, CancellationToken.None).ConfigureAwait(false); }
+                    finally { listener.NotifySelfSpeechEnded(); }
+                }
+                return;
+            }
+
+            // ── Text-based speaker identification ─────────────────────────────
+            var person  = await personIdentifier.IdentifyAsync(utterance, CancellationToken.None)
+                                                .ConfigureAwait(false);
+
+            // If voice matched the owner, override the text-style label with "User"
+            var speaker = isOwnerVoice
+                ? "User"
+                : (person.Name ?? $"Person-{person.Id[..4]}");
+
+            // Add the voice sample to the profile (builds up the fingerprint over time)
+            if (utterance.Voice != null)
+                _voiceSignatures.AddSample(person.Id, utterance.Voice);
+
+            // ── Direct-address detection ──────────────────────────────────────
+            // If the utterance mentions Iaret by name, treat it as a direct question —
+            // publish to the intent bus so ImmersiveMode can show/handle it, and
+            // bypass the SPEAK/SILENT LLM gate (always respond).
+            bool isDirectAddress = utterance.Text.Contains(personaName, StringComparison.OrdinalIgnoreCase);
+            if (isDirectAddress)
+                RoomIntentBus.FireAddressedIaret(speaker, utterance.Text);
 
             // Update transcript display
             transcript.Add((speaker, utterance.Text, utterance.Timestamp));
@@ -354,7 +412,7 @@ public static class RoomMode
                     immersive.SetPresenceState("Speaking", "warm");
             }
 
-            // Run interjection pipeline
+            // Run interjection pipeline (pass isDirectAddress to force a response)
             await TryInterjectAsync(
                 utterance, speaker, transcript,
                 persona, personIdentifier, immersive,
@@ -362,7 +420,7 @@ public static class RoomMode
                 ethicsFramework, chatModel,
                 ttsService, listener,
                 interjectionCooldown, maxPerWindow,
-                personaName, ct).ConfigureAwait(false);
+                personaName, isDirectAddress, ct).ConfigureAwait(false);
         };
 
         await listener.StartAsync(ct).ConfigureAwait(false);
@@ -403,6 +461,7 @@ public static class RoomMode
         TimeSpan cooldown,
         int maxPerWindow,
         string personaName,
+        bool forceSpeak,
         CancellationToken ct)
     {
         // ── Rate limit check ─────────────────────────────────────────────────
@@ -411,8 +470,12 @@ public static class RoomMode
         while (_recentInterjections.Count > 0 && _recentInterjections.Peek() < windowStart)
             _recentInterjections.Dequeue();
 
-        if (now - _lastInterjection < cooldown) return;
-        if (_recentInterjections.Count >= maxPerWindow) return;
+        // Direct address (user said "Iaret, ...") bypasses cooldown and window limits
+        if (!forceSpeak)
+        {
+            if (now - _lastInterjection < cooldown) return;
+            if (_recentInterjections.Count >= maxPerWindow) return;
+        }
 
         // ── Stage 1: Ethics gate ─────────────────────────────────────────────
         var topic = ImmersiveSubsystem.ClassifyAvatarTopic(utterance.Text);
@@ -534,18 +597,22 @@ public static class RoomMode
             .TakeLast(8)
             .Select(t => $"{t.Speaker}: {t.Text}"));
 
+        var directNote = forceSpeak
+            ? $"\n{speaker} has addressed you directly by name — you MUST respond."
+            : string.Empty;
+
         var personaSystemPrompt = $@"You are {personaName}, an ambient AI presence quietly listening to a room conversation.
 You occasionally interject naturally, like a thoughtful person in the room — briefly, helpfully, or with genuine curiosity.
 You do NOT interrupt unless you have something genuinely useful or interesting to add.
 Current conversation Φ={phiResult.Phi:F2} (integrated information — higher means richer conversation).
 CognitivePhysics resources remaining: {_roomCogState.Resources:F0}/100.
-Topic: {topic}.
+Topic: {topic}.{directNote}
 
 Given the conversation below, decide whether to speak. Reply ONLY with:
-  SPEAK: <your one-sentence interjection>
+  SPEAK: <your interjection — one or two sentences>
   or
   SILENT
-Do NOT explain your choice. If in doubt, reply SILENT.";
+Do NOT explain your choice. If in doubt{(forceSpeak ? ", still reply SPEAK" : ", reply SILENT")}.";
 
         string llmDecision;
         try
@@ -562,11 +629,17 @@ Do NOT explain your choice. If in doubt, reply SILENT.";
             return; // LLM unavailable — stay silent
         }
 
+        // If direct address but LLM still said SILENT, override to acknowledge
         if (string.IsNullOrWhiteSpace(llmDecision) ||
             llmDecision.StartsWith("SILENT", StringComparison.OrdinalIgnoreCase))
         {
-            _roomMetacognition.EndTrace("SILENT", false);
-            return;
+            if (!forceSpeak)
+            {
+                _roomMetacognition.EndTrace("SILENT", false);
+                return;
+            }
+            // Forced: synthesise a brief acknowledgement
+            llmDecision = $"SPEAK: I'm here. {utterance.Text.TrimEnd('?').TrimEnd('!')} — let me think on that.";
         }
 
         // ── Stage 5: Output ───────────────────────────────────────────────────
@@ -590,6 +663,9 @@ Do NOT explain your choice. If in doubt, reply SILENT.";
         Console.ForegroundColor = ConsoleColor.Green;
         Console.WriteLine($"\n  ✦ {personaName}: {speech}");
         Console.ResetColor();
+
+        // Publish to ImmersiveMode via the intent bus (shows in the foreground chat pane)
+        RoomIntentBus.FireInterjection(personaName, speech);
 
         immersive.SetPresenceState("Speaking", "engaged", 0.7, 0.7);
 

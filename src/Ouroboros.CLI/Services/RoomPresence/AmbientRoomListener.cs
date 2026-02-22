@@ -7,8 +7,15 @@ using Ouroboros.Speech;
 
 /// <summary>
 /// A transcribed utterance captured from the ambient microphone.
+/// <see cref="Voice"/> carries the acoustic fingerprint extracted from the raw
+/// audio bytes and is populated when audio data is available.
 /// </summary>
-public sealed record RoomUtterance(string Text, DateTime Timestamp, double Confidence, string? SpeakerId = null);
+public sealed record RoomUtterance(
+    string Text,
+    DateTime Timestamp,
+    double Confidence,
+    string? SpeakerId = null,
+    VoiceSignature? Voice = null);
 
 /// <summary>
 /// Continuously listens to the room microphone and raises <see cref="OnUtterance"/>
@@ -122,11 +129,14 @@ public sealed class AmbientRoomListener : IAsyncDisposable
                 var text = transcribeResult.Value.Text.Trim();
 
                 // Filter: at least MinWords meaningful words
-                if (string.IsNullOrWhiteSpace(text) ||
-                    text.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length < MinWords)
+                var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (string.IsNullOrWhiteSpace(text) || words.Length < MinWords)
                     continue;
 
-                var utterance = new RoomUtterance(text, DateTime.UtcNow, 1.0);
+                // Extract acoustic fingerprint from the raw WAV bytes
+                var voiceSig = VoiceSignature.FromWavBytes(audioBytes, words.Length);
+
+                var utterance = new RoomUtterance(text, DateTime.UtcNow, 1.0, Voice: voiceSig);
                 OnUtterance?.Invoke(utterance);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
