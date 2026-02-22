@@ -216,6 +216,16 @@ public static class ImmersiveMode
     public static void ConfigurePersona(ImmersivePersona? persona)
         => _configuredPersona = persona;
 
+    private static Application.Avatar.InteractiveAvatarService? _configuredAvatarService;
+
+    /// <summary>
+    /// Injects the avatar service owned by OuroborosAgent's EmbodimentSubsystem.
+    /// ImmersiveMode will use this for presence-state animations (speaking/listening/idle)
+    /// instead of starting a second avatar instance.
+    /// </summary>
+    public static void ConfigureAvatarService(Application.Avatar.InteractiveAvatarService? service)
+        => _configuredAvatarService = service;
+
     // Skill registry for this session
     private static ISkillRegistry? _skillRegistry;
     private static DynamicToolFactory? _dynamicToolFactory;
@@ -726,6 +736,16 @@ public static class ImmersiveMode
             _ => 0,
         };
         await _immersive.InitializeStandaloneAsync(personaName, avatarEnabled, avatarPort, ct);
+
+        // When OuroborosAgent is wired, its EmbodimentSubsystem owns the avatar.
+        // Inject it into ImmersiveSubsystem so presence-state animations (speaking/listening/idle)
+        // and thought notifications reach the avatar instead of being silently dropped.
+        if (_configuredAvatarService != null && _immersive.AvatarService == null)
+        {
+            _immersive.AvatarService = _configuredAvatarService;
+            Console.WriteLine("  [OK] Avatar wired from OuroborosAgent (speaking/mood animations active)");
+        }
+
         _immersive.WirePersonaEvents(persona, _autonomousMind);
 
         // If --room-mode is active, also run an ambient room listener alongside the interactive session

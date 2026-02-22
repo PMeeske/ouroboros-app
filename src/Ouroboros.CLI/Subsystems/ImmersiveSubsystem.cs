@@ -19,7 +19,7 @@ public sealed class ImmersiveSubsystem : IImmersiveSubsystem
     public string Name => "Immersive";
     public bool IsInitialized { get; private set; }
 
-    public InteractiveAvatarService? AvatarService { get; private set; }
+    public InteractiveAvatarService? AvatarService { get; set; }
 
     private int _avatarPort;
     private string _personaName = "Iaret";

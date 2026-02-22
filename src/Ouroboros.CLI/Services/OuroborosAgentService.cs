@@ -43,9 +43,10 @@ public class OuroborosAgentService : IOuroborosAgentService
         {
             await agent.InitializeAsync();
 
-            // 3. Wire ImmersiveMode — agent owns all subsystems + Iaret persona
+            // 3. Wire ImmersiveMode — agent owns all subsystems + Iaret persona + avatar
             ImmersiveMode.ConfigureSubsystems(agent.SubModels, agent.SubTools, agent.SubMemory, agent.SubAutonomy);
             ImmersiveMode.ConfigurePersona(agent.IaretPersona);
+            ImmersiveMode.ConfigureAvatarService(agent.AvatarService);  // enables speaking/mood face animations
 
             // 4. Wire RoomMode — same agent subsystems for model + memory sharing
             RoomMode.ConfigureSubsystems(agent.SubModels, agent.SubMemory, agent.SubAutonomy);
