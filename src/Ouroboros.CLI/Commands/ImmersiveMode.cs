@@ -218,6 +218,9 @@ public static class ImmersiveMode
 
     private static Application.Avatar.InteractiveAvatarService? _configuredAvatarService;
 
+    /// <summary>Last detected language culture (BCP-47), updated per user turn.</summary>
+    private static string _lastDetectedCulture = "en-US";
+
     /// <summary>
     /// Injects the avatar service owned by OuroborosAgent's EmbodimentSubsystem.
     /// ImmersiveMode will use this for presence-state animations (speaking/listening/idle)
@@ -928,9 +931,14 @@ public static class ImmersiveMode
                 _immersive?.SetPresenceState("Speaking", persona.Consciousness?.DominantEmotion ?? "warm");
                 PrintResponse(persona, personaName, response);
 
-                // Speak response
+                // Speak response (update TTS culture for language switching)
                 if (ttsService != null)
                 {
+                    if (_lastDetectedCulture != "en-US" &&
+                        ttsService is Ouroboros.Providers.TextToSpeech.AzureNeuralTtsService azureTts)
+                    {
+                        azureTts.Culture = _lastDetectedCulture;
+                    }
                     await SpeakAsync(ttsService, response, personaName);
                 }
 
@@ -1618,6 +1626,15 @@ public static class ImmersiveMode
 
         // Full consciousness-aware system prompt from the persona
         sb.AppendLine(persona.GenerateSystemPrompt());
+
+        // Language detection: instruct model to respond in the user's language
+        var detectedLang = Ouroboros.CLI.Services.LanguageDetector.Detect(input);
+        _lastDetectedCulture = detectedLang.Culture;
+        sb.AppendLine();
+        if (detectedLang.Culture != "en-US")
+            sb.AppendLine($"LANGUAGE INSTRUCTION: The user is writing in {detectedLang.Language}. Respond ENTIRELY in {detectedLang.Language}. Do not switch to English.");
+        else
+            sb.AppendLine("LANGUAGE INSTRUCTION: Respond in the same language as the user. If they switch languages mid-conversation, switch with them immediately.");
 
         // Inject inner dialog insights so the LLM speaks informed by prior thinking
         if (innerThoughts.Count > 0)
