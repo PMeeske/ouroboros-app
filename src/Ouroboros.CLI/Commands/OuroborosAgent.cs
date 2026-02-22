@@ -246,6 +246,12 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     public IAutonomySubsystem SubAutonomy => _autonomySub;
     /// <summary>Iaret — the ImmersivePersona owned by the cognitive subsystem.</summary>
     public ImmersivePersona?  IaretPersona => _immersivePersona;
+    /// <summary>
+    /// The avatar service owned by EmbodimentSubsystem.
+    /// ImmersiveMode uses this to animate the avatar (speaking/listening/idle presence states)
+    /// when running alongside OuroborosAgent rather than starting its own avatar instance.
+    /// </summary>
+    public Application.Avatar.InteractiveAvatarService? AvatarService => _avatarService;
 
     /// <summary>
     /// Strips tool results from text for voice output.
