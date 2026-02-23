@@ -45,20 +45,11 @@ public sealed partial class ImmersiveMode
         Console.WriteLine("  [~] Initializing consciousness systems...");
         using var mettaEngine = new InMemoryMeTTaEngine();
 
-        // Initialize embedding model for memory
+        // Initialize embedding model for memory (via SharedAgentBootstrap)
         Console.WriteLine("  [~] Connecting to memory systems...");
-        IEmbeddingModel? embeddingModel = null;
-        try
-        {
-            var embedProvider = new OllamaProvider(options.Endpoint);
-            var ollamaEmbed = new OllamaEmbeddingModel(embedProvider, options.EmbedModel);
-            embeddingModel = new OllamaEmbeddingAdapter(ollamaEmbed);
-            Console.WriteLine("  [OK] Memory systems online");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"  [!] Memory unavailable: {ex.Message}");
-        }
+        var embeddingModel = Ouroboros.CLI.Services.SharedAgentBootstrap.CreateEmbeddingModel(
+            options.Endpoint, options.EmbedModel,
+            msg => Console.WriteLine($"  [{(msg.Contains("unavailable") ? "!" : "OK")}] {msg}"));
 
         // Create the immersive persona (or use the one from OuroborosAgent master control)
         ImmersivePersona? ownedPersona = null;
@@ -376,100 +367,33 @@ public sealed partial class ImmersiveMode
             Console.ResetColor();
         }
 
-        // Initialize ethics + cognitive physics + phi for response gating
+        // Initialize ethics + cognitive physics + phi for response gating (via SharedAgentBootstrap)
         _immersiveEthics = Ouroboros.Core.Ethics.EthicsFrameworkFactory.CreateDefault();
-#pragma warning disable CS0618 // CPE still requires legacy IEmbeddingProvider/IEthicsGate
-        _immersiveCogPhysics = new Ouroboros.Core.CognitivePhysics.CognitivePhysicsEngine(
-            new Ouroboros.ApiHost.NullEmbeddingProvider(),
-            new Ouroboros.Core.CognitivePhysics.PermissiveEthicsGate());
-#pragma warning restore CS0618
-        _immersiveCogState = Ouroboros.Core.CognitivePhysics.CognitiveState.Create("general");
+        var (cogPhysicsEngine, cogState) = Ouroboros.CLI.Services.SharedAgentBootstrap.CreateCognitivePhysics();
+        _immersiveCogPhysics = cogPhysicsEngine;
+        _immersiveCogState = cogState;
         _immersivePhiCalc = new Ouroboros.Providers.IITPhiCalculator();
         _immersiveLastTopic = "general";
         Console.ForegroundColor = ConsoleColor.DarkCyan;
         Console.WriteLine("  [OK] Ethics gate + CognitivePhysics + Φ (IIT) online");
         Console.ResetColor();
 
-        // Episodic memory — reuse Qdrant + existing OllamaEmbeddingAdapter
-        if (embeddingModel != null)
-        {
-            try
-            {
-                _episodicMemory = new Ouroboros.Pipeline.Memory.EpisodicMemoryEngine(
-                    qdrantEndpoint, embeddingModel, "ouroboros_episodes");
-            }
-            catch { /* Qdrant unavailable */ }
-        }
+        // Episodic memory (via SharedAgentBootstrap)
+        _episodicMemory = Ouroboros.CLI.Services.SharedAgentBootstrap.CreateEpisodicMemory(
+            qdrantEndpoint, embeddingModel);
 
-        // Neural-symbolic bridge: SymbolicKnowledgeBase wraps InMemoryMeTTaEngine
-        if (_baseModel != null)
-        {
-            try
-            {
-                var kb = new Ouroboros.Agent.NeuralSymbolic.SymbolicKnowledgeBase(mettaEngine);
-                _neuralSymbolicBridge = new Ouroboros.Agent.NeuralSymbolic.NeuralSymbolicBridge(_baseModel, kb);
-            }
-            catch { }
-        }
+        // Neural-symbolic bridge (via SharedAgentBootstrap)
+        _neuralSymbolicBridge = Ouroboros.CLI.Services.SharedAgentBootstrap.CreateNeuralSymbolicBridge(
+            _baseModel, mettaEngine);
 
-        // Curiosity engine — drives AutonomousMind with intrinsic exploration topics
-        if (_skillRegistry != null && _immersiveEthics != null && _baseModel != null)
-        {
-            try
-            {
-                var memStore = new MemoryStore(embeddingModel);
-                var safetyGuard = new SafetyGuard(PermissionLevel.Read, mettaEngine);
-                _curiosityEngine = new CuriosityEngine(
-                    _baseModel, memStore, _skillRegistry, safetyGuard, _immersiveEthics);
-            }
-            catch { }
-        }
-
-        // Iaret's sovereignty gate — master control for all autonomous actions
-        if (_baseModel != null)
-        {
-            try { _sovereigntyGate = new Ouroboros.CLI.Sovereignty.PersonaSovereigntyGate(_baseModel); }
-            catch { }
-        }
-
-        // Wire curiosity engine to AutonomousMind — all topics pass through Iaret first
-        if (_curiosityEngine != null && _autonomousMind != null)
-        {
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    while (!ct.IsCancellationRequested)
-                    {
-                        await Task.Delay(TimeSpan.FromSeconds(90), ct).ConfigureAwait(false);
-                        if (await _curiosityEngine.ShouldExploreAsync(ct: ct).ConfigureAwait(false))
-                        {
-                            var opps = await _curiosityEngine.IdentifyExplorationOpportunitiesAsync(2, ct)
-                                .ConfigureAwait(false);
-                            foreach (var opp in opps)
-                            {
-                                // Iaret reviews each exploration opportunity before injection
-                                if (_sovereigntyGate != null)
-                                {
-                                    var verdict = await _sovereigntyGate
-                                        .EvaluateExplorationAsync(opp.Description, ct)
-                                        .ConfigureAwait(false);
-                                    if (!verdict.Approved)
-                                    {
-                                        Console.ForegroundColor = ConsoleColor.DarkRed;
-                                        Console.WriteLine($"\n  ⊘ [Iaret] Blocked exploration: {verdict.Reason}");
-                                        Console.ResetColor();
-                                        continue;
-                                    }
-                                }
-                                _autonomousMind.InjectTopic(opp.Description);
-                            }
-                        }
-                    }
-                }
-                catch { }
-            }, ct);
-        }
+        // Curiosity engine + sovereignty gate (via SharedAgentBootstrap)
+        (_curiosityEngine, _sovereigntyGate) = Ouroboros.CLI.Services.SharedAgentBootstrap
+            .CreateCuriosityAndSovereignty(
+                _baseModel!,
+                embeddingModel,
+                mettaEngine,
+                _autonomousMind,
+                ct);
 
         Console.ForegroundColor = ConsoleColor.DarkCyan;
         Console.WriteLine("  [OK] EpisodicMemory + NeuralSymbolic + CuriosityEngine + SovereigntyGate online");
