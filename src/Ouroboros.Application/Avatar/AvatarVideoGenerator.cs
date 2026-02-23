@@ -57,7 +57,7 @@ public sealed class AvatarVideoGenerator
         ILogger<AvatarVideoGenerator>? logger = null,
         IVisionModel? visionModel = null,
         string? stabilityAiApiKey = null,
-        string stabilityModel = "sd3.5-medium",
+        string stabilityModel = "sd3.5-large-turbo",
         double stabilityStrength = 0.15)
     {
         _sdCheckpoint = string.IsNullOrWhiteSpace(sdModel) || sdModel == "stable-diffusion"
