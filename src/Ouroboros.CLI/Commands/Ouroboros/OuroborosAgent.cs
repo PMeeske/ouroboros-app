@@ -5,6 +5,7 @@
 using System.Collections.Concurrent;
 using System.Text;
 using System.Text.RegularExpressions;
+using MediatR;
 using IEmbeddingModel = Ouroboros.Domain.IEmbeddingModel;
 using PipelineReasoningStep = Ouroboros.Domain.Events.ReasoningStep;
 // Type aliases to resolve ambiguities between Agent.MetaAI and Pipeline namespaces
@@ -35,6 +36,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     private readonly OuroborosConfig _config;
     private readonly IConsoleOutput _output;
     private readonly VoiceModeService _voice;
+    private readonly IMediator _mediator;
 
     // Static configuration for Azure credentials (set from OuroborosCommands)
     private static Microsoft.Extensions.Configuration.IConfiguration? _staticConfiguration;
@@ -256,12 +258,30 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     /// <summary>Language detection subsystem (aya-expanse:8b cloud model).</summary>
     public ILanguageSubsystem SubLanguage => _languageSub;
 
+    // ── Internal accessors for MediatR handlers (same assembly) ──────────────
+    internal OuroborosConfig Config => _config;
+    internal IConsoleOutput ConsoleOutput => _output;
+    internal VoiceModeService VoiceService => _voice;
+    internal CognitiveSubsystem CognitiveSub => _cognitiveSub;
+    internal AutonomySubsystem AutonomySub => _autonomySub;
+    internal EmbodimentSubsystem EmbodimentSub => _embodimentSub;
+    internal LocalizationSubsystem LocalizationSub => _localizationSub;
+    internal CommandRoutingSubsystem CommandRoutingSub => _commandRoutingSub;
+    internal ChatSubsystem ChatSub => _chatSub;
+    internal PipeProcessingSubsystem PipeSub => _pipeSub;
+    internal VoiceSubsystem VoiceSub => _voiceSub;
+    internal MemorySubsystem MemorySub => _memorySub;
+    internal ModelSubsystem ModelsSub => _modelsSub;
+    internal ToolSubsystem ToolsSub => _toolsSub;
+    internal SelfAssemblySubsystem SelfAssemblySub => _selfAssemblySub;
+    internal IMediator Mediator => _mediator;
 
     /// <summary>
     /// Creates a new Ouroboros agent with DI-injected subsystems.
     /// </summary>
     public OuroborosAgent(
         OuroborosConfig config,
+        IMediator mediator,
         IVoiceSubsystem voice,
         IModelSubsystem models,
         IToolSubsystem tools,
@@ -277,6 +297,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
         ICommandRoutingSubsystem commandRouting)
     {
         _config = config;
+        _mediator = mediator;
         _output = new ConsoleOutput(config.Verbosity);
 
         _voiceSub = (VoiceSubsystem)voice;
@@ -314,6 +335,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     public OuroborosAgent(OuroborosConfig config)
         : this(
             config,
+            null!, // IMediator — not available in legacy constructor
             new VoiceSubsystem(new VoiceModeService(new VoiceModeConfig(
                 Persona: config.Persona,
                 VoiceOnly: config.VoiceOnly,
