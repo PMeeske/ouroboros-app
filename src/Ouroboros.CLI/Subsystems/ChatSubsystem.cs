@@ -259,14 +259,14 @@ Use this actual code information to answer the user's question accurately.
 
         // ── Causal reasoning ─────────────────────────────────────────────────
         string causalContext = "";
-        var causalTerms = TryExtractCausalTerms(input);
+        var causalTerms = Services.SharedAgentBootstrap.TryExtractCausalTerms(input);
         if (causalTerms.HasValue)
         {
             try
             {
-                var graph = BuildMinimalCausalGraph(causalTerms.Value.cause, causalTerms.Value.effect);
+                var graph = Services.SharedAgentBootstrap.BuildMinimalCausalGraph(causalTerms.Value.Cause, causalTerms.Value.Effect);
                 var explanation = await _causalReasoning.ExplainCausallyAsync(
-                    causalTerms.Value.effect, [causalTerms.Value.cause], graph)
+                    causalTerms.Value.Effect, [causalTerms.Value.Cause], graph)
                     .ConfigureAwait(false);
                 if (explanation.IsSuccess && !string.IsNullOrEmpty(explanation.Value.NarrativeExplanation))
                 {
@@ -636,53 +636,6 @@ Use this actual code information to answer the user's question accurately.
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
-    /// <summary>
-    /// Detects causal query patterns and extracts a (cause, effect) pair.
-    /// Returns null if the input does not appear to be a causal question.
-    /// </summary>
-    private static (string cause, string effect)? TryExtractCausalTerms(string input)
-    {
-        if (string.IsNullOrWhiteSpace(input)) return null;
-        var lower = input.ToLowerInvariant();
-
-        // "why does X" / "why is X"
-        var m = Regex.Match(input, @"\bwhy\s+(?:does|is|did|do|are)\s+(.+?)(?:\?|$)", RegexOptions.IgnoreCase);
-        if (m.Success)
-        {
-            var effect = m.Groups[1].Value.Trim().TrimEnd('?');
-            return ("external factors", effect);
-        }
-
-        // "what causes X" / "what leads to X"
-        m = Regex.Match(input, @"\bwhat\s+(?:causes?|leads?\s+to|results?\s+in)\s+(.+?)(?:\?|$)", RegexOptions.IgnoreCase);
-        if (m.Success)
-        {
-            var effect = m.Groups[1].Value.Trim().TrimEnd('?');
-            return ("preceding conditions", effect);
-        }
-
-        // "if X then Y" / "X causes Y"
-        m = Regex.Match(input, @"\bif\s+(.+?)\s+then\s+(.+?)(?:\?|$)", RegexOptions.IgnoreCase);
-        if (m.Success)
-            return (m.Groups[1].Value.Trim(), m.Groups[2].Value.Trim().TrimEnd('?'));
-
-        m = Regex.Match(input, @"(.+?)\s+causes?\s+(.+?)(?:\?|$)", RegexOptions.IgnoreCase);
-        if (m.Success)
-            return (m.Groups[1].Value.Trim(), m.Groups[2].Value.Trim().TrimEnd('?'));
-
-        return null;
-    }
-
-    /// <summary>
-    /// Constructs a minimal two-node CausalGraph for the given cause → effect pair.
-    /// </summary>
-    private static Ouroboros.Core.Reasoning.CausalGraph BuildMinimalCausalGraph(string cause, string effect)
-    {
-        var causeVar  = new Ouroboros.Core.Reasoning.Variable(cause,  Ouroboros.Core.Reasoning.VariableType.Continuous, []);
-        var effectVar = new Ouroboros.Core.Reasoning.Variable(effect, Ouroboros.Core.Reasoning.VariableType.Continuous, []);
-        var edge      = new Ouroboros.Core.Reasoning.CausalEdge(cause, effect, 0.8, Ouroboros.Core.Reasoning.EdgeType.Direct);
-        return new Ouroboros.Core.Reasoning.CausalGraph(
-            [causeVar, effectVar], [edge],
-            new Dictionary<string, Ouroboros.Core.Reasoning.StructuralEquation>());
-    }
+    // Causal extraction and graph building consolidated in SharedAgentBootstrap.
+    // Call sites use SharedAgentBootstrap.TryExtractCausalTerms / BuildMinimalCausalGraph.
 }

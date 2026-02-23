@@ -131,21 +131,24 @@ public sealed class RoomCommandOptions
     /// </summary>
     public RoomConfig BindConfig(ParseResult parseResult)
     {
+        var speechKey = parseResult.GetValue(AzureSpeechKeyOption)
+                        ?? Environment.GetEnvironmentVariable("AZURE_SPEECH_KEY");
+
         return new RoomConfig(
-            Persona: parseResult.GetValue(PersonaOption) ?? "Iaret",
-            Model: parseResult.GetValue(ModelOption) ?? "llama3:latest",
-            Endpoint: parseResult.GetValue(EndpointOption) ?? "http://localhost:11434",
-            EmbedModel: parseResult.GetValue(EmbedModelOption) ?? "nomic-embed-text",
-            QdrantEndpoint: parseResult.GetValue(QdrantEndpointOption) ?? "http://localhost:6334",
-            AzureSpeechKey: parseResult.GetValue(AzureSpeechKeyOption),
+            Persona:           parseResult.GetValue(PersonaOption) ?? "Iaret",
+            Model:             parseResult.GetValue(ModelOption) ?? "llama3:latest",
+            Endpoint:          parseResult.GetValue(EndpointOption) ?? "http://localhost:11434",
+            EmbedModel:        parseResult.GetValue(EmbedModelOption) ?? "nomic-embed-text",
+            QdrantEndpoint:    parseResult.GetValue(QdrantEndpointOption) ?? "http://localhost:6334",
+            AzureSpeechKey:    speechKey,
             AzureSpeechRegion: parseResult.GetValue(AzureSpeechRegionOption) ?? "eastus",
-            TtsVoice: parseResult.GetValue(TtsVoiceOption) ?? "en-US-AvaMultilingualNeural",
-            LocalTts: parseResult.GetValue(LocalTtsOption),
-            Avatar: parseResult.GetValue(AvatarOption),
-            AvatarPort: parseResult.GetValue(AvatarPortOption),
-            Quiet: parseResult.GetValue(QuietOption),
-            CooldownSeconds: parseResult.GetValue(CooldownOption),
-            MaxInterjections: parseResult.GetValue(MaxInterjectionsOption),
-            PhiThreshold: parseResult.GetValue(PhiThresholdOption));
+            TtsVoice:          parseResult.GetValue(TtsVoiceOption) ?? "en-US-AvaMultilingualNeural",
+            LocalTts:          parseResult.GetValue(LocalTtsOption),
+            Avatar:            parseResult.GetValue(AvatarOption),
+            AvatarPort:        parseResult.GetValue(AvatarPortOption),
+            Quiet:             parseResult.GetValue(QuietOption),
+            CooldownSeconds:   parseResult.GetValue(CooldownOption),
+            MaxInterjections:  parseResult.GetValue(MaxInterjectionsOption),
+            PhiThreshold:      parseResult.GetValue(PhiThresholdOption));
     }
 }

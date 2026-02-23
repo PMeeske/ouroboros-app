@@ -4,7 +4,7 @@ namespace Ouroboros.CLI.Services;
 
 /// <summary>
 /// Service for running the immersive persona mode.
-/// Parallels <see cref="IOuroborosAgentService"/> for the immersive command.
+/// Follows the same pattern as <see cref="IOuroborosAgentService"/>.
 /// </summary>
 public interface IImmersiveModeService
 {

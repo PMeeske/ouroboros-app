@@ -4,7 +4,7 @@ namespace Ouroboros.CLI.Services;
 
 /// <summary>
 /// Service for running the ambient room presence mode.
-/// Parallels <see cref="IOuroborosAgentService"/> for the room command.
+/// Follows the same pattern as <see cref="IOuroborosAgentService"/>.
 /// </summary>
 public interface IRoomModeService
 {
