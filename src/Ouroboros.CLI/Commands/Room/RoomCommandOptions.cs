@@ -126,10 +126,10 @@ public sealed class RoomCommandOptions
     }
 
     /// <summary>
-    /// Binds parsed CLI results to a <see cref="RoomConfig"/> record.
-    /// Mirrors <see cref="OuroborosCommandOptions.BindConfig"/>.
+    /// Binds a <see cref="ParseResult"/> to a fully populated <see cref="RoomConfig"/>.
+    /// Parallels <see cref="OuroborosCommandOptions.BindConfig"/>.
     /// </summary>
-    public RoomConfig BindConfig(ParseResult parseResult, Option<bool> globalVoiceOption)
+    public RoomConfig BindConfig(ParseResult parseResult)
     {
         var speechKey = parseResult.GetValue(AzureSpeechKeyOption)
                         ?? Environment.GetEnvironmentVariable("AZURE_SPEECH_KEY");

@@ -9,7 +9,7 @@ namespace Ouroboros.CLI.Commands.Handlers;
 /// Handler for the room presence command. Delegates config binding to
 /// <see cref="Options.RoomCommandOptions.BindConfig"/> and session lifecycle to
 /// <see cref="IRoomModeService"/>.
-/// Parallels <see cref="OuroborosCommandHandler"/> for the ouroboros command.
+/// Follows the same pattern as <see cref="OuroborosCommandHandler"/>.
 /// </summary>
 public sealed class RoomCommandHandler : ICommandHandler<RoomConfig>
 {

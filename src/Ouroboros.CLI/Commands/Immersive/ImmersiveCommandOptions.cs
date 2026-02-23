@@ -4,22 +4,22 @@ using System.CommandLine.Parsing;
 namespace Ouroboros.CLI.Commands.Options;
 
 /// <summary>
-/// CLI options for the <c>immersive</c> subcommand using System.CommandLine.
-/// Maps 1:1 to <see cref="ImmersiveConfig"/>.
-/// Follows the same pattern as <see cref="OuroborosCommandOptions"/>.
+/// Options for the <c>immersive</c> subcommand.
+/// Follows the same pattern as <see cref="OuroborosCommandOptions"/>:
+/// defines System.CommandLine options, registers them, and binds to <see cref="ImmersiveConfig"/>.
 /// </summary>
 public sealed class ImmersiveCommandOptions
 {
-    // ── Persona & model ─────────────────────────────────────────────────────
+    // ── Core model options ────────────────────────────────────────────────────
     public Option<string> PersonaOption { get; } = new("--persona")
     {
-        Description = "Persona name",
+        Description = "Persona name (default: Iaret)",
         DefaultValueFactory = _ => "Iaret",
     };
 
     public Option<string> ModelOption { get; } = new("--model")
     {
-        Description = "LLM model",
+        Description = "LLM model to use",
         DefaultValueFactory = _ => "llama3:latest",
     };
 
@@ -41,7 +41,7 @@ public sealed class ImmersiveCommandOptions
         DefaultValueFactory = _ => "http://localhost:6334",
     };
 
-    // ── Voice ────────────────────────────────────────────────────────────────
+    // ── Voice options ─────────────────────────────────────────────────────────
     public Option<bool> VoiceModeOption { get; } = new("--voice-mode")
     {
         Description = "Enable voice interaction",
@@ -83,7 +83,7 @@ public sealed class ImmersiveCommandOptions
         DefaultValueFactory = _ => "en-US-AvaMultilingualNeural",
     };
 
-    // ── Avatar ───────────────────────────────────────────────────────────────
+    // ── Avatar options ────────────────────────────────────────────────────────
     public Option<bool> AvatarOption { get; } = new("--avatar")
     {
         Description = "Launch the interactive avatar viewer",
@@ -96,10 +96,10 @@ public sealed class ImmersiveCommandOptions
         DefaultValueFactory = _ => 9471,
     };
 
-    // ── Room ─────────────────────────────────────────────────────────────────
+    // ── Room integration ──────────────────────────────────────────────────────
     public Option<bool> RoomModeOption { get; } = new("--room-mode")
     {
-        Description = "Enable ambient room presence alongside immersive mode",
+        Description = "Also start ambient room listening alongside immersive mode",
         DefaultValueFactory = _ => false,
     };
 
@@ -124,15 +124,19 @@ public sealed class ImmersiveCommandOptions
     }
 
     /// <summary>
-    /// Binds parsed CLI results to an <see cref="ImmersiveConfig"/> record.
-    /// Mirrors <see cref="OuroborosCommandOptions.BindConfig"/>.
+    /// Binds a <see cref="ParseResult"/> to a fully populated <see cref="ImmersiveConfig"/>.
+    /// Parallels <see cref="OuroborosCommandOptions.BindConfig"/>.
     /// </summary>
-    public ImmersiveConfig BindConfig(ParseResult parseResult, Option<bool> globalVoiceOption)
+    public ImmersiveConfig BindConfig(ParseResult parseResult, Option<bool>? globalVoiceOption = null)
     {
         var localTts = parseResult.GetValue(LocalTtsOption);
         var speechKey = parseResult.GetValue(AzureSpeechKeyOption)
                         ?? Environment.GetEnvironmentVariable("AZURE_SPEECH_KEY");
         var azureTts = localTts ? false : (parseResult.GetValue(AzureTtsOption) && !string.IsNullOrEmpty(speechKey));
+
+        var voice = parseResult.GetValue(VoiceModeOption);
+        if (globalVoiceOption != null)
+            voice = voice || parseResult.GetValue(globalVoiceOption);
 
         return new ImmersiveConfig(
             Persona:           parseResult.GetValue(PersonaOption) ?? "Iaret",
@@ -140,7 +144,7 @@ public sealed class ImmersiveCommandOptions
             Endpoint:          parseResult.GetValue(EndpointOption) ?? "http://localhost:11434",
             EmbedModel:        parseResult.GetValue(EmbedModelOption) ?? "nomic-embed-text",
             QdrantEndpoint:    parseResult.GetValue(QdrantEndpointOption) ?? "http://localhost:6334",
-            Voice:             parseResult.GetValue(VoiceModeOption) || parseResult.GetValue(globalVoiceOption),
+            Voice:             voice,
             VoiceOnly:         parseResult.GetValue(VoiceOnlyOption),
             LocalTts:          localTts,
             AzureTts:          azureTts,

@@ -9,7 +9,7 @@ namespace Ouroboros.CLI.Commands.Handlers;
 /// Handler for the immersive persona command. Delegates config binding to
 /// <see cref="Options.ImmersiveCommandOptions.BindConfig"/> and session lifecycle to
 /// <see cref="IImmersiveModeService"/>.
-/// Parallels <see cref="OuroborosCommandHandler"/> for the ouroboros command.
+/// Follows the same pattern as <see cref="OuroborosCommandHandler"/>.
 /// </summary>
 public sealed class ImmersiveCommandHandler : ICommandHandler<ImmersiveConfig>
 {

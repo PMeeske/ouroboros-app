@@ -1,10 +1,9 @@
 namespace Ouroboros.CLI.Commands;
 
 /// <summary>
-/// Configuration for the immersive persona command.
-/// Maps CLI options from <see cref="Options.ImmersiveCommandOptions"/> to a
-/// strongly-typed record consumed by <see cref="Handlers.ImmersiveCommandHandler"/>.
-/// Mirrors the <see cref="OuroborosConfig"/> pattern.
+/// Configuration for the immersive persona mode.
+/// Mirrors <see cref="OuroborosConfig"/> style as an immutable record
+/// carrying all CLI-parsed values for the immersive session.
 /// </summary>
 public sealed record ImmersiveConfig(
     string Persona = "Iaret",
