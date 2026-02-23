@@ -58,7 +58,7 @@ public sealed class AvatarVideoGenerator
         IVisionModel? visionModel = null,
         string? stabilityAiApiKey = null,
         string stabilityModel = "sd3.5-medium",
-        double stabilityStrength = 0.35)
+        double stabilityStrength = 0.25)
     {
         _sdCheckpoint = string.IsNullOrWhiteSpace(sdModel) || sdModel == "stable-diffusion"
             ? null
@@ -125,7 +125,9 @@ public sealed class AvatarVideoGenerator
             _ => string.Empty,
         };
 
-        return expressionPrompt + moodModifier;
+        // Anchor: remind SD to preserve identity, only change the expression
+        return "same character, same outfit, same background, same art style, subtle expression change only: " +
+               expressionPrompt + moodModifier;
     }
 
     /// <summary>
@@ -168,17 +170,41 @@ public sealed class AvatarVideoGenerator
     {
         try
         {
-            // ── 1. Decode seed ────────────────────────────────────────────────────
+            // ── 1. Encode seed as JPEG ────────────────────────────────────────────
             byte[] seedBytes = Convert.FromBase64String(seedBase64);
-            using var seedMs = new MemoryStream(seedBytes);
-            using var seedBmp = new Bitmap(seedMs);
+            string seedJpegBase64;
 
-            // ── 2. Face crop: top 48 %, snapped to multiple of 8 for SD ──────────
+            // Convert to 24bpp JPEG if not already JPEG
+            if (seedBytes.Length >= 2 && seedBytes[0] == 0xFF && seedBytes[1] == 0xD8)
+            {
+                seedJpegBase64 = seedBase64;
+            }
+            else
+            {
+                using var ms = new MemoryStream(seedBytes);
+                using var bmp = new Bitmap(ms);
+                using var rgb = new Bitmap(bmp.Width, bmp.Height, PixelFormat.Format24bppRgb);
+                using (var g = Graphics.FromImage(rgb))
+                    g.DrawImage(bmp, 0, 0, bmp.Width, bmp.Height);
+                using var jpegMs = new MemoryStream();
+                rgb.Save(jpegMs, ImageFormat.Jpeg);
+                seedJpegBase64 = Convert.ToBase64String(jpegMs.ToArray());
+            }
+
+            // ── 2. Cloud path: send full image (no face crop) ─────────────────────
+            if (_stabilityHttp != null)
+            {
+                string? resultBase64 = await CallStabilityAiFaceAsync(prompt, seedJpegBase64, ct);
+                return resultBase64; // null → CSS fallback
+            }
+
+            // ── 3. Local SD path: face crop + composite (unchanged) ───────────────
+            using var seedMs2 = new MemoryStream(seedBytes);
+            using var seedBmp = new Bitmap(seedMs2);
             int faceH = (int)(seedBmp.Height * 0.48) / 8 * 8;
             var faceRect = new Rectangle(0, 0, seedBmp.Width, faceH);
             using var faceBmp = (Bitmap)seedBmp.Clone(faceRect, seedBmp.PixelFormat);
 
-            // Encode as 24bpp JPEG — avoids Windows PNG ICC metadata that Forge PIL rejects
             string faceSeedBase64;
             using (var rgb = new Bitmap(faceBmp.Width, faceBmp.Height, PixelFormat.Format24bppRgb))
             {
@@ -189,13 +215,10 @@ public sealed class AvatarVideoGenerator
                 faceSeedBase64 = Convert.ToBase64String(faceMs.ToArray());
             }
 
-            // ── 3. SD call (cloud or local) ──────────────────────────────────────
-            string? faceResultBase64 = _stabilityHttp != null
-                ? await CallStabilityAiFaceAsync(prompt, faceSeedBase64, ct)
-                : await CallSdFaceAsync(prompt, faceSeedBase64, seedBmp.Width, faceH, ct);
-            if (faceResultBase64 == null) return null; // Fallback: CSS layers
+            string? faceResultBase64 = await CallSdFaceAsync(prompt, faceSeedBase64, seedBmp.Width, faceH, ct);
+            if (faceResultBase64 == null) return null;
 
-            // ── 4. Gatekeeper — Qwen VL verifies the expression is correct ────────
+            // Gatekeeper + corrector (local SD only)
             if (_visionModel != null)
             {
                 byte[] faceResultBytes = Convert.FromBase64String(faceResultBase64);
@@ -211,7 +234,6 @@ public sealed class AvatarVideoGenerator
 
                 if (!passed)
                 {
-                    // ── 5. Corrector — ask Qwen for a better prompt, retry SD ─────
                     var fix = await _visionModel.AnswerQuestionAsync(
                         faceResultBytes, "jpeg",
                         $"Target expression: {prompt}. What does this face actually show and what 1-line expression prompt would correct it? Output only the corrected prompt.",
@@ -219,20 +241,17 @@ public sealed class AvatarVideoGenerator
 
                     if (fix.IsSuccess)
                     {
-                        string correctedPrompt = fix.Value.Trim();
-                        faceResultBase64 = _stabilityHttp != null
-                            ? await CallStabilityAiFaceAsync(correctedPrompt, faceSeedBase64, ct)
-                            : await CallSdFaceAsync(correctedPrompt, faceSeedBase64, seedBmp.Width, faceH, ct);
-                        if (faceResultBase64 == null) return null; // Fallback: CSS layers
+                        faceResultBase64 = await CallSdFaceAsync(fix.Value.Trim(), faceSeedBase64, seedBmp.Width, faceH, ct);
+                        if (faceResultBase64 == null) return null;
                     }
                     else
                     {
-                        return null; // Fallback: CSS layers
+                        return null;
                     }
                 }
             }
 
-            // ── 6. Composite: SD face + feathered seam + original body ────────────
+            // Composite face onto body
             byte[] resultBytes = Convert.FromBase64String(faceResultBase64);
             using var faceResultMs = new MemoryStream(resultBytes);
             using var faceResultBmp = new Bitmap(faceResultMs);
@@ -243,28 +262,24 @@ public sealed class AvatarVideoGenerator
             int stripH = Math.Max(1, blendZoneH / BlendSteps);
 
             using var composite = new Bitmap(seedBmp.Width, seedBmp.Height, PixelFormat.Format32bppArgb);
-            using var g = Graphics.FromImage(composite);
-            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-            g.SmoothingMode = SmoothingMode.HighQuality;
-
-            g.DrawImage(seedBmp, 0, 0, seedBmp.Width, seedBmp.Height); // base: full original
-
-            g.DrawImage(                                                // solid face region
-                faceResultBmp,
+            using var g2 = Graphics.FromImage(composite);
+            g2.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            g2.SmoothingMode = SmoothingMode.HighQuality;
+            g2.DrawImage(seedBmp, 0, 0, seedBmp.Width, seedBmp.Height);
+            g2.DrawImage(faceResultBmp,
                 new Rectangle(0, 0, seedBmp.Width, solidH),
                 new RectangleF(0, 0, faceResultBmp.Width, (float)solidH / faceH * faceResultBmp.Height),
                 GraphicsUnit.Pixel);
 
             using var ia = new ImageAttributes();
-            for (int i = 0; i < BlendSteps; i++)                       // feathered seam
+            for (int i = 0; i < BlendSteps; i++)
             {
                 float alpha = 1.0f - (float)(i + 1) / BlendSteps;
                 int dstY = solidH + i * stripH;
                 int dstH = i == BlendSteps - 1 ? faceH - dstY : stripH;
                 if (dstH <= 0) continue;
-
                 ia.SetColorMatrix(new ColorMatrix { Matrix33 = alpha });
-                g.DrawImage(faceResultBmp,
+                g2.DrawImage(faceResultBmp,
                     new Rectangle(0, dstY, seedBmp.Width, dstH),
                     0, (float)dstY / faceH * faceResultBmp.Height,
                     faceResultBmp.Width, (float)dstH / faceH * faceResultBmp.Height,
