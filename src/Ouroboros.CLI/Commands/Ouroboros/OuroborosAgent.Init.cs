@@ -104,6 +104,9 @@ public sealed partial class OuroborosAgent
         // ── Phase 8: Cross-subsystem wiring (mediator orchestration) ──
         WireCrossSubsystemDependencies();
 
+        // ── Phase 8.5: Agent event bridge (MediatR notification pipeline) ──
+        WireAgentEventBridge(agentEventBus);
+
         // ── Phase 9: Post-init actions ──
         _isInitialized = true;
         _output.FlushInitSummary();
@@ -591,6 +594,46 @@ public sealed partial class OuroborosAgent
                 0.5 + (e.ArousalChange * 0.5),
                 e.NewEmotion?.Contains("warm") == true || e.NewEmotion?.Contains("gentle") == true ? 0.8 : 0.5);
         };
+    }
+
+    /// <summary>
+    /// Creates and wires the <see cref="AgentEventBridge"/>, connecting every existing
+    /// event source (PresenceDetector, RoomIntentBus, ImmersivePersona, application
+    /// EventBus, CLI EventBroker) into the MediatR notification pipeline so Iaret and
+    /// any other subsystem can react via <c>INotificationHandler&lt;T&gt;</c>.
+    /// </summary>
+    private void WireAgentEventBridge(Infrastructure.EventBroker<Infrastructure.AgentEvent>? agentEventBus)
+    {
+        _agentEventBridge = new Infrastructure.AgentEventBridge(_mediator);
+
+        // ── Presence detector ──
+        if (_presenceDetector != null)
+            _agentEventBridge.WirePresenceDetector(_presenceDetector);
+
+        // ── Room voice events ──
+        _agentEventBridge.WireRoomIntentBus();
+
+        // ── ImmersivePersona consciousness + thought events ──
+        if (_immersivePersona != null)
+            _agentEventBridge.WirePersona(_immersivePersona);
+
+        // ── Application-level Rx EventBus ──
+        if (_serviceProvider != null)
+        {
+            var eventBus = _serviceProvider.GetService(typeof(Application.Integration.IEventBus))
+                as Application.Integration.IEventBus;
+            if (eventBus != null)
+                _agentEventBridge.WireEventBus(eventBus);
+        }
+
+        // ── Start the agent event processing loop (creates _eventLoopCts) ──
+        StartEventLoop();
+
+        // ── CLI-level EventBroker<AgentEvent> (needs CTS from event loop) ──
+        if (agentEventBus != null && _eventLoopCts != null)
+            _agentEventBridge.WireAgentEventBroker(agentEventBus, _eventLoopCts.Token);
+
+        _output.RecordInit("Agent Events", true, "MediatR notification pipeline active");
     }
 
     /// <summary>
