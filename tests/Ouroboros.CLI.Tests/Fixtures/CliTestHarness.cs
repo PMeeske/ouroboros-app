@@ -3,7 +3,11 @@
 // </copyright>
 
 using System.Diagnostics;
+using Microsoft.Extensions.Logging;
+using Moq;
 using Ouroboros.CLI.Commands;
+using Ouroboros.CLI.Mediator;
+using Ouroboros.CLI.Services;
 using Ouroboros.Options;
 
 namespace Ouroboros.Tests.CLI.Fixtures;
@@ -44,7 +48,39 @@ public class CliTestHarness : IDisposable
 
         try
         {
-            await AskCommands.RunAskAsync(options);
+            var request = new AskRequest(
+                Question:       options.Question,
+                UseRag:         options.Rag,
+                ModelName:      options.Model,
+                Endpoint:       options.Endpoint,
+                ApiKey:         options.ApiKey,
+                EndpointType:   options.EndpointType,
+                Temperature:    options.Temperature,
+                MaxTokens:      options.MaxTokens,
+                TimeoutSeconds: options.TimeoutSeconds,
+                Stream:         options.Stream,
+                Culture:        options.Culture,
+                AgentMode:      options.Agent,
+                AgentModeType:  options.AgentMode,
+                AgentMaxSteps:  options.AgentMaxSteps,
+                StrictModel:    options.StrictModel,
+                Router:         options.Router,
+                CoderModel:     options.CoderModel,
+                SummarizeModel: options.SummarizeModel,
+                ReasonModel:    options.ReasonModel,
+                GeneralModel:   options.GeneralModel,
+                EmbedModel:     options.EmbedModel,
+                TopK:           options.K,
+                Debug:          options.Debug,
+                JsonTools:      options.JsonTools,
+                Persona:        options.Persona,
+                VoiceOnly:      options.VoiceOnly,
+                LocalTts:       options.LocalTts,
+                VoiceLoop:      options.VoiceLoop);
+
+            var handler = new AskQueryHandler(Mock.Of<ILogger<AskQueryHandler>>());
+            var output = await handler.Handle(new AskQuery(request), CancellationToken.None);
+            Console.WriteLine(output);
             stopwatch.Stop();
 
             return new CliResult

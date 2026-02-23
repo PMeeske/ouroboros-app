@@ -1,9 +1,11 @@
+using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Ouroboros.ApiHost.Extensions;
 using Ouroboros.CLI.Commands;
 using Ouroboros.CLI.Commands.Handlers;
 using Ouroboros.CLI.Infrastructure;
+using Ouroboros.CLI.Mediator;
 using Ouroboros.CLI.Services;
 
 namespace Ouroboros.CLI.Hosting;
@@ -27,6 +29,10 @@ public static class ServiceCollectionExtensions
         // ── Shared engine + foundational dependencies ────────────────────────
         // Cognitive physics, self-model, health checks — same call the Web API uses.
         services.AddOuroborosEngine();
+
+        // ── MediatR: CLI request/response bus ────────────────────────────────
+        services.AddMediatR(cfg =>
+            cfg.RegisterServicesFromAssemblyContaining<AskQueryHandler>());
 
         // ── CLI-specific services ────────────────────────────────────────────
         services.AddCliServices();
