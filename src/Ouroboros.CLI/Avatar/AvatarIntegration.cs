@@ -48,6 +48,54 @@ public static class AvatarIntegration
     }
 
     /// <summary>
+    /// Creates and starts the avatar system with a live vision stream.
+    /// Captures avatar assets, sends them to an Ollama vision model with streaming,
+    /// and relays both the JPEG frames and the streaming text tokens to avatar.html.
+    /// </summary>
+    /// <param name="personaName">Active persona name (e.g. "Iaret").</param>
+    /// <param name="port">WebSocket port for the avatar viewer (0 = auto-assign from default).</param>
+    /// <param name="ollamaEndpoint">Ollama API endpoint (e.g. http://localhost:11434).</param>
+    /// <param name="visionModelName">Ollama vision model name (e.g. qwen3-vl:235b-cloud).</param>
+    /// <param name="assetDirectory">Optional override for the avatar asset directory.</param>
+    /// <param name="visionModel">Optional vision model for the perception loop.</param>
+    /// <param name="virtualSelf">Optional VirtualSelf for closed-loop perception publishing.</param>
+    /// <param name="frameIntervalMs">Interval between frame captures in milliseconds.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The running avatar service, video stream, and live vision stream (caller must dispose all).</returns>
+    public static async Task<(InteractiveAvatarService Service, AvatarVideoStream VideoStream, LiveVisionStream VisionStream)>
+        CreateAndStartWithVisionAsync(
+            string personaName = "Iaret",
+            int port = 0,
+            string ollamaEndpoint = "http://localhost:11434",
+            string visionModelName = "qwen3-vl:235b-cloud",
+            string? assetDirectory = null,
+            IVisionModel? visionModel = null,
+            VirtualSelf? virtualSelf = null,
+            int frameIntervalMs = 3000,
+            CancellationToken ct = default)
+    {
+        var service = new InteractiveAvatarService(personaName);
+        var renderer = new WebAvatarRenderer(port, assetDirectory);
+        service.AttachRenderer(renderer);
+        await service.StartAsync(ct);
+
+        var videoStream = new AvatarVideoStream(service, visionModel, virtualSelf, assetDirectory);
+        _ = videoStream.StartAsync(ct);
+
+        var liveVision = new LiveVisionStream(
+            service,
+            ollamaEndpoint,
+            visionModelName,
+            assetDirectory)
+        {
+            FrameIntervalMs = frameIntervalMs,
+        };
+        _ = liveVision.StartAsync(ct);
+
+        return (service, videoStream, liveVision);
+    }
+
+    /// <summary>
     /// Binds the avatar to presence state changes expressed as string names.
     /// Use this when the <c>AgentPresenceState</c> enum isn't directly accessible.
     /// </summary>

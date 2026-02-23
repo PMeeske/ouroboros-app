@@ -433,7 +433,7 @@ public sealed partial class ImmersiveMode
         var detectedLang = await Ouroboros.CLI.Subsystems.LanguageSubsystem
             .DetectStaticAsync(input, ct).ConfigureAwait(false);
         _lastDetectedCulture = detectedLang.Culture;
-        AnsiConsole.MarkupLine($"[rgb(148,103,189)]  \\[lang: {Markup.Escape(detectedLang.Language)} ({Markup.Escape(detectedLang.Culture)})][/]");
+        AnsiConsole.MarkupLine($"[rgb(148,103,189)]  [[lang: {Markup.Escape(detectedLang.Language)} ({Markup.Escape(detectedLang.Culture)})]]{Environment.NewLine}[/]");
         sb.AppendLine();
         if (detectedLang.Culture != "en-US")
             sb.AppendLine($"LANGUAGE INSTRUCTION: The user is writing in {detectedLang.Language}. Respond ENTIRELY in {detectedLang.Language}. Do not switch to English.");

@@ -37,6 +37,9 @@ public sealed class EmbodimentSubsystem : IEmbodimentSubsystem
     // Avatar video stream (live SD generation)
     public Application.Avatar.AvatarVideoStream? AvatarVideoStream { get; set; }
 
+    // Live vision stream (Ollama VLM streaming analysis of avatar assets)
+    public Avatar.LiveVisionStream? LiveVisionStream { get; set; }
+
     // Vision
     public VisionService? VisionService { get; set; }
 
@@ -225,17 +228,20 @@ public sealed class EmbodimentSubsystem : IEmbodimentSubsystem
 
         try
         {
-            var (service, videoStream) = await Avatar.AvatarIntegration.CreateAndStartAsync(
+            var (service, videoStream, liveVision) = await Avatar.AvatarIntegration.CreateAndStartWithVisionAsync(
                 ctx.Config.Persona,
                 ctx.Config.AvatarPort,
+                ollamaEndpoint: ctx.Config.Endpoint,
+                visionModelName: "qwen3-vl:235b-cloud",
                 visionModel: ctx.Models.VisionModel,
                 virtualSelf: VirtualSelf,
                 ct: CancellationToken.None);
 
             AvatarService = service;
             AvatarVideoStream = videoStream;
+            LiveVisionStream = liveVision;
 
-            ctx.Output.RecordInit("Avatar", true, $"port {ctx.Config.AvatarPort} + video stream");
+            ctx.Output.RecordInit("Avatar", true, $"port {ctx.Config.AvatarPort} + video stream + live vision");
         }
         catch (Exception ex)
         {
@@ -261,6 +267,10 @@ public sealed class EmbodimentSubsystem : IEmbodimentSubsystem
 
         // Dispose virtual self
         VirtualSelf?.Dispose();
+
+        // Dispose live vision stream
+        if (LiveVisionStream != null)
+            await LiveVisionStream.DisposeAsync();
 
         // Dispose avatar video stream
         if (AvatarVideoStream != null)

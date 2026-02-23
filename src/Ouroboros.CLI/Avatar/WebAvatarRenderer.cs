@@ -19,7 +19,7 @@ namespace Ouroboros.CLI.Avatar;
 /// Serves the avatar viewer HTML and relays state over WebSocket.
 /// Opens the user's default browser to show the living avatar alongside the CLI.
 /// </summary>
-public sealed class WebAvatarRenderer : IAvatarRenderer, IVideoFrameRenderer
+public sealed class WebAvatarRenderer : IAvatarRenderer, IVideoFrameRenderer, IVisionTextRenderer
 {
     private const int DefaultPort = 9471;
     private const int MaxPortRetries = 10;
@@ -141,6 +141,59 @@ public sealed class WebAvatarRenderer : IAvatarRenderer, IVideoFrameRenderer
         var message = new byte[1 + jpegBytes.Length];
         message[0] = 0x01;
         jpegBytes.CopyTo(message, 1);
+
+        await _clientLock.WaitAsync();
+        try
+        {
+            var dead = new List<WebSocket>();
+            foreach (var ws in _clients)
+            {
+                if (ws.State == WebSocketState.Open)
+                {
+                    try
+                    {
+                        await ws.SendAsync(
+                            new ArraySegment<byte>(message),
+                            WebSocketMessageType.Binary,
+                            true,
+                            CancellationToken.None);
+                    }
+                    catch
+                    {
+                        dead.Add(ws);
+                    }
+                }
+                else
+                {
+                    dead.Add(ws);
+                }
+            }
+
+            foreach (var ws in dead)
+            {
+                _clients.Remove(ws);
+                ws.Dispose();
+            }
+        }
+        finally
+        {
+            _clientLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Broadcasts a streaming vision text token to all connected WebSocket clients.
+    /// The text is prefixed with a 0x02 type marker byte so the client can
+    /// distinguish vision text from video frames and JSON state snapshots.
+    /// A 0x03 marker signals "new frame" (clears the previous text).
+    /// </summary>
+    public async Task BroadcastVisionTextAsync(string text, bool isNewFrame = false)
+    {
+        byte typeByte = isNewFrame ? (byte)0x03 : (byte)0x02;
+        var textBytes = Encoding.UTF8.GetBytes(text);
+        var message = new byte[1 + textBytes.Length];
+        message[0] = typeByte;
+        textBytes.CopyTo(message, 1);
 
         await _clientLock.WaitAsync();
         try

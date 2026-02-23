@@ -818,6 +818,82 @@
     opacity: 0;
     transition: opacity 1.2s ease;
   }
+
+  /* ── Vision stream overlay ── */
+  #vision-stream {
+    position: fixed;
+    bottom: 60px;
+    left: 20px;
+    right: 20px;
+    max-height: 35vh;
+    overflow-y: auto;
+    z-index: 1000;
+    background: linear-gradient(135deg,
+      rgba(10, 6, 18, 0.92) 0%,
+      rgba(20, 10, 40, 0.88) 100%);
+    border: 1px solid rgba(147, 51, 234, 0.3);
+    border-radius: 12px;
+    padding: 14px 18px;
+    font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: rgba(200, 180, 255, 0.9);
+    backdrop-filter: blur(16px);
+    box-shadow:
+      0 0 30px rgba(147, 51, 234, 0.15),
+      inset 0 0 30px rgba(147, 51, 234, 0.05);
+    display: none;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(147, 51, 234, 0.3) transparent;
+    transition: opacity 0.4s ease;
+  }
+  #vision-stream.active { display: block; }
+  #vision-stream::-webkit-scrollbar { width: 4px; }
+  #vision-stream::-webkit-scrollbar-track { background: transparent; }
+  #vision-stream::-webkit-scrollbar-thumb { background: rgba(147, 51, 234, 0.4); border-radius: 2px; }
+
+  #vision-stream .vs-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: rgba(147, 51, 234, 0.7);
+  }
+  #vision-stream .vs-header .vs-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #9333ea;
+    animation: vs-pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes vs-pulse {
+    0%, 100% { opacity: 0.4; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1.2); }
+  }
+  #vision-stream .vs-state {
+    color: rgba(0, 255, 220, 0.7);
+    font-weight: 600;
+  }
+  #vision-stream .vs-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  #vision-stream .vs-cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    background: rgba(147, 51, 234, 0.8);
+    margin-left: 1px;
+    animation: vs-blink 0.8s step-end infinite;
+    vertical-align: text-bottom;
+  }
+  @keyframes vs-blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+  }
 </style>
 </head>
 <body>
@@ -895,6 +971,15 @@
 <div id="connection">
   <span id="conn-dot"></span>
   <span id="conn-label">DISCONNECTED</span>
+</div>
+
+<div id="vision-stream">
+  <div class="vs-header">
+    <span class="vs-dot"></span>
+    <span>Vision Stream</span>
+    <span class="vs-state" id="vs-state"></span>
+  </div>
+  <div class="vs-text" id="vs-text"></div><span class="vs-cursor" id="vs-cursor"></span>
 </div>
 
 <div id="particles"></div>
@@ -1194,6 +1279,11 @@ const personaNameEl = document.getElementById('persona-name');
 const moodFill = document.getElementById('mood-fill');
 const connDot = document.getElementById('conn-dot');
 const connLabel = document.getElementById('conn-label');
+const visionStream = document.getElementById('vision-stream');
+const vsText = document.getElementById('vs-text');
+const vsState = document.getElementById('vs-state');
+const vsCursor = document.getElementById('vs-cursor');
+let vsHideTimer = null;
 
 let currentState = 'Idle';
 
@@ -1503,14 +1593,16 @@ function connectWs() {
 
   ws.onmessage = (ev) => {
     if (ev.data instanceof ArrayBuffer) {
-      // Binary message = video frame
       const data = new Uint8Array(ev.data);
-      if (data.length > 1 && data[0] === 0x01 && avatarCanvas && ctx) {
+      if (data.length < 2) return;
+      const msgType = data[0];
+
+      if (msgType === 0x01 && avatarCanvas && ctx) {
+        // 0x01 = JPEG video frame
         const frameBytes = data.slice(1);
         const blob = new Blob([frameBytes], { type: 'image/jpeg' });
         const url = URL.createObjectURL(blob);
         avatarCanvas.style.display = 'block';
-        // Size canvas to match portrait frame
         const frame = document.getElementById('portrait-frame');
         if (frame) {
           avatarCanvas.width = frame.offsetWidth;
@@ -1523,7 +1615,34 @@ function connectWs() {
         };
         img.src = url;
         lastFrameTime = Date.now();
+
+      } else if (msgType === 0x02) {
+        // 0x02 = Vision stream text token (append)
+        const token = new TextDecoder().decode(data.slice(1));
+        if (visionStream && vsText) {
+          visionStream.classList.add('active');
+          vsText.textContent += token;
+          visionStream.scrollTop = visionStream.scrollHeight;
+          // Reset auto-hide timer
+          clearTimeout(vsHideTimer);
+          vsHideTimer = setTimeout(() => {
+            if (vsCursor) vsCursor.style.display = 'none';
+          }, 8000);
+          if (vsCursor) vsCursor.style.display = 'inline-block';
+        }
+
+      } else if (msgType === 0x03) {
+        // 0x03 = New frame analysis (clear + set state header)
+        const stateText = new TextDecoder().decode(data.slice(1));
+        if (visionStream && vsText && vsState) {
+          visionStream.classList.add('active');
+          vsText.textContent = '';
+          vsState.textContent = stateText;
+          if (vsCursor) vsCursor.style.display = 'inline-block';
+          visionStream.scrollTop = 0;
+        }
       }
+
     } else {
       // JSON state snapshot (existing path)
       try {

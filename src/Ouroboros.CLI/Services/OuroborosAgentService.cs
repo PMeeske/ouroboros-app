@@ -45,7 +45,7 @@ public class OuroborosAgentService : IOuroborosAgentService
         finally
         {
             await agent.DisposeAsync();
-            provider.Dispose();
+            await provider.DisposeAsync();
             _logger.LogInformation("Agent session completed");
         }
     }
