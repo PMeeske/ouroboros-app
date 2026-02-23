@@ -3,6 +3,10 @@ namespace Ouroboros.CLI.Commands;
 /// <summary>
 /// Configuration for the room presence mode.
 /// Immutable record carrying all CLI-parsed values for an ambient room session.
+/// Note: Room mode is always-listening (ambient presence) by design.
+/// Voice is inherently active — there is no --voice flag because Room
+/// relies on continuous speech-to-text for ambient awareness. The LocalTts
+/// flag controls only the TTS output method, not whether voice is enabled.
 /// </summary>
 public sealed record RoomConfig(
     string Persona = "Iaret",

@@ -128,7 +128,7 @@ rootCommand.Add(CreatePipelineCommand(host, voiceOption));
 rootCommand.Add(CreateOuroborosCommand(host, voiceOption));
 rootCommand.Add(CreateSkillsCommand(host, voiceOption));
 rootCommand.Add(CreateOrchestratorCommand(host, voiceOption));
-rootCommand.Add(CreateCognitivePhysicsCommand(host, voiceOption));
+rootCommand.Add(CreateCognitivePhysicsCommand(host));
 rootCommand.Add(CreateDoctorCommand());
 rootCommand.Add(CreateChatCommand(host));
 rootCommand.Add(CreateInteractiveCommand(host));
@@ -212,12 +212,12 @@ static Command CreateOrchestratorCommand(IHost host, System.CommandLine.Option<b
     return command.ConfigureOrchestratorCommand(host, options, globalVoiceOption);
 }
 
-static Command CreateCognitivePhysicsCommand(IHost host, System.CommandLine.Option<bool> globalVoiceOption)
+static Command CreateCognitivePhysicsCommand(IHost host)
 {
     var options = new CognitivePhysicsCommandOptions();
     var command = new Command("cognitive-physics", "Execute Cognitive Physics Engine operations (ZeroShift, superposition, chaos, evolution)");
     options.AddToCommand(command);
-    return command.ConfigureCognitivePhysicsCommand(host, options, globalVoiceOption);
+    return command.ConfigureCognitivePhysicsCommand(host, options);
 }
 
 static Command CreateDoctorCommand()

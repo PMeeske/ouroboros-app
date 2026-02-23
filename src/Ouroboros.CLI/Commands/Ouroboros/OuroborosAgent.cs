@@ -156,7 +156,6 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
 
 
     // ── Voice ──
-    private VoiceModeServiceV2? _voiceV2 { get => _voiceSub.V2; set => _voiceSub.V2 = value; }
     private VoiceSideChannel? _voiceSideChannel { get => _voiceSub.SideChannel; set => _voiceSub.SideChannel = value; }
     private Ouroboros.CLI.Services.EnhancedListeningService? _enhancedListener { get => _voiceSub.Listener; set => _voiceSub.Listener = value; }
     private CancellationTokenSource? _listeningCts { get => _voiceSub.ListeningCts; set => _voiceSub.ListeningCts = value; }
@@ -210,11 +209,6 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     /// Gets the voice service.
     /// </summary>
     public VoiceModeService Voice => _voice;
-
-    /// <summary>
-    /// Gets the unified Rx streaming voice service V2.
-    /// </summary>
-    public VoiceModeServiceV2? VoiceV2 => _voiceV2;
 
     /// <summary>
     /// Gets the unified Rx interaction stream for all voice events.

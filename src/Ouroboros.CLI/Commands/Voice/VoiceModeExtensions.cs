@@ -12,7 +12,7 @@ public static class VoiceModeExtensions
         bool voice,
         string persona,
         bool voiceOnly = false,
-        bool localTts = true,
+        bool localTts = false,
         bool voiceLoop = true,
         string model = "llama3",
         string endpoint = "http://localhost:11434",

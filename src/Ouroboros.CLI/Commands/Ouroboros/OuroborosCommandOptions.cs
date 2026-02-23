@@ -67,12 +67,6 @@ public class OuroborosCommandOptions
         DefaultValueFactory = _ => false
     };
 
-    public System.CommandLine.Option<bool> VoiceV2Option { get; } = new("--voice-v2")
-    {
-        Description = "Enable unified Rx streaming voice mode V2",
-        DefaultValueFactory = _ => false
-    };
-
     public System.CommandLine.Option<bool> ListenOption { get; } = new("--listen")
     {
         Description = "Enable voice input (speech-to-text) on startup",
@@ -555,7 +549,6 @@ public class OuroborosCommandOptions
         command.Add(AzureSpeechRegionOption);
         command.Add(TtsVoiceOption);
         command.Add(VoiceChannelOption);
-        command.Add(VoiceV2Option);
         command.Add(ListenOption);
         command.Add(WakeWordOption);
         command.Add(NoWakeWordOption);
@@ -679,7 +672,6 @@ public class OuroborosCommandOptions
         var azureSpeechRegion = parseResult.GetValue(AzureSpeechRegionOption) ?? "eastus";
         var ttsVoice      = parseResult.GetValue(TtsVoiceOption) ?? "en-US-AvaMultilingualNeural";
         var voiceChannel  = parseResult.GetValue(VoiceChannelOption);
-        var voiceV2       = parseResult.GetValue(VoiceV2Option);
         var listen        = parseResult.GetValue(ListenOption);
         var noWakeWord    = parseResult.GetValue(NoWakeWordOption);
         var wakeWord      = noWakeWord ? null : parseResult.GetValue(WakeWordOption);
@@ -804,7 +796,6 @@ public class OuroborosCommandOptions
             AzureSpeechRegion: azureSpeechRegion,
             TtsVoice: ttsVoice,
             VoiceChannel: voiceChannel,
-            VoiceV2: voiceV2,
             Listen: listen,
             WakeWord: wakeWord,
             SttBackend: sttBackend,
