@@ -295,17 +295,31 @@ public sealed class AvatarVideoGenerator
     {
         byte[] imageBytes = Convert.FromBase64String(faceSeedBase64);
 
-        using var form = new MultipartFormDataContent();
-        form.Add(new StringContent(prompt), "prompt");
-        form.Add(new StringContent("image-to-image"), "mode");
-        form.Add(new StringContent(_stabilityModel), "model");
-        form.Add(new StringContent(_stabilityStrength.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)), "strength");
-        form.Add(new StringContent("ugly, blurry, low quality, deformed, disfigured, extra limbs, changed hair, different person, different clothes, different background, style change, color change"), "negative_prompt");
-        form.Add(new StringContent("jpeg"), "output_format");
+        // Build multipart form — use explicit boundary and ensure every part has
+        // a Content-Disposition with a name attribute (Stability AI's parser is strict).
+        var boundary = $"----StabilityAI{Guid.NewGuid():N}";
+        using var form = new MultipartFormDataContent(boundary);
 
+        // Text fields — strip the default charset to avoid confusing strict parsers
+        void AddField(string name, string value)
+        {
+            var sc = new StringContent(value);
+            sc.Headers.ContentType = null; // remove "text/plain; charset=utf-8"
+            form.Add(sc, name);
+        }
+
+        AddField("prompt", prompt);
+        AddField("mode", "image-to-image");
+        AddField("model", _stabilityModel);
+        AddField("strength", _stabilityStrength.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+        AddField("negative_prompt", "ugly, blurry, low quality, deformed, disfigured, extra limbs, changed hair, different person, different clothes, different background, style change, color change");
+        AddField("output_format", "jpeg");
+
+        // Image field — add first without ContentType, then set it after
+        // form.Add has already written the Content-Disposition header
         var imageContent = new ByteArrayContent(imageBytes);
-        imageContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/jpeg");
         form.Add(imageContent, "image", "face.jpg");
+        imageContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/jpeg");
 
         using var response = await _stabilityHttp!.PostAsync("/v2beta/stable-image/generate/sd3", form, ct);
 
