@@ -1,4 +1,4 @@
-// <copyright file="ImmersiveMode.cs" company="Ouroboros">
+﻿// <copyright file="ImmersiveMode.cs" company="Ouroboros">
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
@@ -989,9 +989,10 @@ User: goodbye
                 QdrantSkillRegistry qdrantRegistry;
                 var skClient = _serviceProvider?.GetService<QdrantClient>();
                 var skRegistry = _serviceProvider?.GetService<IQdrantCollectionRegistry>();
-                if (skClient != null && skRegistry != null)
+                var skSettings = _serviceProvider?.GetService<QdrantSettings>();
+                if (skClient != null && skRegistry != null && skSettings != null)
                 {
-                    qdrantRegistry = new QdrantSkillRegistry(embeddingModel, skClient, skRegistry, vectorSize);
+                    qdrantRegistry = new QdrantSkillRegistry(skClient, skRegistry, skSettings, embeddingModel);
                 }
                 else
                 {
@@ -1127,10 +1128,12 @@ User: goodbye
                 var siRegistry = _serviceProvider?.GetService<IQdrantCollectionRegistry>();
                 if (siClient != null && siRegistry != null)
                 {
-                    _selfIndexer = new QdrantSelfIndexer(
-                        embeddingModel, siClient, siRegistry,
-                        new List<string> { Environment.CurrentDirectory },
-                        enableFileWatcher: true);
+                    var indexerConfig = new QdrantIndexerConfig
+                    {
+                        RootPaths = new List<string> { Environment.CurrentDirectory },
+                        EnableFileWatcher = true
+                    };
+                    _selfIndexer = new QdrantSelfIndexer(siClient, siRegistry, embeddingModel, indexerConfig);
                 }
                 else
                 {
