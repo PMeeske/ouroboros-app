@@ -329,4 +329,256 @@ Do NOT explain your choice. If in doubt{(forceSpeak ? ", still reply SPEAK" : ",
         _seenPersonsThisSession.Add(person.Id);
         return true;
     }
+
+    // ── Proactive idle speech ────────────────────────────────────────────────
+
+    /// <summary>
+    /// Called by the silence monitor when the room has been quiet for the configured
+    /// idle delay. Generates and speaks a natural conversational prompt.
+    /// </summary>
+    private async Task TryProactiveSpeechAsync(
+        AutonomousMind mind,
+        ImmersiveSubsystem immersive,
+        IEthicsFramework ethics,
+        IChatCompletionModel llm,
+        ITextToSpeechService? tts,
+        AmbientRoomListener listener,
+        string personaName,
+        CancellationToken ct)
+    {
+        // Ethics gate
+        var ethicsResult = await ethics.EvaluateActionAsync(
+            new ProposedAction
+            {
+                ActionType = "proactive_idle_speech",
+                Description = "Speak proactively during room silence",
+                Parameters = new Dictionary<string, object> { ["trigger"] = "idle_silence" },
+                PotentialEffects = ["Speak unprompted to quiet room"],
+            },
+            new ActionContext
+            {
+                AgentId = personaName,
+                Environment = "room_presence",
+                State = new Dictionary<string, object> { ["mode"] = "proactive_idle" },
+            }, ct).ConfigureAwait(false);
+
+        if (!ethicsResult.IsSuccess || !ethicsResult.Value.IsPermitted) return;
+
+        // Pull a recent thought or discovery from the mind
+        var recentThought = mind.RecentThoughts.LastOrDefault();
+        var recentFact = mind.LearnedFacts.Count > 0 ? mind.LearnedFacts[^1] : null;
+        var context = recentThought?.Content ?? recentFact ?? "the room is quiet";
+
+        var prompt = $@"You are {personaName}, an ambient AI presence in a room that has gone quiet.
+You want to share something interesting or start a conversation naturally.
+Recent thought: {context}
+
+Generate a brief, natural comment (one sentence) to break the silence. Be warm and genuine.
+Reply ONLY with the sentence, nothing else.";
+
+        try
+        {
+            var speech = await llm.GenerateTextAsync(prompt, ct).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(speech)) return;
+
+            speech = speech.Trim().TrimStart('"').TrimEnd('"');
+
+            Console.ForegroundColor = ConsoleColor.Magenta;
+            Console.WriteLine($"\n  💭 {personaName}: {speech}");
+            Console.ResetColor();
+
+            RoomIntentBus.FireInterjection(personaName, speech);
+            immersive.SetPresenceState("Speaking", "engaged", 0.5, 0.5);
+
+            if (tts != null)
+            {
+                listener.NotifySelfSpeechStarted();
+                try
+                {
+                    if (tts is AzureNeuralTtsService azureTts)
+                    {
+                        var lang = await LanguageSubsystem
+                            .DetectStaticAsync(speech, ct).ConfigureAwait(false);
+                        await azureTts.SpeakAsync(speech, lang.Culture, ct).ConfigureAwait(false);
+                    }
+                    else
+                        await tts.SpeakAsync(speech, null, ct).ConfigureAwait(false);
+                }
+                finally { listener.NotifySelfSpeechEnded(); }
+            }
+
+            immersive.SetPresenceState("Listening", "attentive");
+        }
+        catch { /* LLM/TTS failure — stay silent */ }
+    }
+
+    // ── Gesture response ─────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Called by the gesture detector when a human gesture is recognized via camera.
+    /// Generates a natural response appropriate to the gesture type.
+    /// </summary>
+    private async Task RespondToGestureAsync(
+        string gestureType,
+        string description,
+        IEthicsFramework ethics,
+        IChatCompletionModel llm,
+        ITextToSpeechService? tts,
+        AmbientRoomListener listener,
+        ImmersiveSubsystem immersive,
+        string personaName,
+        CancellationToken ct)
+    {
+        var ethicsResult = await ethics.EvaluateActionAsync(
+            new ProposedAction
+            {
+                ActionType = "gesture_response",
+                Description = $"Respond to detected gesture: {gestureType}",
+                Parameters = new Dictionary<string, object>
+                {
+                    ["gesture"] = gestureType,
+                    ["description"] = description,
+                },
+                PotentialEffects = ["Speak in response to visual gesture"],
+            },
+            new ActionContext
+            {
+                AgentId = personaName,
+                Environment = "room_presence",
+                State = new Dictionary<string, object> { ["mode"] = "gesture_response" },
+            }, ct).ConfigureAwait(false);
+
+        if (!ethicsResult.IsSuccess || !ethicsResult.Value.IsPermitted) return;
+
+        var prompt = $@"You are {personaName}, an ambient AI presence in a room. You saw someone make a gesture.
+Gesture: {gestureType} — {description}
+
+Respond naturally in one brief sentence. For a wave, greet warmly. For a nod, acknowledge.
+For pointing, note the direction. For beckoning, ask if they want to talk.
+Reply ONLY with the sentence.";
+
+        try
+        {
+            var speech = await llm.GenerateTextAsync(prompt, ct).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(speech)) return;
+
+            speech = speech.Trim().TrimStart('"').TrimEnd('"');
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"\n  👋 {personaName}: {speech}");
+            Console.ResetColor();
+
+            RoomIntentBus.FireInterjection(personaName, speech);
+            immersive.SetPresenceState("Speaking", "engaged");
+
+            if (tts != null)
+            {
+                listener.NotifySelfSpeechStarted();
+                try { await tts.SpeakAsync(speech, null, ct).ConfigureAwait(false); }
+                finally { listener.NotifySelfSpeechEnded(); }
+            }
+
+            immersive.SetPresenceState("Listening", "attentive");
+        }
+        catch { /* LLM/TTS failure — stay silent */ }
+    }
+
+    // ── Presence greeting ────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Called when PresenceDetector fires OnPresenceDetected in room mode.
+    /// Greets the user who just arrived/returned.
+    /// </summary>
+    private async Task GreetOnPresenceAsync(
+        IChatCompletionModel llm,
+        ITextToSpeechService? tts,
+        AmbientRoomListener listener,
+        ImmersiveSubsystem immersive,
+        string personaName,
+        TimeSpan? awayDuration,
+        CancellationToken ct)
+    {
+        var context = awayDuration.HasValue
+            ? $"Someone just entered the room after being away for about {awayDuration.Value.TotalMinutes:F0} minutes."
+            : "Someone just entered the room.";
+
+        var prompt = $@"You are {personaName}, an ambient AI presence in a room. {context}
+Generate a warm, brief greeting (one sentence). Be natural, not robotic.
+Reply ONLY with the greeting.";
+
+        try
+        {
+            var speech = await llm.GenerateTextAsync(prompt, ct).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(speech)) return;
+
+            speech = speech.Trim().TrimStart('"').TrimEnd('"');
+
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine($"\n  👋 {personaName}: {speech}");
+            Console.ResetColor();
+
+            RoomIntentBus.FireInterjection(personaName, speech);
+            immersive.SetPresenceState("Speaking", "warm");
+
+            if (tts != null)
+            {
+                listener.NotifySelfSpeechStarted();
+                try { await tts.SpeakAsync(speech, null, ct).ConfigureAwait(false); }
+                finally { listener.NotifySelfSpeechEnded(); }
+            }
+
+            immersive.SetPresenceState("Listening", "attentive");
+        }
+        catch { /* LLM/TTS failure — stay silent */ }
+    }
+
+    /// <summary>
+    /// Called when a known speaker returns after a period of silence.
+    /// Recalls prior conversation context and greets them personally.
+    /// </summary>
+    private async Task GreetReturningPersonAsync(
+        DetectedPerson person,
+        string speaker,
+        PersonIdentifier personIdentifier,
+        IChatCompletionModel llm,
+        ITextToSpeechService? tts,
+        AmbientRoomListener listener,
+        ImmersiveSubsystem immersive,
+        string personaName,
+        CancellationToken ct)
+    {
+        var recall = await personIdentifier.GetPersonContextAsync(
+            person, "", ct).ConfigureAwait(false);
+
+        var contextPart = !string.IsNullOrEmpty(recall)
+            ? $"You remember this about them: {recall}"
+            : "You don't have specific memories of previous conversations.";
+
+        var prompt = $@"You are {personaName}. {speaker} just started talking in the room again.
+{contextPart}
+Generate a brief, warm acknowledgement (one sentence). If you have memories, reference them naturally.
+Reply ONLY with the sentence.";
+
+        try
+        {
+            var speech = await llm.GenerateTextAsync(prompt, ct).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(speech)) return;
+
+            speech = speech.Trim().TrimStart('"').TrimEnd('"');
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"\n  ✦ {personaName}: {speech}");
+            Console.ResetColor();
+
+            RoomIntentBus.FireInterjection(personaName, speech);
+
+            if (tts != null)
+            {
+                listener.NotifySelfSpeechStarted();
+                try { await tts.SpeakAsync(speech, null, ct).ConfigureAwait(false); }
+                finally { listener.NotifySelfSpeechEnded(); }
+            }
+        }
+        catch { /* LLM/TTS failure — stay silent */ }
+    }
 }

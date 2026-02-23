@@ -89,20 +89,38 @@ public sealed class RoomCommandOptions
 
     public Option<int> CooldownOption { get; } = new("--cooldown")
     {
-        Description = "Minimum seconds between interjections (default: 45)",
-        DefaultValueFactory = _ => 45,
+        Description = "Minimum seconds between interjections (default: 20)",
+        DefaultValueFactory = _ => 20,
     };
 
     public Option<int> MaxInterjectionsOption { get; } = new("--max-interjections")
     {
-        Description = "Maximum interjections per 10-minute window (default: 4)",
-        DefaultValueFactory = _ => 4,
+        Description = "Maximum interjections per 10-minute window (default: 8)",
+        DefaultValueFactory = _ => 8,
     };
 
     public Option<double> PhiThresholdOption { get; } = new("--phi-threshold")
     {
-        Description = "Minimum Phi (IIT integration) score before Iaret considers interjecting (0.0–1.0, default: 0.15)",
-        DefaultValueFactory = _ => 0.15,
+        Description = "Minimum Phi (IIT integration) score before Iaret considers interjecting (0.0–1.0, default: 0.05)",
+        DefaultValueFactory = _ => 0.05,
+    };
+
+    public Option<bool> ProactiveOption { get; } = new("--proactive")
+    {
+        Description = "Enable proactive speech when room is idle (default: true)",
+        DefaultValueFactory = _ => true,
+    };
+
+    public Option<int> IdleDelayOption { get; } = new("--idle-delay")
+    {
+        Description = "Seconds of silence before proactive speech (default: 120)",
+        DefaultValueFactory = _ => 120,
+    };
+
+    public Option<bool> CameraOption { get; } = new("--camera")
+    {
+        Description = "Enable camera-based presence and gesture detection (default: false, privacy safeguard)",
+        DefaultValueFactory = _ => false,
     };
 
     /// <summary>Registers all options on <paramref name="command"/>.</summary>
@@ -123,6 +141,9 @@ public sealed class RoomCommandOptions
         command.Add(CooldownOption);
         command.Add(MaxInterjectionsOption);
         command.Add(PhiThresholdOption);
+        command.Add(ProactiveOption);
+        command.Add(IdleDelayOption);
+        command.Add(CameraOption);
     }
 
     /// <summary>
@@ -149,6 +170,9 @@ public sealed class RoomCommandOptions
             Quiet:             parseResult.GetValue(QuietOption),
             CooldownSeconds:   parseResult.GetValue(CooldownOption),
             MaxInterjections:  parseResult.GetValue(MaxInterjectionsOption),
-            PhiThreshold:      parseResult.GetValue(PhiThresholdOption));
+            PhiThreshold:      parseResult.GetValue(PhiThresholdOption),
+            Proactive:         parseResult.GetValue(ProactiveOption),
+            IdleDelaySeconds:  parseResult.GetValue(IdleDelayOption),
+            EnableCamera:      parseResult.GetValue(CameraOption));
     }
 }

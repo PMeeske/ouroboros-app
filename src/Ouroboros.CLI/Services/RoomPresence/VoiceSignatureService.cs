@@ -19,7 +19,7 @@ namespace Ouroboros.CLI.Services.RoomPresence;
 /// </summary>
 public sealed class VoiceSignatureService
 {
-    private const double MatchThreshold  = 0.82;   // min similarity to call a match
+    private const double MatchThreshold  = 0.78;   // min similarity to call a match
     private const int    MaxSamplesKept  = 12;      // rolling average window
     private const string OwnerLabel      = "User";
 
@@ -38,12 +38,12 @@ public sealed class VoiceSignatureService
     public (string SpeakerId, bool IsOwner)? TryMatch(VoiceSignature sig)
     {
         string? bestId   = null;
-        double  bestSim  = MatchThreshold - 0.001; // must beat this
+        double  bestSim  = MatchThreshold;
 
         foreach (var (id, profile) in _profiles)
         {
             var sim = profile.AverageSimilarity(sig);
-            if (sim > bestSim)
+            if (sim >= bestSim)
             {
                 bestSim = sim;
                 bestId  = id;

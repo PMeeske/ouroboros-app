@@ -25,19 +25,27 @@ public sealed record RoomUtterance(
 /// as the primary STT backend, falling back to nothing if no mic is available.
 /// Automatically suppresses Iaret's own TTS output via <see cref="AdaptiveSpeechDetector"/>.
 ///
-/// Utterances shorter than <see cref="MinWords"/> words are silently discarded.
+/// Utterances shorter than <see cref="_minWords"/> words are logged and discarded.
 /// </summary>
 public sealed class AmbientRoomListener : IAsyncDisposable
 {
     private const int ChunkSeconds = 3;
-    private const int MinWords = 2;
 
     private readonly ISpeechToTextService _stt;
     private readonly AdaptiveSpeechDetector _vad;
+    private readonly int _minWords;
     private CancellationTokenSource? _cts;
     private Task? _captureLoop;
     private bool _disposed;
     private bool _selfSpeaking;
+
+    // ── Diagnostics ──────────────────────────────────────────────────────────
+    private int _totalChunks;
+    private int _vadDiscards;
+    private int _sttFailures;
+    private int _wordFilterDiscards;
+    private int _recordFailures;
+    private DateTime _lastDiagnosticLog = DateTime.MinValue;
 
     /// <summary>Raised for every utterance that passes the word-count filter.</summary>
     public event Action<RoomUtterance>? OnUtterance;
@@ -52,10 +60,29 @@ public sealed class AmbientRoomListener : IAsyncDisposable
     /// </summary>
     public static volatile bool ImmersiveListeningActive;
 
-    public AmbientRoomListener(ISpeechToTextService stt)
+    /// <summary>
+    /// Creates a room-tuned <see cref="AdaptiveSpeechDetector.SpeechDetectionConfig"/>
+    /// optimised for far-field ambient listening (lower thresholds, faster onset).
+    /// </summary>
+    public static AdaptiveSpeechDetector.SpeechDetectionConfig CreateRoomConfig() => new(
+        InitialThreshold: 0.025,
+        MinThreshold: 0.01,
+        SpeechOnsetFrames: 1,
+        SpeechOffsetFrames: 5,
+        AdaptationRate: 0.02,
+        SpeechToNoiseRatio: 1.8,
+        EnableZeroCrossingRate: true,
+        EnableSpectralAnalysis: false,
+        SampleRate: 16000);
+
+    public AmbientRoomListener(
+        ISpeechToTextService stt,
+        AdaptiveSpeechDetector.SpeechDetectionConfig? vadConfig = null,
+        int minWords = 1)
     {
         _stt = stt;
-        _vad = new AdaptiveSpeechDetector(new AdaptiveSpeechDetector.SpeechDetectionConfig());
+        _vad = new AdaptiveSpeechDetector(vadConfig ?? CreateRoomConfig());
+        _minWords = minWords;
     }
 
     /// <summary>
@@ -114,7 +141,7 @@ public sealed class AmbientRoomListener : IAsyncDisposable
                 // if ImmersiveMode is actively recording the user's voice (mic mutual exclusion).
                 if (_selfSpeaking || ImmersiveListeningActive)
                 {
-                    await Task.Delay(300, ct).ConfigureAwait(false);
+                    await Task.Delay(500, ct).ConfigureAwait(false);
                     continue;
                 }
 
@@ -122,8 +149,14 @@ public sealed class AmbientRoomListener : IAsyncDisposable
                 var recordResult = await MicrophoneRecorder.RecordToMemoryAsync(
                     ChunkSeconds, "wav", ct).ConfigureAwait(false);
 
+                _totalChunks++;
+
                 if (!recordResult.IsSuccess)
+                {
+                    _recordFailures++;
+                    LogDiagnosticsPeriodically();
                     continue;
+                }
 
                 var audioBytes = recordResult.Value;
 
@@ -132,21 +165,39 @@ public sealed class AmbientRoomListener : IAsyncDisposable
                 var pcmForVad = audioBytes.Length > 44 ? audioBytes[44..] : audioBytes;
                 var vadResult = _vad.AnalyzeAudio(pcmForVad);
                 if (vadResult.SuggestedAction == AdaptiveSpeechDetector.SuggestedAction.DiscardSegment)
+                {
+                    _vadDiscards++;
+                    LogDiagnosticsPeriodically();
                     continue;
+                }
 
                 // Transcribe the chunk via Whisper (or whichever STT service was injected)
                 var transcribeResult = await _stt.TranscribeBytesAsync(
                     audioBytes, "chunk.wav", ct: ct).ConfigureAwait(false);
 
                 if (!transcribeResult.IsSuccess)
+                {
+                    _sttFailures++;
+                    LogDiagnosticsPeriodically();
                     continue;
+                }
 
                 var text = transcribeResult.Value.Text.Trim();
 
-                // Filter: at least MinWords meaningful words
+                // Filter: at least _minWords meaningful words
                 var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                if (string.IsNullOrWhiteSpace(text) || words.Length < MinWords)
+                if (string.IsNullOrWhiteSpace(text) || words.Length < _minWords)
+                {
+                    if (!string.IsNullOrWhiteSpace(text))
+                    {
+                        _wordFilterDiscards++;
+                        Console.ForegroundColor = ConsoleColor.DarkGray;
+                        Console.WriteLine($"  [room] Filtered ({words.Length} word{(words.Length == 1 ? "" : "s")}): \"{text}\"");
+                        Console.ResetColor();
+                    }
+                    LogDiagnosticsPeriodically();
                     continue;
+                }
 
                 // Extract acoustic fingerprint from the raw WAV bytes
                 var voiceSig = VoiceSignature.FromWavBytes(audioBytes, words.Length);
@@ -169,6 +220,17 @@ public sealed class AmbientRoomListener : IAsyncDisposable
                 await Task.Delay(2000, ct).ConfigureAwait(false);
             }
         }
+    }
+
+    private void LogDiagnosticsPeriodically()
+    {
+        if (DateTime.UtcNow - _lastDiagnosticLog < TimeSpan.FromSeconds(60)) return;
+        _lastDiagnosticLog = DateTime.UtcNow;
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine($"  [room] Audio stats: {_totalChunks} chunks, " +
+            $"{_vadDiscards} VAD discards, {_sttFailures} STT fails, " +
+            $"{_recordFailures} mic fails, {_wordFilterDiscards} word-filter drops");
+        Console.ResetColor();
     }
 
     public async ValueTask DisposeAsync()
