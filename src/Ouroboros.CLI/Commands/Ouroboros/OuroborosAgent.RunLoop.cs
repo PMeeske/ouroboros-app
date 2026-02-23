@@ -267,66 +267,8 @@ public sealed partial class OuroborosAgent
         };
     }
 
-    private static readonly string[] GreetingStyles =
-    [
-        "playfully teasing about the time since last session",
-        "genuinely curious about what project they're working on",
-        "warmly welcoming like an old friend",
-        "subtly competitive, eager to tackle a challenge together",
-        "contemplative and philosophical",
-        "energetically enthusiastic about the day ahead",
-        "calm and focused, ready for serious work",
-        "slightly mysterious, hinting at discoveries to share"
-    ];
-
-    private static readonly string[] GreetingMoods =
-    [
-        "witty and sharp",
-        "warm and inviting",
-        "playfully sarcastic",
-        "thoughtfully curious",
-        "quietly confident",
-        "gently encouraging"
-    ];
-
-    private async Task<string> GetGreetingAsync()
-    {
-        var persona = _voice.ActivePersona;
-        var hour = DateTime.Now.Hour;
-        var timeOfDay = GetLocalizedTimeOfDay(hour);
-
-        var style = GreetingStyles[Random.Shared.Next(GreetingStyles.Length)];
-        var mood = GreetingMoods[Random.Shared.Next(GreetingMoods.Length)];
-        var dayOfWeek = DateTime.Now.DayOfWeek;
-        var uniqueSeed = Guid.NewGuid().GetHashCode() % 10000; // True unique variation
-
-        // Add language directive if culture is set
-        var languageDirective = GetLanguageDirective();
-
-        var prompt = PromptResources.PersonaGreeting(
-            languageDirective, persona.Name, timeOfDay,
-            dayOfWeek.ToString(), style, mood, uniqueSeed.ToString());
-
-        try
-        {
-            if (_llm?.InnerModel == null)
-                return GetRandomFallbackGreeting(hour);
-
-            var response = await _llm.InnerModel.GenerateTextAsync(prompt);
-            return response.Trim().Trim('"');
-        }
-        catch
-        {
-            return GetRandomFallbackGreeting(hour);
-        }
-    }
-
-    private string GetRandomFallbackGreeting(int hour)
-    {
-        var timeOfDay = GetLocalizedTimeOfDay(hour);
-        var fallbacks = GetLocalizedFallbackGreetings(timeOfDay);
-        return fallbacks[Random.Shared.Next(fallbacks.Length)];
-    }
+    private Task<string> GetGreetingAsync()
+        => _mediator.Send(new GetGreetingRequest());
 
     private string GetLocalizedTimeOfDay(int hour) => _localizationSub.GetLocalizedTimeOfDay(hour);
     private string[] GetLocalizedFallbackGreetings(string timeOfDay) => _localizationSub.GetLocalizedFallbackGreetings(timeOfDay);
