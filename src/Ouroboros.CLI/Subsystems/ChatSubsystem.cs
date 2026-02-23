@@ -345,7 +345,7 @@ Use this actual code information to answer the user's question accurately.
             if (_responseCount % 5 == 0 && traceResult.IsSuccess)
             {
                 var reflection = _metacognition.ReflectOn(traceResult.Value);
-                var metaMsg = $"\n  ✧ [metacognition] Q={reflection.QualityScore:F2} " +
+                var metaMsg = $"\n  ✧ \\[metacognition] Q={reflection.QualityScore:F2} " +
                     $"| {(reflection.HasIssues ? Markup.Escape(reflection.Improvements.FirstOrDefault() ?? "–") : "Clean")}";
                 AnsiConsole.MarkupLine($"[rgb(128,0,180)]{metaMsg}[/]");
             }

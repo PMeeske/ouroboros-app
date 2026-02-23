@@ -46,7 +46,7 @@ public sealed partial class OuroborosAgent
     private void PrintQuickHelp()
     {
         AnsiConsole.MarkupLine(OuroborosTheme.Dim("  Quick commands: 'help' | 'status' | 'skills' | 'tools' | 'exit'"));
-        AnsiConsole.MarkupLine(OuroborosTheme.Dim("  Say or type anything to chat. Use [TOOL:name args] to call tools."));
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim("  Say or type anything to chat. Use \\[TOOL:name args] to call tools."));
         AnsiConsole.WriteLine();
     }
 

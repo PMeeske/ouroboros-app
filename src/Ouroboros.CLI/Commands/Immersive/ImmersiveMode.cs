@@ -898,7 +898,7 @@ User: goodbye
                 var result = await localTts.SpeakDirectAsync(text, CancellationToken.None);
                 result.Match(
                     success => { /* spoken successfully */ },
-                    error => AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"[tts: {error}]")}"));
+                    error => AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"\\[tts: {Markup.Escape(error)}]")}"));
             }
             else if (tts is Ouroboros.Providers.TextToSpeech.AzureNeuralTtsService azureDirect)
             {
@@ -912,12 +912,12 @@ User: goodbye
                 var result = await tts.SpeakAsync(text, null, CancellationToken.None);
                 result.Match(
                     success => { /* spoken successfully */ },
-                    error => AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"[tts: {error}]")}"));
+                    error => AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"\\[tts: {Markup.Escape(error)}]")}"));
             }
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"[tts error: {ex.Message}]")}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"\\[tts error: {Markup.Escape(ex.Message)}]")}");
         }
         finally
         {
@@ -2025,7 +2025,7 @@ User: goodbye
         if (_dynamicToolFactory == null)
             return "Tool creation is not available.";
 
-        AnsiConsole.MarkupLine($"\n  [rgb(128,0,180)][~] Creating custom tool from description...[/]");
+        AnsiConsole.MarkupLine($"\n  [rgb(128,0,180)]\\[~] Creating custom tool from description...[/]");
         AnsiConsole.MarkupLine($"      {OuroborosTheme.Accent("Description:")} {Markup.Escape(description)}");
 
         try
@@ -2068,7 +2068,7 @@ User: goodbye
         if (_dynamicToolFactory == null)
             return "Tool creation is not available.";
 
-        AnsiConsole.MarkupLine($"\n  [rgb(128,0,180)][~] Creating tool based on our conversation...[/]");
+        AnsiConsole.MarkupLine($"\n  [rgb(128,0,180)]\\[~] Creating tool based on our conversation...[/]");
         AnsiConsole.MarkupLine($"      {OuroborosTheme.Accent("Topic:")} {Markup.Escape(topic)}");
 
         try
@@ -2103,7 +2103,7 @@ User: goodbye
         if (_toolLearner == null)
             return "Intelligent tool discovery is not available.";
 
-        AnsiConsole.MarkupLine($"\n  [rgb(128,0,180)][~] Finding best tool for: {Markup.Escape(goal)}...[/]");
+        AnsiConsole.MarkupLine($"\n  [rgb(128,0,180)]\\[~] Finding best tool for: {Markup.Escape(goal)}...[/]");
 
         try
         {
@@ -2142,7 +2142,7 @@ User: goodbye
             return "Conversation memory is not initialized.";
         }
 
-        AnsiConsole.MarkupLine($"\n  [rgb(148,103,189)][~] Searching memories for: {Markup.Escape(topic)}...[/]");
+        AnsiConsole.MarkupLine($"\n  [rgb(148,103,189)]\\[~] Searching memories for: {Markup.Escape(topic)}...[/]");
 
         try
         {
@@ -2237,13 +2237,13 @@ User: goodbye
             return "Self-indexer is not available. Qdrant may not be connected.";
         }
 
-        AnsiConsole.MarkupLine($"\n  [rgb(148,103,189)][~] Starting full workspace reindex...[/]");
+        AnsiConsole.MarkupLine($"\n  [rgb(148,103,189)]\\[~] Starting full workspace reindex...[/]");
 
         var progress = new Progress<IndexingProgress>(p =>
         {
             if (p.ProcessedFiles % 10 == 0 && p.ProcessedFiles > 0)
             {
-                AnsiConsole.MarkupLine(OuroborosTheme.Dim($"      [{p.ProcessedFiles}/{p.TotalFiles}] {p.CurrentFile}"));
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim($"      [{p.ProcessedFiles}/{p.TotalFiles}] {Markup.Escape(p.CurrentFile ?? "")}"));
             }
         });
 
@@ -2265,13 +2265,13 @@ User: goodbye
             return "Self-indexer is not available. Qdrant may not be connected.";
         }
 
-        AnsiConsole.MarkupLine($"\n  [rgb(148,103,189)][~] Starting incremental reindex (changed files only)...[/]");
+        AnsiConsole.MarkupLine($"\n  [rgb(148,103,189)]\\[~] Starting incremental reindex (changed files only)...[/]");
 
         var progress = new Progress<IndexingProgress>(p =>
         {
             if (!string.IsNullOrEmpty(p.CurrentFile))
             {
-                AnsiConsole.MarkupLine(OuroborosTheme.Dim($"      [{p.ProcessedFiles}/{p.TotalFiles}] {Path.GetFileName(p.CurrentFile)}"));
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim($"      [{p.ProcessedFiles}/{p.TotalFiles}] {Markup.Escape(Path.GetFileName(p.CurrentFile) ?? "")}"));
             }
         });
 
@@ -2297,7 +2297,7 @@ User: goodbye
             return "Self-indexer is not available. Qdrant may not be connected.";
         }
 
-        AnsiConsole.MarkupLine($"\n  [rgb(148,103,189)][~] Searching indexed workspace for: {Markup.Escape(query)}[/]");
+        AnsiConsole.MarkupLine($"\n  [rgb(148,103,189)]\\[~] Searching indexed workspace for: {Markup.Escape(query)}[/]");
 
         try
         {
@@ -2354,7 +2354,7 @@ User: goodbye
         IVoiceOptions options,
         CancellationToken ct)
     {
-        AnsiConsole.MarkupLine($"\n  [rgb(148,103,189)][~] Running Ouroboros emergence cycle on: {Markup.Escape(topic)}...[/]");
+        AnsiConsole.MarkupLine($"\n  [rgb(148,103,189)]\\[~] Running Ouroboros emergence cycle on: {Markup.Escape(topic)}...[/]");
         AnsiConsole.MarkupLine(OuroborosTheme.Dim("      Phase 1: Research gathering..."));
         await Task.Delay(300, ct);
         AnsiConsole.MarkupLine(OuroborosTheme.Dim("      Phase 2: Pattern extraction..."));

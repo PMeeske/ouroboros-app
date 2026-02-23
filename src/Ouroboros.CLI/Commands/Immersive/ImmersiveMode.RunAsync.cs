@@ -639,7 +639,7 @@ public sealed partial class ImmersiveMode
                         // Keep _lastDetectedCulture in sync for OuroborosAgent's direct TTS path.
                         _lastDetectedCulture = targetCulture;
 
-                        AnsiConsole.MarkupLine(OuroborosTheme.Dim($"  [tts: {responseLang.Language} ({targetCulture})]"));
+                        AnsiConsole.MarkupLine(OuroborosTheme.Dim($"  \\[tts: {Markup.Escape(responseLang.Language)} ({Markup.Escape(targetCulture)})]"));
 
                         // Pass culture explicitly — no state mutation, no synthesizer re-init.
                         await azureDirect.SpeakAsync(response, targetCulture, CancellationToken.None);

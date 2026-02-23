@@ -235,7 +235,7 @@ public static class MaintenanceCommands
             IsEnabled = true,
             Execute = async ct =>
             {
-                AnsiConsole.MarkupLine($"  [{DateTime.UtcNow:HH:mm:ss}] Executing scheduled task: {Markup.Escape(options.TaskName)}");
+                AnsiConsole.MarkupLine($"  \\[{DateTime.UtcNow:HH:mm:ss}] Executing scheduled task: {Markup.Escape(options.TaskName)}");
                 await Task.Delay(100, ct);
                 return Result<object>.Success("Task completed");
             }
