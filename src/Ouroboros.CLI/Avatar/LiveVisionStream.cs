@@ -12,13 +12,16 @@ using Ouroboros.Application.Avatar;
 namespace Ouroboros.CLI.Avatar;
 
 /// <summary>
-/// Captures avatar character assets, sends them as frames to the Ollama vision model
-/// with streaming enabled, and relays both the JPEG frames and the streaming text tokens
-/// to avatar.html via <see cref="IVideoFrameRenderer"/> and <see cref="IVisionTextRenderer"/>.
+/// Captures avatar character assets, optionally generates new frames via
+/// <see cref="AvatarVideoGenerator"/> (Stability AI cloud or local SD), sends them
+/// to the Ollama vision model with streaming enabled, and relays both the JPEG frames
+/// and streaming text tokens to avatar.html via <see cref="IVideoFrameRenderer"/>
+/// and <see cref="IVisionTextRenderer"/>.
 /// </summary>
 public sealed class LiveVisionStream : IAsyncDisposable
 {
     private readonly InteractiveAvatarService _avatarService;
+    private readonly AvatarVideoGenerator? _frameGenerator;
     private readonly string _ollamaEndpoint;
     private readonly string _visionModel;
     private readonly string _assetDirectory;
@@ -45,9 +48,11 @@ public sealed class LiveVisionStream : IAsyncDisposable
         string ollamaEndpoint = "http://localhost:11434",
         string visionModel = "qwen3-vl:235b-cloud",
         string? assetDirectory = null,
-        ILogger<LiveVisionStream>? logger = null)
+        ILogger<LiveVisionStream>? logger = null,
+        AvatarVideoGenerator? frameGenerator = null)
     {
         _avatarService = avatarService;
+        _frameGenerator = frameGenerator;
         _ollamaEndpoint = ollamaEndpoint.TrimEnd('/');
         _visionModel = visionModel;
         _assetDirectory = assetDirectory ?? GetDefaultAssetDirectory();
@@ -110,8 +115,25 @@ public sealed class LiveVisionStream : IAsyncDisposable
                     continue;
                 }
 
-                // Load and encode the avatar asset as JPEG
+                // Load and encode the avatar asset as JPEG (seed image)
                 byte[] jpegBytes = await EncodeAsJpegAsync(assetPath, ct);
+
+                // Generate a new frame via Stability AI / local SD if available
+                if (_frameGenerator != null)
+                {
+                    var prompt = AvatarVideoGenerator.BuildPrompt(state);
+                    string seedBase64 = Convert.ToBase64String(jpegBytes);
+                    string? generatedBase64 = await _frameGenerator.GenerateFrameAsync(prompt, seedBase64, ct);
+
+                    if (generatedBase64 != null)
+                    {
+                        jpegBytes = Convert.FromBase64String(generatedBase64);
+                    }
+                    else
+                    {
+                        _logger?.LogDebug("Frame generation returned null, using static seed");
+                    }
+                }
 
                 // Broadcast frame to avatar.html canvas
                 await _avatarService.BroadcastVideoFrameAsync(jpegBytes);
@@ -185,18 +207,14 @@ public sealed class LiveVisionStream : IAsyncDisposable
                     var token = tokenElement.GetString();
                     if (!string.IsNullOrEmpty(token))
                     {
-                        // Relay each token to avatar.html
+                        // Relay each token to avatar.html only (no CLI output)
                         await BroadcastVisionTextToRenderersAsync(token);
-
-                        // Also print to console for visibility
-                        Console.Write(token);
                     }
                 }
 
                 // Check if this is the final response
                 if (json.RootElement.TryGetProperty("done", out var done) && done.GetBoolean())
                 {
-                    Console.WriteLine();
                     break;
                 }
             }

@@ -228,6 +228,7 @@ public sealed class EmbodimentSubsystem : IEmbodimentSubsystem
 
         try
         {
+            var stabilityKey = ApiKeyProvider.GetApiKey("StabilityAI");
             var (service, videoStream, liveVision) = await Avatar.AvatarIntegration.CreateAndStartWithVisionAsync(
                 ctx.Config.Persona,
                 ctx.Config.AvatarPort,
@@ -235,6 +236,7 @@ public sealed class EmbodimentSubsystem : IEmbodimentSubsystem
                 visionModelName: "qwen3-vl:235b-cloud",
                 visionModel: ctx.Models.VisionModel,
                 virtualSelf: VirtualSelf,
+                stabilityAiApiKey: stabilityKey,
                 ct: CancellationToken.None);
 
             AvatarService = service;
