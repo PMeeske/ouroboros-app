@@ -33,17 +33,19 @@ public class OuroborosAgentService : IOuroborosAgentService
         var configuration = AgentBootstrapper.LoadConfiguration();
         AgentBootstrapper.ApplyConfiguration(configuration);
 
-        var agent = Microsoft.Extensions.DependencyInjection.ActivatorUtilities
-            .CreateInstance<OuroborosAgent>(_hostServices, config);
+        // Use the child-container DI path so subsystems + MediatR are properly registered.
+        // ActivatorUtilities against the host container lacks subsystem registrations and
+        // falls back to the legacy constructor which sets IMediator = null.
+        var (agent, provider) = await AgentBootstrapper.CreateAgentWithDIAsync(config, _hostServices);
 
         try
         {
-            await agent.InitializeAsync();
             await agent.RunAsync(cancellationToken);
         }
         finally
         {
             await agent.DisposeAsync();
+            provider.Dispose();
             _logger.LogInformation("Agent session completed");
         }
     }

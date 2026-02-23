@@ -3,6 +3,7 @@ namespace Ouroboros.CLI.Subsystems;
 
 using Microsoft.Extensions.DependencyInjection;
 using Ouroboros.CLI.Commands;
+using Ouroboros.CLI.Mediator;
 
 /// <summary>
 /// Extension methods to register all agent subsystems in a DI container.
@@ -30,6 +31,10 @@ public static class SubsystemRegistration
             EmbedModel: config.EmbedModel,
             QdrantEndpoint: config.QdrantEndpoint,
             Culture: config.Culture));
+
+        // MediatR: required for agent mediator pattern (AgiWarmup, Persistence, etc.)
+        services.AddMediatR(cfg =>
+            cfg.RegisterServicesFromAssemblyContaining<AgiWarmupHandler>());
 
         // Register subsystems
         services.AddSingleton<IVoiceSubsystem>(new VoiceSubsystem(voiceService));
