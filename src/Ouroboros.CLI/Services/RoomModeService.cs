@@ -25,23 +25,7 @@ public sealed class RoomModeService : IRoomModeService
             config.Persona, config.Model, config.Endpoint);
 
         var room = new RoomMode();
-        await room.RunAsync(
-            personaName:      config.Persona,
-            model:            config.Model,
-            endpoint:         config.Endpoint,
-            embedModel:       config.EmbedModel,
-            qdrant:           config.QdrantEndpoint,
-            azureSpeechKey:   config.AzureSpeechKey,
-            azureSpeechRegion: config.AzureSpeechRegion,
-            ttsVoice:         config.TtsVoice,
-            localTts:         config.LocalTts,
-            avatarOn:         config.Avatar,
-            avatarPort:       config.AvatarPort,
-            quiet:            config.Quiet,
-            cooldown:         TimeSpan.FromSeconds(config.CooldownSeconds),
-            maxPerWindow:     config.MaxInterjections,
-            phiThreshold:     config.PhiThreshold,
-            ct:               cancellationToken);
+        await room.RunAsync(config, cancellationToken);
 
         _logger.LogInformation("Room mode session completed");
     }

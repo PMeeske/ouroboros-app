@@ -4,6 +4,7 @@ namespace Ouroboros.CLI.Services;
 using LangChain.Providers.Ollama;
 using Ouroboros.Agent.MetaAI;
 using Ouroboros.Agent.NeuralSymbolic;
+using Ouroboros.Application.Personality;
 using Ouroboros.Application.Services;
 using Ouroboros.CLI.Sovereignty;
 using Ouroboros.Core.CognitivePhysics;
@@ -11,6 +12,9 @@ using Ouroboros.Core.Ethics;
 using CausalReasoning = Ouroboros.Core.Reasoning;
 using Ouroboros.Pipeline.Memory;
 using Ouroboros.Providers;
+using Ouroboros.Providers.SpeechToText;
+using Ouroboros.Providers.TextToSpeech;
+using Ouroboros.Speech;
 using Ouroboros.Tools.MeTTa;
 using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 using IEmbeddingModel = Ouroboros.Domain.IEmbeddingModel;
@@ -224,5 +228,122 @@ public static class SharedAgentBootstrap
         return new CausalReasoning.CausalGraph(
             [causeVar, effectVar], [edge],
             new Dictionary<string, CausalReasoning.StructuralEquation>());
+    }
+
+    /// <summary>
+    /// Creates a TTS service using the best available backend.
+    /// Priority: Azure Neural TTS → Local Windows SAPI → OpenAI TTS → null.
+    /// Previously duplicated across ImmersiveMode.Speech.cs and RoomMode.RunAsync.
+    /// </summary>
+    public static ITextToSpeechService? CreateTtsService(
+        string? azureSpeechKey,
+        string azureSpeechRegion,
+        string personaName,
+        string ttsVoice,
+        bool preferLocal,
+        Action<string>? log = null)
+    {
+        // Azure Neural TTS takes first priority when configured
+        if (!string.IsNullOrEmpty(azureSpeechKey))
+        {
+            try
+            {
+                var tts = new AzureNeuralTtsService(azureSpeechKey, azureSpeechRegion, personaName);
+                log?.Invoke($"Voice output: Azure Neural TTS ({ttsVoice})");
+                return tts;
+            }
+            catch (Exception ex)
+            {
+                log?.Invoke($"Azure TTS unavailable: {ex.Message}");
+            }
+        }
+
+        // Local Windows SAPI
+        if (preferLocal && LocalWindowsTtsService.IsAvailable())
+        {
+            try
+            {
+                var tts = new LocalWindowsTtsService(rate: 1, volume: 100, useEnhancedProsody: true);
+                log?.Invoke("Voice output: Windows SAPI");
+                return tts;
+            }
+            catch { }
+        }
+
+        // OpenAI TTS fallback
+        var openAiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+        if (!string.IsNullOrEmpty(openAiKey))
+        {
+            try
+            {
+                var tts = new OpenAiTextToSpeechService(openAiKey);
+                log?.Invoke("Voice output: OpenAI TTS");
+                return tts;
+            }
+            catch { }
+        }
+
+        log?.Invoke("Voice output: Text only (no TTS backend available)");
+        return null;
+    }
+
+    /// <summary>
+    /// Creates an STT service using the best available backend.
+    /// Currently supports Whisper.net (local, no API key needed).
+    /// Previously duplicated in ImmersiveMode.Speech.cs and RoomMode.Speech.cs.
+    /// </summary>
+    public static async Task<ISpeechToTextService?> CreateSttService(
+        string? azureKey = null,
+        string azureRegion = "eastus",
+        Action<string>? log = null)
+    {
+        // Try Whisper.net (local, no API key needed)
+        try
+        {
+            var whisper = WhisperNetService.FromModelSize("base");
+            if (await whisper.IsAvailableAsync())
+            {
+                log?.Invoke("Voice input: Whisper.net (local)");
+                return whisper;
+            }
+        }
+        catch { }
+
+        log?.Invoke("Voice input: No backend available (install Whisper.net for voice input)");
+        return null;
+    }
+
+    /// <summary>
+    /// Creates speech detection adapter for voice-activity detection.
+    /// Used alongside STT for interactive voice input.
+    /// </summary>
+    public static AdaptiveSpeechDetector CreateSpeechDetector()
+    {
+        return new AdaptiveSpeechDetector(new AdaptiveSpeechDetector.SpeechDetectionConfig(
+            InitialThreshold: 0.03,
+            SpeechOnsetFrames: 2,
+            SpeechOffsetFrames: 6,
+            AdaptationRate: 0.015,
+            SpeechToNoiseRatio: 2.0));
+    }
+
+    /// <summary>
+    /// Creates and awakens an <see cref="ImmersivePersona"/> with its required
+    /// MeTTa engine and embedding model already wired.
+    /// Previously duplicated across ImmersiveMode.RunAsync and RoomMode.RunAsync.
+    /// </summary>
+    public static async Task<ImmersivePersona> CreateAndAwakenPersonaAsync(
+        string personaName,
+        IMeTTaEngine mettaEngine,
+        IEmbeddingModel? embeddingModel,
+        string qdrantEndpoint,
+        CancellationToken ct,
+        Action<string>? log = null)
+    {
+        log?.Invoke("Awakening persona...");
+        var persona = new ImmersivePersona(personaName, mettaEngine, embeddingModel, qdrantEndpoint);
+        await persona.AwakenAsync(ct);
+        log?.Invoke($"{personaName} is awake");
+        return persona;
     }
 }

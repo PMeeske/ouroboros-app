@@ -100,6 +100,29 @@ public sealed partial class RoomMode
             quiet, cooldown, maxPer10, phiThreshold, ct);
     }
 
+    /// <summary>
+    /// Convenience entry point accepting a <see cref="RoomConfig"/> record.
+    /// Parallels <see cref="ImmersiveMode.RunImmersiveAsync"/> for consistent service invocation.
+    /// </summary>
+    public Task RunAsync(RoomConfig config, CancellationToken ct = default)
+        => RunAsync(
+            personaName:      config.Persona,
+            model:            config.Model,
+            endpoint:         config.Endpoint,
+            embedModel:       config.EmbedModel,
+            qdrant:           config.QdrantEndpoint,
+            azureSpeechKey:   config.AzureSpeechKey,
+            azureSpeechRegion: config.AzureSpeechRegion,
+            ttsVoice:         config.TtsVoice,
+            localTts:         config.LocalTts,
+            avatarOn:         config.Avatar,
+            avatarPort:       config.AvatarPort,
+            quiet:            config.Quiet,
+            cooldown:         TimeSpan.FromSeconds(config.CooldownSeconds),
+            maxPerWindow:     config.MaxInterjections,
+            phiThreshold:     config.PhiThreshold,
+            ct:               ct);
+
     // ── Main entry point ─────────────────────────────────────────────────────
 
     public async Task RunAsync(
@@ -141,9 +164,10 @@ public sealed partial class RoomMode
         var embeddingModel = Ouroboros.CLI.Services.SharedAgentBootstrap.CreateEmbeddingModel(
             endpoint, embedModel, msg => Console.WriteLine($"  [{(msg.Contains("unavailable") ? "!" : "OK")}] {msg}"));
 
-        // ─── 3. ImmersivePersona ──────────────────────────────────────────────
-        Console.WriteLine("  [~] Awakening persona...");
-        await using var persona = new ImmersivePersona(personaName, mettaEngine, embeddingModel, qdrant);
+        // ─── 3. ImmersivePersona (via SharedAgentBootstrap) ────────────────────
+        await using var persona = await Services.SharedAgentBootstrap.CreateAndAwakenPersonaAsync(
+            personaName, mettaEngine, embeddingModel, qdrant, ct,
+            log: msg => Console.WriteLine($"  [~] {msg}"));
         persona.AutonomousThought += (_, e) =>
         {
             if (e.Thought.Type is not (InnerThoughtType.Curiosity
@@ -154,16 +178,17 @@ public sealed partial class RoomMode
             Console.WriteLine($"\n  💭 {e.Thought.Content}");
             Console.ResetColor();
         };
-        await persona.AwakenAsync(ct);
         Console.WriteLine($"  [OK] {personaName} is awake\n");
 
         // ─── 4. ImmersiveSubsystem → avatar ───────────────────────────────────
         var immersive = new ImmersiveSubsystem();
         await immersive.InitializeStandaloneAsync(personaName, avatarOn, avatarPort, ct);
 
-        // ─── 5. Ambient listener ──────────────────────────────────────────────
+        // ─── 5. Ambient listener (via SharedAgentBootstrap) ────────────────────
         Console.WriteLine("  [~] Opening microphone...");
-        var stt = await InitializeSttAsync(azureSpeechKey, azureSpeechRegion);
+        var stt = await Services.SharedAgentBootstrap.CreateSttService(
+            azureSpeechKey, azureSpeechRegion,
+            log: msg => Console.WriteLine($"  [OK] {msg}"));
         if (stt == null)
         {
             Console.ForegroundColor = ConsoleColor.Yellow;
@@ -207,25 +232,11 @@ public sealed partial class RoomMode
         (_roomCuriosity, _roomSovereigntyGate) = Ouroboros.CLI.Services.SharedAgentBootstrap
             .CreateCuriosityAndSovereignty(chatModel, embeddingModel, mettaEngine, mind, ct);
 
-        // ─── 10. TTS for interjections ────────────────────────────────────────
-        ITextToSpeechService? ttsService = null;
-        if (!string.IsNullOrEmpty(azureSpeechKey))
-        {
-            try
-            {
-                ttsService = new AzureNeuralTtsService(azureSpeechKey, azureSpeechRegion, personaName);
-                Console.WriteLine($"  [OK] Voice output: Azure Neural TTS ({ttsVoice})");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"  [!] Azure TTS unavailable: {ex.Message}");
-            }
-        }
-        if (ttsService == null && localTts && LocalWindowsTtsService.IsAvailable())
-        {
-            try { ttsService = new LocalWindowsTtsService(rate: 1, volume: 100, useEnhancedProsody: true); }
-            catch { }
-        }
+        // ─── 10. TTS for interjections (via SharedAgentBootstrap) ──────────────
+        var ttsService = Services.SharedAgentBootstrap.CreateTtsService(
+            azureSpeechKey, azureSpeechRegion, personaName, ttsVoice,
+            preferLocal: localTts,
+            log: msg => Console.WriteLine($"  [OK] {msg}"));
 
         // ─── 11. Rolling room transcript ─────────────────────────────────────
         var transcript = new List<(string SpeakerLabel, string Text, DateTime When)>();

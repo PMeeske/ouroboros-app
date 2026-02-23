@@ -13,73 +13,42 @@ public sealed partial class ImmersiveMode
 {
     private async Task<(ITextToSpeechService?, ISpeechToTextService?, AdaptiveSpeechDetector?)> InitializeSpeechServicesAsync(IVoiceOptions? options = null)
     {
-        ITextToSpeechService? tts = null;
-        ISpeechToTextService? stt = null;
+        // Extract Azure config from options
+        string? azureKey = null;
+        string azureRegion = "eastus";
+        string personaName = "Iaret";
+        string ttsVoice = "en-US-JennyMultilingualNeural";
+        bool useAzure = false;
+
+        if (options is ImmersiveCommandVoiceOptions ico)
+        {
+            useAzure = ico.AzureTts;
+            azureKey = ico.AzureSpeechKey ?? Environment.GetEnvironmentVariable("AZURE_SPEECH_KEY");
+            azureRegion = ico.AzureSpeechRegion;
+            personaName = ico.Persona ?? "Iaret";
+            ttsVoice = ico.TtsVoice;
+        }
+
+        // TTS via SharedAgentBootstrap (Azure → Local → OpenAI fallback chain)
+        var tts = useAzure
+            ? Services.SharedAgentBootstrap.CreateTtsService(
+                azureKey, azureRegion, personaName, ttsVoice,
+                preferLocal: true,
+                log: msg => Console.WriteLine($"  [OK] {msg}"))
+            : Services.SharedAgentBootstrap.CreateTtsService(
+                null, azureRegion, personaName, ttsVoice,
+                preferLocal: true,
+                log: msg => Console.WriteLine($"  [OK] {msg}"));
+
+        // STT via SharedAgentBootstrap
+        var stt = await Services.SharedAgentBootstrap.CreateSttService(
+            log: msg => Console.WriteLine($"  [OK] {msg}"));
+
+        // Create speech detector if STT is available
         AdaptiveSpeechDetector? detector = null;
-
-        // Azure Neural TTS takes first priority when configured (matches OuroborosAgent default)
-        if (options is ImmersiveCommandVoiceOptions ico && ico.AzureTts)
+        if (stt != null)
         {
-            var azureKey = ico.AzureSpeechKey
-                ?? Environment.GetEnvironmentVariable("AZURE_SPEECH_KEY");
-            if (!string.IsNullOrEmpty(azureKey))
-            {
-                try
-                {
-                    tts = new AzureNeuralTtsService(azureKey, ico.AzureSpeechRegion, ico.Persona ?? "Iaret");
-                    Console.WriteLine($"  [OK] Voice output: Azure Neural TTS ({ico.TtsVoice})");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"  [!] Azure TTS unavailable: {ex.Message}");
-                }
-            }
-        }
-
-        string? openAiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
-
-        // Initialize TTS (fallbacks when Azure not configured or unavailable)
-        if (tts == null && LocalWindowsTtsService.IsAvailable())
-        {
-            try
-            {
-                tts = new LocalWindowsTtsService(rate: 1, volume: 100, useEnhancedProsody: true);
-                Console.WriteLine("  [OK] Voice output: Windows SAPI");
-            }
-            catch { }
-        }
-
-        if (tts == null && !string.IsNullOrEmpty(openAiKey))
-        {
-            try
-            {
-                tts = new OpenAiTextToSpeechService(openAiKey);
-                Console.WriteLine("  [OK] Voice output: OpenAI TTS");
-            }
-            catch { }
-        }
-
-        // Initialize STT
-        if (!string.IsNullOrEmpty(openAiKey))
-        {
-            try
-            {
-                var whisperNet = WhisperNetService.FromModelSize("base");
-                if (await whisperNet.IsAvailableAsync())
-                {
-                    stt = whisperNet;
-                    Console.WriteLine("  [OK] Voice input: Whisper.net");
-
-                    detector = new AdaptiveSpeechDetector(new AdaptiveSpeechDetector.SpeechDetectionConfig(
-                        InitialThreshold: 0.03,
-                        SpeechOnsetFrames: 2,
-                        SpeechOffsetFrames: 6,
-                        AdaptationRate: 0.015,
-                        SpeechToNoiseRatio: 2.0
-                    ));
-                }
-            }
-            catch { }
+            detector = Services.SharedAgentBootstrap.CreateSpeechDetector();
         }
 
         if (tts == null) Console.WriteLine("  [~] Voice output: Text only (set OPENAI_API_KEY for voice)");

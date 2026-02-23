@@ -132,14 +132,14 @@ public sealed partial class RoomMode
 
         // ── Stage 3d: Causal reasoning ────────────────────────────────────────
         string? causalNote = null;
-        var causalTerms = TryExtractCausalTerms(utterance.Text);
+        var causalTerms = Services.SharedAgentBootstrap.TryExtractCausalTerms(utterance.Text);
         if (causalTerms.HasValue)
         {
             try
             {
-                var graph = BuildMinimalCausalGraph(causalTerms.Value.cause, causalTerms.Value.effect);
+                var graph = Services.SharedAgentBootstrap.BuildMinimalCausalGraph(causalTerms.Value.Cause, causalTerms.Value.Effect);
                 var explanation = await _roomCausalReasoning.ExplainCausallyAsync(
-                    causalTerms.Value.effect, [causalTerms.Value.cause], graph, ct)
+                    causalTerms.Value.Effect, [causalTerms.Value.Cause], graph, ct)
                     .ConfigureAwait(false);
                 if (explanation.IsSuccess && !string.IsNullOrEmpty(explanation.Value.NarrativeExplanation))
                     causalNote = $"[Causal: {explanation.Value.NarrativeExplanation[..Math.Min(120, explanation.Value.NarrativeExplanation.Length)]}]";

@@ -2652,43 +2652,6 @@ User: goodbye
         return uri.ToString().TrimEnd('/');
     }
 
-    /// <summary>
-    /// Detects causal query patterns and extracts a (cause, effect) pair.
-    /// Returns null if the input does not appear to be a causal question.
-    /// </summary>
-    private (string cause, string effect)? TryExtractCausalTerms(string input)
-    {
-        if (string.IsNullOrWhiteSpace(input)) return null;
-
-        var m = Regex.Match(input, @"\bwhy\s+(?:does|is|did|do|are)\s+(.+?)(?:\?|$)", RegexOptions.IgnoreCase);
-        if (m.Success)
-            return ("external factors", m.Groups[1].Value.Trim().TrimEnd('?'));
-
-        m = Regex.Match(input, @"\bwhat\s+(?:causes?|leads?\s+to|results?\s+in)\s+(.+?)(?:\?|$)", RegexOptions.IgnoreCase);
-        if (m.Success)
-            return ("preceding conditions", m.Groups[1].Value.Trim().TrimEnd('?'));
-
-        m = Regex.Match(input, @"\bif\s+(.+?)\s+then\s+(.+?)(?:\?|$)", RegexOptions.IgnoreCase);
-        if (m.Success)
-            return (m.Groups[1].Value.Trim(), m.Groups[2].Value.Trim().TrimEnd('?'));
-
-        m = Regex.Match(input, @"(.+?)\s+causes?\s+(.+?)(?:\?|$)", RegexOptions.IgnoreCase);
-        if (m.Success)
-            return (m.Groups[1].Value.Trim(), m.Groups[2].Value.Trim().TrimEnd('?'));
-
-        return null;
-    }
-
-    /// <summary>
-    /// Constructs a minimal two-node CausalGraph for the given cause → effect pair.
-    /// </summary>
-    private Ouroboros.Core.Reasoning.CausalGraph BuildMinimalCausalGraph(string cause, string effect)
-    {
-        var causeVar  = new Ouroboros.Core.Reasoning.Variable(cause,  Ouroboros.Core.Reasoning.VariableType.Continuous, []);
-        var effectVar = new Ouroboros.Core.Reasoning.Variable(effect, Ouroboros.Core.Reasoning.VariableType.Continuous, []);
-        var edge      = new Ouroboros.Core.Reasoning.CausalEdge(cause, effect, 0.8, Ouroboros.Core.Reasoning.EdgeType.Direct);
-        return new Ouroboros.Core.Reasoning.CausalGraph(
-            [causeVar, effectVar], [edge],
-            new Dictionary<string, Ouroboros.Core.Reasoning.StructuralEquation>());
-    }
+    // Causal extraction and graph building consolidated in SharedAgentBootstrap.
+    // Call sites use SharedAgentBootstrap.TryExtractCausalTerms / BuildMinimalCausalGraph.
 }
