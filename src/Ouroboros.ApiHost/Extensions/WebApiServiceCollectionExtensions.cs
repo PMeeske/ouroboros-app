@@ -1,11 +1,13 @@
-// <copyright file="WebApiServiceCollectionExtensions.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="WebApiServiceCollectionExtensions.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 // </copyright>
 
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.OpenApi;
 using Ouroboros.ApiHost.Client;
 
@@ -61,7 +63,7 @@ public static class WebApiServiceCollectionExtensions
         });
 
         // Pipeline service (Web API flavour — accepts AskRequest / PipelineRequest DTOs)
-        services.AddSingleton<IPipelineService, PipelineService>();
+        services.TryAddSingleton<IPipelineService, PipelineService>();
 
         // Rate limiting — per-IP sliding window: 60 requests per minute
         services.AddRateLimiter(options =>
@@ -123,7 +125,7 @@ public static class WebApiServiceCollectionExtensions
             client.DefaultRequestHeaders.Add("Accept", "application/json");
         });
 
-        services.AddSingleton<IOuroborosApiClient>(sp =>
+        services.TryAddSingleton<IOuroborosApiClient>(sp =>
         {
             var factory = sp.GetRequiredService<IHttpClientFactory>();
             return new OuroborosApiClient(factory);
