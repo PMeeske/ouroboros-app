@@ -3,7 +3,7 @@ using System.CommandLine;
 namespace Ouroboros.CLI.Commands.Options;
 
 /// <summary>
-/// Options for the metta command. Maps to <see cref="Ouroboros.Options.MeTTaOptions"/>.
+/// Options for the metta command. Binds to <see cref="Ouroboros.CLI.Commands.MeTTaConfig"/>.
 /// </summary>
 public sealed class MeTTaCommandOptions
 {

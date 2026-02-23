@@ -56,6 +56,7 @@ public static class ServiceCollectionExtensions
         services.TryAddScoped<ISkillsService, SkillsService>();
         services.TryAddScoped<IOrchestratorService, OrchestratorService>();
         services.TryAddScoped<ICognitivePhysicsService, CognitivePhysicsService>();
+        services.TryAddScoped<IMeTTaService, MeTTaService>();
         return services;
     }
 

@@ -1,19 +1,21 @@
 using MediatR;
 using Microsoft.Extensions.Logging;
+using Ouroboros.CLI.Services;
 
 namespace Ouroboros.CLI.Mediator;
 
 /// <summary>
 /// MediatR handler for <see cref="RunMeTTaRequest"/>.
-/// Wraps <see cref="Ouroboros.CLI.Commands.MeTTaCommands.RunMeTTaAsync"/>
-/// with proper error handling.
+/// Delegates to <see cref="IMeTTaService"/>.
 /// </summary>
 public sealed class RunMeTTaRequestHandler : IRequestHandler<RunMeTTaRequest>
 {
+    private readonly IMeTTaService _mettaService;
     private readonly ILogger<RunMeTTaRequestHandler> _logger;
 
-    public RunMeTTaRequestHandler(ILogger<RunMeTTaRequestHandler> logger)
+    public RunMeTTaRequestHandler(IMeTTaService mettaService, ILogger<RunMeTTaRequestHandler> logger)
     {
+        _mettaService = mettaService;
         _logger = logger;
     }
 
@@ -21,7 +23,7 @@ public sealed class RunMeTTaRequestHandler : IRequestHandler<RunMeTTaRequest>
     {
         try
         {
-            await Ouroboros.CLI.Commands.MeTTaCommands.RunMeTTaAsync(request.Options);
+            await _mettaService.RunAsync(request.Config, cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -29,7 +31,7 @@ public sealed class RunMeTTaRequestHandler : IRequestHandler<RunMeTTaRequest>
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "MeTTa command failed for goal: {Goal}", request.Options.Goal);
+            _logger.LogError(ex, "MeTTa command failed for goal: {Goal}", request.Config.Goal);
             throw;
         }
     }
