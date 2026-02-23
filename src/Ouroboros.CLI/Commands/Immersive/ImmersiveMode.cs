@@ -233,7 +233,7 @@ public sealed partial class ImmersiveMode
     /// </summary>
     public void ShowRoomInterjection(string personaName, string speech)
     {
-        AnsiConsole.MarkupLine($"\n  [darkgreen]\\[room] {Markup.Escape(personaName)}: {Markup.Escape(speech)}[/]");
+        AnsiConsole.MarkupLine($"\n  [darkgreen][[room]] {Markup.Escape(personaName)}: {Markup.Escape(speech)}[/]");
     }
 
     /// <summary>
@@ -242,7 +242,7 @@ public sealed partial class ImmersiveMode
     /// </summary>
     public void ShowRoomAddress(string speaker, string utterance)
     {
-        AnsiConsole.MarkupLine($"\n  [darkcyan]\\[room→Iaret] {Markup.Escape(speaker)}: {Markup.Escape(utterance)}[/]");
+        AnsiConsole.MarkupLine($"\n  [darkcyan][[room→Iaret]] {Markup.Escape(speaker)}: {Markup.Escape(utterance)}[/]");
     }
 
     // DI service provider for resolving cross-cutting services (Qdrant, etc.)

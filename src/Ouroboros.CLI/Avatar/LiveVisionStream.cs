@@ -31,12 +31,6 @@ public sealed class LiveVisionStream : IAsyncDisposable
     private CancellationTokenSource? _cts;
     private Task? _loopTask;
 
-    /// <summary>Last generated frame — used as seed for the next iteration to create smooth animation.</summary>
-    private byte[]? _lastGeneratedFrame;
-
-    /// <summary>Visual state of the last generated frame — reset seed on state change.</summary>
-    private AvatarVisualState _lastVisualState;
-
     /// <summary>Interval between frame captures in milliseconds.</summary>
     public int FrameIntervalMs { get; set; } = 5000;
 
@@ -113,31 +107,18 @@ public sealed class LiveVisionStream : IAsyncDisposable
             {
                 var state = _avatarService.CurrentState;
 
-                // Determine seed: use previous generated frame for smooth animation,
-                // reset to static asset only on first frame or visual state change.
-                byte[] seedBytes;
-                bool stateChanged = state.VisualState != _lastVisualState;
-
-                if (_frameGenerator != null && _lastGeneratedFrame != null && !stateChanged)
+                // Always load the original static asset as seed template.
+                // Never feed back generated frames — the reference sheet approach
+                // anchors identity via the original assets, preventing cumulative drift.
+                var assetPath = AvatarVideoGenerator.GetSeedAssetPath(state.VisualState, _assetDirectory);
+                if (!File.Exists(assetPath))
                 {
-                    // Continuous animation: evolve from previous frame
-                    seedBytes = _lastGeneratedFrame;
-                }
-                else
-                {
-                    // First frame or state change: load static asset as seed
-                    var assetPath = AvatarVideoGenerator.GetSeedAssetPath(state.VisualState, _assetDirectory);
-                    if (!File.Exists(assetPath))
-                    {
-                        _logger?.LogWarning("Asset not found: {Path}", assetPath);
-                        await Task.Delay(FrameIntervalMs, ct);
-                        continue;
-                    }
-
-                    seedBytes = await EncodeAsJpegAsync(assetPath, ct);
-                    _lastVisualState = state.VisualState;
+                    _logger?.LogWarning("Asset not found: {Path}", assetPath);
+                    await Task.Delay(FrameIntervalMs, ct);
+                    continue;
                 }
 
+                byte[] seedBytes = await EncodeAsJpegAsync(assetPath, ct);
                 byte[] jpegBytes = seedBytes;
 
                 // Generate a new frame via Stability AI / local SD if available
@@ -150,11 +131,10 @@ public sealed class LiveVisionStream : IAsyncDisposable
                     if (generatedBase64 != null)
                     {
                         jpegBytes = Convert.FromBase64String(generatedBase64);
-                        _lastGeneratedFrame = jpegBytes;
                     }
                     else
                     {
-                        _logger?.LogDebug("Frame generation returned null, using previous frame");
+                        _logger?.LogDebug("Frame generation returned null, using static asset");
                     }
                 }
 
