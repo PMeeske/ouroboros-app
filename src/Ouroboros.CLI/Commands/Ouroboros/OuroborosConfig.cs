@@ -14,13 +14,14 @@ public sealed record OuroborosConfig(
     string? EndpointType = null,  // auto|openai|ollama-cloud|litellm|github-models|anthropic
     bool Voice = false,
     bool VoiceOnly = false,
-    bool LocalTts = true,
+    // Defaults to false (prefer cloud TTS for higher quality).
+    // Use --local-tts for offline/low-latency scenarios.
+    bool LocalTts = false,
     bool AzureTts = false,
     string? AzureSpeechKey = null,
     string AzureSpeechRegion = "eastus",
     string TtsVoice = "en-US-AvaMultilingualNeural",
     bool VoiceChannel = false,
-    bool VoiceV2 = false,  // Enable unified Rx streaming voice mode V2
     bool Listen = false,
     string? WakeWord = "Hey Iaret",      // null = always-on (no wake word)
     string SttBackend = "auto",           // "azure" | "whisper" | "auto"

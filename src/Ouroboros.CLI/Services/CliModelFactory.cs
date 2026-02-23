@@ -8,7 +8,7 @@ namespace Ouroboros.CLI.Services;
 /// <summary>
 /// Centralised factory for creating CLI-level LLM and embedding models.
 /// Consolidates the 5+ duplicated Ollama initialization blocks and model-preset
-/// detection if-chains that previously appeared across AskCommands, MeTTaCommands,
+/// detection if-chains that previously appeared across AskCommands, MeTTaService,
 /// RoomMode, and ImmersiveMode.
 /// </summary>
 public static class CliModelFactory

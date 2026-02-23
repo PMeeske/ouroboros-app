@@ -10,11 +10,12 @@ namespace Ouroboros.CLI.Commands.Handlers;
 /// </summary>
 public static class CognitivePhysicsCommandHandlerExtensions
 {
+    // Note: globalVoiceOption intentionally not accepted — cognitive-physics
+    // is a math/physics engine command, not conversational. Voice not applicable.
     public static Command ConfigureCognitivePhysicsCommand(
         this Command command,
         IHost host,
-        CognitivePhysicsCommandOptions options,
-        Option<bool> globalVoiceOption)
+        CognitivePhysicsCommandOptions options)
     {
         command.SetAction(async (parseResult, cancellationToken) =>
         {

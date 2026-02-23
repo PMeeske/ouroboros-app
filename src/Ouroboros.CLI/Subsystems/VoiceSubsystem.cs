@@ -18,7 +18,6 @@ public sealed class VoiceSubsystem : IVoiceSubsystem
 
     // Owned components
     public VoiceModeService Service { get; }
-    public VoiceModeServiceV2? V2 { get; set; }
     public VoiceSideChannel? SideChannel { get; set; }
     public EnhancedListeningService? Listener { get; set; }
     public bool IsListening { get; set; }
@@ -76,29 +75,6 @@ public sealed class VoiceSubsystem : IVoiceSubsystem
             }
         }
 
-        // Voice V2 (Unified Rx Streaming) — created here, wired by agent mediator
-        if (ctx.Config.VoiceV2)
-        {
-            try
-            {
-                Console.WriteLine("  [>] Initializing Voice V2 (Unified Rx Streaming)...");
-                var v2Config = new VoiceModeConfigV2(
-                    Persona: ctx.Config.Persona,
-                    VoiceOnly: ctx.Config.VoiceOnly,
-                    EnableTts: true, EnableStt: true,
-                    EnableVisualIndicators: true,
-                    Culture: ctx.Config.Culture);
-
-                V2 = new VoiceModeServiceV2(v2Config);
-                await V2.InitializeAsync();
-                ctx.Output.RecordInit("Voice V2", true, "Unified Rx streaming");
-            }
-            catch (Exception ex)
-            {
-                ctx.Output.RecordInit("Voice V2", false, ex.Message);
-            }
-        }
-
         MarkInitialized();
     }
 
@@ -145,10 +121,6 @@ public sealed class VoiceSubsystem : IVoiceSubsystem
         // Dispose voice side channel (drains queue)
         if (SideChannel != null)
             await SideChannel.DisposeAsync();
-
-        // Dispose VoiceV2 (unified Rx streaming)
-        if (V2 != null)
-            await V2.DisposeAsync();
 
         // Dispose main voice service
         Service.Dispose();
