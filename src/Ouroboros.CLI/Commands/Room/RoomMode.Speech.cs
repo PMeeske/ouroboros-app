@@ -1,7 +1,10 @@
 // Copyright (c) Ouroboros. All rights reserved.
 namespace Ouroboros.CLI.Commands;
 
+using Ouroboros.CLI.Avatar;
+using Ouroboros.CLI.Infrastructure;
 using Ouroboros.CLI.Services.RoomPresence;
+using Spectre.Console;
 
 public sealed partial class RoomMode
 {
@@ -12,7 +15,7 @@ public sealed partial class RoomMode
     /// </summary>
     internal static Task<Ouroboros.Providers.SpeechToText.ISpeechToTextService?> InitializeSttForRoomAsync()
         => Services.SharedAgentBootstrap.CreateSttService(
-            log: msg => Console.WriteLine($"  [OK] STT: {msg}"));
+            log: msg => AnsiConsole.MarkupLine(OuroborosTheme.Ok($"  [OK] STT: {msg}")));
 
     // STT initialization, causal extraction, and graph building consolidated in SharedAgentBootstrap.
 }

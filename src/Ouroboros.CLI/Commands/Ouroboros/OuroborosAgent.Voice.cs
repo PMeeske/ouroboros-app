@@ -4,7 +4,10 @@
 
 using System.Text.RegularExpressions;
 using MediatR;
+using Ouroboros.CLI.Avatar;
+using Ouroboros.CLI.Infrastructure;
 using Ouroboros.CLI.Mediator;
+using Spectre.Console;
 
 namespace Ouroboros.CLI.Commands;
 
@@ -54,13 +57,13 @@ public sealed partial class OuroborosAgent
     {
         if (_voiceSideChannel == null)
         {
-            if (_config.Debug) Console.WriteLine("  [VoiceChannel] Not initialized");
+            if (_config.Debug) AnsiConsole.MarkupLine(OuroborosTheme.Dim("  [VoiceChannel] Not initialized"));
             return;
         }
 
         if (!_voiceSideChannel.IsEnabled)
         {
-            if (_config.Debug) Console.WriteLine("  [VoiceChannel] Not enabled (no synthesizer?)");
+            if (_config.Debug) AnsiConsole.MarkupLine(OuroborosTheme.Dim("  [VoiceChannel] Not enabled (no synthesizer?)"));
             return;
         }
 
@@ -68,7 +71,7 @@ public sealed partial class OuroborosAgent
         var cleanText = StripToolResults(text);
         if (string.IsNullOrWhiteSpace(cleanText)) return;
 
-        if (_config.Debug) Console.WriteLine($"  [VoiceChannel] Say: {cleanText[..Math.Min(50, cleanText.Length)]}...");
+        if (_config.Debug) AnsiConsole.MarkupLine(OuroborosTheme.Dim($"  [VoiceChannel] Say: {cleanText[..Math.Min(50, cleanText.Length)]}..."));
         _voiceSideChannel.Say(cleanText, persona ?? _config.Persona);
     }
 
@@ -130,9 +133,7 @@ public sealed partial class OuroborosAgent
 
         if (string.IsNullOrEmpty(speechKey))
         {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine(GetLocalizedString("voice_requires_key"));
-            Console.ResetColor();
+            AnsiConsole.MarkupLine(OuroborosTheme.Warn(GetLocalizedString("voice_requires_key")));
             return;
         }
 
@@ -145,9 +146,7 @@ public sealed partial class OuroborosAgent
 
         while (!ct.IsCancellationRequested)
         {
-            Console.ForegroundColor = ConsoleColor.DarkGreen;
-            Console.Write("  🎤 ");
-            Console.ResetColor();
+            AnsiConsole.Markup(OuroborosTheme.Ok("  🎤 "));
 
             Microsoft.CognitiveServices.Speech.SpeechRecognitionResult result = await recognizer.RecognizeOnceAsync();
 
@@ -165,17 +164,13 @@ public sealed partial class OuroborosAgent
                     break;
                 }
 
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"  {GetLocalizedString("you_said")} {text}");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  {GetLocalizedString("you_said")} {text}"));
 
                 // Process as regular input
                 string response = await ChatAsync(text);
 
                 // Display response
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine($"\n  {response}");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine($"\n  [rgb(148,103,189)]{Markup.Escape(response)}[/]");
 
                 // Speak response using Azure TTS if enabled
                 if (_config.AzureTts && !string.IsNullOrEmpty(speechKey))
@@ -188,9 +183,7 @@ public sealed partial class OuroborosAgent
                     {
                         if (_config.Debug)
                         {
-                            Console.ForegroundColor = ConsoleColor.DarkYellow;
-                            Console.WriteLine($"  ⚠ Azure TTS error: {ex.Message}");
-                            Console.ResetColor();
+                            AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Azure TTS error: {ex.Message}"));
                         }
                     }
                 }
@@ -204,9 +197,8 @@ public sealed partial class OuroborosAgent
                 var cancellation = Microsoft.CognitiveServices.Speech.CancellationDetails.FromResult(result);
                 if (cancellation.Reason == Microsoft.CognitiveServices.Speech.CancellationReason.Error)
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"  ⚠ Speech recognition error: {cancellation.ErrorDetails}");
-                    Console.ResetColor();
+                    var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+                    AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} ✗ {Markup.Escape($"Speech recognition error: {cancellation.ErrorDetails}")}[/]");
                 }
                 break;
             }
@@ -297,7 +289,7 @@ public sealed partial class OuroborosAgent
     {
         try
         {
-            Console.WriteLine($"  [Azure TTS] Speaking as {voice.PersonaName}: {text[..Math.Min(40, text.Length)]}...");
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim($"  [Azure TTS] Speaking as {voice.PersonaName}: {text[..Math.Min(40, text.Length)]}..."));
 
             var config = Microsoft.CognitiveServices.Speech.SpeechConfig.FromSubscription(key, region);
 
@@ -376,21 +368,21 @@ public sealed partial class OuroborosAgent
 
             if (result.Reason == Microsoft.CognitiveServices.Speech.ResultReason.SynthesizingAudioCompleted)
             {
-                Console.WriteLine($"  [Azure TTS] Done");
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim("  [Azure TTS] Done"));
                 return true;
             }
 
             if (result.Reason == Microsoft.CognitiveServices.Speech.ResultReason.Canceled)
             {
                 var cancellation = Microsoft.CognitiveServices.Speech.SpeechSynthesisCancellationDetails.FromResult(result);
-                Console.WriteLine($"  [Azure TTS Error] {cancellation.ErrorDetails}");
+                AnsiConsole.MarkupLine($"[red]{Markup.Escape($"  [Azure TTS Error] {cancellation.ErrorDetails}")}[/]");
             }
 
             return false;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  [Azure TTS Exception] {ex.Message}");
+            AnsiConsole.MarkupLine($"[red]{Markup.Escape($"  [Azure TTS Exception] {ex.Message}")}[/]");
             return false; // Fall back to SAPI
         }
     }

@@ -1,6 +1,8 @@
 namespace Ouroboros.CLI.Infrastructure;
 
 using System.Collections.Concurrent;
+using Ouroboros.CLI.Avatar;
+using Spectre.Console;
 
 /// <summary>
 /// Interactive tool-approval dialog inspired by Crush's three-button permission model.
@@ -64,21 +66,15 @@ public sealed class ToolPermissionBroker
     {
         lock (_consoleLock)
         {
-            Console.WriteLine();
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("  ⚡ Tool approval required");
-            Console.ResetColor();
+            AnsiConsole.WriteLine();
+            AnsiConsole.MarkupLine(OuroborosTheme.Warn("  ⚡ Tool approval required"));
 
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.WriteLine($"  Tool:   {toolName}");
-            Console.WriteLine($"  Action: {action}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Tool:")}   {Markup.Escape(toolName)}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Action:")} {Markup.Escape(action)}");
             if (!string.IsNullOrEmpty(detail))
-                Console.WriteLine($"  Detail: {detail}");
-            Console.ResetColor();
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Detail:")} {Markup.Escape(detail)}");
 
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.Write("  [a] Allow  [s] Allow for session  [d] Deny  > ");
-            Console.ResetColor();
+            AnsiConsole.Markup(OuroborosTheme.Dim("  [[a]] Allow  [[s]] Allow for session  [[d]] Deny  > "));
 
             while (true)
             {
@@ -90,28 +86,29 @@ public sealed class ToolPermissionBroker
 
                 if (ch == 'a')
                 {
-                    Console.WriteLine("allow");
-                    Console.WriteLine();
+                    AnsiConsole.MarkupLine(OuroborosTheme.Ok("allow"));
+                    AnsiConsole.WriteLine();
                     return PermissionAction.Allow;
                 }
 
                 if (ch == 's')
                 {
-                    Console.WriteLine("allow for session");
-                    Console.WriteLine();
+                    AnsiConsole.MarkupLine(OuroborosTheme.Ok("allow for session"));
+                    AnsiConsole.WriteLine();
                     _sessionApprovals.Add(key);
                     return PermissionAction.Allow;
                 }
 
                 if (ch == 'd' || keyInfo.Key == ConsoleKey.Escape)
                 {
-                    Console.WriteLine("deny");
-                    Console.WriteLine();
+                    AnsiConsole.MarkupLine("[red]deny[/]");
+                    AnsiConsole.WriteLine();
                     return PermissionAction.Deny;
                 }
 
                 // Any other key: re-show hint
-                Console.Write("\r  [a] Allow  [s] Allow for session  [d] Deny  > ");
+                Console.Write("\r");
+                AnsiConsole.Markup(OuroborosTheme.Dim("  [[a]] Allow  [[s]] Allow for session  [[d]] Deny  > "));
             }
         }
     }

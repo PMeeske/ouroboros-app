@@ -2,6 +2,10 @@
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
+using Ouroboros.CLI.Avatar;
+using Ouroboros.CLI.Infrastructure;
+using Spectre.Console;
+
 namespace Ouroboros.CLI.Commands;
 
 public sealed partial class OuroborosAgent
@@ -112,7 +116,7 @@ public sealed partial class OuroborosAgent
         _output.FlushInitSummary();
         if (_config.Verbosity != OutputVerbosity.Quiet)
         {
-            Console.WriteLine("\n  ✓ Ouroboros fully initialized\n");
+            AnsiConsole.MarkupLine(OuroborosTheme.Ok("\n  ✓ Ouroboros fully initialized\n"));
             PrintQuickHelp();
         }
 
@@ -359,9 +363,7 @@ public sealed partial class OuroborosAgent
             {
                 if (_config.Verbosity != OutputVerbosity.Quiet)
                 {
-                    Console.ForegroundColor = ConsoleColor.DarkMagenta;
-                    Console.WriteLine($"\n  💭 {thought.Content}");
-                    Console.ResetColor();
+                    AnsiConsole.MarkupLine($"\n  [rgb(128,0,180)]{Markup.Escape($"💭 {thought.Content}")}[/]");
                 }
 
                 // Push the real thought as Iaret's StatusText
@@ -390,7 +392,7 @@ public sealed partial class OuroborosAgent
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"  ⚠ Autonomous Coordinator wiring failed: {ex.Message}");
+                AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Autonomous Coordinator wiring failed: {ex.Message}"));
             }
             return;
         }
@@ -486,9 +488,7 @@ public sealed partial class OuroborosAgent
             // NOTE: when ImmersiveMode is running, ImmersiveSubsystem.WirePersonaEvents also
             // subscribes to this persona and will print the same thought within milliseconds.
             // ImmersiveSubsystem's dedup guard (8 s window) suppresses the duplicate print.
-            Console.ForegroundColor = ConsoleColor.DarkMagenta;
-            Console.WriteLine($"\n  💭 {content}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"\n  [rgb(128,0,180)]{Markup.Escape($"💭 {content}")}[/]");
 
             // Push genuine persona thoughts to avatar — excludes Metacognitive/Musing
             // templates which are filled from topic keywords, not LLM generation.
@@ -556,9 +556,7 @@ public sealed partial class OuroborosAgent
             System.Diagnostics.Debug.WriteLine($"[Discovery] {query}: {fact}");
             if (_config.Verbosity != OutputVerbosity.Quiet)
             {
-                Console.ForegroundColor = ConsoleColor.DarkMagenta;
-                Console.WriteLine($"  💭 [inner thought] I just learned from '{query}': {fact}");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine($"  [rgb(128,0,180)]{Markup.Escape($"💭 [inner thought] I just learned from '{query}': {fact}")}[/]");
             }
 
             var discoveryThought = InnerThought.CreateAutonomous(

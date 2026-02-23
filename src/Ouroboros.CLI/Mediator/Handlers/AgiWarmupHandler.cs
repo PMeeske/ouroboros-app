@@ -1,6 +1,8 @@
 using MediatR;
 using Ouroboros.Application.Services;
 using Ouroboros.CLI.Commands;
+using Ouroboros.CLI.Infrastructure;
+using Spectre.Console;
 
 namespace Ouroboros.CLI.Mediator;
 
@@ -20,9 +22,7 @@ public sealed class AgiWarmupHandler : IRequestHandler<AgiWarmupRequest, Unit>
         {
             if (_agent.Config.Verbosity != OutputVerbosity.Quiet)
             {
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine("\n  \u23f3 Warming up AGI systems...");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim("\n  \u23f3 Warming up AGI systems..."));
             }
 
             var autonomousMind = _agent.AutonomySub.AutonomousMind;
@@ -47,9 +47,7 @@ public sealed class AgiWarmupHandler : IRequestHandler<AgiWarmupRequest, Unit>
             {
                 agiWarmup.OnProgress += (step, percent) =>
                 {
-                    Console.ForegroundColor = ConsoleColor.DarkGray;
                     Console.Write($"\r  \u23f3 {step} ({percent}%)".PadRight(60));
-                    Console.ResetColor();
                 };
             }
 
@@ -68,9 +66,7 @@ public sealed class AgiWarmupHandler : IRequestHandler<AgiWarmupRequest, Unit>
             {
                 if (result.Success)
                 {
-                    Console.ForegroundColor = ConsoleColor.DarkGray;
-                    Console.WriteLine("  \u2713 Autonomous mind active");
-                    Console.ResetColor();
+                    AnsiConsole.MarkupLine(OuroborosTheme.Dim("  \u2713 Autonomous mind active"));
                 }
                 else
                     _agent.ConsoleOutput.WriteWarning($"AGI warmup limited: {result.Error ?? "Some features unavailable"}");

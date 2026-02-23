@@ -1,9 +1,11 @@
 using LangChain.DocumentLoaders;
 using LangChain.Providers.Ollama;
+using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Diagnostics;
 using Ouroboros.Options;
 using Ouroboros.Application.Tools;
 using Ouroboros.Application.Services;
+using Spectre.Console;
 using IEmbeddingModel = Ouroboros.Domain.IEmbeddingModel;
 using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 
@@ -98,13 +100,13 @@ public static class PipelineCommands
             }
             catch (Exception ex) when (pipelineOpts is not null && !pipelineOpts.StrictModel && ex.Message.Contains("Invalid model", StringComparison.OrdinalIgnoreCase))
             {
-                Console.WriteLine($"[WARN] Remote model '{modelName}' invalid. Falling back to local 'llama3'. Use --strict-model to disable fallback.");
+                AnsiConsole.MarkupLine(OuroborosTheme.Warn($"[WARN] Remote model '{modelName}' invalid. Falling back to local 'llama3'. Use --strict-model to disable fallback."));
                 OllamaChatModel local = new OllamaChatModel(provider, "llama3");
                 chatModel = new OllamaChatAdapter(local, settings?.Culture);
             }
             catch (Exception ex) when (pipelineOpts is not null && !pipelineOpts.StrictModel)
             {
-                Console.WriteLine($"[WARN] Remote model '{modelName}' unavailable ({ex.GetType().Name}). Falling back to local 'llama3'. Use --strict-model to disable fallback.");
+                AnsiConsole.MarkupLine(OuroborosTheme.Warn($"[WARN] Remote model '{modelName}' unavailable ({ex.GetType().Name}). Falling back to local 'llama3'. Use --strict-model to disable fallback."));
                 OllamaChatModel local = new OllamaChatModel(provider, "llama3");
                 chatModel = new OllamaChatAdapter(local, settings?.Culture);
             }
@@ -132,7 +134,7 @@ public static class PipelineCommands
         string resolvedSource = string.IsNullOrWhiteSpace(sourcePath) ? Environment.CurrentDirectory : Path.GetFullPath(sourcePath);
         if (!Directory.Exists(resolvedSource))
         {
-            Console.WriteLine($"Source path '{resolvedSource}' does not exist - creating.");
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim($"Source path '{resolvedSource}' does not exist - creating."));
             Directory.CreateDirectory(resolvedSource);
         }
         PipelineBranch branch = new PipelineBranch("cli", new TrackedVectorStore(), DataSource.FromPath(resolvedSource));
@@ -163,28 +165,30 @@ public static class PipelineCommands
 
             if (trace)
             {
-                Console.WriteLine("\n=== PIPELINE EVENTS ===");
+                AnsiConsole.WriteLine();
+                AnsiConsole.Write(OuroborosTheme.ThemedRule("Pipeline Events"));
                 foreach (var evt in state.Branch.Events)
                 {
-                    Console.WriteLine($"- {evt.Kind}: {evt}");
+                    AnsiConsole.MarkupLine($"  - {Markup.Escape(evt.Kind)}: {Markup.Escape(evt.ToString() ?? "")}");
                 }
             }
 
             Ouroboros.Domain.Events.ReasoningStep? last = state.Branch.Events.OfType<Ouroboros.Domain.Events.ReasoningStep>().LastOrDefault();
             if (last is not null)
             {
-                Console.WriteLine("\n=== PIPELINE RESULT ===");
-                Console.WriteLine(last.State.Text);
+                AnsiConsole.WriteLine();
+                AnsiConsole.Write(OuroborosTheme.ThemedRule("Pipeline Result"));
+                AnsiConsole.WriteLine(last.State.Text);
             }
             else
             {
-                Console.WriteLine("\n(no reasoning output; pipeline may only have ingested or set values)");
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim("\n(no reasoning output; pipeline may only have ingested or set values)"));
             }
             Telemetry.PrintSummary();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Pipeline failed: {ex.Message}");
+            AnsiConsole.MarkupLine($"  [red]Pipeline failed: {Markup.Escape(ex.Message)}[/]");
         }
     }
 
@@ -276,5 +280,4 @@ public static class PipelineCommands
 
         voiceService.Dispose();
     }
-
 }

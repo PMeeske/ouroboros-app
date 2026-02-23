@@ -3,12 +3,15 @@ namespace Ouroboros.CLI.Commands;
 
 using Ouroboros.Application.Personality;
 using Ouroboros.Application.Services;
+using Ouroboros.CLI.Avatar;
+using Ouroboros.CLI.Infrastructure;
 using Ouroboros.CLI.Services.RoomPresence;
 using Ouroboros.CLI.Subsystems;
 using Ouroboros.Core.CognitivePhysics;
 using Ouroboros.Core.Ethics;
 using Ouroboros.Providers.TextToSpeech;
 using Ouroboros.Speech;
+using Spectre.Console;
 using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 
 public sealed partial class RoomMode
@@ -237,9 +240,7 @@ Do NOT explain your choice. If in doubt{(forceSpeak ? ", still reply SPEAK" : ",
         _lastInterjection = now;
         _recentInterjections.Enqueue(now);
 
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"\n  ✦ {personaName}: {speech}");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine(OuroborosTheme.Ok($"\n  ✦ {personaName}: {speech}"));
 
         // Publish to ImmersiveMode via the intent bus (shows in the foreground chat pane)
         RoomIntentBus.FireInterjection(personaName, speech);
@@ -309,16 +310,13 @@ Do NOT explain your choice. If in doubt{(forceSpeak ? ", still reply SPEAK" : ",
     {
         var lines = transcript.TakeLast(displayLines).ToList();
 
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine("\n  ── Room transcript ──────────────────────────────");
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim("\n  ── Room transcript ──────────────────────────────"));
         foreach (var (speaker, text, when) in lines)
         {
-            var color = speaker == personaName ? ConsoleColor.Green : ConsoleColor.DarkCyan;
-            Console.ForegroundColor = color;
+            var markup = speaker == personaName ? "green" : "rgb(148,103,189)";
             var label = speaker.Length > 12 ? speaker[..12] : speaker.PadRight(12);
-            Console.WriteLine($"  {when:HH:mm:ss}  {label}  {text}");
+            AnsiConsole.MarkupLine($"  [{markup}]{when:HH:mm:ss}  {Markup.Escape(label)}  {Markup.Escape(text)}[/]");
         }
-        Console.ResetColor();
     }
 
     /// <summary>Checks if this is the first utterance from a known person in this session.</summary>
@@ -383,9 +381,7 @@ Reply ONLY with the sentence, nothing else.";
 
             speech = speech.Trim().TrimStart('"').TrimEnd('"');
 
-            Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.WriteLine($"\n  💭 {personaName}: {speech}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"\n  [rgb(128,0,180)]💭 {Markup.Escape(personaName)}: {Markup.Escape(speech)}[/]");
 
             RoomIntentBus.FireInterjection(personaName, speech);
             immersive.SetPresenceState("Speaking", "engaged", 0.5, 0.5);
@@ -464,9 +460,7 @@ Reply ONLY with the sentence.";
 
             speech = speech.Trim().TrimStart('"').TrimEnd('"');
 
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"\n  👋 {personaName}: {speech}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine(OuroborosTheme.Ok($"\n  👋 {personaName}: {speech}"));
 
             RoomIntentBus.FireInterjection(personaName, speech);
             immersive.SetPresenceState("Speaking", "engaged");
@@ -513,9 +507,7 @@ Reply ONLY with the greeting.";
 
             speech = speech.Trim().TrimStart('"').TrimEnd('"');
 
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine($"\n  👋 {personaName}: {speech}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"\n  [rgb(148,103,189)]👋 {Markup.Escape(personaName)}: {Markup.Escape(speech)}[/]");
 
             RoomIntentBus.FireInterjection(personaName, speech);
             immersive.SetPresenceState("Speaking", "warm");
@@ -566,9 +558,7 @@ Reply ONLY with the sentence.";
 
             speech = speech.Trim().TrimStart('"').TrimEnd('"');
 
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"\n  ✦ {personaName}: {speech}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine(OuroborosTheme.Ok($"\n  ✦ {personaName}: {speech}"));
 
             RoomIntentBus.FireInterjection(personaName, speech);
 

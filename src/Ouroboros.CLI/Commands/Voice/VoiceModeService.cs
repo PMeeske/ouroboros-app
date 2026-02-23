@@ -4,11 +4,14 @@
 
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
+using Ouroboros.CLI.Avatar;
+using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Domain.Voice;
 using Ouroboros.Providers.SpeechToText;
 using Ouroboros.Abstractions.Monads;
 using Ouroboros.Providers.TextToSpeech;
 using Ouroboros.Speech;
+using Spectre.Console;
 
 namespace Ouroboros.CLI.Commands;
 
@@ -160,14 +163,15 @@ public sealed class VoiceModeService : IDisposable
         {
             try
             {
-                Console.WriteLine($"  [>] Initializing Azure TTS with culture: {_config.Culture ?? "en-US (default)"}");
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("[>]")} Initializing Azure TTS with culture: {Markup.Escape(_config.Culture ?? "en-US (default)")}");
                 _azureTts = new AzureNeuralTtsService(azureKey!, azureRegion!, _persona.Name, _config.Culture);
                 _ttsService = _azureTts;
-                Console.WriteLine($"  [OK] TTS initialized (Azure Neural - Jenny/Cortana-like)");
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok("[OK]")} TTS initialized (Azure Neural - Jenny/Cortana-like)");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"  [!] Azure TTS failed: {ex.Message}");
+                var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+                AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} ✗ Azure TTS failed: {Markup.Escape(ex.Message)}[/]");
             }
         }
 
@@ -179,11 +183,12 @@ public sealed class VoiceModeService : IDisposable
                 ? EdgeTtsService.Voices.KatjaNeural
                 : EdgeTtsService.Voices.JennyNeural;
             _edgeTts = new EdgeTtsService(edgeVoice);
-            Console.WriteLine($"  [OK] Edge TTS fallback ready (Microsoft Neural - free, no rate limits)");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok("[OK]")} Edge TTS fallback ready (Microsoft Neural - free, no rate limits)");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  [!] Edge TTS init failed: {ex.Message}");
+            var face0 = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+            AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face0)} ✗ Edge TTS init failed: {Markup.Escape(ex.Message)}[/]");
         }
 
         // Initialize local TTS as offline fallback when available
@@ -196,16 +201,17 @@ public sealed class VoiceModeService : IDisposable
                 if (_ttsService == null)
                 {
                     _ttsService = _localTts;
-                    Console.WriteLine("  [OK] TTS initialized (Windows SAPI - Microsoft Zira)");
+                    AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok("[OK]")} TTS initialized (Windows SAPI - Microsoft Zira)");
                 }
                 else
                 {
-                    Console.WriteLine("  [OK] Local TTS fallback ready (Windows SAPI - Microsoft Zira)");
+                    AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok("[OK]")} Local TTS fallback ready (Windows SAPI - Microsoft Zira)");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"  [!] Local TTS failed: {ex.Message}");
+                var face1 = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+                AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face1)} ✗ Local TTS failed: {Markup.Escape(ex.Message)}[/]");
             }
         }
 
@@ -215,17 +221,18 @@ public sealed class VoiceModeService : IDisposable
             try
             {
                 _ttsService = new OpenAiTextToSpeechService(openAiKey!);
-                Console.WriteLine($"  [OK] TTS initialized (OpenAI - voice: {_persona.Voice})");
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok("[OK]")} TTS initialized (OpenAI - voice: {Markup.Escape(_persona.Voice)})");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"  [!] Cloud TTS failed: {ex.Message}");
+                var face2 = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+                AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face2)} ✗ Cloud TTS failed: {Markup.Escape(ex.Message)}[/]");
             }
         }
 
         if (_ttsService == null)
         {
-            Console.WriteLine("  [!] TTS unavailable - text output only");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn("[!] TTS unavailable - text output only")}");
         }
 
         // Initialize STT - try all backends in priority order
@@ -234,53 +241,54 @@ public sealed class VoiceModeService : IDisposable
         // 3. OpenAI Whisper API
         if (_config.DisableStt)
         {
-            Console.WriteLine("  [STT] Disabled (use --listen for Azure speech recognition)");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim("[STT]")} Disabled (use --listen for Azure speech recognition)");
         }
         else try
         {
-            Console.WriteLine("  [STT] Initializing speech-to-text...");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("[STT]")} Initializing speech-to-text...");
 
             // Try Whisper.net native first (auto-downloads model)
             var whisperNet = WhisperNetService.FromModelSize("base");
             if (await whisperNet.IsAvailableAsync())
             {
                 _sttService = whisperNet;
-                Console.WriteLine("  [OK] STT initialized (Whisper.net native)");
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok("[OK]")} STT initialized (Whisper.net native)");
             }
             else
             {
-                Console.WriteLine("  [..] Whisper.net not available, trying alternatives...");
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim("[..]")} Whisper.net not available, trying alternatives...");
 
                 // Try local Whisper CLI
                 var localWhisper = new LocalWhisperService();
                 if (await localWhisper.IsAvailableAsync())
                 {
                     _sttService = localWhisper;
-                    Console.WriteLine("  [OK] STT initialized (local Whisper CLI)");
+                    AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok("[OK]")} STT initialized (local Whisper CLI)");
                 }
                 else if (!string.IsNullOrEmpty(openAiKey))
                 {
                     // Fall back to OpenAI Whisper API
                     _sttService = new WhisperSpeechToTextService(openAiKey);
-                    Console.WriteLine("  [OK] STT initialized (OpenAI Whisper API)");
+                    AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok("[OK]")} STT initialized (OpenAI Whisper API)");
                 }
                 else
                 {
-                    Console.WriteLine("  [!] No STT backend available:");
-                    Console.WriteLine("      - Whisper.net: model download failed or native lib missing");
-                    Console.WriteLine("      - Local Whisper: 'whisper' CLI not in PATH");
-                    Console.WriteLine("      - OpenAI Whisper: no OPENAI_API_KEY set");
+                    AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn("[!] No STT backend available:")}");
+                    AnsiConsole.MarkupLine($"      {OuroborosTheme.Dim("- Whisper.net: model download failed or native lib missing")}");
+                    AnsiConsole.MarkupLine($"      {OuroborosTheme.Dim("- Local Whisper: 'whisper' CLI not in PATH")}");
+                    AnsiConsole.MarkupLine($"      {OuroborosTheme.Dim("- OpenAI Whisper: no OPENAI_API_KEY set")}");
                 }
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  [!] STT init failed: {ex.Message}");
+            var face3 = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+            AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face3)} ✗ STT init failed: {Markup.Escape(ex.Message)}[/]");
         }
 
         if (_sttService == null)
         {
-            Console.WriteLine("  [!] STT unavailable - text input only");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn("[!] STT unavailable - text input only")}");
         }
 
         _isInitialized = true;
@@ -297,7 +305,7 @@ public sealed class VoiceModeService : IDisposable
         // If voice mode is not initialized, just print text (no TTS)
         if (!_isInitialized)
         {
-            Console.WriteLine($"  [>] {_persona.Name}: {text}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("[>]")} {OuroborosTheme.Accent(_persona.Name + ":")} {Markup.Escape(text)}");
             return;
         }
 
@@ -326,9 +334,7 @@ public sealed class VoiceModeService : IDisposable
         // If voice mode is not initialized, just print text (no TTS)
         if (!_isInitialized)
         {
-            Console.ForegroundColor = ConsoleColor.DarkMagenta;
-            Console.WriteLine($"  [💭] {text}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"  [rgb(128,0,180)]{Markup.Escape("[💭] " + text)}[/]");
             return;
         }
 
@@ -366,13 +372,11 @@ public sealed class VoiceModeService : IDisposable
             {
                 if (isWhisper)
                 {
-                    Console.ForegroundColor = ConsoleColor.DarkMagenta;
-                    Console.Write($"  [💭] ");
-                    Console.ResetColor();
+                    AnsiConsole.Markup($"  [rgb(128,0,180)]{Markup.Escape("[💭]")}[/] ");
                 }
                 else
                 {
-                    Console.Write($"  [>] {_persona.Name}: ");
+                    AnsiConsole.Markup($"  {OuroborosTheme.Accent("[>]")} {OuroborosTheme.Accent(_persona.Name + ":")} ");
                 }
             }
 
@@ -385,7 +389,7 @@ public sealed class VoiceModeService : IDisposable
 
             if (_azureTts != null)
             {
-                if (!_config.VoiceOnly) Console.WriteLine(sanitized);
+                if (!_config.VoiceOnly) AnsiConsole.MarkupLine(Markup.Escape(sanitized));
                 try
                 {
                     await _azureTts.SpeakAsync(sanitized, isWhisper);
@@ -393,7 +397,8 @@ public sealed class VoiceModeService : IDisposable
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"  [!] Azure TTS failed: {ex.Message}, trying fallback...");
+                    var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+                    AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} ✗ Azure TTS failed: {Markup.Escape(ex.Message)}, trying fallback...[/]");
                 }
             }
 
@@ -403,7 +408,7 @@ public sealed class VoiceModeService : IDisposable
             {
                 try
                 {
-                    Console.WriteLine($"  [>] Trying Edge TTS (neural, free)...");
+                    AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("[>]")} Trying Edge TTS (neural, free)...");
                     TextToSpeechOptions? options = isWhisper ? new TextToSpeechOptions(IsWhisper: true) : null;
                     Result<SpeechResult, string> edgeResult = await _edgeTts.SynthesizeAsync(sanitized, options);
                     if (edgeResult.IsSuccess)
@@ -413,12 +418,14 @@ public sealed class VoiceModeService : IDisposable
                     }
                     else
                     {
-                        Console.WriteLine($"  [!] Edge TTS failed: {edgeResult.Error}");
+                        var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+                        AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} ✗ Edge TTS failed: {Markup.Escape(edgeResult.Error)}[/]");
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"  [!] Edge TTS failed: {ex.Message}");
+                    var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+                    AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} ✗ Edge TTS failed: {Markup.Escape(ex.Message)}[/]");
                 }
             }
 
@@ -427,13 +434,14 @@ public sealed class VoiceModeService : IDisposable
             {
                 try
                 {
-                    Console.WriteLine($"  [>] Trying Windows SAPI (offline fallback)...");
+                    AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("[>]")} Trying Windows SAPI (offline fallback)...");
                     await SpeakWithLocalTtsAsync(sanitized, isWhisper);
                     ttsSucceeded = true;
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"  [!] Local TTS failed: {ex.Message}");
+                    var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+                    AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} ✗ Local TTS failed: {Markup.Escape(ex.Message)}[/]");
                 }
             }
 
@@ -442,19 +450,20 @@ public sealed class VoiceModeService : IDisposable
             {
                 try
                 {
-                    if (_azureTts == null && _localTts == null && !_config.VoiceOnly) Console.WriteLine(sanitized);
+                    if (_azureTts == null && _localTts == null && !_config.VoiceOnly) AnsiConsole.MarkupLine(Markup.Escape(sanitized));
                     await SpeakWithCloudTtsAsync(sanitized);
                     ttsSucceeded = true;
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"  [!] Cloud TTS failed: {ex.Message}");
+                    var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+                    AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} ✗ Cloud TTS failed: {Markup.Escape(ex.Message)}[/]");
                 }
             }
 
             if (!ttsSucceeded)
             {
-                Console.WriteLine("  [!] All TTS services failed - voice output skipped");
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn("[!] All TTS services failed - voice output skipped")}");
             }
         }
         finally
@@ -526,7 +535,8 @@ public sealed class VoiceModeService : IDisposable
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  [!] Listen error: {ex.Message}");
+            var face4 = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+            AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face4)} ✗ Listen error: {Markup.Escape(ex.Message)}[/]");
             _stream.PublishError(ex.Message, ex, ErrorCategory.SpeechRecognition);
         }
 
@@ -540,7 +550,7 @@ public sealed class VoiceModeService : IDisposable
     /// </summary>
     public async Task<string?> GetInputAsync(string prompt = "You: ", CancellationToken ct = default)
     {
-        Console.Write(prompt);
+        AnsiConsole.Markup(Markup.Escape(prompt));
 
         // If no STT or no mic, keyboard only
         if (_sttService == null || !MicrophoneRecorder.IsRecordingAvailable())
@@ -610,7 +620,7 @@ public sealed class VoiceModeService : IDisposable
                 }
             }))
             .Where(s => !string.IsNullOrWhiteSpace(s))
-            .Do(s => Console.WriteLine($"\n  🎤 [{s}]"))
+            .Do(s => AnsiConsole.MarkupLine($"\n  [rgb(148,103,189)]{Markup.Escape("🎤 [" + s + "]")}[/]"))
             .Take(1);
 
         // Race both streams - first valid input wins
@@ -675,16 +685,14 @@ SPEAK NATURALLY:
     /// </summary>
     public void PrintHeader(string commandName)
     {
-        Console.WriteLine();
-        Console.WriteLine("+------------------------------------------------------------------------+");
-        Console.WriteLine($"|  [>] VOICE MODE - {commandName.ToUpperInvariant(),-20} ({_persona.Name})           |");
-        Console.WriteLine("+------------------------------------------------------------------------+");
-        Console.WriteLine($"|  Personality: {_activeTraits,-56} |");
-        Console.WriteLine($"|  Mood: {_currentMood,-63} |");
-        Console.WriteLine("|                                                                        |");
-        Console.WriteLine("|  Say 'help' for commands, 'goodbye' or 'exit' to quit                  |");
-        Console.WriteLine("+------------------------------------------------------------------------+");
-        Console.WriteLine();
+        AnsiConsole.WriteLine();
+        AnsiConsole.Write(OuroborosTheme.ThemedRule($"VOICE MODE - {commandName.ToUpperInvariant()} ({_persona.Name})"));
+        var table = OuroborosTheme.ThemedTable("Property", "Value");
+        table.AddRow(OuroborosTheme.Accent("Personality:"), Markup.Escape(_activeTraits));
+        table.AddRow(OuroborosTheme.Accent("Mood:"), Markup.Escape(_currentMood));
+        table.AddRow("", OuroborosTheme.Dim("Say 'help' for commands, 'goodbye' or 'exit' to quit"));
+        AnsiConsole.Write(table);
+        AnsiConsole.WriteLine();
     }
 
     private static string SanitizeForTts(string text)
@@ -749,14 +757,13 @@ SPEAK NATURALLY:
             {
                 if (isWhisper)
                 {
-                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    await wordStream.ForEachAsync(word => AnsiConsole.Markup($"[grey]{Markup.Escape(word + " ")}[/]"));
                 }
-                await wordStream.ForEachAsync(word => Console.Write(word + " "));
-                Console.WriteLine();
-                if (isWhisper)
+                else
                 {
-                    Console.ResetColor();
+                    await wordStream.ForEachAsync(word => AnsiConsole.Markup(Markup.Escape(word + " ")));
                 }
+                AnsiConsole.WriteLine();
             }
             else
             {
@@ -765,7 +772,8 @@ SPEAK NATURALLY:
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"\n  [!] TTS error: {ex.Message}");
+            var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+            AnsiConsole.MarkupLine($"\n  [red]{Markup.Escape(face)} ✗ TTS error: {Markup.Escape(ex.Message)}[/]");
         }
     }
 
@@ -789,21 +797,27 @@ SPEAK NATURALLY:
             await result.Match(
                 async speech =>
                 {
-                    if (!_config.VoiceOnly) Console.WriteLine(text);
+                    if (!_config.VoiceOnly) AnsiConsole.MarkupLine(Markup.Escape(text));
                     var playResult = await AudioPlayer.PlayAsync(speech);
-                    playResult.Match(_ => { }, err => Console.WriteLine($"  [!] Playback: {err}"));
+                    playResult.Match(_ => { }, err =>
+                    {
+                        var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+                        AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} ✗ Playback: {Markup.Escape(err)}[/]");
+                    });
                 },
                 err =>
                 {
-                    if (!_config.VoiceOnly) Console.WriteLine(text);
-                    Console.WriteLine($"  [!] TTS: {err}");
+                    if (!_config.VoiceOnly) AnsiConsole.MarkupLine(Markup.Escape(text));
+                    var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+                    AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} ✗ TTS: {Markup.Escape(err)}[/]");
                     return Task.CompletedTask;
                 });
         }
         catch (Exception ex)
         {
-            if (!_config.VoiceOnly) Console.WriteLine(text);
-            Console.WriteLine($"  [!] TTS error: {ex.Message}");
+            if (!_config.VoiceOnly) AnsiConsole.MarkupLine(Markup.Escape(text));
+            var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+            AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} ✗ TTS error: {Markup.Escape(ex.Message)}[/]");
         }
     }
 
@@ -861,28 +875,26 @@ SPEAK NATURALLY:
             _stream.TextOutputs
                 .Subscribe(e =>
                 {
-                    var color = e.Style switch
+                    var escaped = Markup.Escape(e.Text);
+                    var styled = e.Style switch
                     {
-                        OutputStyle.Thinking => ConsoleColor.DarkGray,
-                        OutputStyle.Emphasis => ConsoleColor.Cyan,
-                        OutputStyle.Whisper => ConsoleColor.DarkMagenta,
-                        OutputStyle.System => ConsoleColor.Yellow,
-                        OutputStyle.Error => ConsoleColor.Red,
-                        OutputStyle.UserInput => ConsoleColor.Green,
-                        _ => Console.ForegroundColor,
+                        OutputStyle.Thinking => $"[grey]{escaped}[/]",
+                        OutputStyle.Emphasis => $"[rgb(148,103,189)]{escaped}[/]",
+                        OutputStyle.Whisper => $"[rgb(128,0,180)]{escaped}[/]",
+                        OutputStyle.System => $"[yellow]{escaped}[/]",
+                        OutputStyle.Error => $"[red]{escaped}[/]",
+                        OutputStyle.UserInput => $"[green]{escaped}[/]",
+                        _ => escaped,
                     };
 
-                    Console.ForegroundColor = color;
                     if (e.Append)
                     {
-                        Console.Write(e.Text);
+                        AnsiConsole.Markup(styled);
                     }
                     else
                     {
-                        Console.WriteLine(e.Text);
+                        AnsiConsole.MarkupLine(styled);
                     }
-
-                    Console.ResetColor();
                 }));
 
         // Display errors
@@ -890,9 +902,8 @@ SPEAK NATURALLY:
             _stream.Errors
                 .Subscribe(e =>
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"\n  [!] {e.Category}: {e.Message}");
-                    Console.ResetColor();
+                    var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+                    AnsiConsole.MarkupLine($"\n  [red]{Markup.Escape(face)} ✗ {Markup.Escape(e.Category.ToString())}: {Markup.Escape(e.Message)}[/]");
                 }));
     }
 
@@ -920,15 +931,14 @@ SPEAK NATURALLY:
                         _ => "[ ]",
                     };
 
-                    Console.Write($"\r{indicator} ");
+                    AnsiConsole.Markup($"\r{Markup.Escape(indicator)} ");
                 }));
 
         // Subscribe to barge-in events
         _presence.BargeInDetected += (_, e) =>
         {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"\n  [Interrupted] {e.UserInput?[..Math.Min(30, e.UserInput?.Length ?? 0)]}...");
-            Console.ResetColor();
+            var snippet = e.UserInput?[..Math.Min(30, e.UserInput?.Length ?? 0)] ?? "";
+            AnsiConsole.MarkupLine($"\n  {OuroborosTheme.Warn("[Interrupted] " + snippet + "...")}");
         };
     }
 

@@ -13,12 +13,15 @@ using Ouroboros.Application.Personality;
 using Ouroboros.Application.Personality.Consciousness;
 using Ouroboros.Application.Services;
 using Ouroboros.Application.Tools;
+using Ouroboros.CLI.Avatar;
+using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Core.DistinctionLearning;
 using Ouroboros.Domain.DistinctionLearning;
 using Ouroboros.Options;
 using Ouroboros.Providers;
 using static Ouroboros.Application.Tools.AutonomousTools;
 using Ouroboros.Abstractions;
+using Spectre.Console;
 using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 
 public sealed partial class ImmersiveMode
@@ -33,7 +36,7 @@ public sealed partial class ImmersiveMode
             var effective = _modelsSub.GetEffectiveModel();
             if (effective != null)
             {
-                Console.WriteLine("  [OK] Using LLM from agent subsystem");
+                AnsiConsole.MarkupLine(OuroborosTheme.Ok("  [OK] Using LLM from agent subsystem"));
                 return effective;
             }
         }
@@ -50,7 +53,7 @@ public sealed partial class ImmersiveMode
         {
             if (!_llmMessagePrinted)
             {
-                Console.WriteLine($"  [~] Using remote LLM: {options.Model} via {endpoint}");
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim($"  [~] Using remote LLM: {options.Model} via {endpoint}"));
                 _llmMessagePrinted = true;
             }
             baseModel = new HttpOpenAiCompatibleChatModel(endpoint, apiKey, options.Model, settings);
@@ -60,7 +63,7 @@ public sealed partial class ImmersiveMode
             // Use Ollama cloud model with the configured endpoint
             if (!_llmMessagePrinted)
             {
-                Console.WriteLine($"  [~] Using Ollama LLM: {options.Model} via {options.Endpoint}");
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim($"  [~] Using Ollama LLM: {options.Model} via {options.Endpoint}"));
                 _llmMessagePrinted = true;
             }
             baseModel = new OllamaCloudChatModel(options.Endpoint, "ollama", options.Model, settings);
@@ -131,9 +134,7 @@ public sealed partial class ImmersiveMode
                     new[] { "code", "programming", "debugging", "tool", "script" },
                     maxTokens: 2048,
                     avgLatencyMs: 1500);
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine($"  [~] Multi-model: Coder = {coderModel}");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim($"  [~] Multi-model: Coder = {coderModel}"));
             }
 
             if (!string.IsNullOrEmpty(reasonModel))
@@ -145,9 +146,7 @@ public sealed partial class ImmersiveMode
                     new[] { "reasoning", "analysis", "introspection", "planning", "philosophy" },
                     maxTokens: 2048,
                     avgLatencyMs: 1200);
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine($"  [~] Multi-model: Reasoner = {reasonModel}");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim($"  [~] Multi-model: Reasoner = {reasonModel}"));
             }
 
             if (!string.IsNullOrEmpty(summarizeModel))
@@ -159,9 +158,7 @@ public sealed partial class ImmersiveMode
                     new[] { "summarize", "condense", "memory", "recall" },
                     maxTokens: 1024,
                     avgLatencyMs: 800);
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine($"  [~] Multi-model: Summarizer = {summarizeModel}");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim($"  [~] Multi-model: Summarizer = {summarizeModel}"));
             }
 
             builder.WithMetricTracking(true);
@@ -175,17 +172,13 @@ public sealed partial class ImmersiveMode
                 MergeSeparator: "\n\n");
             _divideAndConquer = new DivideAndConquerOrchestrator(_orchestratedModel, dcConfig);
 
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("  [OK] Multi-model orchestration enabled for immersive mode");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine(OuroborosTheme.Ok("  [OK] Multi-model orchestration enabled for immersive mode"));
 
             await Task.CompletedTask;
         }
         catch (Exception ex)
         {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"  [!] Multi-model orchestration unavailable: {ex.Message}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  [!] Multi-model orchestration unavailable: {Markup.Escape(ex.Message)}"));
         }
     }
 
@@ -200,9 +193,7 @@ public sealed partial class ImmersiveMode
         // For large inputs, use divide-and-conquer
         if (useDivideAndConquer && _divideAndConquer != null && prompt.Length > 2000)
         {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine($"  [D&C] Processing large input ({prompt.Length} chars)...");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim($"  [D&C] Processing large input ({prompt.Length} chars)..."));
 
             var chunks = _divideAndConquer.DivideIntoChunks(prompt);
             var result = await _divideAndConquer.ExecuteAsync("Process:", chunks, ct);
@@ -442,9 +433,7 @@ public sealed partial class ImmersiveMode
         var detectedLang = await Ouroboros.CLI.Subsystems.LanguageSubsystem
             .DetectStaticAsync(input, ct).ConfigureAwait(false);
         _lastDetectedCulture = detectedLang.Culture;
-        Console.ForegroundColor = ConsoleColor.DarkCyan;
-        Console.WriteLine($"  [lang: {detectedLang.Language} ({detectedLang.Culture})]");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine($"[rgb(148,103,189)]  [lang: {Markup.Escape(detectedLang.Language)} ({Markup.Escape(detectedLang.Culture)})][/]");
         sb.AppendLine();
         if (detectedLang.Culture != "en-US")
             sb.AppendLine($"LANGUAGE INSTRUCTION: The user is writing in {detectedLang.Language}. Respond ENTIRELY in {detectedLang.Language}. Do not switch to English.");
@@ -517,10 +506,8 @@ public sealed partial class ImmersiveMode
             // Debug: show raw response in gray
             if (!string.IsNullOrWhiteSpace(result))
             {
-                Console.ForegroundColor = ConsoleColor.DarkGray;
                 var preview = result.Length > 80 ? result[..80] + "..." : result;
-                Console.WriteLine($"  [raw: {preview.Replace("\n", " ")}]");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim($"  [raw: {Markup.Escape(preview.Replace("\n", " "))}]"));
             }
 
             // Clean up the response
@@ -534,10 +521,9 @@ public sealed partial class ImmersiveMode
             if (_immersiveResponseCount % 5 == 0 && traceResult.IsSuccess)
             {
                 var reflection = _metacognition.ReflectOn(traceResult.Value);
-                Console.ForegroundColor = ConsoleColor.DarkMagenta;
-                Console.WriteLine($"\n  ✧ [metacognition] Q={reflection.QualityScore:F2} " +
-                    $"| {(reflection.HasIssues ? reflection.Improvements.FirstOrDefault() ?? "–" : "Clean")}");
-                Console.ResetColor();
+                var metaMsg = $"  ✧ [metacognition] Q={reflection.QualityScore:F2} " +
+                    $"| {(reflection.HasIssues ? Markup.Escape(reflection.Improvements.FirstOrDefault() ?? "–") : "Clean")}";
+                AnsiConsole.MarkupLine($"\n[rgb(128,0,180)]{metaMsg}[/]");
             }
 
             if (_episodicMemory != null)
@@ -548,9 +534,7 @@ public sealed partial class ImmersiveMode
         }
         catch (Exception ex)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"  [LLM error: {ex.Message}]");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"  {IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned)} [red]{Markup.Escape($"[LLM error: {ex.Message}]")}[/]");
             return "I'm having trouble thinking right now. Let me try again.";
         }
     }

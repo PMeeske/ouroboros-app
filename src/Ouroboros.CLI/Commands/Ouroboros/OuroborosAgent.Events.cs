@@ -1,8 +1,10 @@
 // Copyright (c) Ouroboros. All rights reserved.
 
 using System.Threading.Channels;
+using Ouroboros.CLI.Avatar;
 using Ouroboros.CLI.Infrastructure;
 using Ouroboros.CLI.Mediator.Notifications;
+using Spectre.Console;
 
 namespace Ouroboros.CLI.Commands;
 
@@ -260,9 +262,7 @@ public sealed partial class OuroborosAgent : IAgentEventSink
 
             if (_config.Verbosity != OutputVerbosity.Quiet)
             {
-                Console.ForegroundColor = ConsoleColor.DarkYellow;
-                Console.WriteLine($"\n  [device] {thoughtContent}");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine(OuroborosTheme.Warn($"\n  [device] {thoughtContent}"));
             }
 
             // Let the persona think about it

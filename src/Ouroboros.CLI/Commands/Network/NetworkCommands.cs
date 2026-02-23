@@ -1,5 +1,8 @@
+using Ouroboros.CLI.Avatar;
+using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Network;
 using Ouroboros.Options;
+using Spectre.Console;
 
 namespace Ouroboros.CLI.Commands;
 
@@ -17,7 +20,8 @@ public static class NetworkCommands
     /// </summary>
     public static async Task RunAsync(NetworkOptions options)
     {
-        Console.WriteLine("=== Emergent Network State Manager ===\n");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Emergent Network State Manager"));
+        AnsiConsole.WriteLine();
 
         try
         {
@@ -57,12 +61,12 @@ public static class NetworkCommands
             }
             else
             {
-                Console.WriteLine("Please specify a command. Use --help for options.");
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim("Please specify a command. Use --help for options."));
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error: {ex.Message}");
+            PrintError($"Error: {ex.Message}");
         }
     }
 
@@ -70,7 +74,7 @@ public static class NetworkCommands
     {
         if (string.IsNullOrEmpty(options.TypeName) || string.IsNullOrEmpty(options.Payload))
         {
-            Console.WriteLine("Error: --type and --payload are required for creating a node.");
+            PrintError("--type and --payload are required for creating a node.");
             return;
         }
 
@@ -79,31 +83,31 @@ public static class NetworkCommands
 
         if (result.IsSuccess)
         {
-            Console.WriteLine($"✓ Created node: {node.Id}");
-            Console.WriteLine($"  Type: {node.TypeName}");
-            Console.WriteLine($"  Hash: {node.Hash}");
-            Console.WriteLine($"  Created: {node.CreatedAt}");
+            AnsiConsole.MarkupLine(OuroborosTheme.Ok($"✓ Created node: {node.Id}"));
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Type:")} {Markup.Escape(node.TypeName)}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Hash:")} {Markup.Escape(node.Hash)}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Created:")} {node.CreatedAt}");
         }
         else
         {
-            Console.WriteLine($"✗ Failed to create node: {result.Error}");
+            PrintError($"Failed to create node: {result.Error}");
         }
     }
 
     private static void AddTransition(NetworkOptions options)
     {
-        if (string.IsNullOrEmpty(options.InputId) || 
-            string.IsNullOrEmpty(options.OutputId) || 
+        if (string.IsNullOrEmpty(options.InputId) ||
+            string.IsNullOrEmpty(options.OutputId) ||
             string.IsNullOrEmpty(options.OperationName))
         {
-            Console.WriteLine("Error: --input, --output, and --operation are required for adding a transition.");
+            PrintError("--input, --output, and --operation are required for adding a transition.");
             return;
         }
 
-        if (!Guid.TryParse(options.InputId, out var inputGuid) || 
+        if (!Guid.TryParse(options.InputId, out var inputGuid) ||
             !Guid.TryParse(options.OutputId, out var outputGuid))
         {
-            Console.WriteLine("Error: Invalid node ID format.");
+            PrintError("Invalid node ID format.");
             return;
         }
 
@@ -117,51 +121,52 @@ public static class NetworkCommands
 
         if (result.IsSuccess)
         {
-            Console.WriteLine($"✓ Created transition: {edge.Id}");
-            Console.WriteLine($"  Operation: {edge.OperationName}");
-            Console.WriteLine($"  Input: {edge.InputIds[0]}");
-            Console.WriteLine($"  Output: {edge.OutputId}");
-            Console.WriteLine($"  Hash: {edge.Hash}");
+            AnsiConsole.MarkupLine(OuroborosTheme.Ok($"✓ Created transition: {edge.Id}"));
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Operation:")} {Markup.Escape(edge.OperationName)}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Input:")} {edge.InputIds[0]}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Output:")} {edge.OutputId}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Hash:")} {Markup.Escape(edge.Hash)}");
         }
         else
         {
-            Console.WriteLine($"✗ Failed to create transition: {result.Error}");
+            PrintError($"Failed to create transition: {result.Error}");
         }
     }
 
     private static void ViewDag(NetworkOptions options)
     {
-        Console.WriteLine($"DAG Statistics:");
-        Console.WriteLine($"  Total Nodes: {Dag.NodeCount}");
-        Console.WriteLine($"  Total Transitions: {Dag.EdgeCount}");
-        Console.WriteLine();
+        var table = OuroborosTheme.ThemedTable("Metric", "Value");
+        table.AddRow("Total Nodes", $"{Dag.NodeCount}");
+        table.AddRow("Total Transitions", $"{Dag.EdgeCount}");
+        AnsiConsole.Write(table);
+        AnsiConsole.WriteLine();
 
         var rootNodes = Dag.GetRootNodes().ToList();
         var leafNodes = Dag.GetLeafNodes().ToList();
 
-        Console.WriteLine($"Root Nodes ({rootNodes.Count}):");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent($"Root Nodes ({rootNodes.Count}):")}");
         foreach (var node in rootNodes)
         {
-            Console.WriteLine($"  - {node.Id} ({node.TypeName})");
+            AnsiConsole.MarkupLine($"    - {node.Id} ({Markup.Escape(node.TypeName)})");
         }
 
-        Console.WriteLine();
-        Console.WriteLine($"Leaf Nodes ({leafNodes.Count}):");
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent($"Leaf Nodes ({leafNodes.Count}):")}");
         foreach (var node in leafNodes)
         {
-            Console.WriteLine($"  - {node.Id} ({node.TypeName})");
+            AnsiConsole.MarkupLine($"    - {node.Id} ({Markup.Escape(node.TypeName)})");
         }
 
         // Verify integrity
         var integrityResult = Dag.VerifyIntegrity();
-        Console.WriteLine();
+        AnsiConsole.WriteLine();
         if (integrityResult.IsSuccess)
         {
-            Console.WriteLine("✓ DAG integrity verified");
+            AnsiConsole.MarkupLine(OuroborosTheme.Ok("✓ DAG integrity verified"));
         }
         else
         {
-            Console.WriteLine($"✗ DAG integrity check failed: {integrityResult.Error}");
+            PrintError($"DAG integrity check failed: {integrityResult.Error}");
         }
     }
 
@@ -169,35 +174,46 @@ public static class NetworkCommands
     {
         var snapshot = Projector.CreateSnapshot();
 
-        Console.WriteLine($"Global Network State Snapshot:");
-        Console.WriteLine($"  Epoch: {snapshot.Epoch}");
-        Console.WriteLine($"  Timestamp: {snapshot.Timestamp}");
-        Console.WriteLine($"  Total Nodes: {snapshot.TotalNodes}");
-        Console.WriteLine($"  Total Transitions: {snapshot.TotalTransitions}");
-        Console.WriteLine();
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Global Network State Snapshot"));
+        AnsiConsole.WriteLine();
 
-        Console.WriteLine("Nodes by Type:");
-        foreach (var kvp in snapshot.NodeCountByType)
+        var table = OuroborosTheme.ThemedTable("Metric", "Value");
+        table.AddRow("Epoch", $"{snapshot.Epoch}");
+        table.AddRow("Timestamp", $"{snapshot.Timestamp}");
+        table.AddRow("Total Nodes", $"{snapshot.TotalNodes}");
+        table.AddRow("Total Transitions", $"{snapshot.TotalTransitions}");
+        AnsiConsole.Write(table);
+        AnsiConsole.WriteLine();
+
+        if (snapshot.NodeCountByType.Count > 0)
         {
-            Console.WriteLine($"  {kvp.Key}: {kvp.Value}");
+            AnsiConsole.MarkupLine(OuroborosTheme.Accent("Nodes by Type:"));
+            foreach (var kvp in snapshot.NodeCountByType)
+            {
+                AnsiConsole.MarkupLine($"    {Markup.Escape(kvp.Key)}: {kvp.Value}");
+            }
         }
 
-        Console.WriteLine();
-        Console.WriteLine("Transitions by Operation:");
-        foreach (var kvp in snapshot.TransitionCountByOperation)
+        AnsiConsole.WriteLine();
+
+        if (snapshot.TransitionCountByOperation.Count > 0)
         {
-            Console.WriteLine($"  {kvp.Key}: {kvp.Value}");
+            AnsiConsole.MarkupLine(OuroborosTheme.Accent("Transitions by Operation:"));
+            foreach (var kvp in snapshot.TransitionCountByOperation)
+            {
+                AnsiConsole.MarkupLine($"    {Markup.Escape(kvp.Key)}: {kvp.Value}");
+            }
         }
 
         if (snapshot.AverageConfidence.HasValue)
         {
-            Console.WriteLine();
-            Console.WriteLine($"Average Confidence: {snapshot.AverageConfidence.Value:F2}");
+            AnsiConsole.WriteLine();
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Average Confidence:")} {snapshot.AverageConfidence.Value:F2}");
         }
 
         if (snapshot.TotalProcessingTimeMs.HasValue)
         {
-            Console.WriteLine($"Total Processing Time: {snapshot.TotalProcessingTimeMs.Value}ms");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Total Processing Time:")} {snapshot.TotalProcessingTimeMs.Value}ms");
         }
     }
 
@@ -205,7 +221,7 @@ public static class NetworkCommands
     {
         if (!Guid.TryParse(nodeIdStr, out var nodeId))
         {
-            Console.WriteLine("Error: Invalid node ID format.");
+            PrintError("Invalid node ID format.");
             return;
         }
 
@@ -213,23 +229,23 @@ public static class NetworkCommands
 
         if (result.IsSuccess)
         {
-            Console.WriteLine($"Transition Path to Node {nodeId}:");
-            Console.WriteLine();
+            AnsiConsole.Write(OuroborosTheme.ThemedRule($"Transition Path to {nodeId}"));
+            AnsiConsole.WriteLine();
 
             for (var i = 0; i < result.Value.Length; i++)
             {
                 var edge = result.Value[i];
-                Console.WriteLine($"Step {i + 1}: {edge.OperationName}");
-                Console.WriteLine($"  ID: {edge.Id}");
-                Console.WriteLine($"  Input: {edge.InputIds[0]}");
-                Console.WriteLine($"  Output: {edge.OutputId}");
-                Console.WriteLine($"  Created: {edge.CreatedAt}");
-                Console.WriteLine();
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.GoldText($"Step {i + 1}:")} {Markup.Escape(edge.OperationName)}");
+                AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("ID:")} {edge.Id}");
+                AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Input:")} {edge.InputIds[0]}");
+                AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Output:")} {edge.OutputId}");
+                AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Created:")} {edge.CreatedAt}");
+                AnsiConsole.WriteLine();
             }
         }
         else
         {
-            Console.WriteLine($"✗ Failed to replay: {result.Error}");
+            PrintError($"Failed to replay: {result.Error}");
         }
     }
 
@@ -240,67 +256,67 @@ public static class NetworkCommands
         if (!string.IsNullOrEmpty(options.TypeName))
         {
             nodes = Dag.GetNodesByType(options.TypeName);
-            Console.WriteLine($"Nodes of type '{options.TypeName}':");
+            AnsiConsole.Write(OuroborosTheme.ThemedRule($"Nodes of type '{options.TypeName}'"));
         }
         else
         {
-            Console.WriteLine("All Nodes:");
+            AnsiConsole.Write(OuroborosTheme.ThemedRule("All Nodes"));
         }
-
-        Console.WriteLine();
+        AnsiConsole.WriteLine();
 
         foreach (var node in nodes)
         {
-            Console.WriteLine($"ID: {node.Id}");
-            Console.WriteLine($"  Type: {node.TypeName}");
-            Console.WriteLine($"  Created: {node.CreatedAt}");
-            Console.WriteLine($"  Parents: {node.ParentIds.Length}");
-            Console.WriteLine($"  Hash: {node.Hash[..16]}...");
-            Console.WriteLine();
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.GoldText("ID:")} {node.Id}");
+            AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Type:")} {Markup.Escape(node.TypeName)}");
+            AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Created:")} {node.CreatedAt}");
+            AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Parents:")} {node.ParentIds.Length}");
+            AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Hash:")} {Markup.Escape(node.Hash[..16])}...");
+            AnsiConsole.WriteLine();
         }
 
-        Console.WriteLine($"Total: {nodes.Count()} nodes");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent($"Total: {nodes.Count()} nodes")}");
     }
 
     private static void ListEdges()
     {
-        Console.WriteLine("All Transitions:");
-        Console.WriteLine();
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("All Transitions"));
+        AnsiConsole.WriteLine();
 
         foreach (var edge in Dag.Edges.Values)
         {
-            Console.WriteLine($"ID: {edge.Id}");
-            Console.WriteLine($"  Operation: {edge.OperationName}");
-            Console.WriteLine($"  Input(s): {string.Join(", ", edge.InputIds)}");
-            Console.WriteLine($"  Output: {edge.OutputId}");
-            Console.WriteLine($"  Created: {edge.CreatedAt}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.GoldText("ID:")} {edge.Id}");
+            AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Operation:")} {Markup.Escape(edge.OperationName)}");
+            AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Input(s):")} {Markup.Escape(string.Join(", ", edge.InputIds))}");
+            AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Output:")} {edge.OutputId}");
+            AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Created:")} {edge.CreatedAt}");
             if (edge.Confidence.HasValue)
             {
-                Console.WriteLine($"  Confidence: {edge.Confidence.Value:F2}");
+                AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Confidence:")} {edge.Confidence.Value:F2}");
             }
-            Console.WriteLine();
+            AnsiConsole.WriteLine();
         }
 
-        Console.WriteLine($"Total: {Dag.EdgeCount} transitions");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent($"Total: {Dag.EdgeCount} transitions")}");
     }
 
     private static async Task RunInteractiveDemoAsync()
     {
-        Console.WriteLine("=== Interactive Network State Demo ===");
-        Console.WriteLine("Creating a reasoning chain: Draft → Critique → Improve → Final\n");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Interactive Network State Demo"));
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim("Creating a reasoning chain: Draft → Critique → Improve → Final"));
+        AnsiConsole.WriteLine();
 
         // Create Draft node
         var draft = new Draft("Initial implementation of the feature");
         var draftNode = MonadNode.FromReasoningState(draft);
         Dag.AddNode(draftNode);
-        Console.WriteLine($"1. Created Draft node: {draftNode.Id}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.GoldText("1.")} Created Draft node: {draftNode.Id}");
         await Task.Delay(500);
 
         // Create Critique node
         var critique = new Critique("The implementation lacks error handling and edge case validation");
         var critiqueNode = MonadNode.FromReasoningState(critique, ImmutableArray.Create(draftNode.Id));
         Dag.AddNode(critiqueNode);
-        Console.WriteLine($"2. Created Critique node: {critiqueNode.Id}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.GoldText("2.")} Created Critique node: {critiqueNode.Id}");
         await Task.Delay(500);
 
         // Add transition: Draft → Critique
@@ -312,14 +328,14 @@ public static class NetworkCommands
             confidence: 0.85,
             durationMs: 1200);
         Dag.AddEdge(edge1);
-        Console.WriteLine($"3. Added transition: Draft → Critique");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.GoldText("3.")} Added transition: Draft → Critique");
         await Task.Delay(500);
 
         // Create Improved node
         var improved = new Draft("Enhanced implementation with comprehensive error handling and validation");
         var improvedNode = MonadNode.FromReasoningState(improved, ImmutableArray.Create(critiqueNode.Id));
         Dag.AddNode(improvedNode);
-        Console.WriteLine($"4. Created Improved Draft node: {improvedNode.Id}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.GoldText("4.")} Created Improved Draft node: {improvedNode.Id}");
         await Task.Delay(500);
 
         // Add transition: Critique → Improved
@@ -331,14 +347,14 @@ public static class NetworkCommands
             confidence: 0.92,
             durationMs: 1500);
         Dag.AddEdge(edge2);
-        Console.WriteLine($"5. Added transition: Critique → Improved");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.GoldText("5.")} Added transition: Critique → Improved");
         await Task.Delay(500);
 
         // Create Final node
         var final = new FinalSpec("Production-ready implementation with full error handling, validation, and documentation");
         var finalNode = MonadNode.FromReasoningState(final, ImmutableArray.Create(improvedNode.Id));
         Dag.AddNode(finalNode);
-        Console.WriteLine($"6. Created Final node: {finalNode.Id}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.GoldText("6.")} Created Final node: {finalNode.Id}");
         await Task.Delay(500);
 
         // Add transition: Improved → Final
@@ -350,47 +366,54 @@ public static class NetworkCommands
             confidence: 0.95,
             durationMs: 800);
         Dag.AddEdge(edge3);
-        Console.WriteLine($"7. Added transition: Improved → Final");
-        Console.WriteLine();
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.GoldText("7.")} Added transition: Improved → Final");
+        AnsiConsole.WriteLine();
 
         // Display DAG summary
-        Console.WriteLine("=== DAG Summary ===");
-        Console.WriteLine($"Total Nodes: {Dag.NodeCount}");
-        Console.WriteLine($"Total Transitions: {Dag.EdgeCount}");
-        Console.WriteLine();
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("DAG Summary"));
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Total Nodes:")} {Dag.NodeCount}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Total Transitions:")} {Dag.EdgeCount}");
+        AnsiConsole.WriteLine();
 
         // Create snapshot
-        Console.WriteLine("=== Global Network State Snapshot ===");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Global Network State Snapshot"));
         var snapshot = Projector.CreateSnapshot(
             ImmutableDictionary<string, string>.Empty.Add("demo", "reasoning-chain"));
-        
-        Console.WriteLine($"Epoch: {snapshot.Epoch}");
-        Console.WriteLine($"Total Nodes: {snapshot.TotalNodes}");
-        Console.WriteLine($"Total Transitions: {snapshot.TotalTransitions}");
-        Console.WriteLine($"Average Confidence: {snapshot.AverageConfidence:F2}");
-        Console.WriteLine($"Total Processing Time: {snapshot.TotalProcessingTimeMs}ms");
-        Console.WriteLine();
 
-        Console.WriteLine("Nodes by Type:");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Epoch:")} {snapshot.Epoch}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Total Nodes:")} {snapshot.TotalNodes}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Total Transitions:")} {snapshot.TotalTransitions}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Average Confidence:")} {snapshot.AverageConfidence:F2}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Total Processing Time:")} {snapshot.TotalProcessingTimeMs}ms");
+        AnsiConsole.WriteLine();
+
+        AnsiConsole.MarkupLine(OuroborosTheme.Accent("Nodes by Type:"));
         foreach (var kvp in snapshot.NodeCountByType)
         {
-            Console.WriteLine($"  {kvp.Key}: {kvp.Value}");
+            AnsiConsole.MarkupLine($"    {Markup.Escape(kvp.Key)}: {kvp.Value}");
         }
-        Console.WriteLine();
+        AnsiConsole.WriteLine();
 
         // Replay path
-        Console.WriteLine("=== Replaying Path to Final Node ===");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Replaying Path to Final Node"));
         var replayResult = ReplayEngine.ReplayPathToNode(finalNode.Id);
         if (replayResult.IsSuccess)
         {
             for (var i = 0; i < replayResult.Value.Length; i++)
             {
                 var edge = replayResult.Value[i];
-                Console.WriteLine($"Step {i + 1}: {edge.OperationName} (Confidence: {edge.Confidence:F2})");
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.GoldText($"Step {i + 1}:")} {Markup.Escape(edge.OperationName)} (Confidence: {edge.Confidence:F2})");
             }
         }
 
-        Console.WriteLine();
-        Console.WriteLine("✓ Demo completed successfully!");
+        AnsiConsole.WriteLine();
+        var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Happy);
+        AnsiConsole.MarkupLine(OuroborosTheme.Ok($"{face} Demo completed successfully!"));
+    }
+
+    private static void PrintError(string message)
+    {
+        var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+        AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} ✗ {Markup.Escape(message)}[/]");
     }
 }

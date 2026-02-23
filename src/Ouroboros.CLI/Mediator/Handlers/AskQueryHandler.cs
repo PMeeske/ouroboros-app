@@ -3,6 +3,8 @@ using LangChain.Databases;
 using LangChain.DocumentLoaders;
 using LangChain.Providers.Ollama;
 using MediatR;
+using Ouroboros.CLI.Infrastructure;
+using Spectre.Console;
 using Microsoft.Extensions.Logging;
 using Ouroboros.Application.Services;
 using Ouroboros.CLI.Services;
@@ -236,13 +238,13 @@ public sealed class AskQueryHandler : IRequestHandler<AskQuery, string>
             }
             catch (Exception ex) when (!r.StrictModel && ex.Message.Contains("Invalid model", StringComparison.OrdinalIgnoreCase))
             {
-                Console.WriteLine($"[WARN] Remote model '{r.ModelName}' invalid. Falling back to local 'llama3'. Use --strict-model to disable fallback.");
+                AnsiConsole.MarkupLine(OuroborosTheme.Warn($"[WARN] Remote model '{Markup.Escape(r.ModelName)}' invalid. Falling back to local 'llama3'. Use --strict-model to disable fallback."));
                 var local = new OllamaChatModel(provider, "llama3");
                 return new OllamaChatAdapter(local, settings.Culture);
             }
             catch (Exception ex) when (!r.StrictModel)
             {
-                Console.WriteLine($"[WARN] Remote model '{r.ModelName}' unavailable ({ex.GetType().Name}). Falling back to local 'llama3'. Use --strict-model to disable fallback.");
+                AnsiConsole.MarkupLine(OuroborosTheme.Warn($"[WARN] Remote model '{Markup.Escape(r.ModelName)}' unavailable ({Markup.Escape(ex.GetType().Name)}). Falling back to local 'llama3'. Use --strict-model to disable fallback."));
                 var local = new OllamaChatModel(provider, "llama3");
                 return new OllamaChatAdapter(local, settings.Culture);
             }

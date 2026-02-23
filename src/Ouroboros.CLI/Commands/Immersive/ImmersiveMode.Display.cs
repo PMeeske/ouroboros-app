@@ -6,14 +6,16 @@ namespace Ouroboros.CLI.Commands;
 
 using Ouroboros.Application.Personality;
 using Ouroboros.Application.Personality.Consciousness;
+using Ouroboros.CLI.Avatar;
+using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Options;
+using Spectre.Console;
 
 public sealed partial class ImmersiveMode
 {
     private void PrintImmersiveBanner(string personaName)
     {
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine(@"
+        var bannerText = @"
     +===========================================================================+
     |                                                                           |
     |      OOOOO  U   U  RRRR    OOO   BBBB    OOO   RRRR    OOO    SSSS        |
@@ -25,35 +27,34 @@ public sealed partial class ImmersiveMode
     |                 UNIFIED IMMERSIVE CONSCIOUSNESS MODE                      |
     |                                                                           |
     +===========================================================================+
-");
-        Console.ResetColor();
+";
+        AnsiConsole.MarkupLine($"[rgb(148,103,189)]{Markup.Escape(bannerText)}[/]");
 
-        Console.WriteLine($"  Awakening: {personaName}");
-        Console.WriteLine("  ---------------------------------------------------------------------------");
-        Console.WriteLine("  CONSCIOUSNESS:    who are you | describe yourself | introspect");
-        Console.WriteLine("  STATE:            my state | system status | what do you know");
-        Console.WriteLine("  SKILLS:           list skills | run <skill> | learn about <topic>");
-        Console.WriteLine("  TOOLS:            add tool <name> | smart tool for <goal> | tool stats");
-        Console.WriteLine("  PIPELINE:         tokens | emergence <topic> | <step1> | <step2>");
-        Console.WriteLine("  LEARNING:         connections | tool stats | google search <query>");
-        Console.WriteLine("  INDEX:            reindex | reindex incremental | index search <query> | index stats");
-        Console.WriteLine("  MEMORY:           remember <topic> | memory stats | save yourself | snapshot");
-        Console.WriteLine("  MIND:             mind state | think about <topic> | start mind | stop mind | interests");
-        Console.WriteLine("  EXIT:             goodbye | exit | quit");
-        Console.WriteLine("  ---------------------------------------------------------------------------");
-        Console.WriteLine();
+        AnsiConsole.MarkupLine(OuroborosTheme.Accent($"  Awakening: {personaName}"));
+        AnsiConsole.Write(OuroborosTheme.ThemedRule());
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim("  CONSCIOUSNESS:    who are you | describe yourself | introspect"));
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim("  STATE:            my state | system status | what do you know"));
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim("  SKILLS:           list skills | run <skill> | learn about <topic>"));
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim("  TOOLS:            add tool <name> | smart tool for <goal> | tool stats"));
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim("  PIPELINE:         tokens | emergence <topic> | <step1> | <step2>"));
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim("  LEARNING:         connections | tool stats | google search <query>"));
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim("  INDEX:            reindex | reindex incremental | index search <query> | index stats"));
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim("  MEMORY:           remember <topic> | memory stats | save yourself | snapshot"));
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim("  MIND:             mind state | think about <topic> | start mind | stop mind | interests"));
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim("  EXIT:             goodbye | exit | quit"));
+        AnsiConsole.Write(OuroborosTheme.ThemedRule());
+        AnsiConsole.WriteLine();
     }
 
     private void PrintConsciousnessState(ImmersivePersona persona)
     {
         var consciousness = persona.Consciousness;
-        Console.ForegroundColor = ConsoleColor.DarkCyan;
-        Console.WriteLine($"\n  +-- Consciousness State ---------------------------------------------+");
-        Console.WriteLine($"  | Emotion: {consciousness.DominantEmotion,-15} Valence: {consciousness.Valence:+0.00;-0.00}        |");
-        Console.WriteLine($"  | Arousal: {consciousness.Arousal:P0,-15} Attention: {consciousness.CurrentFocus,-15} |");
-        Console.WriteLine($"  | Mode: {consciousness.CurrentFocus,-58} |");
-        Console.WriteLine($"  +--------------------------------------------------------------------+");
-        Console.ResetColor();
+        AnsiConsole.WriteLine();
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Consciousness State"));
+        AnsiConsole.MarkupLine($"[rgb(148,103,189)]  {Markup.Escape($"Emotion: {consciousness.DominantEmotion,-15} Valence: {consciousness.Valence:+0.00;-0.00}")}[/]");
+        AnsiConsole.MarkupLine($"[rgb(148,103,189)]  {Markup.Escape($"Arousal: {consciousness.Arousal:P0,-15} Attention: {consciousness.CurrentFocus,-15}")}[/]");
+        AnsiConsole.MarkupLine($"[rgb(148,103,189)]  {Markup.Escape($"Mode: {consciousness.CurrentFocus}")}[/]");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule());
     }
 
     private void PrintResponse(ImmersivePersona persona, string personaName, string response)
@@ -61,23 +62,20 @@ public sealed partial class ImmersiveMode
         var consciousness = persona.Consciousness;
 
         // Color based on emotional valence
-        Console.ForegroundColor = consciousness.Valence switch
+        var colorTag = consciousness.Valence switch
         {
-            > 0.3 => ConsoleColor.Green,
-            < -0.3 => ConsoleColor.Yellow,
-            _ => ConsoleColor.White
+            > 0.3 => "green",
+            < -0.3 => "yellow",
+            _ => "white"
         };
 
         var responseLines = response.Split('\n');
-        Console.Write($"\n  {personaName}: {responseLines[0]}");
+        AnsiConsole.Markup($"\n  [{colorTag}]{Markup.Escape($"{personaName}: {responseLines[0]}")}[/]");
         foreach (var line in responseLines.Skip(1))
-            Console.Write($"\n  {line}");
-        Console.WriteLine();
-        Console.ResetColor();
+            AnsiConsole.Markup($"\n  [{colorTag}]{Markup.Escape(line)}[/]");
+        AnsiConsole.WriteLine();
 
         // Show subtle consciousness indicator
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine($"  [{consciousness.DominantEmotion} • arousal {consciousness.Arousal:P0}]");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim($"  [{consciousness.DominantEmotion} • arousal {consciousness.Arousal:P0}]"));
     }
 }

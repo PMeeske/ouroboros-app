@@ -1,7 +1,10 @@
 using System.Text.Json;
 using Ouroboros.Abstractions.Monads;
+using Ouroboros.CLI.Avatar;
+using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Domain.Governance;
 using Ouroboros.Options;
+using Spectre.Console;
 
 namespace Ouroboros.CLI.Commands;
 
@@ -37,14 +40,15 @@ public static class MaintenanceCommands
             PrintError($"Maintenance operation failed: {ex.Message}");
             if (options.Verbose)
             {
-                Console.Error.WriteLine(ex.StackTrace);
+                AnsiConsole.WriteException(ex);
             }
         }
     }
 
     private static async Task ExecuteCompactAsync(MaintenanceOptions options)
     {
-        Console.WriteLine("=== DAG Compaction ===\n");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("DAG Compaction"));
+        AnsiConsole.WriteLine();
 
         // Create a compaction task
         var task = MaintenanceScheduler.CreateCompactionTask(
@@ -68,12 +72,12 @@ public static class MaintenanceCommands
         if (execution.IsSuccess)
         {
             var exec = execution.Value;
-            Console.WriteLine($"✓ Compaction completed in {(exec.CompletedAt - exec.StartedAt)?.TotalSeconds:F2}s");
-            
+            AnsiConsole.MarkupLine(OuroborosTheme.Ok($"✓ Compaction completed in {(exec.CompletedAt - exec.StartedAt)?.TotalSeconds:F2}s"));
+
             if (exec.Metadata.TryGetValue("result", out var resultObj) && resultObj is CompactionResult compactionResult)
             {
-                Console.WriteLine($"  Snapshots Compacted: {compactionResult.SnapshotsCompacted}");
-                Console.WriteLine($"  Space Saved: {FormatBytes(compactionResult.BytesSaved)}");
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Snapshots Compacted:")} {compactionResult.SnapshotsCompacted}");
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Space Saved:")} {FormatBytes(compactionResult.BytesSaved)}");
             }
         }
         else
@@ -84,13 +88,15 @@ public static class MaintenanceCommands
 
     private static async Task ExecuteArchiveAsync(MaintenanceOptions options)
     {
-        Console.WriteLine("=== DAG Archiving ===\n");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("DAG Archiving"));
+        AnsiConsole.WriteLine();
 
         var archivePath = options.ArchivePath ?? Path.Combine(Path.GetTempPath(), "ouroboros_archive");
         var archiveAge = TimeSpan.FromDays(options.ArchiveAgeDays);
 
-        Console.WriteLine($"Archive age: {options.ArchiveAgeDays} days");
-        Console.WriteLine($"Archive path: {archivePath}\n");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Archive age:")} {options.ArchiveAgeDays} days");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Archive path:")} {Markup.Escape(archivePath)}");
+        AnsiConsole.WriteLine();
 
         // Create an archiving task
         var task = MaintenanceScheduler.CreateArchivingTask(
@@ -101,9 +107,9 @@ public static class MaintenanceCommands
             {
                 // Simulated archiving logic
                 await Task.Delay(100, ct);
-                
+
                 Directory.CreateDirectory(archivePath);
-                
+
                 var result = new ArchiveResult
                 {
                     SnapshotsArchived = 3,
@@ -118,12 +124,12 @@ public static class MaintenanceCommands
         if (execution.IsSuccess)
         {
             var exec = execution.Value;
-            Console.WriteLine($"✓ Archiving completed in {(exec.CompletedAt - exec.StartedAt)?.TotalSeconds:F2}s");
-            
+            AnsiConsole.MarkupLine(OuroborosTheme.Ok($"✓ Archiving completed in {(exec.CompletedAt - exec.StartedAt)?.TotalSeconds:F2}s"));
+
             if (exec.Metadata.TryGetValue("result", out var resultObj) && resultObj is ArchiveResult archiveResult)
             {
-                Console.WriteLine($"  Snapshots Archived: {archiveResult.SnapshotsArchived}");
-                Console.WriteLine($"  Archive Location: {archiveResult.ArchiveLocation}");
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Snapshots Archived:")} {archiveResult.SnapshotsArchived}");
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Archive Location:")} {Markup.Escape(archiveResult.ArchiveLocation)}");
             }
         }
         else
@@ -134,7 +140,8 @@ public static class MaintenanceCommands
 
     private static async Task ExecuteDetectAnomaliesAsync(MaintenanceOptions options)
     {
-        Console.WriteLine("=== Anomaly Detection ===\n");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Anomaly Detection"));
+        AnsiConsole.WriteLine();
 
         // Create an anomaly detection task
         var task = MaintenanceScheduler.CreateAnomalyDetectionTask(
@@ -144,7 +151,7 @@ public static class MaintenanceCommands
             {
                 // Simulated anomaly detection logic
                 await Task.Delay(100, ct);
-                
+
                 var anomalies = new List<AnomalyAlert>();
 
                 // Simulate detecting an anomaly
@@ -174,20 +181,21 @@ public static class MaintenanceCommands
         if (execution.IsSuccess)
         {
             var exec = execution.Value;
-            Console.WriteLine($"✓ Anomaly detection completed in {(exec.CompletedAt - exec.StartedAt)?.TotalSeconds:F2}s");
-            
+            AnsiConsole.MarkupLine(OuroborosTheme.Ok($"✓ Anomaly detection completed in {(exec.CompletedAt - exec.StartedAt)?.TotalSeconds:F2}s"));
+
             if (exec.Metadata.TryGetValue("result", out var resultObj) && resultObj is AnomalyDetectionResult detectionResult)
             {
-                Console.WriteLine($"  Anomalies Detected: {detectionResult.Anomalies.Count}");
-                
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Anomalies Detected:")} {detectionResult.Anomalies.Count}");
+
                 if (detectionResult.Anomalies.Count > 0)
                 {
-                    Console.WriteLine("\n  Detected Anomalies:");
+                    AnsiConsole.WriteLine();
+                    AnsiConsole.MarkupLine(OuroborosTheme.Accent("  Detected Anomalies:"));
                     foreach (var anomaly in detectionResult.Anomalies)
                     {
-                        Console.WriteLine($"    [{anomaly.Severity}] {anomaly.MetricName}: {anomaly.Description}");
-                        Console.WriteLine($"      Expected: {anomaly.ExpectedValue}, Observed: {anomaly.ObservedValue}");
-                        
+                        AnsiConsole.MarkupLine($"    [yellow][[{Markup.Escape(anomaly.Severity.ToString())}]][/] {Markup.Escape(anomaly.MetricName)}: {Markup.Escape(anomaly.Description)}");
+                        AnsiConsole.MarkupLine($"      {OuroborosTheme.Dim($"Expected: {anomaly.ExpectedValue}, Observed: {anomaly.ObservedValue}")}");
+
                         // Add to scheduler's alert list
                         _scheduler.CreateAlert(anomaly);
                     }
@@ -202,7 +210,8 @@ public static class MaintenanceCommands
 
     private static Task ExecuteScheduleAsync(MaintenanceOptions options)
     {
-        Console.WriteLine("=== Schedule Maintenance Task ===\n");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Schedule Maintenance Task"));
+        AnsiConsole.WriteLine();
 
         if (string.IsNullOrWhiteSpace(options.TaskName))
         {
@@ -211,8 +220,9 @@ public static class MaintenanceCommands
         }
 
         var schedule = TimeSpan.FromHours(options.ScheduleHours);
-        Console.WriteLine($"Task: {options.TaskName}");
-        Console.WriteLine($"Schedule: Every {options.ScheduleHours} hours\n");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Task:")} {Markup.Escape(options.TaskName)}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Schedule:")} Every {options.ScheduleHours} hours");
+        AnsiConsole.WriteLine();
 
         // Create a generic scheduled task
         var task = new MaintenanceTask
@@ -225,7 +235,7 @@ public static class MaintenanceCommands
             IsEnabled = true,
             Execute = async ct =>
             {
-                Console.WriteLine($"[{DateTime.UtcNow:HH:mm:ss}] Executing scheduled task: {options.TaskName}");
+                AnsiConsole.MarkupLine($"  [{DateTime.UtcNow:HH:mm:ss}] Executing scheduled task: {Markup.Escape(options.TaskName)}");
                 await Task.Delay(100, ct);
                 return Result<object>.Success("Task completed");
             }
@@ -235,10 +245,10 @@ public static class MaintenanceCommands
 
         if (result.IsSuccess)
         {
-            Console.WriteLine($"✓ Task '{options.TaskName}' scheduled successfully");
-            Console.WriteLine($"  ID: {task.Id}");
-            Console.WriteLine($"  Schedule: Every {schedule.TotalHours} hours");
-            Console.WriteLine($"\nNote: Use 'maintenance start-scheduler' to begin scheduled execution");
+            AnsiConsole.MarkupLine(OuroborosTheme.Ok($"✓ Task '{options.TaskName}' scheduled successfully"));
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("ID:")} {task.Id}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Schedule:")} Every {schedule.TotalHours} hours");
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim("\nNote: Use 'maintenance start-scheduler' to begin scheduled execution"));
         }
         else
         {
@@ -250,20 +260,21 @@ public static class MaintenanceCommands
 
     private static Task ExecuteHistoryAsync(MaintenanceOptions options)
     {
-        Console.WriteLine("=== Maintenance Execution History ===\n");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Maintenance Execution History"));
+        AnsiConsole.WriteLine();
 
         var history = _scheduler.GetHistory(options.Limit);
 
         if (history.Count == 0)
         {
-            Console.WriteLine("No maintenance executions found.");
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim("No maintenance executions found."));
             return Task.CompletedTask;
         }
 
         if (options.Format.Equals("json", StringComparison.OrdinalIgnoreCase))
         {
             var json = JsonSerializer.Serialize(history, new JsonSerializerOptions { WriteIndented = true });
-            Console.WriteLine(json);
+            AnsiConsole.WriteLine(json);
         }
         else
         {
@@ -275,7 +286,8 @@ public static class MaintenanceCommands
 
     private static Task ExecuteAlertsAsync(MaintenanceOptions options)
     {
-        Console.WriteLine("=== Anomaly Alerts ===\n");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Anomaly Alerts"));
+        AnsiConsole.WriteLine();
 
         if (!string.IsNullOrWhiteSpace(options.AlertId) && !string.IsNullOrWhiteSpace(options.Resolution))
         {
@@ -287,11 +299,11 @@ public static class MaintenanceCommands
             }
 
             var result = _scheduler.ResolveAlert(alertId, options.Resolution);
-            
+
             if (result.IsSuccess)
             {
-                Console.WriteLine($"✓ Alert {alertId} resolved");
-                Console.WriteLine($"  Resolution: {options.Resolution}");
+                AnsiConsole.MarkupLine(OuroborosTheme.Ok($"✓ Alert {alertId} resolved"));
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Resolution:")} {Markup.Escape(options.Resolution)}");
             }
             else
             {
@@ -306,14 +318,14 @@ public static class MaintenanceCommands
 
         if (alerts.Count == 0)
         {
-            Console.WriteLine(options.UnresolvedOnly ? "No unresolved alerts." : "No alerts found.");
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim(options.UnresolvedOnly ? "No unresolved alerts." : "No alerts found."));
             return Task.CompletedTask;
         }
 
         if (options.Format.Equals("json", StringComparison.OrdinalIgnoreCase))
         {
             var json = JsonSerializer.Serialize(alerts, new JsonSerializerOptions { WriteIndented = true });
-            Console.WriteLine(json);
+            AnsiConsole.WriteLine(json);
         }
         else
         {
@@ -325,88 +337,94 @@ public static class MaintenanceCommands
 
     private static void PrintHistoryTable(IReadOnlyList<MaintenanceExecution> executions, bool verbose)
     {
-        Console.WriteLine($"Total Executions: {executions.Count}\n");
+        var table = OuroborosTheme.ThemedTable("Status", "Task", "Type", "Started", "Duration", "Result");
 
         foreach (var exec in executions)
         {
             var duration = exec.CompletedAt.HasValue
-                ? (exec.CompletedAt.Value - exec.StartedAt).TotalSeconds
-                : 0;
+                ? $"{(exec.CompletedAt.Value - exec.StartedAt).TotalSeconds:F2}s"
+                : "—";
 
-            string statusSymbol = exec.Status switch
+            string statusIcon = exec.Status switch
             {
-                MaintenanceStatus.Completed => "✓",
-                MaintenanceStatus.Failed => "✗",
-                MaintenanceStatus.Running => "▶",
-                MaintenanceStatus.Cancelled => "○",
-                _ => "-"
+                MaintenanceStatus.Completed => "[green]✓[/]",
+                MaintenanceStatus.Failed => "[red]✗[/]",
+                MaintenanceStatus.Running => "[rgb(148,103,189)]▶[/]",
+                MaintenanceStatus.Cancelled => "[grey]○[/]",
+                _ => "—"
             };
 
-            Console.WriteLine($"{statusSymbol} [{exec.Status}] {exec.Task.Name}");
-            Console.WriteLine($"  Type: {exec.Task.TaskType}");
-            Console.WriteLine($"  Started: {exec.StartedAt:yyyy-MM-dd HH:mm:ss} UTC");
-            
-            if (exec.CompletedAt.HasValue)
-            {
-                Console.WriteLine($"  Completed: {exec.CompletedAt:yyyy-MM-dd HH:mm:ss} UTC");
-                Console.WriteLine($"  Duration: {duration:F2}s");
-            }
+            table.AddRow(
+                statusIcon,
+                Markup.Escape(exec.Task.Name),
+                Markup.Escape(exec.Task.TaskType.ToString()),
+                $"{exec.StartedAt:yyyy-MM-dd HH:mm:ss}",
+                duration,
+                Markup.Escape(exec.ResultMessage ?? "—"));
+        }
 
-            if (!string.IsNullOrWhiteSpace(exec.ResultMessage))
-            {
-                Console.WriteLine($"  Result: {exec.ResultMessage}");
-            }
+        AnsiConsole.Write(table);
 
-            if (verbose && exec.Metadata.Count > 0)
+        if (verbose)
+        {
+            foreach (var exec in executions.Where(e => e.Metadata.Count > 0))
             {
-                Console.WriteLine("  Metadata:");
+                AnsiConsole.MarkupLine($"\n  {OuroborosTheme.Dim("Metadata:")}");
                 foreach (var kvp in exec.Metadata)
                 {
-                    Console.WriteLine($"    {kvp.Key}: {kvp.Value}");
+                    AnsiConsole.MarkupLine($"    {Markup.Escape(kvp.Key)}: {Markup.Escape(kvp.Value?.ToString() ?? "null")}");
                 }
             }
-
-            Console.WriteLine();
         }
     }
 
     private static void PrintAlertsTable(IReadOnlyList<AnomalyAlert> alerts, bool verbose)
     {
-        Console.WriteLine($"Total Alerts: {alerts.Count}\n");
+        var table = OuroborosTheme.ThemedTable("Severity", "Status", "Metric", "Description", "Detected");
 
         foreach (var alert in alerts)
         {
-            string severitySymbol = alert.Severity switch
+            string severityColor = alert.Severity switch
             {
-                AlertSeverity.Critical => "🔴",
-                AlertSeverity.Error => "🟠",
-                AlertSeverity.Warning => "🟡",
-                AlertSeverity.Info => "🔵",
-                _ => "⚪"
+                AlertSeverity.Critical => "red",
+                AlertSeverity.Error => "rgb(255,165,0)",
+                AlertSeverity.Warning => "yellow",
+                AlertSeverity.Info => "blue",
+                _ => "grey"
             };
 
-            string resolvedStatus = alert.IsResolved ? "✓ RESOLVED" : "⚠ ACTIVE";
+            string resolvedStatus = alert.IsResolved ? "[green]RESOLVED[/]" : "[yellow]ACTIVE[/]";
 
-            Console.WriteLine($"{severitySymbol} [{alert.Severity}] {resolvedStatus} {alert.MetricName}");
-            Console.WriteLine($"  ID: {alert.Id}");
-            Console.WriteLine($"  Description: {alert.Description}");
-            Console.WriteLine($"  Expected: {alert.ExpectedValue ?? "N/A"}");
-            Console.WriteLine($"  Observed: {alert.ObservedValue ?? "N/A"}");
-            Console.WriteLine($"  Detected: {alert.DetectedAt:yyyy-MM-dd HH:mm:ss} UTC");
+            table.AddRow(
+                $"[{severityColor}]{Markup.Escape(alert.Severity.ToString())}[/]",
+                resolvedStatus,
+                Markup.Escape(alert.MetricName),
+                Markup.Escape(alert.Description),
+                $"{alert.DetectedAt:yyyy-MM-dd HH:mm:ss}");
+        }
 
-            if (alert.IsResolved)
+        AnsiConsole.Write(table);
+
+        if (verbose)
+        {
+            foreach (var alert in alerts)
             {
-                Console.WriteLine($"  Resolved: {alert.ResolvedAt:yyyy-MM-dd HH:mm:ss} UTC");
-                Console.WriteLine($"  Resolution: {alert.Resolution}");
-            }
+                AnsiConsole.MarkupLine($"\n  {OuroborosTheme.Accent("ID:")} {alert.Id}");
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Expected:")} {Markup.Escape(alert.ExpectedValue?.ToString() ?? "N/A")}");
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Observed:")} {Markup.Escape(alert.ObservedValue?.ToString() ?? "N/A")}");
 
-            Console.WriteLine();
+                if (alert.IsResolved)
+                {
+                    AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Resolved:")} {alert.ResolvedAt:yyyy-MM-dd HH:mm:ss} UTC");
+                    AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Resolution:")} {Markup.Escape(alert.Resolution ?? "N/A")}");
+                }
+            }
         }
     }
 
     private static string FormatBytes(long bytes)
     {
-        string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+        string[] sizes = ["B", "KB", "MB", "GB", "TB"];
         double len = bytes;
         int order = 0;
         while (len >= 1024 && order < sizes.Length - 1)
@@ -419,9 +437,8 @@ public static class MaintenanceCommands
 
     private static void PrintError(string message)
     {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.Error.WriteLine($"✗ {message}");
-        Console.ResetColor();
+        var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+        AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} ✗ {Markup.Escape(message)}[/]");
     }
 
     private static Task PrintErrorAsync(string message)

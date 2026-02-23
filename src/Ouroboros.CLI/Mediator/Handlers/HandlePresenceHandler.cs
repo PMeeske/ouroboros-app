@@ -1,7 +1,10 @@
 using MediatR;
 using Ouroboros.Application.Services;
+using Ouroboros.CLI.Avatar;
 using Ouroboros.CLI.Commands;
+using Ouroboros.CLI.Infrastructure;
 using Ouroboros.CLI.Resources;
+using Spectre.Console;
 
 namespace Ouroboros.CLI.Mediator;
 
@@ -44,10 +47,8 @@ public sealed class HandlePresenceHandler : IRequestHandler<HandlePresenceReques
             if (autonomousMind != null && !autonomousMind.SuppressProactiveMessages)
             {
                 // Fire proactive message event
-                Console.WriteLine();
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine($"  \U0001f44b {greeting}");
-                Console.ResetColor();
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine($"[rgb(148,103,189)]  \U0001f44b {Markup.Escape(greeting)}[/]");
 
                 // Speak the greeting
                 await _agent.VoiceService.WhisperAsync(greeting);

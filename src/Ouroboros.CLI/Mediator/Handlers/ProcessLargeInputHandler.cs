@@ -1,5 +1,7 @@
 using MediatR;
 using Ouroboros.CLI.Commands;
+using Ouroboros.CLI.Infrastructure;
+using Spectre.Console;
 
 namespace Ouroboros.CLI.Mediator;
 
@@ -27,30 +29,22 @@ public sealed class ProcessLargeInputHandler : IRequestHandler<ProcessLargeInput
         // Use divide-and-conquer if available and input is large enough
         if (divideAndConquer != null && request.LargeInput.Length > 2000)
         {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine($"  [D&C] Processing large input ({request.LargeInput.Length} chars) in parallel...");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim($"  [D&C] Processing large input ({request.LargeInput.Length} chars) in parallel..."));
 
             var chunks = divideAndConquer.DivideIntoChunks(request.LargeInput);
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine($"  [D&C] Split into {chunks.Count} chunks");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim($"  [D&C] Split into {chunks.Count} chunks"));
 
             var result = await divideAndConquer.ExecuteAsync(request.Task, chunks, cancellationToken);
 
             return result.Match(
                 success =>
                 {
-                    Console.ForegroundColor = ConsoleColor.DarkGray;
-                    Console.WriteLine("  [D&C] Parallel processing completed");
-                    Console.ResetColor();
+                    AnsiConsole.MarkupLine(OuroborosTheme.Dim("  [D&C] Parallel processing completed"));
                     return success;
                 },
                 error =>
                 {
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine($"  [D&C] Error: {error}");
-                    Console.ResetColor();
+                    AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  [D&C] Error: {error}"));
                     // Fall back to direct orchestration (inline to avoid circular mediator call)
                     return GenerateWithOrchestrationInlineAsync(
                         $"{request.Task}\n\n{request.LargeInput}", cancellationToken).Result;

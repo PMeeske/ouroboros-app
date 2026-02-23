@@ -6,8 +6,10 @@ using LangChain.Providers.Ollama;
 using Ouroboros.Abstractions.Monads;
 using Ouroboros.Application.Personality;
 using Ouroboros.Application.Services;
+using Ouroboros.CLI.Avatar;
 using Ouroboros.CLI.Commands.Options;
 using Ouroboros.ApiHost;
+using Ouroboros.CLI.Infrastructure;
 using Ouroboros.CLI.Services.RoomPresence;
 using Ouroboros.CLI.Subsystems;
 using Ouroboros.Core.CognitivePhysics;
@@ -16,6 +18,7 @@ using Ouroboros.Providers;
 using Ouroboros.Providers.TextToSpeech;
 using Ouroboros.Speech;
 using Ouroboros.Tools.MeTTa;
+using Spectre.Console;
 using System.CommandLine;
 using System.CommandLine.Parsing;
 using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
@@ -177,56 +180,52 @@ public sealed partial class RoomMode
         var idleDelay = idleSpeechDelay ?? TimeSpan.FromSeconds(120);
 
         // ─── Banner ──────────────────────────────────────────────────────────
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine($"\n  ╔══════════════════════════════════════════════════════╗");
-        Console.WriteLine($"  ║   {personaName} — Room Presence Mode                      ║");
-        Console.WriteLine($"  ║   Listening passively · Ethics gated · IIT Φ aware   ║");
+        AnsiConsole.MarkupLine($"\n  [rgb(148,103,189)]╔══════════════════════════════════════════════════════╗[/]");
+        AnsiConsole.MarkupLine($"  [rgb(148,103,189)]║   {Markup.Escape(personaName)} — Room Presence Mode                      ║[/]");
+        AnsiConsole.MarkupLine($"  [rgb(148,103,189)]║   Listening passively · Ethics gated · IIT Φ aware   ║[/]");
         if (proactiveMode)
-            Console.WriteLine($"  ║   Proactive mode ON · Idle delay {idleDelay.TotalSeconds:F0}s              ║");
+            AnsiConsole.MarkupLine($"  [rgb(148,103,189)]║   Proactive mode ON · Idle delay {idleDelay.TotalSeconds:F0}s              ║[/]");
         if (enableCamera)
-            Console.WriteLine($"  ║   Camera presence + gesture detection enabled       ║");
-        Console.WriteLine($"  ╚══════════════════════════════════════════════════════╝\n");
-        Console.ResetColor();
+            AnsiConsole.MarkupLine($"  [rgb(148,103,189)]║   Camera presence + gesture detection enabled       ║[/]");
+        AnsiConsole.MarkupLine($"  [rgb(148,103,189)]╚══════════════════════════════════════════════════════╝[/]\n");
 
         // ─── 1. MeTTa engine ─────────────────────────────────────────────────
-        Console.WriteLine("  [~] Initializing consciousness systems...");
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim("  [~] Initializing consciousness systems..."));
         using var mettaEngine = new InMemoryMeTTaEngine();
 
         // ─── 2. Embedding model (via SharedAgentBootstrap) ─────────────────────
-        Console.WriteLine("  [~] Connecting to memory systems...");
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim("  [~] Connecting to memory systems..."));
         var embeddingModel = Ouroboros.CLI.Services.SharedAgentBootstrap.CreateEmbeddingModel(
-            endpoint, embedModel, msg => Console.WriteLine($"  [{(msg.Contains("unavailable") ? "!" : "OK")}] {msg}"));
+            endpoint, embedModel, msg => AnsiConsole.MarkupLine(msg.Contains("unavailable")
+                ? OuroborosTheme.Warn($"  [!] {msg}")
+                : OuroborosTheme.Ok($"  [OK] {msg}")));
 
         // ─── 3. ImmersivePersona (via SharedAgentBootstrap) ────────────────────
         await using var persona = await Services.SharedAgentBootstrap.CreateAndAwakenPersonaAsync(
             personaName, mettaEngine, embeddingModel, qdrant, ct,
-            log: msg => Console.WriteLine($"  [~] {msg}"));
+            log: msg => AnsiConsole.MarkupLine(OuroborosTheme.Dim($"  [~] {msg}")));
         persona.AutonomousThought += (_, e) =>
         {
             if (e.Thought.Type is not (InnerThoughtType.Curiosity
                                     or InnerThoughtType.Observation
                                     or InnerThoughtType.SelfReflection))
                 return;
-            Console.ForegroundColor = ConsoleColor.DarkMagenta;
-            Console.WriteLine($"\n  💭 {e.Thought.Content}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"\n  [rgb(128,0,180)]💭 {Markup.Escape(e.Thought.Content)}[/]");
         };
-        Console.WriteLine($"  [OK] {personaName} is awake\n");
+        AnsiConsole.MarkupLine(OuroborosTheme.Ok($"  [OK] {personaName} is awake") + "\n");
 
         // ─── 4. ImmersiveSubsystem → avatar ───────────────────────────────────
         var immersive = new ImmersiveSubsystem();
         await immersive.InitializeStandaloneAsync(personaName, avatarOn, avatarPort, ct);
 
         // ─── 5. Ambient listener (via SharedAgentBootstrap) ────────────────────
-        Console.WriteLine("  [~] Opening microphone...");
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim("  [~] Opening microphone..."));
         var stt = await Services.SharedAgentBootstrap.CreateSttService(
             azureSpeechKey, azureSpeechRegion,
-            log: msg => Console.WriteLine($"  [OK] {msg}"));
+            log: msg => AnsiConsole.MarkupLine(OuroborosTheme.Ok($"  [OK] {msg}")));
         if (stt == null)
         {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("  [!] No STT backend available — cannot listen.");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine(OuroborosTheme.Warn("  [!] No STT backend available — cannot listen."));
             return;
         }
 
@@ -278,7 +277,7 @@ public sealed partial class RoomMode
         var ttsService = Services.SharedAgentBootstrap.CreateTtsService(
             azureSpeechKey, azureSpeechRegion, personaName, ttsVoice,
             preferLocal: localTts,
-            log: msg => Console.WriteLine($"  [OK] {msg}"));
+            log: msg => AnsiConsole.MarkupLine(OuroborosTheme.Ok($"  [OK] {msg}")));
 
         // ─── 11. Rolling room transcript ─────────────────────────────────────
         var transcript = new List<(string SpeakerLabel, string Text, DateTime When)>();
@@ -288,9 +287,7 @@ public sealed partial class RoomMode
         if (!quiet)
         {
             var arrival = $"{personaName} is in the room.";
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"\n  {personaName}: {arrival}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine(OuroborosTheme.Ok($"\n  {personaName}: {arrival}"));
             if (ttsService != null)
                 await ttsService.SpeakAsync(arrival, null, ct).ConfigureAwait(false);
         }
@@ -317,9 +314,7 @@ public sealed partial class RoomMode
 
             if (!check.IsSuccess || !check.Value.IsPermitted) return;
 
-            Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.WriteLine($"\n  💭 {personaName}: {msg}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"\n  [rgb(128,0,180)]💭 {Markup.Escape(personaName)}: {Markup.Escape(msg)}[/]");
 
             if (ttsService != null)
             {
@@ -347,7 +342,7 @@ public sealed partial class RoomMode
 
         if (enableCamera)
         {
-            Console.WriteLine("  [~] Enabling camera presence detection...");
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim("  [~] Enabling camera presence detection..."));
 
             // Use injected detector or create a standalone one
             presenceDetector = _presenceDetector ?? new PresenceDetector(new PresenceConfig
@@ -373,13 +368,11 @@ public sealed partial class RoomMode
             {
                 lastAbsenceTime = DateTime.UtcNow;
                 immersive.SetPresenceState("Idle", "contemplative");
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine($"  [room] No one detected — switching to idle");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim("  [room] No one detected — switching to idle"));
             };
 
             presenceDetector.Start();
-            Console.WriteLine("  [OK] Camera presence detection active");
+            AnsiConsole.MarkupLine(OuroborosTheme.Ok("  [OK] Camera presence detection active"));
 
             // ── Gesture detector ──────────────────────────────────────────
             gestureDetector = new GestureDetector();
@@ -391,7 +384,7 @@ public sealed partial class RoomMode
                     personaName, ct);
             };
             await gestureDetector.StartAsync(ct).ConfigureAwait(false);
-            Console.WriteLine("  [OK] Gesture detection active");
+            AnsiConsole.MarkupLine(OuroborosTheme.Ok("  [OK] Gesture detection active"));
         }
 
         // ─── 14. Main utterance handler ───────────────────────────────────────
@@ -431,9 +424,7 @@ public sealed partial class RoomMode
                                                          .ConfigureAwait(false);
                 _voiceSignatures.EnrollOwner(enrollPerson.Id, utterance.Voice);
                 var ack = $"I'll remember your voice. From now on I'll know it's you.";
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"\n  ✦ {personaName}: {ack}");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine(OuroborosTheme.Ok($"\n  ✦ {personaName}: {ack}"));
                 RoomIntentBus.FireInterjection(personaName, ack);
                 if (ttsService != null)
                 {
@@ -495,7 +486,7 @@ public sealed partial class RoomMode
         };
 
         await listener.StartAsync(ct).ConfigureAwait(false);
-        Console.WriteLine("  [OK] Room listener active — Ctrl+C to stop\n");
+        AnsiConsole.MarkupLine(OuroborosTheme.Ok("  [OK] Room listener active — Ctrl+C to stop") + "\n");
 
         // ─── 15. Silence monitor (proactive speech when room is quiet) ───────
         var silenceMonitorTask = proactiveMode
@@ -521,9 +512,7 @@ public sealed partial class RoomMode
                     catch (OperationCanceledException) { break; }
                     catch (Exception ex)
                     {
-                        Console.ForegroundColor = ConsoleColor.DarkYellow;
-                        Console.WriteLine($"  [room] Proactive monitor error: {ex.Message}");
-                        Console.ResetColor();
+                        AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  [room] Proactive monitor error: {ex.Message}"));
                     }
                 }
             }, ct)
@@ -550,8 +539,6 @@ public sealed partial class RoomMode
 
         await immersive.DisposeAsync().ConfigureAwait(false);
 
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine($"\n  {personaName} has left the room. Goodbye.");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine($"\n  [rgb(148,103,189)]{Markup.Escape(personaName)} has left the room. Goodbye.[/]");
     }
 }

@@ -8,9 +8,11 @@ using Ouroboros.Application.Personality;
 using Ouroboros.Application.Personality.Consciousness;
 using Ouroboros.Application.Services;
 using Ouroboros.Application.Tools;
+using Ouroboros.CLI.Avatar;
 using Ouroboros.CLI.Commands;
 using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Core.DistinctionLearning;
+using Spectre.Console;
 using Ouroboros.Domain.DistinctionLearning;
 using Ouroboros.Pipeline.Council;
 using Ouroboros.Pipeline.Learning;
@@ -137,7 +139,7 @@ public sealed class CognitiveSubsystem : ICognitiveSubsystem
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  \u26a0 Orchestrator unavailable: {ex.Message}");
+            AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Orchestrator unavailable: {Markup.Escape(ex.Message)}"));
         }
     }
 
@@ -153,9 +155,7 @@ public sealed class CognitiveSubsystem : ICognitiveSubsystem
 
             ImmersivePersona.ConsciousnessShift += (_, e) =>
             {
-                Console.ForegroundColor = ConsoleColor.DarkMagenta;
-                Console.WriteLine($"\n  [consciousness] Emotional shift: {e.NewEmotion} (\u0394 arousal: {e.ArousalChange:+0.00;-0.00})");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine($"\n[rgb(128,0,180)]  [consciousness] Emotional shift: {Markup.Escape(e.NewEmotion ?? "?")} (Δ arousal: {e.ArousalChange:+0.00;-0.00})[/]");
             };
 
             await ImmersivePersona.AwakenAsync();
@@ -164,15 +164,13 @@ public sealed class CognitiveSubsystem : ICognitiveSubsystem
             // Print consciousness state
             var c = ImmersivePersona.Consciousness;
             var sa = ImmersivePersona.SelfAwareness;
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine($"    Emotional state: {c.DominantEmotion} (arousal={c.Arousal:F2}, valence={c.Valence:F2})");
-            Console.WriteLine($"    Self-awareness: {sa.Name} - {sa.CurrentMood}");
-            Console.WriteLine($"    Identity: {ImmersivePersona.Identity.Name} (uptime: {ImmersivePersona.Uptime:hh\\:mm\\:ss})");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim($"    Emotional state: {Markup.Escape(c.DominantEmotion)} (arousal={c.Arousal:F2}, valence={c.Valence:F2})"));
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim($"    Self-awareness: {Markup.Escape(sa.Name)} - {Markup.Escape(sa.CurrentMood)}"));
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim($"    Identity: {Markup.Escape(ImmersivePersona.Identity.Name)} (uptime: {ImmersivePersona.Uptime:hh\\:mm\\:ss})"));
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  \u26a0 Consciousness unavailable: {ex.Message}");
+            AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Consciousness unavailable: {Markup.Escape(ex.Message)}"));
         }
     }
 
@@ -180,7 +178,7 @@ public sealed class CognitiveSubsystem : ICognitiveSubsystem
     {
         try
         {
-            Console.WriteLine("\n  \u2550\u2550\u2550 AGI Subsystems \u2550\u2550\u2550");
+            AnsiConsole.MarkupLine(OuroborosTheme.Accent("\n  ═══ AGI Subsystems ═══"));
 
             LearningAgent = new ContinuouslyLearningAgent(
                 agentId: Guid.NewGuid(),
@@ -201,9 +199,7 @@ public sealed class CognitiveSubsystem : ICognitiveSubsystem
             {
                 if (alert.Priority >= 7)
                 {
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine($"  \u26a0 Cognitive Alert: {alert.Message}");
-                    Console.ResetColor();
+                    AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Cognitive Alert: {Markup.Escape(alert.Message)}"));
                 }
             });
             ctx.Output.RecordInit("Cognitive Monitor", true, "anomaly detection, health tracking");
@@ -251,7 +247,7 @@ public sealed class CognitiveSubsystem : ICognitiveSubsystem
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  \u26a0 AGI Subsystems: {ex.Message}");
+            AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ AGI Subsystems: {Markup.Escape(ex.Message)}"));
         }
     }
 
@@ -268,7 +264,7 @@ public sealed class CognitiveSubsystem : ICognitiveSubsystem
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  ⚠ Distinction Learning: {ex.Message}");
+            AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Distinction Learning: {Markup.Escape(ex.Message)}"));
         }
     }
 
@@ -291,7 +287,7 @@ public sealed class CognitiveSubsystem : ICognitiveSubsystem
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  ⚠ Interconnected Learning: {ex.Message}");
+            AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Interconnected Learning: {Markup.Escape(ex.Message)}"));
         }
     }
 
@@ -1177,9 +1173,7 @@ Examples:
 
         try
         {
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine($"\n🏛️ Initiating Council Debate on: {topic}\n");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"\n[rgb(148,103,189)]🏛️ Initiating Council Debate on: {Markup.Escape(topic)}[/]\n");
 
             // Create topic and start the debate
             var councilTopic = CouncilTopic.Simple(topic);
@@ -1440,9 +1434,7 @@ Examples:
 
         try
         {
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine($"\n🤝 Coordinating agents for: {TruncateText(goalDescription, 50)}\n");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"\n[rgb(148,103,189)]🤝 Coordinating agents for: {Markup.Escape(TruncateText(goalDescription, 50))}[/]\n");
 
             var goal = PipelineGoal.Atomic(goalDescription);
             var result = await AgentCoordinator.ExecuteAsync(goal);

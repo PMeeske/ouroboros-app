@@ -17,11 +17,13 @@ using Ouroboros.Application.Personality.Consciousness;
 using Ouroboros.Application.SelfAssembly;
 using Ouroboros.Application.Services;
 using Ouroboros.Application.Tools;
+using Ouroboros.CLI.Avatar;
 using Ouroboros.CLI.Commands;
 using Ouroboros.Core.Configuration;
 using Ouroboros.Domain.Voice;
 using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Network;
+using Spectre.Console;
 using Ouroboros.Tools.MeTTa;
 using Qdrant.Client;
 using static Ouroboros.Application.Tools.AutonomousTools;
@@ -176,7 +178,7 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  \u26a0 SubAgent orchestration failed: {ex.Message}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ SubAgent orchestration failed: {ex.Message}")}");
         }
     }
 
@@ -243,7 +245,7 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  \u26a0 SelfModel initialization failed: {ex.Message}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ SelfModel initialization failed: {ex.Message}")}");
         }
     }
 
@@ -307,7 +309,7 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
             if (ctx.Memory.MeTTaEngine != null)
             {
                 NetworkTracker.ConfigureMeTTaExport(ctx.Memory.MeTTaEngine, autoExport: true);
-                Console.WriteLine("    \u2713 MeTTa symbolic export enabled (DAG facts \u2192 MeTTa)");
+                AnsiConsole.MarkupLine($"    {OuroborosTheme.Ok("✓ MeTTa symbolic export enabled (DAG facts → MeTTa)")}");
             }
 
             NetworkTracker.BranchReified += (_, args) =>
@@ -319,7 +321,7 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  \u26a0 NetworkState initialization failed: {ex.Message}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ NetworkState initialization failed: {ex.Message}")}");
             NetworkTracker = new NetworkStateTracker();
         }
     }
@@ -351,7 +353,7 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  ⚠ Network Projector: {ex.Message}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ Network Projector: {ex.Message}")}");
         }
     }
 
@@ -442,7 +444,7 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  \u26a0 SelfIndex: {ex.Message}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ SelfIndex: {ex.Message}")}");
             SelfIndexer = null;
         }
     }
@@ -501,7 +503,7 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  \u26a0 SelfAssembly: {ex.Message}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ SelfAssembly: {ex.Message}")}");
             SelfAssemblyEngine = null;
         }
 
@@ -663,9 +665,8 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
             Coordinator.DisplayAndSpeakFunction = async (message, persona, ct) =>
             {
                 bool isUser = persona == "User";
-                Console.ForegroundColor = isUser ? ConsoleColor.Yellow : ConsoleColor.Cyan;
-                Console.WriteLine($"\n  {message}");
-                Console.ResetColor();
+                var color = isUser ? OuroborosTheme.Warn($"\n  {message}") : $"[rgb(148,103,189)]{Markup.Escape($"\n  {message}")}[/]";
+                AnsiConsole.MarkupLine(color);
 
                 await SayAndWaitAsyncFunc(message, persona);
             };
@@ -715,7 +716,7 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  ⚠ Autonomous Coordinator initialization failed: {ex.Message}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ Autonomous Coordinator initialization failed: {ex.Message}")}");
         }
     }
 
@@ -814,9 +815,7 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
             {
                 if (GoalQueue.TryDequeue(out var goal))
                 {
-                    Console.ForegroundColor = ConsoleColor.DarkCyan;
-                    Console.WriteLine($"\n  [self-exec] Starting autonomous goal: {goal.Description}");
-                    Console.ResetColor();
+                    AnsiConsole.MarkupLine($"\n  [rgb(148,103,189)]{Markup.Escape($"[self-exec] Starting autonomous goal: {goal.Description}")}[/]");
 
                     var startTime = DateTime.UtcNow;
                     string result;
@@ -880,9 +879,10 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
                         await PerformPeriodicSelfEvaluationAsync();
                     }
 
-                    Console.ForegroundColor = success ? ConsoleColor.DarkGreen : ConsoleColor.Yellow;
-                    Console.WriteLine($"  [self-exec] Goal {(success ? "completed" : "failed")}: {goal.Description} ({duration.TotalSeconds:F2}s)");
-                    Console.ResetColor();
+                    if (success)
+                        AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok($"[self-exec] Goal completed: {goal.Description} ({duration.TotalSeconds:F2}s)")}");
+                    else
+                        AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"[self-exec] Goal failed: {goal.Description} ({duration.TotalSeconds:F2}s)")}");
                 }
                 else
                 {
@@ -904,9 +904,7 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
             }
             catch (Exception ex)
             {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"  [self-exec] Error: {ex.Message}");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"[self-exec] Error: {ex.Message}")}");
             }
         }
     }
@@ -1204,9 +1202,7 @@ Example: [Learn] I should consolidate my understanding of the recent coding task
     {
         if (Config.Debug)
         {
-            Console.ForegroundColor = ConsoleColor.DarkMagenta;
-            Console.WriteLine($"  💭 [thought] [{thought.ActionType}] {thought.Content}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"  [rgb(128,0,180)]{Markup.Escape($"💭 [thought] [{thought.ActionType}] {thought.Content}")}[/]");
         }
 
         // Log thought to global workspace
@@ -1280,9 +1276,7 @@ Example: [Learn] I should consolidate my understanding of the recent coding task
 
             if (Config.Debug)
             {
-                Console.ForegroundColor = ConsoleColor.DarkCyan;
-                Console.WriteLine($"  [autonomous] Executing: {dsl}");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine($"  [rgb(148,103,189)]{Markup.Escape($"[autonomous] Executing: {dsl}")}[/]");
             }
 
             // Execute the DSL pipeline
@@ -1321,9 +1315,7 @@ Example: [Learn] I should consolidate my understanding of the recent coding task
 
             if (Config.Debug)
             {
-                Console.ForegroundColor = ConsoleColor.DarkGreen;
-                Console.WriteLine($"  [autonomous] Completed: {result[..Math.Min(100, result.Length)]}...");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok($"[autonomous] Completed: {result[..Math.Min(100, result.Length)]}...")}");
             }
         }
         catch (Exception ex)
@@ -1367,9 +1359,7 @@ Example: [Learn] I should consolidate my understanding of the recent coding task
 
             GoalQueue.Enqueue(learningGoal);
 
-            Console.ForegroundColor = ConsoleColor.DarkCyan;
-            Console.WriteLine($"  [self-improvement] Queued learning goal: {gap}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"  [rgb(148,103,189)]{Markup.Escape($"[self-improvement] Queued learning goal: {gap}")}[/]");
         }
     }
 
@@ -2145,7 +2135,7 @@ Make sure both search and replace text are quoted.";
             }
 
             // Invoke the tool directly
-            Console.WriteLine($"[SaveCode] Invoking modify_my_code with: {jsonInput[..Math.Min(100, jsonInput.Length)]}...");
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim($"[SaveCode] Invoking modify_my_code with: {jsonInput[..Math.Min(100, jsonInput.Length)]}..."));
             Result<string, string> result = await tool.InvokeAsync(jsonInput);
 
             if (result.IsSuccess)
@@ -2190,7 +2180,7 @@ Examples:
   `cat Program.cs`";
             }
 
-            Console.WriteLine($"[ReadMyCode] Reading: {filePath}");
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim($"[ReadMyCode] Reading: {filePath}"));
             Result<string, string> result = await tool.InvokeAsync(filePath.Trim());
 
             if (result.IsSuccess)
@@ -2236,7 +2226,7 @@ Examples:
   `find in code GenerateTextAsync`";
             }
 
-            Console.WriteLine($"[SearchMyCode] Searching for: {query}");
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim($"[SearchMyCode] Searching for: {query}"));
             Result<string, string> result = await tool.InvokeAsync(query.Trim());
 
             if (result.IsSuccess)
@@ -2277,7 +2267,7 @@ Examples:
 
             // Find some key C# files
             sb.AppendLine("**Scanning codebase for C# files...**\n");
-            Console.WriteLine("[AnalyzeCode] Searching for key files...");
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim("[AnalyzeCode] Searching for key files..."));
 
             string[] searchTerms = new[] { "OuroborosAgent", "ChatAsync", "ITool", "ToolRegistry" };
             List<string> foundFiles = new();
@@ -2328,7 +2318,7 @@ Examples:
             if (analyzeTool.HasValue)
             {
                 sb.AppendLine("**Running Roslyn analysis...**\n");
-                Console.WriteLine("[AnalyzeCode] Running Roslyn analysis...");
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim("[AnalyzeCode] Running Roslyn analysis..."));
 
                 string sampleFile = foundFiles.FirstOrDefault() ?? "src/Ouroboros.CLI/Commands/OuroborosAgent.cs";
                 if (readTool.HasValue)
@@ -2383,9 +2373,7 @@ Examples:
 
         try
         {
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine("\n  [~] Starting full workspace reindex...");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"\n  [rgb(148,103,189)]{Markup.Escape("[~] Starting full workspace reindex...")}[/]");
 
             var result = await SelfIndexer.FullReindexAsync();
 
@@ -2411,9 +2399,7 @@ Examples:
 
         try
         {
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine("\n  [~] Starting incremental reindex (changed files only)...");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"\n  [rgb(148,103,189)]{Markup.Escape("[~] Starting incremental reindex (changed files only)...")}[/]");
 
             var result = await SelfIndexer.IncrementalIndexAsync();
 

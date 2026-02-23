@@ -2,6 +2,8 @@
 namespace Ouroboros.CLI.Services.RoomPresence;
 
 using System.Diagnostics;
+using Ouroboros.CLI.Infrastructure;
+using Spectre.Console;
 
 /// <summary>
 /// Lightweight gesture detection using periodic camera captures analysed by a vision LLM.
@@ -64,9 +66,7 @@ public sealed class GestureDetector : IAsyncDisposable
                         var (gestureType, description) = result.Value;
                         if (!gestureType.Equals("NONE", StringComparison.OrdinalIgnoreCase))
                         {
-                            Console.ForegroundColor = ConsoleColor.DarkGray;
-                            Console.WriteLine($"  [gesture] Detected: {gestureType} — {description}");
-                            Console.ResetColor();
+                            AnsiConsole.MarkupLine(OuroborosTheme.Dim($"  [gesture] Detected: {Markup.Escape(gestureType)} — {Markup.Escape(description)}"));
                             OnGestureDetected?.Invoke(gestureType, description);
                         }
                     }
@@ -80,9 +80,7 @@ public sealed class GestureDetector : IAsyncDisposable
             catch (OperationCanceledException) { break; }
             catch (Exception ex)
             {
-                Console.ForegroundColor = ConsoleColor.DarkYellow;
-                Console.WriteLine($"  [gesture] Error: {ex.Message}");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  [gesture] Error: {Markup.Escape(ex.Message)}"));
                 await Task.Delay(TimeSpan.FromSeconds(IntervalSeconds * 2), ct).ConfigureAwait(false);
             }
         }

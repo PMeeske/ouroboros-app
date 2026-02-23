@@ -1,9 +1,12 @@
+using Spectre.Console;
+
 namespace Ouroboros.CLI.Infrastructure;
 
 /// <summary>
 /// Consistent tool-call display inspired by Crush's tool rendering model:
 /// each tool shows a header line (status icon + name + truncated param) and
 /// an optional body (output lines, truncated to <see cref="DefaultBodyLines"/>).
+/// Uses Spectre.Console with Ouroboros purple/gold theme.
 ///
 /// Status icons:
 ///   ●  pending / running
@@ -66,33 +69,28 @@ public static class ToolRenderer
     // ── Raw console helpers (for callers that hold the console lock) ───────────
 
     /// <summary>
-    /// Writes the tool header directly to <see cref="Console"/>.
+    /// Writes the tool header directly via Spectre.Console.
     /// Caller is responsible for thread safety.
     /// </summary>
     public static void WriteHeaderRaw(string icon, string toolName, string? param)
     {
-        Console.ForegroundColor = icon switch
+        var iconColor = icon switch
         {
-            "✓" => ConsoleColor.Green,
-            "✗" => ConsoleColor.Red,
-            "⊘" => ConsoleColor.DarkGray,
-            _   => ConsoleColor.DarkCyan,   // ● pending
+            "✓" => "green",
+            "✗" => "red",
+            "⊘" => "grey",
+            _   => "rgb(148,103,189)", // ● pending — violet
         };
-        Console.Write($"  {icon} {toolName}");
-        Console.ResetColor();
 
-        if (!string.IsNullOrEmpty(param))
-        {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.Write($"  {Truncate(param, MaxParamChars)}");
-            Console.ResetColor();
-        }
+        var paramPart = !string.IsNullOrEmpty(param)
+            ? $"  [grey]{Markup.Escape(Truncate(param, MaxParamChars))}[/]"
+            : "";
 
-        Console.WriteLine();
+        AnsiConsole.MarkupLine($"  [{iconColor}]{Markup.Escape(icon)} {Markup.Escape(toolName)}[/]{paramPart}");
     }
 
     /// <summary>
-    /// Writes a body block (indented, truncated) directly to <see cref="Console"/>.
+    /// Writes a body block (indented, truncated) directly via Spectre.Console.
     /// Caller is responsible for thread safety.
     /// </summary>
     public static void WriteBodyRaw(string text, int maxLines = DefaultBodyLines)
@@ -113,19 +111,17 @@ public static class ToolRenderer
         var lines = text.Split('\n');
         var shown = Math.Min(lines.Length, maxLines);
 
-        Console.ForegroundColor = ConsoleColor.DarkGray;
         for (var i = 0; i < shown; i++)
         {
             var line = lines[i].TrimEnd();
             if (line.Length > 0)
-                Console.WriteLine($"    {line}");
+                AnsiConsole.MarkupLine($"    [grey]{Markup.Escape(line)}[/]");
         }
 
         if (lines.Length > maxLines)
-            Console.WriteLine($"    ... ({lines.Length - maxLines} more lines)");
+            AnsiConsole.MarkupLine($"    [grey]... ({lines.Length - maxLines} more lines)[/]");
 
-        Console.ResetColor();
-        Console.WriteLine();
+        AnsiConsole.WriteLine();
     }
 
     private static string Truncate(string s, int max) =>

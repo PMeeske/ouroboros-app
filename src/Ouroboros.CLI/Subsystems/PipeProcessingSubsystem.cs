@@ -4,6 +4,8 @@ namespace Ouroboros.CLI.Subsystems;
 using System.Text;
 using System.Text.RegularExpressions;
 using Ouroboros.CLI.Commands;
+using Ouroboros.CLI.Infrastructure;
+using Spectre.Console;
 
 /// <summary>
 /// Pipe processing subsystem: command chaining via | syntax, [PIPE:] detection,
@@ -160,9 +162,7 @@ public sealed class PipeProcessingSubsystem : IPipeProcessingSubsystem
 
             try
             {
-                Console.ForegroundColor = ConsoleColor.DarkCyan;
-                Console.WriteLine($"  🔗 Executing pipe: {pipeCommand[..Math.Min(50, pipeCommand.Length)]}...");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine($"[rgb(148,103,189)]  🔗 Executing pipe: {Markup.Escape(pipeCommand[..Math.Min(50, pipeCommand.Length)])}...[/]");
 
                 var pipeResult = await ProcessInputWithPipingAsync(pipeCommand.Trim(), maxDepth - 1);
                 result = result.Replace(match.Value, $"\n📤 Pipe Result:\n{pipeResult}\n");
