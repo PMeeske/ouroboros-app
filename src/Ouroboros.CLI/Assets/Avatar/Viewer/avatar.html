@@ -1481,9 +1481,34 @@ function applyTopicPosition(topicRaw) {
   }
 }
 
+let _lastStateChangeTime = 0;
+const STATE_CHANGE_MIN_MS = 3000; // minimum 3s between CSS state switches
+let _pendingState = null;
+let _pendingStateTimer = null;
+
 function setAvatarState(state) {
   if (!layers[state]) state = 'Idle';
   const changed = state !== currentState;
+
+  // Debounce: don't switch CSS layers too fast — queue if too soon
+  const now = Date.now();
+  const elapsed = now - _lastStateChangeTime;
+  if (changed && elapsed < STATE_CHANGE_MIN_MS) {
+    _pendingState = state;
+    if (!_pendingStateTimer) {
+      _pendingStateTimer = setTimeout(() => {
+        _pendingStateTimer = null;
+        if (_pendingState) {
+          const s = _pendingState;
+          _pendingState = null;
+          setAvatarState(s);
+        }
+      }, STATE_CHANGE_MIN_MS - elapsed);
+    }
+    return;
+  }
+
+  if (changed) _lastStateChangeTime = now;
 
   if (!isFullbody && changed) {
     for (const [key, el] of Object.entries(layers)) {
