@@ -365,6 +365,9 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
         if (_disposed) return;
         _disposed = true;
 
+        // ── Stop agent event loop + bridge ──
+        await StopEventLoopAsync();
+
         // ── Pre-dispose hooks (cost summary, personality save) ──
         await OnDisposingAsync();
 

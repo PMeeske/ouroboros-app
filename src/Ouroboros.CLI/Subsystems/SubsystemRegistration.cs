@@ -3,6 +3,7 @@ namespace Ouroboros.CLI.Subsystems;
 
 using Microsoft.Extensions.DependencyInjection;
 using Ouroboros.CLI.Commands;
+using Ouroboros.CLI.Infrastructure;
 using Ouroboros.CLI.Mediator;
 
 /// <summary>
@@ -60,6 +61,11 @@ public static class SubsystemRegistration
     public static IServiceCollection AddOuroborosAgent(this IServiceCollection services)
     {
         services.AddSingleton<OuroborosAgent>();
+
+        // Expose the agent as IAgentEventSink so other services (handlers, subsystems)
+        // can enqueue events without coupling to OuroborosAgent directly.
+        services.AddSingleton<IAgentEventSink>(sp => sp.GetRequiredService<OuroborosAgent>());
+
         return services;
     }
 
