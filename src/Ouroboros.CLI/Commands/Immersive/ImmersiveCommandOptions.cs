@@ -1,27 +1,25 @@
-// Copyright (c) Ouroboros. All rights reserved.
-namespace Ouroboros.CLI.Commands.Options;
-
 using System.CommandLine;
 using System.CommandLine.Parsing;
 
+namespace Ouroboros.CLI.Commands.Options;
+
 /// <summary>
-/// Options for the <c>room</c> subcommand — Iaret as ambient room presence.
-///
-/// Wires <see cref="AmbientRoomListener"/> to the microphone and runs the
-/// five-stage interjection pipeline (Ethics → CogPhysics → Phi → LLM → TTS).
+/// CLI options for the <c>immersive</c> subcommand using System.CommandLine.
+/// Maps 1:1 to <see cref="ImmersiveConfig"/>.
+/// Follows the same pattern as <see cref="OuroborosCommandOptions"/>.
 /// </summary>
-public sealed class RoomCommandOptions
+public sealed class ImmersiveCommandOptions
 {
     // ── Persona & model ─────────────────────────────────────────────────────
     public Option<string> PersonaOption { get; } = new("--persona")
     {
-        Description = "Persona name (default: Iaret)",
+        Description = "Persona name",
         DefaultValueFactory = _ => "Iaret",
     };
 
     public Option<string> ModelOption { get; } = new("--model")
     {
-        Description = "LLM model used for interjection decisions",
+        Description = "LLM model",
         DefaultValueFactory = _ => "llama3:latest",
     };
 
@@ -39,11 +37,35 @@ public sealed class RoomCommandOptions
 
     public Option<string> QdrantEndpointOption { get; } = new("--qdrant")
     {
-        Description = "Qdrant endpoint for person/conversation memory",
+        Description = "Qdrant endpoint for vector memory",
         DefaultValueFactory = _ => "http://localhost:6334",
     };
 
-    // ── Speech ───────────────────────────────────────────────────────────────
+    // ── Voice ────────────────────────────────────────────────────────────────
+    public Option<bool> VoiceModeOption { get; } = new("--voice-mode")
+    {
+        Description = "Enable voice interaction",
+        DefaultValueFactory = _ => false,
+    };
+
+    public Option<bool> VoiceOnlyOption { get; } = new("--voice-only")
+    {
+        Description = "Voice-only mode (no text display)",
+        DefaultValueFactory = _ => false,
+    };
+
+    public Option<bool> LocalTtsOption { get; } = new("--local-tts")
+    {
+        Description = "Use local Windows SAPI TTS instead of Azure",
+        DefaultValueFactory = _ => false,
+    };
+
+    public Option<bool> AzureTtsOption { get; } = new("--azure-tts")
+    {
+        Description = "Use Azure Neural TTS (default: true)",
+        DefaultValueFactory = _ => true,
+    };
+
     public Option<string?> AzureSpeechKeyOption { get; } = new("--azure-speech-key")
     {
         Description = "Azure Speech API key (or set AZURE_SPEECH_KEY env var)",
@@ -61,12 +83,6 @@ public sealed class RoomCommandOptions
         DefaultValueFactory = _ => "en-US-AvaMultilingualNeural",
     };
 
-    public Option<bool> LocalTtsOption { get; } = new("--local-tts")
-    {
-        Description = "Use local Windows SAPI TTS instead of Azure",
-        DefaultValueFactory = _ => false,
-    };
-
     // ── Avatar ───────────────────────────────────────────────────────────────
     public Option<bool> AvatarOption { get; } = new("--avatar")
     {
@@ -80,29 +96,11 @@ public sealed class RoomCommandOptions
         DefaultValueFactory = _ => 9471,
     };
 
-    // ── Room-specific ─────────────────────────────────────────────────────────
-    public Option<bool> QuietOption { get; } = new("--quiet", "-q")
+    // ── Room ─────────────────────────────────────────────────────────────────
+    public Option<bool> RoomModeOption { get; } = new("--room-mode")
     {
-        Description = "Don't announce Iaret's arrival via TTS",
+        Description = "Enable ambient room presence alongside immersive mode",
         DefaultValueFactory = _ => false,
-    };
-
-    public Option<int> CooldownOption { get; } = new("--cooldown")
-    {
-        Description = "Minimum seconds between interjections (default: 45)",
-        DefaultValueFactory = _ => 45,
-    };
-
-    public Option<int> MaxInterjectionsOption { get; } = new("--max-interjections")
-    {
-        Description = "Maximum interjections per 10-minute window (default: 4)",
-        DefaultValueFactory = _ => 4,
-    };
-
-    public Option<double> PhiThresholdOption { get; } = new("--phi-threshold")
-    {
-        Description = "Minimum Phi (IIT integration) score before Iaret considers interjecting (0.0–1.0, default: 0.15)",
-        DefaultValueFactory = _ => 0.15,
     };
 
     /// <summary>Registers all options on <paramref name="command"/>.</summary>
@@ -113,42 +111,44 @@ public sealed class RoomCommandOptions
         command.Add(EndpointOption);
         command.Add(EmbedModelOption);
         command.Add(QdrantEndpointOption);
+        command.Add(VoiceModeOption);
+        command.Add(VoiceOnlyOption);
+        command.Add(LocalTtsOption);
+        command.Add(AzureTtsOption);
         command.Add(AzureSpeechKeyOption);
         command.Add(AzureSpeechRegionOption);
         command.Add(TtsVoiceOption);
-        command.Add(LocalTtsOption);
         command.Add(AvatarOption);
         command.Add(AvatarPortOption);
-        command.Add(QuietOption);
-        command.Add(CooldownOption);
-        command.Add(MaxInterjectionsOption);
-        command.Add(PhiThresholdOption);
+        command.Add(RoomModeOption);
     }
 
     /// <summary>
-    /// Binds parsed CLI results to a <see cref="RoomConfig"/> record.
+    /// Binds parsed CLI results to an <see cref="ImmersiveConfig"/> record.
     /// Mirrors <see cref="OuroborosCommandOptions.BindConfig"/>.
     /// </summary>
-    public RoomConfig BindConfig(ParseResult parseResult, Option<bool> globalVoiceOption)
+    public ImmersiveConfig BindConfig(ParseResult parseResult, Option<bool> globalVoiceOption)
     {
+        var localTts = parseResult.GetValue(LocalTtsOption);
         var speechKey = parseResult.GetValue(AzureSpeechKeyOption)
                         ?? Environment.GetEnvironmentVariable("AZURE_SPEECH_KEY");
+        var azureTts = localTts ? false : (parseResult.GetValue(AzureTtsOption) && !string.IsNullOrEmpty(speechKey));
 
-        return new RoomConfig(
+        return new ImmersiveConfig(
             Persona:           parseResult.GetValue(PersonaOption) ?? "Iaret",
             Model:             parseResult.GetValue(ModelOption) ?? "llama3:latest",
             Endpoint:          parseResult.GetValue(EndpointOption) ?? "http://localhost:11434",
             EmbedModel:        parseResult.GetValue(EmbedModelOption) ?? "nomic-embed-text",
             QdrantEndpoint:    parseResult.GetValue(QdrantEndpointOption) ?? "http://localhost:6334",
+            Voice:             parseResult.GetValue(VoiceModeOption) || parseResult.GetValue(globalVoiceOption),
+            VoiceOnly:         parseResult.GetValue(VoiceOnlyOption),
+            LocalTts:          localTts,
+            AzureTts:          azureTts,
             AzureSpeechKey:    speechKey,
             AzureSpeechRegion: parseResult.GetValue(AzureSpeechRegionOption) ?? "eastus",
             TtsVoice:          parseResult.GetValue(TtsVoiceOption) ?? "en-US-AvaMultilingualNeural",
-            LocalTts:          parseResult.GetValue(LocalTtsOption),
             Avatar:            parseResult.GetValue(AvatarOption),
             AvatarPort:        parseResult.GetValue(AvatarPortOption),
-            Quiet:             parseResult.GetValue(QuietOption),
-            CooldownSeconds:   parseResult.GetValue(CooldownOption),
-            MaxInterjections:  parseResult.GetValue(MaxInterjectionsOption),
-            PhiThreshold:      parseResult.GetValue(PhiThresholdOption));
+            RoomMode:          parseResult.GetValue(RoomModeOption));
     }
 }
