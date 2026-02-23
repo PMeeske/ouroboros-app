@@ -293,7 +293,7 @@ public sealed partial class OuroborosAgent
     }
 
     /// <summary>
-    /// Execute a MeTTa expression directly (routes to MeTTaCommands CLI handler).
+    /// Execute a MeTTa expression directly (routes to IMeTTaService).
     /// </summary>
     private async Task<string> RunMeTTaExpressionAsync(string expression)
     {
@@ -306,15 +306,17 @@ public sealed partial class OuroborosAgent
         if (string.IsNullOrWhiteSpace(expression))
             return Result<string, string>.Failure("Please provide a MeTTa expression. Example: '!(+ 1 2)' or '(= (greet $x) (Hello $x))'");
 
-        var mettaOpts = new MeTTaOptions
-        {
-            Goal = expression,
-            Voice = false,
-            Culture = Thread.CurrentThread.CurrentCulture.Name,
-            Debug = false
-        };
+        var mettaConfig = new MeTTaConfig(
+            Goal: expression,
+            Voice: false,
+            Culture: Thread.CurrentThread.CurrentCulture.Name,
+            Debug: false);
 
-        return await CaptureConsoleOutAsync(() => MeTTaCommands.RunMeTTaAsync(mettaOpts));
+        var mettaService = ServiceContainerFactory.Provider.GetService<IMeTTaService>();
+        if (mettaService == null)
+            return Result<string, string>.Failure("MeTTa service not available.");
+
+        return await CaptureConsoleOutAsync(() => mettaService.RunAsync(mettaConfig));
     }
 
     // Helper to capture CLI command output and return as Result
