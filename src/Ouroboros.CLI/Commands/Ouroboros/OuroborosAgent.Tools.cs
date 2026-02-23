@@ -2,8 +2,9 @@
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
-using System.Text;
+using MediatR;
 using Ouroboros.Abstractions.Monads;
+using Ouroboros.CLI.Mediator;
 using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 
 namespace Ouroboros.CLI.Commands;
@@ -15,7 +16,7 @@ public sealed partial class OuroborosAgent
     /// This ensures dynamically created tools are immediately available for use.
     /// </summary>
     /// <param name="tool">The tool to add.</param>
-    private void AddToolAndRefreshLlm(ITool tool)
+    internal void AddToolAndRefreshLlm(ITool tool)
     {
         _tools = _tools.WithTool(tool);
 
@@ -399,147 +400,14 @@ public sealed partial class OuroborosAgent
     }
 
 
-    private async Task<string> ListSkillsAsync()
-    {
-        if (_skills == null) return "I don't have a skill registry set up yet.";
-
-        var skills = await _skills.FindMatchingSkillsAsync("", null);
-        if (!skills.Any())
-            return "I haven't learned any skills yet. Try 'learn about' something!";
-
-        var list = string.Join(", ", skills.Take(10).Select(s => s.Name));
-        return $"I know {skills.Count} skills: {list}" + (skills.Count > 10 ? "..." : "");
-    }
+    private Task<string> ListSkillsAsync()
+        => _mediator.Send(new ListSkillsRequest());
 
 
-    private async Task<string> LearnTopicAsync(string topic)
-    {
-        if (string.IsNullOrWhiteSpace(topic))
-            return "What would you like me to learn about?";
+    private Task<string> LearnTopicAsync(string topic)
+        => _mediator.Send(new LearnTopicRequest(topic));
 
-        var sb = new StringBuilder();
-        sb.AppendLine($"Learning about: {topic}");
-
-        // Step 1: Research the topic via LLM
-        string? research = null;
-        if (_llm != null)
-        {
-            try
-            {
-                var (response, toolCalls) = await _llm.GenerateWithToolsAsync(
-                    $"Research and explain key concepts about: {topic}. Include practical applications and how this knowledge could be used.");
-                research = response;
-                sb.AppendLine($"\n📚 Research Summary:\n{response[..Math.Min(500, response.Length)]}...");
-            }
-            catch (Exception ex)
-            {
-                sb.AppendLine($"⚠ Research phase had issues: {ex.Message}");
-            }
-        }
-
-        // Step 2: Try to create a tool capability
-        if (_toolLearner != null)
-        {
-            try
-            {
-                var toolResult = await _toolLearner.FindOrCreateToolAsync(topic, _tools);
-                toolResult.Match(
-                    success =>
-                    {
-                        sb.AppendLine($"\n🔧 {(success.WasCreated ? "Created new" : "Found existing")} tool: '{success.Tool.Name}'");
-                        AddToolAndRefreshLlm(success.Tool);
-                    },
-                    error => sb.AppendLine($"⚠ Tool creation: {error}"));
-            }
-            catch (Exception ex)
-            {
-                sb.AppendLine($"⚠ Tool learner: {ex.Message}");
-            }
-        }
-
-        // Step 3: Register as a skill if we have skill registry
-        if (_skills != null && !string.IsNullOrWhiteSpace(research))
-        {
-            try
-            {
-                var skillName = SanitizeSkillName(topic);
-                var existingSkill = _skills.GetSkill(skillName);
-
-                if (existingSkill == null)
-                {
-                    var skill = new Skill(
-                        Name: skillName,
-                        Description: $"Knowledge about {topic}: {research[..Math.Min(200, research.Length)]}",
-                        Prerequisites: new List<string>(),
-                        Steps: new List<PlanStep>
-                        {
-                            new PlanStep(
-                                $"Apply knowledge about {topic}",
-                                new Dictionary<string, object> { ["topic"] = topic, ["research"] = research },
-                                $"Use {topic} knowledge effectively",
-                                0.7)
-                        },
-                        SuccessRate: 0.8,
-                        UsageCount: 0,
-                        CreatedAt: DateTime.UtcNow,
-                        LastUsed: DateTime.UtcNow);
-
-                    await _skills.RegisterSkillAsync(skill.ToAgentSkill());
-                    sb.AppendLine($"\n✓ Registered skill: '{skillName}'");
-                }
-                else
-                {
-                    _skills.RecordSkillExecution(skillName, true, 0L);
-                    sb.AppendLine($"\n↺ Updated existing skill: '{skillName}'");
-                }
-            }
-            catch (Exception ex)
-            {
-                sb.AppendLine($"⚠ Skill registration: {ex.Message}");
-            }
-        }
-
-        // Step 4: Add to MeTTa knowledge base
-        if (_mettaEngine != null)
-        {
-            try
-            {
-                var atomName = SanitizeSkillName(topic);
-                await _mettaEngine.AddFactAsync($"(: {atomName} Concept)");
-                await _mettaEngine.AddFactAsync($"(learned {atomName} \"{DateTime.UtcNow:O}\")");
-
-                if (!string.IsNullOrWhiteSpace(research))
-                {
-                    var summary = research.Length > 100 ? research[..100].Replace("\"", "'") : research.Replace("\"", "'");
-                    await _mettaEngine.AddFactAsync($"(summary {atomName} \"{summary}\")");
-                }
-
-                sb.AppendLine($"\n🧠 Added to MeTTa knowledge base: {atomName}");
-            }
-            catch (Exception ex)
-            {
-                sb.AppendLine($"⚠ MeTTa: {ex.Message}");
-            }
-        }
-
-        // Step 5: Track in global workspace
-        _globalWorkspace?.AddItem(
-            $"Learned: {topic}\n{research?[..Math.Min(200, research?.Length ?? 0)]}",
-            WorkspacePriority.Normal,
-            "learning",
-            new List<string> { "learned", topic.ToLowerInvariant().Replace(" ", "-") });
-
-        // Step 6: Update capability if available
-        if (_capabilityRegistry != null)
-        {
-            var result = AutonomySubsystem.CreateCapabilityPlanExecutionResult(true, TimeSpan.FromSeconds(2), $"learn:{topic}");
-            await _capabilityRegistry.UpdateCapabilityAsync("natural_language", result);
-        }
-
-        return sb.ToString();
-    }
-
-    private static string SanitizeSkillName(string name)
+    internal static string SanitizeSkillName(string name)
     {
         return name.ToLowerInvariant()
             .Replace(" ", "-")
@@ -549,88 +417,15 @@ public sealed partial class OuroborosAgent
             .Replace(")", "");
     }
 
-    private async Task<string> CreateToolAsync(string toolName)
-    {
-        if (string.IsNullOrWhiteSpace(toolName))
-            return "What kind of tool should I create?";
+    private Task<string> CreateToolAsync(string toolName)
+        => _mediator.Send(new CreateToolRequest(toolName));
 
-        if (_toolFactory == null)
-            return "I need an LLM connection to create new tools.";
+    private Task<string> UseToolAsync(string toolName, string? input)
+        => _mediator.Send(new UseToolRequest(toolName, input));
 
-        try
-        {
-            var result = await _toolFactory.CreateToolAsync(toolName, $"A tool for {toolName}");
-            return result.Match(
-                tool =>
-                {
-                    AddToolAndRefreshLlm(tool);
-                    return $"Done! I created a '{toolName}' tool. You can now use it.";
-                },
-                error => $"I couldn't create that tool: {error}");
-        }
-        catch (Exception ex)
-        {
-            return $"I couldn't create that tool: {ex.Message}";
-        }
-    }
+    private Task<string> RunSkillAsync(string skillName)
+        => _mediator.Send(new RunSkillRequest(skillName));
 
-    private async Task<string> UseToolAsync(string toolName, string? input)
-    {
-        var tool = _tools.Get(toolName) ?? _tools.All.FirstOrDefault(t =>
-            t.Name.Contains(toolName, StringComparison.OrdinalIgnoreCase));
-
-        if (tool == null)
-            return $"I don't have a '{toolName}' tool. Try 'list tools' to see what's available.";
-
-        try
-        {
-            var result = await tool.InvokeAsync(input ?? "");
-            return $"Result: {result}";
-        }
-        catch (Exception ex)
-        {
-            return $"The tool ran into an issue: {ex.Message}";
-        }
-    }
-
-    private async Task<string> RunSkillAsync(string skillName)
-    {
-        if (_skills == null) return "Skills not available.";
-
-        var skill = _skills.GetSkill(skillName);
-        if (skill == null)
-        {
-            var matches = await _skills.FindMatchingSkillsAsync(skillName);
-            if (matches.Any())
-            {
-                skill = matches.First().ToAgentSkill();
-            }
-            else
-            {
-                return $"I don't know a skill called '{skillName}'. Try 'list skills'.";
-            }
-        }
-
-        // Execute skill steps
-        var results = new List<string>();
-        foreach (var step in skill.ToSkill().Steps)
-        {
-            results.Add($"• {step.Action}: {step.ExpectedOutcome}");
-        }
-
-        _skills.RecordSkillExecution(skill.Name, true, 0L);
-        return $"Running '{skill.Name}':\n" + string.Join("\n", results);
-    }
-
-    private async Task<string> SuggestSkillsAsync(string goal)
-    {
-        if (_skills == null) return "Skills not available.";
-
-        var matches = await _skills.FindMatchingSkillsAsync(goal);
-        if (!matches.Any())
-            return $"I don't have skills matching '{goal}' yet. Try learning about it first!";
-
-        var suggestions = string.Join(", ", matches.Take(5).Select(s => s.Name));
-        return $"For '{goal}', I'd suggest: {suggestions}";
-    }
+    private Task<string> SuggestSkillsAsync(string goal)
+        => _mediator.Send(new SuggestSkillsRequest(goal));
 }
