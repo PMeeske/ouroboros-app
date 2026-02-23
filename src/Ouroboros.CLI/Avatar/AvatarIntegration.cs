@@ -49,8 +49,9 @@ public static class AvatarIntegration
 
     /// <summary>
     /// Creates and starts the avatar system with a live vision stream.
-    /// Captures avatar assets, sends them to an Ollama vision model with streaming,
-    /// and relays both the JPEG frames and the streaming text tokens to avatar.html.
+    /// Captures avatar assets, optionally generates new frames via Stability AI cloud
+    /// or local SD img2img, sends them to an Ollama vision model with streaming,
+    /// and relays both the JPEG frames and streaming text tokens to avatar.html.
     /// </summary>
     /// <param name="personaName">Active persona name (e.g. "Iaret").</param>
     /// <param name="port">WebSocket port for the avatar viewer (0 = auto-assign from default).</param>
@@ -60,6 +61,7 @@ public static class AvatarIntegration
     /// <param name="visionModel">Optional vision model for the perception loop.</param>
     /// <param name="virtualSelf">Optional VirtualSelf for closed-loop perception publishing.</param>
     /// <param name="frameIntervalMs">Interval between frame captures in milliseconds.</param>
+    /// <param name="stabilityAiApiKey">Optional Stability AI API key for cloud frame generation.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>The running avatar service, video stream, and live vision stream (caller must dispose all).</returns>
     public static async Task<(InteractiveAvatarService Service, AvatarVideoStream VideoStream, LiveVisionStream VisionStream)>
@@ -72,6 +74,7 @@ public static class AvatarIntegration
             IVisionModel? visionModel = null,
             VirtualSelf? virtualSelf = null,
             int frameIntervalMs = 3000,
+            string? stabilityAiApiKey = null,
             CancellationToken ct = default)
     {
         var service = new InteractiveAvatarService(personaName);
@@ -82,11 +85,21 @@ public static class AvatarIntegration
         var videoStream = new AvatarVideoStream(service, visionModel, virtualSelf, assetDirectory);
         _ = videoStream.StartAsync(ct);
 
+        // Create frame generator when Stability AI key is available
+        AvatarVideoGenerator? frameGenerator = null;
+        if (!string.IsNullOrEmpty(stabilityAiApiKey))
+        {
+            frameGenerator = new AvatarVideoGenerator(
+                stabilityAiApiKey: stabilityAiApiKey,
+                visionModel: visionModel);
+        }
+
         var liveVision = new LiveVisionStream(
             service,
             ollamaEndpoint,
             visionModelName,
-            assetDirectory)
+            assetDirectory,
+            frameGenerator: frameGenerator)
         {
             FrameIntervalMs = frameIntervalMs,
         };

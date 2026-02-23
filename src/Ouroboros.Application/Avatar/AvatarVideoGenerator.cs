@@ -15,14 +15,18 @@ using Ouroboros.Core.EmbodiedInteraction;
 namespace Ouroboros.Application.Avatar;
 
 /// <summary>
-/// Generates avatar video frames via the Forge/AUTOMATIC1111 Stable Diffusion img2img API.
+/// Generates avatar video frames via Stability AI cloud API or local Forge/AUTOMATIC1111 img2img.
 /// The existing Iaret portrait asset is used as the seed image.
-/// On SD error the pipeline falls through: gatekeeper → corrector → CSS fallback (null).
+/// On error the pipeline falls through: gatekeeper → corrector → CSS fallback (null).
 /// </summary>
 public sealed class AvatarVideoGenerator
 {
     private readonly HttpClient _http;
+    private readonly HttpClient? _stabilityHttp;
     private readonly string? _sdCheckpoint;
+    private readonly string? _stabilityAiApiKey;
+    private readonly string _stabilityModel;
+    private readonly double _stabilityStrength;
     private readonly ILogger<AvatarVideoGenerator>? _logger;
     private readonly IVisionModel? _visionModel;
 
@@ -32,6 +36,9 @@ public sealed class AvatarVideoGenerator
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
+    /// <summary>Gets whether the generator is configured with a Stability AI cloud backend.</summary>
+    public bool IsCloudEnabled => !string.IsNullOrEmpty(_stabilityAiApiKey);
+
     /// <summary>
     /// Initializes a new instance of the <see cref="AvatarVideoGenerator"/> class.
     /// </summary>
@@ -40,23 +47,45 @@ public sealed class AvatarVideoGenerator
     /// <param name="timeoutSeconds">HTTP request timeout in seconds (default: 300). SD img2img can take several minutes on slower hardware.</param>
     /// <param name="logger">Optional logger.</param>
     /// <param name="visionModel">Optional vision model (Qwen VL) used for gatekeeper and corrector stages.</param>
+    /// <param name="stabilityAiApiKey">Optional Stability AI API key. When set, the cloud backend is used instead of local Forge.</param>
+    /// <param name="stabilityModel">Stability AI model (default: sd3.5-medium).</param>
+    /// <param name="stabilityStrength">Image-to-image strength for Stability AI (0-1, default: 0.35).</param>
     public AvatarVideoGenerator(
         string sdEndpoint = "http://localhost:7860",
         string? sdModel = null,
         int timeoutSeconds = 300,
         ILogger<AvatarVideoGenerator>? logger = null,
-        IVisionModel? visionModel = null)
+        IVisionModel? visionModel = null,
+        string? stabilityAiApiKey = null,
+        string stabilityModel = "sd3.5-medium",
+        double stabilityStrength = 0.35)
     {
         _sdCheckpoint = string.IsNullOrWhiteSpace(sdModel) || sdModel == "stable-diffusion"
             ? null
             : sdModel;
         _logger = logger;
         _visionModel = visionModel;
+        _stabilityAiApiKey = stabilityAiApiKey;
+        _stabilityModel = stabilityModel;
+        _stabilityStrength = stabilityStrength;
         _http = new HttpClient
         {
             BaseAddress = new Uri(sdEndpoint.TrimEnd('/')),
             Timeout = TimeSpan.FromSeconds(timeoutSeconds),
         };
+
+        if (!string.IsNullOrEmpty(stabilityAiApiKey))
+        {
+            _stabilityHttp = new HttpClient
+            {
+                BaseAddress = new Uri("https://api.stability.ai"),
+                Timeout = TimeSpan.FromSeconds(60),
+            };
+            _stabilityHttp.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", stabilityAiApiKey);
+            _stabilityHttp.DefaultRequestHeaders.Accept.Add(
+                new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+        }
     }
 
     /// <summary>
@@ -160,8 +189,10 @@ public sealed class AvatarVideoGenerator
                 faceSeedBase64 = Convert.ToBase64String(faceMs.ToArray());
             }
 
-            // ── 3. SD call ────────────────────────────────────────────────────────
-            string? faceResultBase64 = await CallSdFaceAsync(prompt, faceSeedBase64, seedBmp.Width, faceH, ct);
+            // ── 3. SD call (cloud or local) ──────────────────────────────────────
+            string? faceResultBase64 = _stabilityHttp != null
+                ? await CallStabilityAiFaceAsync(prompt, faceSeedBase64, ct)
+                : await CallSdFaceAsync(prompt, faceSeedBase64, seedBmp.Width, faceH, ct);
             if (faceResultBase64 == null) return null; // Fallback: CSS layers
 
             // ── 4. Gatekeeper — Qwen VL verifies the expression is correct ────────
@@ -189,7 +220,9 @@ public sealed class AvatarVideoGenerator
                     if (fix.IsSuccess)
                     {
                         string correctedPrompt = fix.Value.Trim();
-                        faceResultBase64 = await CallSdFaceAsync(correctedPrompt, faceSeedBase64, seedBmp.Width, faceH, ct);
+                        faceResultBase64 = _stabilityHttp != null
+                            ? await CallStabilityAiFaceAsync(correctedPrompt, faceSeedBase64, ct)
+                            : await CallSdFaceAsync(correctedPrompt, faceSeedBase64, seedBmp.Width, faceH, ct);
                         if (faceResultBase64 == null) return null; // Fallback: CSS layers
                     }
                     else
@@ -248,10 +281,57 @@ public sealed class AvatarVideoGenerator
         }
         catch (Exception ex)
         {
-            _logger?.LogWarning(ex, "Failed to generate avatar frame via Forge SD");
+            _logger?.LogWarning(ex, "Failed to generate avatar frame");
             if (_logger == null) Console.Error.WriteLine($"[AvatarVideoGenerator] Frame generation failed: {ex.Message}");
             return null;
         }
+    }
+
+    /// <summary>
+    /// Sends a face crop to the Stability AI v2beta cloud API for img2img generation.
+    /// Returns base64-encoded JPEG on success, null on failure (→ CSS fallback).
+    /// </summary>
+    private async Task<string?> CallStabilityAiFaceAsync(string prompt, string faceSeedBase64, CancellationToken ct)
+    {
+        byte[] imageBytes = Convert.FromBase64String(faceSeedBase64);
+
+        using var form = new MultipartFormDataContent();
+        form.Add(new StringContent(prompt), "prompt");
+        form.Add(new StringContent("image-to-image"), "mode");
+        form.Add(new StringContent(_stabilityModel), "model");
+        form.Add(new StringContent(_stabilityStrength.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)), "strength");
+        form.Add(new StringContent("ugly, blurry, low quality, deformed, disfigured, extra limbs, changed hair, different person, different clothes, different background, style change, color change"), "negative_prompt");
+        form.Add(new StringContent("jpeg"), "output_format");
+
+        var imageContent = new ByteArrayContent(imageBytes);
+        imageContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/jpeg");
+        form.Add(imageContent, "image", "face.jpg");
+
+        using var response = await _stabilityHttp!.PostAsync("/v2beta/stable-image/generate/sd3", form, ct);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var err = await response.Content.ReadAsStringAsync(ct);
+            var msg = $"Stability AI returned {(int)response.StatusCode} {response.ReasonPhrase}: {err}";
+            _logger?.LogWarning("{Message}", msg);
+            if (_logger == null) Console.Error.WriteLine($"[AvatarVideoGenerator] {msg}");
+            return null;
+        }
+
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+        if (doc.RootElement.TryGetProperty("image", out var imageEl))
+        {
+            var finishReason = doc.RootElement.TryGetProperty("finish_reason", out var fr) ? fr.GetString() : null;
+            if (finishReason == "CONTENT_FILTERED")
+            {
+                _logger?.LogWarning("Stability AI filtered the generated image");
+                return null;
+            }
+
+            return imageEl.GetString();
+        }
+
+        return null;
     }
 
     /// <summary>
