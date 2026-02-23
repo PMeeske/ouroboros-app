@@ -145,7 +145,7 @@ public sealed class LiveVisionStream : IAsyncDisposable
                 {
                     var prompt = AvatarVideoGenerator.BuildPrompt(state);
                     string seedBase64 = Convert.ToBase64String(seedBytes);
-                    string? generatedBase64 = await _frameGenerator.GenerateFrameAsync(prompt, seedBase64, ct);
+                    string? generatedBase64 = await _frameGenerator.GenerateFrameAsync(prompt, seedBase64, state.VisualState, ct);
 
                     if (generatedBase64 != null)
                     {
