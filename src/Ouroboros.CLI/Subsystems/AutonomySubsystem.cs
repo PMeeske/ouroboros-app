@@ -255,7 +255,8 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
 
             var dagClient = ctx.Services?.GetService<QdrantClient>();
             var dagRegistry = ctx.Services?.GetService<IQdrantCollectionRegistry>();
-            if (dagClient != null && dagRegistry != null)
+            var dagSettings = ctx.Services?.GetService<QdrantSettings>();
+            if (dagClient != null && dagRegistry != null && dagSettings != null)
             {
                 try
                 {
@@ -263,7 +264,7 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
                     if (ctx.Models.Embedding != null)
                         embeddingFunc = async (text) => await ctx.Models.Embedding.CreateEmbeddingsAsync(text);
 
-                    var dagStore = new Ouroboros.Network.QdrantDagStore(dagClient, dagRegistry, embeddingFunc);
+                    var dagStore = new Ouroboros.Network.QdrantDagStore(dagClient, dagRegistry, dagSettings, embeddingFunc);
                     await dagStore.InitializeAsync();
                     NetworkTracker.ConfigureQdrantPersistence(dagStore, autoPersist: true);
                     ctx.Output.RecordInit("Network State", true, "Merkle-DAG with Qdrant persistence (DI)");
@@ -335,9 +336,9 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
             var npClient = ctx.Services?.GetService<QdrantClient>();
             var npRegistry = ctx.Services?.GetService<IQdrantCollectionRegistry>();
             var npSettings = ctx.Services?.GetService<QdrantSettings>();
-            if (npClient != null && npRegistry != null && npSettings != null)
+            if (npClient != null && npRegistry != null)
                 NetworkProjector = new PersistentNetworkStateProjector(
-                    dag, npClient, npRegistry, npSettings, embedFunc);
+                    dag, npClient, npRegistry, embedFunc);
             else
             {
                 var qdrantEndpoint = NormalizeEndpoint(ctx.Config.QdrantEndpoint, "http://localhost:6334");
