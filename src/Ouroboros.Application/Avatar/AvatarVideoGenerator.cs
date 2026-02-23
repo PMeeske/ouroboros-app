@@ -295,33 +295,40 @@ public sealed class AvatarVideoGenerator
     {
         byte[] imageBytes = Convert.FromBase64String(faceSeedBase64);
 
-        // Build multipart form — use explicit boundary and ensure every part has
-        // a Content-Disposition with a name attribute (Stability AI's parser is strict).
-        var boundary = $"----StabilityAI{Guid.NewGuid():N}";
-        using var form = new MultipartFormDataContent(boundary);
+        // Build multipart body manually — .NET's MultipartFormDataContent has issues
+        // with Stability AI's strict parser ("Content-Disposition missing a name").
+        var boundary = $"StabilityAI{Guid.NewGuid():N}";
+        byte[] crlf = [(byte)'\r', (byte)'\n'];
+        using var body = new MemoryStream();
 
-        // Text fields — strip the default charset to avoid confusing strict parsers
-        void AddField(string name, string value)
+        void WriteTextField(string name, string value)
         {
-            var sc = new StringContent(value);
-            sc.Headers.ContentType = null; // remove "text/plain; charset=utf-8"
-            form.Add(sc, name);
+            var header = $"--{boundary}\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n";
+            body.Write(Encoding.UTF8.GetBytes(header));
+            body.Write(Encoding.UTF8.GetBytes(value));
+            body.Write(crlf);
         }
 
-        AddField("prompt", prompt);
-        AddField("mode", "image-to-image");
-        AddField("model", _stabilityModel);
-        AddField("strength", _stabilityStrength.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
-        AddField("negative_prompt", "ugly, blurry, low quality, deformed, disfigured, extra limbs, changed hair, different person, different clothes, different background, style change, color change");
-        AddField("output_format", "jpeg");
+        WriteTextField("prompt", prompt);
+        WriteTextField("mode", "image-to-image");
+        WriteTextField("model", _stabilityModel);
+        WriteTextField("strength", _stabilityStrength.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+        WriteTextField("negative_prompt", "ugly, blurry, low quality, deformed, disfigured, extra limbs, changed hair, different person, different clothes, different background, style change, color change");
+        WriteTextField("output_format", "jpeg");
 
-        // Image field — add first without ContentType, then set it after
-        // form.Add has already written the Content-Disposition header
-        var imageContent = new ByteArrayContent(imageBytes);
-        form.Add(imageContent, "image", "face.jpg");
-        imageContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/jpeg");
+        // Image part
+        var imageHeader = $"--{boundary}\r\nContent-Disposition: form-data; name=\"image\"; filename=\"face.jpg\"\r\nContent-Type: image/jpeg\r\n\r\n";
+        body.Write(Encoding.UTF8.GetBytes(imageHeader));
+        body.Write(imageBytes);
+        body.Write(crlf);
+        body.Write(Encoding.UTF8.GetBytes($"--{boundary}--\r\n"));
 
-        using var response = await _stabilityHttp!.PostAsync("/v2beta/stable-image/generate/sd3", form, ct);
+        body.Position = 0;
+        using var content = new StreamContent(body);
+        content.Headers.ContentType = System.Net.Http.Headers.MediaTypeHeaderValue.Parse($"multipart/form-data; boundary={boundary}");
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/v2beta/stable-image/generate/sd3") { Content = content };
+        using var response = await _stabilityHttp!.SendAsync(request, ct);
 
         if (!response.IsSuccessStatusCode)
         {
