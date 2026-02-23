@@ -1,4 +1,4 @@
-// Copyright (c) Ouroboros. All rights reserved.
+﻿// Copyright (c) Ouroboros. All rights reserved.
 namespace Ouroboros.CLI.Subsystems;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -163,9 +163,10 @@ public sealed class MemorySubsystem : IMemorySubsystem
                 {
                     var qdrantClient = ctx.Services?.GetService<QdrantClient>();
                     var registry = ctx.Services?.GetService<IQdrantCollectionRegistry>();
+                    var qdrantSettings = ctx.Services?.GetService<QdrantSettings>();
                     QdrantSkillRegistry qdrantSkills;
-                    if (qdrantClient != null && registry != null)
-                        qdrantSkills = new QdrantSkillRegistry(embedding, qdrantClient, registry);
+                    if (qdrantClient != null && registry != null && qdrantSettings != null)
+                        qdrantSkills = new QdrantSkillRegistry(qdrantClient, registry, qdrantSettings, embedding);
                     else
                         qdrantSkills = new QdrantSkillRegistry(embedding, new QdrantSkillConfig { ConnectionString = ctx.Config.QdrantEndpoint });
                     await qdrantSkills.InitializeAsync();
