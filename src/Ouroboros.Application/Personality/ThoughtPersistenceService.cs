@@ -3,7 +3,9 @@
 // </copyright>
 
 using System.Text.Json;
+using Ouroboros.Core.Configuration;
 using Ouroboros.Domain.Persistence;
+using Qdrant.Client;
 
 namespace Ouroboros.Application.Personality;
 
@@ -47,6 +49,26 @@ public class ThoughtPersistenceService
     }
 
     /// <summary>
+    /// Creates a service with Qdrant neuro-symbolic storage using DI-provided client and registry.
+    /// </summary>
+    /// <param name="sessionId">Session identifier.</param>
+    /// <param name="client">The DI-provided QdrantClient.</param>
+    /// <param name="registry">The collection registry for role-based resolution.</param>
+    /// <param name="settings">The centralized Qdrant settings.</param>
+    /// <param name="embeddingFunc">Function to generate embeddings (optional, enables semantic search).</param>
+    public static async Task<ThoughtPersistenceService> CreateWithQdrantAsync(
+        string sessionId,
+        QdrantClient client,
+        IQdrantCollectionRegistry registry,
+        QdrantSettings settings,
+        Func<string, Task<float[]>>? embeddingFunc = null)
+    {
+        var store = new QdrantNeuroSymbolicThoughtStore(client, registry, settings, embeddingFunc);
+        await store.InitializeAsync();
+        return new ThoughtPersistenceService(store, sessionId);
+    }
+
+    /// <summary>
     /// Creates a service with Qdrant neuro-symbolic storage.
     /// Thoughts are persisted as embeddings with symbolic relations forming a knowledge graph.
     /// </summary>
@@ -54,6 +76,7 @@ public class ThoughtPersistenceService
     /// <param name="qdrantEndpoint">Qdrant gRPC endpoint (default: http://localhost:6334).</param>
     /// <param name="embeddingFunc">Function to generate embeddings (optional, enables semantic search).</param>
     /// <param name="vectorSize">Embedding dimension (default: 768 for nomic-embed-text).</param>
+    [Obsolete("Use the overload accepting QdrantClient + IQdrantCollectionRegistry from DI.")]
     public static async Task<ThoughtPersistenceService> CreateWithQdrantAsync(
         string sessionId,
         string qdrantEndpoint = "http://localhost:6334",

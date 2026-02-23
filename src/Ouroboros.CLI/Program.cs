@@ -31,9 +31,10 @@ for (int i = 0; i < args.Length; i++)
 var hostBuilder = Host.CreateDefaultBuilder(args)
     .ConfigureServices((context, services) =>
     {
-        // Engine + foundational deps (cognitive physics, self-model, health checks)
-        // plus CLI services, command handlers, infrastructure, and business logic.
-        services.AddCliHost();
+        // Engine + foundational deps (cognitive physics, self-model, health checks,
+        // Qdrant cross-cutting infrastructure) plus CLI services, command handlers,
+        // infrastructure, and business logic.
+        services.AddCliHost(context.Configuration);
 
         // If --api-url was provided, redirect IAskService and IPipelineService
         // to the remote Ouroboros Web API (upstream provider mode).
@@ -61,7 +62,7 @@ if (servePreparse)
         try
         {
             var webBuilder = WebApplication.CreateBuilder(args);
-            webBuilder.Services.AddOuroborosWebApi();
+            webBuilder.Services.AddOuroborosWebApi(webBuilder.Configuration);
             var webApp = webBuilder.Build();
             webApp.UseOuroborosWebApi();
             webApp.MapOuroborosApiEndpoints();
@@ -301,7 +302,7 @@ static Command CreateServeCommand()
 
         var webBuilder = WebApplication.CreateBuilder([]);
         webBuilder.WebHost.UseUrls(url);
-        webBuilder.Services.AddOuroborosWebApi();
+        webBuilder.Services.AddOuroborosWebApi(webBuilder.Configuration);
         var webApp = webBuilder.Build();
         webApp.UseOuroborosWebApi();
         webApp.MapOuroborosApiEndpoints();

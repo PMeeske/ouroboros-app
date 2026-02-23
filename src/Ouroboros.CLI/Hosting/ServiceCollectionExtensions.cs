@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Ouroboros.ApiHost.Extensions;
@@ -24,11 +25,13 @@ public static class ServiceCollectionExtensions
     /// </summary>
     /// <param name="services">The DI container.</param>
     /// <returns><paramref name="services"/> for fluent chaining.</returns>
-    public static IServiceCollection AddCliHost(this IServiceCollection services)
+    public static IServiceCollection AddCliHost(
+        this IServiceCollection services,
+        IConfiguration? configuration = null)
     {
         // ── Shared engine + foundational dependencies ────────────────────────
         // Cognitive physics, self-model, health checks — same call the Web API uses.
-        services.AddOuroborosEngine();
+        services.AddOuroborosEngine(configuration);
 
         // ── MediatR: CLI request/response bus ────────────────────────────────
         services.AddMediatR(cfg =>

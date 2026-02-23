@@ -8,7 +8,7 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 // Register all Ouroboros Web API services via the shared ApiHost extension.
 // The same extension is used when co-hosting inside the CLI (--serve) or Android.
-builder.Services.AddOuroborosWebApi();
+builder.Services.AddOuroborosWebApi(builder.Configuration);
 
 WebApplication app = builder.Build();
 

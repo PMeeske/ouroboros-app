@@ -6,6 +6,7 @@
 public sealed record QdrantIndexerConfig
 {
     /// <summary>Qdrant gRPC endpoint.</summary>
+    [Obsolete("Use QdrantSettings from DI instead. This property is ignored when using the DI constructor.")]
     public string QdrantEndpoint { get; init; } = "http://localhost:6334";
 
     /// <summary>Collection name for indexed content.</summary>
@@ -46,6 +47,7 @@ public sealed record QdrantIndexerConfig
     public int BatchSize { get; init; } = 50;
 
     /// <summary>Vector dimensions (nomic-embed-text default).</summary>
+    [Obsolete("Use QdrantSettings.DefaultVectorSize from DI instead.")]
     public int VectorSize { get; init; } = 768;
 
     /// <summary>Enable file watcher for live incremental updates.</summary>
