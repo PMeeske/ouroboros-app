@@ -4,7 +4,9 @@ namespace Ouroboros.CLI.Subsystems;
 using Ouroboros.Application.Services;
 using Ouroboros.Application.Tools;
 using Ouroboros.CLI.Commands;
+using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Core.EmbodiedInteraction;
+using Spectre.Console;
 
 /// <summary>
 /// Embodiment subsystem implementation owning physical sensors, actuators, and presence detection.
@@ -70,7 +72,7 @@ public sealed class EmbodimentSubsystem : IEmbodimentSubsystem
     {
         try
         {
-            Console.WriteLine("  [>] Initializing Embodied Interaction...");
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim("  [>] Initializing Embodied Interaction..."));
 
             VirtualSelf = new VirtualSelf(ctx.Config.Persona);
 
@@ -103,9 +105,7 @@ public sealed class EmbodimentSubsystem : IEmbodimentSubsystem
                                 $"PTZ Motor ({name}) - pan left/right, tilt up/down", true,
                                 (IReadOnlySet<Capability>)new HashSet<Capability>()));
                     }
-                    Console.ForegroundColor = ConsoleColor.DarkGray;
-                    Console.WriteLine($"    Tapo cameras: {tapoDeviceConfigs.Count} registered (RTSP + PTZ)");
-                    Console.ResetColor();
+                    AnsiConsole.MarkupLine(OuroborosTheme.Dim($"    Tapo cameras: {tapoDeviceConfigs.Count} registered (RTSP + PTZ)"));
                 }
             }
 
@@ -133,30 +133,24 @@ public sealed class EmbodimentSubsystem : IEmbodimentSubsystem
             {
                 Controller.Perceptions.Subscribe(perception =>
                 {
-                    Console.ForegroundColor = ConsoleColor.DarkGray;
-                    Console.WriteLine($"  [Perception] {perception.Modality}: source={perception.Source}");
-                    Console.ResetColor();
+                    AnsiConsole.MarkupLine(OuroborosTheme.Dim($"  [Perception] {Markup.Escape(perception.Modality.ToString())}: source={Markup.Escape(perception.Source ?? "?")}"));
                 });
             }
 
             var startResult = await Controller.StartAsync();
             startResult.Match(
                 _ => ctx.Output.RecordInit("Embodiment", true, $"VirtualSelf '{ctx.Config.Persona}' ({BodySchema.Capabilities.Count} capabilities)"),
-                error => Console.WriteLine($"  \u26a0 Embodiment start warning: {error}"));
+                error => AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Embodiment start warning: {Markup.Escape(error.ToString())}")));
 
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine($"    Capabilities: {string.Join(", ", BodySchema.Capabilities)}");
-            Console.WriteLine($"    Sensors: {BodySchema.Sensors.Count} | Actuators: {BodySchema.Actuators.Count}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim($"    Capabilities: {Markup.Escape(string.Join(", ", BodySchema.Capabilities))}"));
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim($"    Sensors: {BodySchema.Sensors.Count} | Actuators: {BodySchema.Actuators.Count}"));
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  \u26a0 Embodiment initialization failed: {ex.Message}");
+            AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Embodiment initialization failed: {Markup.Escape(ex.Message)}"));
             if (ctx.Config.Debug)
             {
-                Console.ForegroundColor = ConsoleColor.DarkRed;
-                Console.WriteLine($"    \u2192 {ex.GetType().Name}: {ex.Message}");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine($"    [red]→ {Markup.Escape(ex.GetType().Name)}: {Markup.Escape(ex.Message)}[/]");
             }
         }
     }
@@ -195,7 +189,7 @@ public sealed class EmbodimentSubsystem : IEmbodimentSubsystem
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  \u26a0 Presence Detection: {ex.Message}");
+            AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Presence Detection: {Markup.Escape(ex.Message)}"));
         }
     }
 
@@ -221,7 +215,7 @@ public sealed class EmbodimentSubsystem : IEmbodimentSubsystem
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  ⚠ Perception/Vision: {ex.Message}");
+            AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Perception/Vision: {Markup.Escape(ex.Message)}"));
         }
     }
 
@@ -245,7 +239,7 @@ public sealed class EmbodimentSubsystem : IEmbodimentSubsystem
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  ⚠ Avatar: {ex.Message}");
+            AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Avatar: {Markup.Escape(ex.Message)}"));
         }
     }
 

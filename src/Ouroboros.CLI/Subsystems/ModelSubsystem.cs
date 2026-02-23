@@ -5,8 +5,10 @@ using LangChain.Providers.Ollama;
 using Ouroboros.Application.Configuration;
 using Ouroboros.Application.Services;
 using Ouroboros.Application.Tools;
+using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Options;
 using Ouroboros.Providers;
+using Spectre.Console;
 using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 using IEmbeddingModel = Ouroboros.Domain.IEmbeddingModel;
 
@@ -164,7 +166,7 @@ public sealed class ModelSubsystem : IModelSubsystem
             // Test connection
             var test = await ChatModel.GenerateTextAsync("Respond with just: OK");
             if (string.IsNullOrWhiteSpace(test) || test.Contains("-fallback:"))
-                Console.WriteLine($"  \u26a0 LLM: {ctx.Config.Model} (limited mode)");
+                AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ LLM: {Markup.Escape(ctx.Config.Model)} (limited mode)"));
 
             // Multi-model orchestration
             bool isLocal = endpoint.Contains("localhost", StringComparison.OrdinalIgnoreCase) || endpoint.Contains("127.0.0.1");
@@ -172,7 +174,7 @@ public sealed class ModelSubsystem : IModelSubsystem
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  \u26a0 LLM unavailable: {ex.Message}");
+            AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ LLM unavailable: {Markup.Escape(ex.Message)}"));
         }
     }
 
@@ -240,7 +242,7 @@ public sealed class ModelSubsystem : IModelSubsystem
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  \u26a0 Multi-model orchestration failed: {ex.Message}");
+            AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Multi-model orchestration failed: {Markup.Escape(ex.Message)}"));
         }
     }
 
@@ -269,11 +271,11 @@ public sealed class ModelSubsystem : IModelSubsystem
             catch (Exception ex)
             {
                 if (modelName == ctx.Config.EmbedModel)
-                    Console.WriteLine($"  \u26a0 {modelName}: {ex.Message.Split('\n')[0]}");
+                    AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ {Markup.Escape(modelName)}: {Markup.Escape(ex.Message.Split('\n')[0])}"));
                 Embedding = null;
             }
         }
-        Console.WriteLine("  \u26a0 Embeddings unavailable: No working model found.");
+        AnsiConsole.MarkupLine(OuroborosTheme.Warn("  ⚠ Embeddings unavailable: No working model found."));
     }
 
     public IChatCompletionModel? GetEffectiveModel()

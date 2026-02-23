@@ -14,6 +14,9 @@ using PipelineGoal = Ouroboros.Pipeline.Planning.Goal;
 using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 using LangChain.DocumentLoaders;
 using Ouroboros.Abstractions.Monads;
+using Ouroboros.CLI.Avatar;
+using Ouroboros.CLI.Infrastructure;
+using Spectre.Console;
 
 namespace Ouroboros.CLI.Commands;
 
@@ -397,10 +400,8 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
             var metrics = _costTracker.GetSessionMetrics();
             if (metrics.TotalRequests > 0)
             {
-                Console.WriteLine();
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine(_costTracker.FormatSessionSummary());
-                Console.ResetColor();
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine($"[rgb(148,103,189)]{Markup.Escape(_costTracker.FormatSessionSummary())}[/]");
             }
         }
 
@@ -414,7 +415,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"  ⚠ Failed to save personality snapshot: {ex.Message}");
+                AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Failed to save personality snapshot: {ex.Message}"));
             }
         }
 

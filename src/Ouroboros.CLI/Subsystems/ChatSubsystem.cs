@@ -11,6 +11,7 @@ using Ouroboros.CLI.Commands;
 using Ouroboros.CLI.Infrastructure;
 using Ouroboros.CLI.Resources;
 using Ouroboros.Domain;
+using Spectre.Console;
 using PipelineGoal = Ouroboros.Pipeline.Planning.Goal;
 using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 
@@ -344,10 +345,9 @@ Use this actual code information to answer the user's question accurately.
             if (_responseCount % 5 == 0 && traceResult.IsSuccess)
             {
                 var reflection = _metacognition.ReflectOn(traceResult.Value);
-                Console.ForegroundColor = ConsoleColor.DarkMagenta;
-                Console.WriteLine($"\n  ✧ [metacognition] Q={reflection.QualityScore:F2} " +
-                    $"| {(reflection.HasIssues ? reflection.Improvements.FirstOrDefault() ?? "–" : "Clean")}");
-                Console.ResetColor();
+                var metaMsg = $"\n  ✧ [metacognition] Q={reflection.QualityScore:F2} " +
+                    $"| {(reflection.HasIssues ? Markup.Escape(reflection.Improvements.FirstOrDefault() ?? "–") : "Clean")}";
+                AnsiConsole.MarkupLine($"[rgb(128,0,180)]{metaMsg}[/]");
             }
 
             // ── Store episode ─────────────────────────────────────────────────

@@ -4,6 +4,9 @@
 
 using Ouroboros.Abstractions;
 using Ouroboros.Abstractions.Monads;
+using Ouroboros.CLI.Avatar;
+using Ouroboros.CLI.Infrastructure;
+using Spectre.Console;
 
 namespace Ouroboros.CLI.Commands;
 
@@ -36,7 +39,7 @@ public static class MeTTaInteractiveMode
         bool running = true;
         while (running)
         {
-            Console.Write("\nmetta> ");
+            AnsiConsole.Markup($"\n{OuroborosTheme.GoldText("metta> ")}");
             string? input = Console.ReadLine();
 
             if (string.IsNullOrWhiteSpace(input))
@@ -58,8 +61,8 @@ public static class MeTTaInteractiveMode
                     case "query" or "q":
                         if (parts.Length < 2)
                         {
-                            Console.WriteLine("Usage: query <metta-expression>");
-                            Console.WriteLine("Example: query (+ 1 2)");
+                            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Usage:")} query <metta-expression>");
+                            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Example:")} query (+ 1 2)");
                         }
                         else
                         {
@@ -74,8 +77,8 @@ public static class MeTTaInteractiveMode
                     case "fact" or "f":
                         if (parts.Length < 2)
                         {
-                            Console.WriteLine("Usage: fact <metta-fact>");
-                            Console.WriteLine("Example: fact (human Socrates)");
+                            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Usage:")} fact <metta-fact>");
+                            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Example:")} fact (human Socrates)");
                         }
                         else
                         {
@@ -86,8 +89,8 @@ public static class MeTTaInteractiveMode
                     case "rule" or "r":
                         if (parts.Length < 2)
                         {
-                            Console.WriteLine("Usage: rule <metta-rule>");
-                            Console.WriteLine("Example: rule (= (mortal $x) (human $x))");
+                            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Usage:")} rule <metta-rule>");
+                            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Example:")} rule (= (mortal $x) (human $x))");
                         }
                         else
                         {
@@ -102,7 +105,7 @@ public static class MeTTaInteractiveMode
 
                     case "exit" or "quit" or "q!":
                         running = false;
-                        Console.WriteLine("Goodbye!");
+                        AnsiConsole.MarkupLine(OuroborosTheme.Dim("Goodbye!"));
                         break;
 
                     default:
@@ -113,9 +116,7 @@ public static class MeTTaInteractiveMode
             }
             catch (Exception ex)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"Error: {ex.Message}");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine($"  [red]{Markup.Escape($"Error: {ex.Message}")}[/]");
             }
         }
 
@@ -124,31 +125,33 @@ public static class MeTTaInteractiveMode
 
     private static void PrintWelcome()
     {
-        Console.WriteLine("╔═══════════════════════════════════════════════════════════╗");
-        Console.WriteLine("║       MeTTa Interactive Symbolic Reasoning Mode          ║");
-        Console.WriteLine("║                    Phase 4 Integration                    ║");
-        Console.WriteLine("╚═══════════════════════════════════════════════════════════╝");
-        Console.WriteLine();
-        Console.WriteLine("Type 'help' for available commands, 'exit' to quit.");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("MeTTa Interactive Symbolic Reasoning Mode"));
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine(OuroborosTheme.Accent("Phase 4 Integration"));
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine($"Type {OuroborosTheme.GoldText("'help'")} for available commands, {OuroborosTheme.GoldText("'exit'")} to quit.");
     }
 
     private static void PrintHelp()
     {
-        Console.WriteLine("\nAvailable Commands:");
-        Console.WriteLine("  help, ?           - Show this help message");
-        Console.WriteLine("  query, q <expr>   - Execute a MeTTa query");
-        Console.WriteLine("  fact, f <fact>    - Add a fact to the knowledge base");
-        Console.WriteLine("  rule, r <rule>    - Apply a reasoning rule");
-        Console.WriteLine("  plan, p           - Interactive plan constraint checking");
-        Console.WriteLine("  reset             - Reset the knowledge base");
-        Console.WriteLine("  exit, quit, q!    - Exit interactive mode");
-        Console.WriteLine();
-        Console.WriteLine("Examples:");
-        Console.WriteLine("  query (+ 1 2)");
-        Console.WriteLine("  fact (human Socrates)");
-        Console.WriteLine("  rule (= (mortal $x) (human $x))");
-        Console.WriteLine("  query (mortal Socrates)");
-        Console.WriteLine("  plan");
+        AnsiConsole.WriteLine();
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Available Commands"));
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("help, ?")}           - Show this help message");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("query, q <expr>")}   - Execute a MeTTa query");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("fact, f <fact>")}    - Add a fact to the knowledge base");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("rule, r <rule>")}    - Apply a reasoning rule");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("plan, p")}           - Interactive plan constraint checking");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("reset")}             - Reset the knowledge base");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("exit, quit, q!")}    - Exit interactive mode");
+        AnsiConsole.WriteLine();
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Examples"));
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim("query (+ 1 2)")}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim("fact (human Socrates)")}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim("rule (= (mortal $x) (human $x))")}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim("query (mortal Socrates)")}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim("plan")}");
     }
 
     private static async Task ExecuteQueryAsync(IMeTTaEngine engine, string query)
@@ -158,16 +161,12 @@ public static class MeTTaInteractiveMode
         result.Match(
             success =>
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"Result: {success}");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Result:")} {Markup.Escape(success)}");
                 return Unit.Value;
             },
             error =>
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"Error: {error}");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine($"  [red]{Markup.Escape($"Error: {error}")}[/]");
                 return Unit.Value;
             });
     }
@@ -179,16 +178,12 @@ public static class MeTTaInteractiveMode
         result.Match(
             _ =>
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("✓ Fact added");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine(OuroborosTheme.Ok("\u2713 Fact added"));
                 return Unit.Value;
             },
             error =>
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"Error: {error}");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine($"  [red]{Markup.Escape($"Error: {error}")}[/]");
                 return Unit.Value;
             });
     }
@@ -200,16 +195,12 @@ public static class MeTTaInteractiveMode
         result.Match(
             success =>
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"✓ Rule applied: {success}");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine(OuroborosTheme.Ok($"\u2713 Rule applied: {success}"));
                 return Unit.Value;
             },
             error =>
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"Error: {error}");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine($"  [red]{Markup.Escape($"Error: {error}")}[/]");
                 return Unit.Value;
             });
     }
@@ -221,36 +212,36 @@ public static class MeTTaInteractiveMode
         result.Match(
             _ =>
             {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("✓ Knowledge base reset");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine(OuroborosTheme.Warn("\u2713 Knowledge base reset"));
                 return Unit.Value;
             },
             error =>
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"Error: {error}");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine($"  [red]{Markup.Escape($"Error: {error}")}[/]");
                 return Unit.Value;
             });
     }
 
     private static async Task ExecutePlanCheckInteractiveAsync(SymbolicPlanSelector selector)
     {
-        Console.WriteLine("\n=== Interactive Plan Constraint Checking ===");
-        Console.WriteLine("Enter plan actions (one per line). Type 'done' when finished.\n");
+        AnsiConsole.WriteLine();
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Interactive Plan Constraint Checking"));
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("Enter plan actions (one per line). Type 'done' when finished.");
+        AnsiConsole.WriteLine();
 
         var actions = new List<PlanAction>();
-        Console.WriteLine("Available action types:");
-        Console.WriteLine("  1. FileSystem <operation> <path>");
-        Console.WriteLine("  2. Network <operation> <endpoint>");
-        Console.WriteLine("  3. Tool <name> <args>");
-        Console.WriteLine();
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Available Action Types"));
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("1.")} FileSystem <operation> <path>");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("2.")} Network <operation> <endpoint>");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("3.")} Tool <name> <args>");
+        AnsiConsole.WriteLine();
 
         bool enteringActions = true;
         while (enteringActions)
         {
-            Console.Write("action> ");
+            AnsiConsole.Markup($"{OuroborosTheme.GoldText("action> ")}");
             string? actionInput = Console.ReadLine();
 
             if (string.IsNullOrWhiteSpace(actionInput))
@@ -268,67 +259,67 @@ public static class MeTTaInteractiveMode
             string[] actionParts = actionInput.Trim().Split(' ', 3, StringSplitOptions.RemoveEmptyEntries);
             if (actionParts.Length < 1)
             {
-                Console.WriteLine("Invalid action format. Try: <type> <operation> [<target>]");
+                AnsiConsole.MarkupLine(OuroborosTheme.Warn("Invalid action format. Try: <type> <operation> [<target>]"));
                 continue;
             }
 
             // Parse action with validation
             PlanAction? action = null;
-            
+
             switch (actionParts[0].ToLowerInvariant())
             {
                 case "filesystem" or "fs":
                     if (actionParts.Length < 2)
                     {
-                        Console.WriteLine("FileSystem action requires operation (e.g., 'filesystem read')");
+                        AnsiConsole.MarkupLine(OuroborosTheme.Warn("FileSystem action requires operation (e.g., 'filesystem read')"));
                         continue;
                     }
                     action = new FileSystemAction(
                         actionParts[1],
                         actionParts.Length > 2 ? actionParts[2] : null);
                     break;
-                    
+
                 case "network" or "net":
                     if (actionParts.Length < 2)
                     {
-                        Console.WriteLine("Network action requires operation (e.g., 'network get')");
+                        AnsiConsole.MarkupLine(OuroborosTheme.Warn("Network action requires operation (e.g., 'network get')"));
                         continue;
                     }
                     action = new NetworkAction(
                         actionParts[1],
                         actionParts.Length > 2 ? actionParts[2] : null);
                     break;
-                    
+
                 case "tool":
                     if (actionParts.Length < 2)
                     {
-                        Console.WriteLine("Tool action requires name (e.g., 'tool search_tool')");
+                        AnsiConsole.MarkupLine(OuroborosTheme.Warn("Tool action requires name (e.g., 'tool search_tool')"));
                         continue;
                     }
                     action = new ToolAction(
                         actionParts[1],
                         actionParts.Length > 2 ? actionParts[2] : null);
                     break;
-                    
+
                 default:
-                    Console.WriteLine("Unknown action type. Use: filesystem, network, or tool");
+                    AnsiConsole.MarkupLine(OuroborosTheme.Warn("Unknown action type. Use: filesystem, network, or tool"));
                     continue;
             }
 
             if (action != null)
             {
                 actions.Add(action);
-                Console.WriteLine($"✓ Added: {action.ToMeTTaAtom()}");
+                AnsiConsole.MarkupLine(OuroborosTheme.Ok($"\u2713 Added: {action.ToMeTTaAtom()}"));
             }
         }
 
         if (actions.Count == 0)
         {
-            Console.WriteLine("No actions entered. Returning to main prompt.");
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim("No actions entered. Returning to main prompt."));
             return;
         }
 
-        Console.Write("\nEnter plan description: ");
+        AnsiConsole.Markup($"\n{OuroborosTheme.Accent("Enter plan description:")} ");
         string? description = Console.ReadLine();
         if (string.IsNullOrWhiteSpace(description))
         {
@@ -347,7 +338,7 @@ public static class MeTTaInteractiveMode
 
         foreach (var context in contexts)
         {
-            Console.WriteLine($"\nChecking against {context.ToMeTTaAtom()} context:");
+            AnsiConsole.MarkupLine($"\n{OuroborosTheme.Accent("Checking against")} {Markup.Escape(context.ToMeTTaAtom())} {OuroborosTheme.Accent("context:")}");
 
             Result<string, string> result = await selector.ExplainPlanAsync(
                 plan,
@@ -357,16 +348,12 @@ public static class MeTTaInteractiveMode
             result.Match(
                 explanation =>
                 {
-                    Console.ForegroundColor = ConsoleColor.Cyan;
-                    Console.WriteLine($"  {explanation}");
-                    Console.ResetColor();
+                    AnsiConsole.MarkupLine($"  [rgb(148,103,189)]{Markup.Escape(explanation)}[/]");
                     return Unit.Value;
                 },
                 error =>
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"  Error: {error}");
-                    Console.ResetColor();
+                    AnsiConsole.MarkupLine($"  [red]{Markup.Escape($"Error: {error}")}[/]");
                     return Unit.Value;
                 });
         }

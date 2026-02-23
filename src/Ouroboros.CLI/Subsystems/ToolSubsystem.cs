@@ -9,6 +9,7 @@ using Ouroboros.Application.Tools;
 using Ouroboros.CLI.Commands;
 using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Core.Configuration;
+using Spectre.Console;
 using Ouroboros.Pipeline.WorldModel;
 using Ouroboros.Tools.MeTTa;
 using Qdrant.Client;
@@ -120,7 +121,7 @@ public sealed class ToolSubsystem : IToolSubsystem
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"  \u26a0 Playwright: Not available ({ex.Message})");
+                        AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Playwright: Not available ({Markup.Escape(ex.Message)})"));
                     }
                 }
                 else
@@ -184,7 +185,7 @@ public sealed class ToolSubsystem : IToolSubsystem
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  \u26a0 Tool factory failed: {ex.Message}");
+            AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Tool factory failed: {Markup.Escape(ex.Message)}"));
         }
 
         // ── Pipeline DSL tokens ──
@@ -195,7 +196,7 @@ public sealed class ToolSubsystem : IToolSubsystem
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  \u26a0 Pipeline tokens: {ex.Message}");
+            AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Pipeline tokens: {Markup.Escape(ex.Message)}"));
         }
 
         MarkInitialized();

@@ -1,10 +1,13 @@
+using Ouroboros.CLI.Avatar;
 using Ouroboros.CLI.Commands;
+using Spectre.Console;
 
 namespace Ouroboros.CLI.Infrastructure;
 
 /// <summary>
 /// Centralized console output with verbosity-aware routing, init buffering,
 /// and an inline spinner that uses carriage-return overwrite.
+/// Uses Spectre.Console for all rendering with Iaret's purple/gold theme.
 /// </summary>
 public sealed class ConsoleOutput : IConsoleOutput
 {
@@ -26,15 +29,14 @@ public sealed class ConsoleOutput : IConsoleOutput
 
         if (Verbosity == OutputVerbosity.Verbose)
         {
-            // Show each line immediately in verbose mode
-            var icon = success ? "✓" : "○";
-            var color = success ? ConsoleColor.Green : ConsoleColor.DarkGray;
+            var icon = success ? "[green]✓[/]" : "[grey]○[/]";
+            var name = Markup.Escape(subsystemName);
             lock (_lock)
             {
-                Console.ForegroundColor = color;
-                var line = detail != null ? $"  {icon} {subsystemName}: {detail}" : $"  {icon} {subsystemName}";
-                Console.WriteLine(line);
-                Console.ResetColor();
+                var line = detail != null
+                    ? $"  {icon} {name}: {Markup.Escape(detail)}"
+                    : $"  {icon} {name}";
+                AnsiConsole.MarkupLine(line);
             }
         }
     }
@@ -45,12 +47,9 @@ public sealed class ConsoleOutput : IConsoleOutput
 
         if (Verbosity == OutputVerbosity.Verbose)
         {
-            // Already printed line-by-line in RecordInit
             lock (_lock)
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"\n  ✓ Ouroboros fully initialized ({_initRecords.Count} subsystems)\n");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine($"\n  [green]✓ Ouroboros fully initialized ({_initRecords.Count} subsystems)[/]\n");
             }
             return;
         }
@@ -61,28 +60,24 @@ public sealed class ConsoleOutput : IConsoleOutput
 
         lock (_lock)
         {
-            Console.ForegroundColor = ConsoleColor.Green;
             if (failed.Count == 0)
             {
-                Console.WriteLine($"  ● Ready ({active} subsystems active)");
+                AnsiConsole.MarkupLine($"  [green]● Ready ({active} subsystems active)[/]");
             }
             else
             {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"  ● Ready ({active} subsystems active, {failed.Count} disabled)");
+                AnsiConsole.MarkupLine($"  [yellow]● Ready ({active} subsystems active, {failed.Count} disabled)[/]");
             }
-            Console.ResetColor();
 
-            // Show only failures/disabled subsystems
             foreach (var (name, _, detail) in failed)
             {
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                var msg = detail != null ? $"    ○ {name}: {detail}" : $"    ○ {name}";
-                Console.WriteLine(msg);
-                Console.ResetColor();
+                var escaped = detail != null
+                    ? $"    [grey]○ {Markup.Escape(name)}: {Markup.Escape(detail)}[/]"
+                    : $"    [grey]○ {Markup.Escape(name)}[/]";
+                AnsiConsole.MarkupLine(escaped);
             }
 
-            Console.WriteLine();
+            AnsiConsole.WriteLine();
         }
     }
 
@@ -92,7 +87,9 @@ public sealed class ConsoleOutput : IConsoleOutput
     {
         lock (_lock)
         {
-            Console.WriteLine($"\n  {personaName}: {text}");
+            var expr = IaretCliAvatar.ForContext("speaking");
+            var face = IaretCliAvatar.Inline(expr);
+            AnsiConsole.MarkupLine($"\n  {OuroborosTheme.GoldText(face)} {OuroborosTheme.Accent(personaName)}: {Markup.Escape(text)}");
         }
     }
 
@@ -102,9 +99,7 @@ public sealed class ConsoleOutput : IConsoleOutput
 
         lock (_lock)
         {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine($"  {text}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"  [grey]{Markup.Escape(text)}[/]");
         }
     }
 
@@ -116,9 +111,7 @@ public sealed class ConsoleOutput : IConsoleOutput
 
         lock (_lock)
         {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine($"  {text}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"  [grey]{Markup.Escape(text)}[/]");
         }
     }
 
@@ -128,9 +121,8 @@ public sealed class ConsoleOutput : IConsoleOutput
 
         lock (_lock)
         {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"  ⚠ {text}");
-            Console.ResetColor();
+            var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+            AnsiConsole.MarkupLine($"  [yellow]{Markup.Escape(face)} ⚠ {Markup.Escape(text)}[/]");
         }
     }
 
@@ -138,9 +130,8 @@ public sealed class ConsoleOutput : IConsoleOutput
     {
         lock (_lock)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"  ✗ {text}");
-            Console.ResetColor();
+            var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+            AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} ✗ {Markup.Escape(text)}[/]");
         }
     }
 
@@ -176,31 +167,29 @@ public sealed class ConsoleOutput : IConsoleOutput
 
         lock (_lock)
         {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-
             var dir = workingDir != null
                 ? TruncatePath(workingDir, 30)
                 : null;
 
-            var parts = new List<string> { model };
-            if (dir != null) parts.Add(dir);
+            var parts = new List<string> { Markup.Escape(model) };
+            if (dir != null) parts.Add(Markup.Escape(dir));
 
-            Console.Write($"  {string.Join(" · ", parts)}");
+            var status = string.Join(" · ", parts);
 
             if (contextPct.HasValue)
             {
                 var color = contextPct.Value switch
                 {
-                    >= 80 => ConsoleColor.Red,
-                    >= 50 => ConsoleColor.Yellow,
-                    _     => ConsoleColor.DarkGray,
+                    >= 80 => "red",
+                    >= 50 => "yellow",
+                    _ => "rgb(148,103,189)",
                 };
-                Console.ForegroundColor = color;
-                Console.Write($"  {contextPct.Value}%");
+                AnsiConsole.MarkupLine($"  [rgb(148,103,189)]{status}[/]  [{color}]{contextPct.Value}%[/]");
             }
-
-            Console.ResetColor();
-            Console.WriteLine();
+            else
+            {
+                AnsiConsole.MarkupLine($"  [rgb(148,103,189)]{status}[/]");
+            }
         }
     }
 
@@ -227,28 +216,57 @@ public sealed class ConsoleOutput : IConsoleOutput
     {
         if (Verbosity == OutputVerbosity.Quiet) return;
 
-        if (Verbosity == OutputVerbosity.Verbose)
-        {
-            lock (_lock)
-            {
-                Console.WriteLine();
-                Console.WriteLine("╔════════════════════════════════════════════════════════════╗");
-                Console.WriteLine("║          🐍 OUROBOROS - Unified AI Agent System           ║");
-                Console.WriteLine("╚════════════════════════════════════════════════════════════╝");
-                Console.WriteLine();
-            }
-            return;
-        }
-
-        // Normal mode: single subtle line
         lock (_lock)
         {
-            Console.WriteLine();
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            var moodPart = mood != null ? $" · mood: {mood}" : "";
-            Console.WriteLine($"  Ouroboros v2 — {personaName} · {model}{moodPart} · help | status | exit");
-            Console.ResetColor();
-            Console.WriteLine();
+            AnsiConsole.WriteLine();
+
+            var expr = IaretCliAvatar.ForContext("welcome");
+            var banner = IaretCliAvatar.Banner(expr);
+
+            // Build banner content with purple background
+            var rows = new Rows(
+                banner.Select(line => new Markup($"[bold rgb(255,200,50) on rgb(60,0,120)]{Markup.Escape(line)}[/]"))
+                    .Concat(
+                    [
+                        new Markup($"[bold rgb(255,200,50) on rgb(60,0,120)]   O U R O B O R O S   [/]"),
+                        new Markup($"[rgb(148,103,189) on rgb(60,0,120)]  Unified AI Agent System  [/]"),
+                    ]));
+
+            var panel = new Panel(rows)
+            {
+                Border = BoxBorder.Double,
+                BorderStyle = OuroborosTheme.BorderStyle,
+                Padding = new Padding(2, 1),
+                Header = new PanelHeader($"[bold rgb(255,200,50)] ☥ {Markup.Escape(personaName)} ☥ [/]", Justify.Center),
+            };
+
+            AnsiConsole.Write(panel);
+
+            var moodPart = mood != null ? $" · mood: {Markup.Escape(mood)}" : "";
+            AnsiConsole.MarkupLine($"  [rgb(148,103,189)]{Markup.Escape(personaName)} · {Markup.Escape(model)}{moodPart} · help | status | exit[/]");
+            AnsiConsole.WriteLine();
+        }
+    }
+
+    // ── Wake event ─────────────────────────────────────────────
+
+    /// <summary>
+    /// Displays Iaret's wake greeting when "hey iaret" is detected in text input.
+    /// </summary>
+    public void WriteWakeGreeting()
+    {
+        lock (_lock)
+        {
+            var expr = IaretCliAvatar.ForContext("wake");
+            var face = IaretCliAvatar.Standard(expr);
+
+            AnsiConsole.WriteLine();
+            foreach (var line in face)
+            {
+                AnsiConsole.MarkupLine($"  [bold rgb(255,200,50) on rgb(60,0,120)] {Markup.Escape(line)} [/]");
+            }
+            AnsiConsole.MarkupLine($"  [rgb(148,103,189)]I'm here. How can I help?[/]");
+            AnsiConsole.WriteLine();
         }
     }
 }

@@ -10,8 +10,11 @@ using Ouroboros.Application.Services;
 using Ouroboros.Application.Tools;
 using Ouroboros.Core.Configuration;
 using Ouroboros.Domain.Autonomous;
+using Ouroboros.CLI.Avatar;
+using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Tools.MeTTa;
 using Qdrant.Client;
+using Spectre.Console;
 
 /// <summary>
 /// Memory subsystem implementation owning skills, personality, symbolic reasoning, and persistence.
@@ -65,7 +68,7 @@ public sealed class MemorySubsystem : IMemorySubsystem
                 MeTTaEngine ??= new InMemoryMeTTaEngine();
                 ctx.Output.RecordInit("MeTTa", true, "symbolic reasoning engine");
             }
-            catch (Exception ex) { Console.WriteLine($"  \u26a0 MeTTa unavailable: {ex.Message}"); }
+            catch (Exception ex) { AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ MeTTa unavailable: {ex.Message}")}"); }
         }
         else
         {
@@ -121,33 +124,25 @@ public sealed class MemorySubsystem : IMemorySubsystem
             var settings = ctx.Services?.GetService<QdrantSettings>();
             var label = settings != null ? $"Qdrant @ {settings.HttpEndpoint}" : "Qdrant";
             ctx.Output.RecordInit("Neural Memory", true, label);
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine($"    Messages: {stats.NeuronMessagesCount} | Intentions: {stats.IntentionsCount} | Memories: {stats.MemoriesCount}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim($"    Messages: {stats.NeuronMessagesCount} | Intentions: {stats.IntentionsCount} | Memories: {stats.MemoriesCount}"));
         }
         catch (HttpRequestException httpEx)
         {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"  \u26a0 Neural Memory: Connection failed - {httpEx.Message}");
-            Console.WriteLine($"    \u2192 Check if Qdrant is running at {ctx.Config.QdrantEndpoint}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ Neural Memory: Connection failed - {httpEx.Message}")}");
+            AnsiConsole.MarkupLine($"    {OuroborosTheme.Warn($"→ Check if Qdrant is running at {ctx.Config.QdrantEndpoint}")}");
             NeuralMemory = null;
         }
         catch (TimeoutException timeoutEx)
         {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"  \u26a0 Neural Memory: Timeout - {timeoutEx.Message}");
-            Console.WriteLine($"    \u2192 Qdrant may be overloaded or starting up");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ Neural Memory: Timeout - {timeoutEx.Message}")}");
+            AnsiConsole.MarkupLine($"    {OuroborosTheme.Warn("→ Qdrant may be overloaded or starting up")}");
             NeuralMemory = null;
         }
         catch (Exception ex)
         {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"  \u26a0 Neural Memory: {ex.GetType().Name} - {ex.Message}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ Neural Memory: {ex.GetType().Name} - {ex.Message}")}");
             if (ctx.Config.Debug)
-                Console.WriteLine($"    Stack: {ex.StackTrace?.Split('\n').FirstOrDefault()}");
-            Console.ResetColor();
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim($"    Stack: {ex.StackTrace?.Split('\n').FirstOrDefault()}"));
             NeuralMemory = null;
         }
     }
@@ -176,17 +171,13 @@ public sealed class MemorySubsystem : IMemorySubsystem
                 }
                 catch (HttpRequestException qdrantConnEx)
                 {
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine($"  \u26a0 Qdrant skills: Connection failed - {qdrantConnEx.Message}");
-                    Console.ResetColor();
+                    AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ Qdrant skills: Connection failed - {qdrantConnEx.Message}")}");
                     Skills = new SkillRegistry(embedding);
                     ctx.Output.RecordInit("Skills", true, "in-memory with embeddings");
                 }
                 catch (Exception qdrantEx)
                 {
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine($"  \u26a0 Qdrant skills failed: {qdrantEx.GetType().Name} - {qdrantEx.Message}");
-                    Console.ResetColor();
+                    AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ Qdrant skills failed: {qdrantEx.GetType().Name} - {qdrantEx.Message}")}");
                     Skills = new SkillRegistry(embedding);
                     ctx.Output.RecordInit("Skills", true, "in-memory with embeddings");
                 }
@@ -199,9 +190,9 @@ public sealed class MemorySubsystem : IMemorySubsystem
         }
         catch (Exception ex)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
+            var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+            AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} ✗ Skills critical: {Markup.Escape($"{ex.GetType().Name}: {ex.Message}")}[/]");
             ctx.Output.RecordInit("Skills", false, $"critical: {ex.GetType().Name}: {ex.Message}");
-            Console.ResetColor();
             Skills = new SkillRegistry();
         }
     }
@@ -235,23 +226,17 @@ public sealed class MemorySubsystem : IMemorySubsystem
         }
         catch (ArgumentException argEx)
         {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"  \u26a0 Personality configuration error: {argEx.Message}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ Personality configuration error: {argEx.Message}")}");
         }
         catch (InvalidOperationException opEx)
         {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"  \u26a0 Personality engine state error: {opEx.Message}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ Personality engine state error: {opEx.Message}")}");
         }
         catch (Exception ex)
         {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"  \u26a0 Personality engine failed: {ex.GetType().Name} - {ex.Message}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ Personality engine failed: {ex.GetType().Name} - {ex.Message}")}");
             if (ctx.Config.Debug)
-                Console.WriteLine($"    Stack: {ex.StackTrace?.Split('\n').FirstOrDefault()}");
-            Console.ResetColor();
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim($"    Stack: {ex.StackTrace?.Split('\n').FirstOrDefault()}"));
         }
     }
 
@@ -298,9 +283,7 @@ public sealed class MemorySubsystem : IMemorySubsystem
                 var thoughtTypes = PersistentThoughts
                     .GroupBy(t => t.Type).OrderByDescending(g => g.Count()).Take(3)
                     .Select(g => $"{g.Key}:{g.Count()}");
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine($"    Thought types: {string.Join(", ", thoughtTypes)}");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim($"    Thought types: {string.Join(", ", thoughtTypes)}"));
             }
             else
             {
@@ -309,7 +292,7 @@ public sealed class MemorySubsystem : IMemorySubsystem
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  \u26a0 Persistent memory unavailable: {ex.Message}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ Persistent memory unavailable: {ex.Message}")}");
         }
     }
 
@@ -343,7 +326,7 @@ public sealed class MemorySubsystem : IMemorySubsystem
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  ⚠ Conversation Memory: {ex.Message}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ Conversation Memory: {ex.Message}")}");
         }
     }
 
@@ -369,7 +352,7 @@ public sealed class MemorySubsystem : IMemorySubsystem
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  ⚠ Self-Persistence: {ex.Message}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ Self-Persistence: {ex.Message}")}");
         }
     }
 

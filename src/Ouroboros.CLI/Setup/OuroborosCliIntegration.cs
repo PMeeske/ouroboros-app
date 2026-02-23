@@ -13,9 +13,11 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Ouroboros.ApiHost.Extensions;
 using Ouroboros.Application.Integration;
+using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Core.EmbodiedInteraction;
 using Ouroboros.Providers;
 using Ouroboros.Providers.Tapo;
+using Spectre.Console;
 
 /// <summary>
 /// Integrates the full Ouroboros system into CLI commands.
@@ -145,7 +147,7 @@ public static class OuroborosCliIntegration
 
         if (!hasRtsp && !hasRestApi)
         {
-            Console.WriteLine("[Tapo] No RTSP cameras or REST API configured");
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim("[Tapo] No RTSP cameras or REST API configured"));
             return;
         }
 
@@ -167,11 +169,11 @@ public static class OuroborosCliIntegration
             var connectResult = await tapoProvider.ConnectAsync();
             if (connectResult.IsFailure)
             {
-                Console.WriteLine($"[Tapo] Connection failed: {connectResult.Error}");
+                AnsiConsole.MarkupLine(OuroborosTheme.Warn($"[Tapo] Connection failed: {Markup.Escape(connectResult.Error.ToString())}"));
             }
             else
             {
-                Console.WriteLine("[Tapo] Embodiment provider connected successfully");
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim("[Tapo] Embodiment provider connected successfully"));
             }
         }
     }
@@ -181,9 +183,9 @@ public static class OuroborosCliIntegration
     /// </summary>
     private static Task InitializeRtspCamerasAsync(TapoEmbodimentProvider tapoProvider)
     {
-        Console.WriteLine("[Tapo] RTSP camera support enabled");
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim("[Tapo] RTSP camera support enabled"));
         var cameraNames = tapoProvider.RtspClientFactory!.GetCameraNames().ToList();
-        Console.WriteLine($"[Tapo] {cameraNames.Count} camera(s) registered:");
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim($"[Tapo] {cameraNames.Count} camera(s) registered:"));
 
         // Display each camera (non-blocking, just log)
         foreach (var cameraName in cameraNames)
@@ -191,7 +193,7 @@ public static class OuroborosCliIntegration
             var rtspClient = tapoProvider.RtspClientFactory.GetClient(cameraName);
             if (rtspClient != null)
             {
-                Console.WriteLine($"[Tapo]   - {cameraName} @ {rtspClient.CameraIp}");
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim($"[Tapo]   - {Markup.Escape(cameraName)} @ {Markup.Escape(rtspClient.CameraIp)}"));
             }
         }
 
@@ -208,7 +210,7 @@ public static class OuroborosCliIntegration
 
         if (string.IsNullOrEmpty(serverPassword))
         {
-            Console.WriteLine("[Tapo] REST API configured but no server password set (Tapo:ServerPassword)");
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim("[Tapo] REST API configured but no server password set (Tapo:ServerPassword)"));
             return;
         }
 
@@ -216,18 +218,18 @@ public static class OuroborosCliIntegration
         var isAvailable = await CheckRestApiAvailabilityAsync(serverAddress);
         if (!isAvailable)
         {
-            Console.WriteLine($"[Tapo] REST API server not available at {serverAddress} (this is optional)");
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim($"[Tapo] REST API server not available at {Markup.Escape(serverAddress ?? "")} (this is optional)"));
             return;
         }
 
         var authResult = await tapoProvider.AuthenticateAsync(serverPassword);
         if (authResult.IsSuccess)
         {
-            Console.WriteLine("[Tapo] Connected to Tapo REST API");
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim("[Tapo] Connected to Tapo REST API"));
         }
         else
         {
-            Console.WriteLine($"[Tapo] REST API authentication failed: {authResult.Error}");
+            AnsiConsole.MarkupLine(OuroborosTheme.Warn($"[Tapo] REST API authentication failed: {Markup.Escape(authResult.Error.ToString())}"));
         }
     }
 
@@ -326,7 +328,7 @@ public static class OuroborosCliIntegration
 
                 if (string.IsNullOrWhiteSpace(device.IpAddress) || device.IpAddress == "192.168.1.1")
                 {
-                    Console.WriteLine($"[Tapo] Warning: Device '{device.Name}' has placeholder IP address. Update appsettings.json with actual camera IP.");
+                    AnsiConsole.MarkupLine(OuroborosTheme.Warn($"[Tapo] Warning: Device '{Markup.Escape(device.Name)}' has placeholder IP address. Update appsettings.json with actual camera IP."));
                 }
             }
 
@@ -480,8 +482,8 @@ public static class OuroborosCliIntegration
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[WARN] Could not initialize Ouroboros system: {ex.Message}");
-                Console.WriteLine("[INFO] Commands will run in standalone mode");
+                AnsiConsole.MarkupLine(OuroborosTheme.Warn($"[WARN] Could not initialize Ouroboros system: {Markup.Escape(ex.Message)}"));
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim("[INFO] Commands will run in standalone mode"));
             }
         }
     }

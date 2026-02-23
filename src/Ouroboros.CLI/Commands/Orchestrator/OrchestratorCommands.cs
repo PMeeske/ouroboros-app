@@ -2,7 +2,10 @@ using System.Diagnostics;
 using LangChain.Providers.Ollama;
 using Ouroboros.Application.Configuration;
 using Ouroboros.Application.Services;
+using Ouroboros.CLI.Avatar;
+using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Options;
+using Spectre.Console;
 using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 
 namespace Ouroboros.CLI.Commands;
@@ -18,9 +21,9 @@ public static class OrchestratorCommands
             return;
         }
 
-        Console.WriteLine("╔════════════════════════════════════════════════════════════╗");
-        Console.WriteLine("║   Smart Model Orchestrator - Intelligent Model Selection  ║");
-        Console.WriteLine("╚════════════════════════════════════════════════════════════╝\n");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Smart Model Orchestrator"));
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim("Intelligent Model Selection"));
+        AnsiConsole.WriteLine();
 
         if (o.Debug) Environment.SetEnvironmentVariable("MONADIC_DEBUG", "1");
 
@@ -57,10 +60,12 @@ public static class OrchestratorCommands
             string backend = (!string.IsNullOrWhiteSpace(endpoint) && !string.IsNullOrWhiteSpace(apiKey))
                 ? $"remote-{endpointType.ToString().ToLowerInvariant()}"
                 : "ollama-local";
-            Console.WriteLine($"[INIT] Backend={backend} Endpoint={(endpoint ?? "local")}\n");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"[INIT] Backend={backend} Endpoint={endpoint ?? "local"}")}");
+            AnsiConsole.WriteLine();
 
             ToolRegistry tools = ToolRegistry.CreateDefault();
-            Console.WriteLine($"✓ Tool registry created with {tools.Count} tools\n");
+            AnsiConsole.MarkupLine(OuroborosTheme.Ok($"✓ Tool registry created with {tools.Count} tools"));
+            AnsiConsole.WriteLine();
 
             OrchestratorBuilder builder = new OrchestratorBuilder(tools, "general")
                 .WithModel(
@@ -92,17 +97,19 @@ public static class OrchestratorCommands
         }
         catch (Exception ex) when (ex.Message.Contains("Connection refused") || ex.Message.Contains("ECONNREFUSED"))
         {
-            Console.Error.WriteLine("⚠ Error: Ollama is not running. Please start Ollama before using the orchestrator.");
-            Console.Error.WriteLine("   Run: ollama serve");
+            var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+            AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} Ollama is not running. Please start Ollama before using the orchestrator.[/]");
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim("   Run: ollama serve"));
             Environment.Exit(1);
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine("\n=== Orchestrator Failed ===");
-            Console.Error.WriteLine($"Error: {ex.Message}");
+            AnsiConsole.WriteLine();
+            AnsiConsole.Write(OuroborosTheme.ThemedRule("Orchestrator Failed"));
+            AnsiConsole.MarkupLine($"  [red]Error: {Markup.Escape(ex.Message)}[/]");
             if (o.Debug)
             {
-                Console.Error.WriteLine(ex.StackTrace);
+                AnsiConsole.WriteException(ex);
             }
             Environment.Exit(1);
         }
@@ -117,28 +124,36 @@ public static class OrchestratorCommands
         if (preset is null)
         {
             string available = string.Join(", ", MultiModelPresets.ListNames());
-            Console.Error.WriteLine($"Unknown preset '{o.Preset}'. Available presets: {available}");
+            AnsiConsole.MarkupLine($"  [red]Unknown preset '{Markup.Escape(o.Preset!)}'. Available presets: {Markup.Escape(available)}[/]");
             Environment.Exit(1);
             return;
         }
 
-        Console.WriteLine($"[PRESET] {preset.Name}: {preset.Description}\n");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.GoldText($"[PRESET] {preset.Name}:")} {Markup.Escape(preset.Description)}");
+        AnsiConsole.WriteLine();
 
         // Display model configuration
-        Console.WriteLine("  Model Configuration:");
+        var table = OuroborosTheme.ThemedTable("Role", "Provider", "Model", "");
         foreach (var slot in preset.Models)
         {
-            string master = slot.Role.Equals(preset.MasterRole, StringComparison.OrdinalIgnoreCase) ? " [MASTER]" : "";
-            Console.WriteLine($"    {slot.Role,-12} {slot.ProviderType,-10} {slot.ModelName}{master}");
+            string master = slot.Role.Equals(preset.MasterRole, StringComparison.OrdinalIgnoreCase) ? "[bold rgb(255,200,50)]MASTER[/]" : "";
+            table.AddRow(
+                Markup.Escape(slot.Role),
+                Markup.Escape(slot.ProviderType),
+                Markup.Escape(slot.ModelName),
+                master);
         }
-        Console.WriteLine();
+        AnsiConsole.Write(table);
+        AnsiConsole.WriteLine();
 
         // Create models from preset
         Dictionary<string, IChatCompletionModel> models = MultiModelPresetFactory.CreateModels(preset, o.Culture);
-        Console.WriteLine($"✓ Created {models.Count} models from preset '{preset.Name}'\n");
+        AnsiConsole.MarkupLine(OuroborosTheme.Ok($"✓ Created {models.Count} models from preset '{preset.Name}'"));
+        AnsiConsole.WriteLine();
 
         ToolRegistry tools = ToolRegistry.CreateDefault();
-        Console.WriteLine($"✓ Tool registry created with {tools.Count} tools\n");
+        AnsiConsole.MarkupLine(OuroborosTheme.Ok($"✓ Tool registry created with {tools.Count} tools"));
+        AnsiConsole.WriteLine();
 
         // Build orchestrator from preset models
         OrchestratorBuilder builder = new OrchestratorBuilder(tools, preset.MasterRole);
@@ -169,35 +184,41 @@ public static class OrchestratorCommands
     /// </summary>
     private static async Task ExecuteOrchestratorAsync(OrchestratedChatModel orchestrator, OrchestratorBuilder builder, OrchestratorOptions o)
     {
-        Console.WriteLine("✓ Orchestrator configured with multiple models\n");
-        Console.WriteLine($"Goal: {o.Goal}\n");
+        AnsiConsole.MarkupLine(OuroborosTheme.Ok("✓ Orchestrator configured with multiple models"));
+        AnsiConsole.MarkupLine($"\n  {OuroborosTheme.GoldText("Goal:")} {Markup.Escape(o.Goal)}");
+        AnsiConsole.WriteLine();
 
         Stopwatch sw = Stopwatch.StartNew();
         string response = await orchestrator.GenerateTextAsync(o.Goal);
         sw.Stop();
 
-        Console.WriteLine("=== Response ===");
-        Console.WriteLine(response);
-        Console.WriteLine();
-        Console.WriteLine($"[timing] Execution time: {sw.ElapsedMilliseconds}ms");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Response"));
+        AnsiConsole.WriteLine(response);
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim($"[timing] Execution time: {sw.ElapsedMilliseconds}ms"));
 
         if (o.ShowMetrics)
         {
-            Console.WriteLine("\n=== Performance Metrics ===");
+            AnsiConsole.WriteLine();
+            AnsiConsole.Write(OuroborosTheme.ThemedRule("Performance Metrics"));
             IModelOrchestrator underlyingOrchestrator = builder.GetOrchestrator();
             IReadOnlyDictionary<string, PerformanceMetrics> metrics = underlyingOrchestrator.GetMetrics();
 
+            var metricsTable = OuroborosTheme.ThemedTable("Model", "Executions", "Avg Latency", "Success Rate", "Last Used");
             foreach ((string modelName, PerformanceMetrics metric) in metrics)
             {
-                Console.WriteLine($"\nModel: {modelName}");
-                Console.WriteLine($"  Executions: {metric.ExecutionCount}");
-                Console.WriteLine($"  Avg Latency: {metric.AverageLatencyMs:F2}ms");
-                Console.WriteLine($"  Success Rate: {metric.SuccessRate:P2}");
-                Console.WriteLine($"  Last Used: {metric.LastUsed:g}");
+                metricsTable.AddRow(
+                    Markup.Escape(modelName),
+                    $"{metric.ExecutionCount}",
+                    $"{metric.AverageLatencyMs:F2}ms",
+                    $"{metric.SuccessRate:P2}",
+                    $"{metric.LastUsed:g}");
             }
+            AnsiConsole.Write(metricsTable);
         }
 
-        Console.WriteLine("\n✓ Orchestrator execution completed successfully");
+        var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Happy);
+        AnsiConsole.MarkupLine(OuroborosTheme.Ok($"\n{face} Orchestrator execution completed successfully"));
     }
 
     /// <summary>
@@ -308,5 +329,4 @@ public static class OrchestratorCommands
 
         voiceService.Dispose();
     }
-
 }

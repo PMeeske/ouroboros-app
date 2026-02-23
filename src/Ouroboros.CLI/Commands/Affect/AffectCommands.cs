@@ -1,5 +1,8 @@
 using System.Text.Json;
 using Ouroboros.Agent.MetaAI.Affect;
+using Ouroboros.CLI.Avatar;
+using Ouroboros.CLI.Infrastructure;
+using Spectre.Console;
 
 namespace Ouroboros.CLI.Commands;
 
@@ -55,23 +58,25 @@ public static class AffectCommands
             PrintError($"Affect operation failed: {ex.Message}");
             if (options.Verbose)
             {
-                Console.Error.WriteLine(ex.StackTrace);
+                AnsiConsole.WriteException(ex);
             }
         }
     }
 
     private static async Task ExecuteShowAsync(AffectOptions options)
     {
-        Console.WriteLine("=== Affective State ===\n");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Affective State"));
+        AnsiConsole.WriteLine();
 
         AffectiveState state = _valenceMonitor!.GetCurrentState();
 
         if (options.DetectStress)
         {
-            Console.WriteLine("Running FFT stress detection...\n");
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim("Running FFT stress detection..."));
+            AnsiConsole.WriteLine();
             StressDetectionResult stressResult = await _valenceMonitor.DetectStressAsync();
             PrintStressDetection(stressResult);
-            Console.WriteLine();
+            AnsiConsole.WriteLine();
         }
 
         if (options.OutputFormat.Equals("json", StringComparison.OrdinalIgnoreCase))
@@ -83,20 +88,22 @@ public static class AffectCommands
                 Queue = _priorityModulator!.GetStatistics()
             };
             string json = JsonSerializer.Serialize(output, new JsonSerializerOptions { WriteIndented = true });
-            Console.WriteLine(json);
+            AnsiConsole.WriteLine(json);
 
             if (!string.IsNullOrWhiteSpace(options.OutputPath))
             {
                 await File.WriteAllTextAsync(options.OutputPath, json);
-                Console.WriteLine($"\n✓ Saved to: {options.OutputPath}");
+                AnsiConsole.MarkupLine(OuroborosTheme.Ok($"\n✓ Saved to: {options.OutputPath}"));
             }
         }
         else if (options.OutputFormat.Equals("table", StringComparison.OrdinalIgnoreCase))
         {
             PrintStateTable(state);
-            Console.WriteLine("\n--- Homeostasis Policy ---");
+            AnsiConsole.WriteLine();
+            AnsiConsole.Write(OuroborosTheme.ThemedRule("Homeostasis Policy"));
             PrintPolicyHealth(_homeostasisPolicy!.GetHealthSummary());
-            Console.WriteLine("\n--- Priority Queue ---");
+            AnsiConsole.WriteLine();
+            AnsiConsole.Write(OuroborosTheme.ThemedRule("Priority Queue"));
             PrintQueueStats(_priorityModulator!.GetStatistics());
         }
         else // summary
@@ -107,39 +114,46 @@ public static class AffectCommands
 
     private static Task ExecutePolicyAsync(AffectOptions options)
     {
-        Console.WriteLine("=== Homeostasis Policies ===\n");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Homeostasis Policies"));
+        AnsiConsole.WriteLine();
 
         List<HomeostasisRule> rules = _homeostasisPolicy!.GetRules(activeOnly: false);
 
         if (options.OutputFormat.Equals("json", StringComparison.OrdinalIgnoreCase))
         {
             string json = JsonSerializer.Serialize(rules, new JsonSerializerOptions { WriteIndented = true });
-            Console.WriteLine(json);
+            AnsiConsole.WriteLine(json);
         }
         else
         {
-            Console.WriteLine($"Total Rules: {rules.Count}\n");
+            var table = OuroborosTheme.ThemedTable("Status", "Priority", "Name", "Signal", "Bounds", "Target", "Action");
+
             foreach (HomeostasisRule rule in rules)
             {
-                string status = rule.IsActive ? "✓" : "✗";
-                Console.WriteLine($"{status} [{rule.Priority:F1}] {rule.Name}");
-                Console.WriteLine($"   Signal: {rule.TargetSignal}");
-                Console.WriteLine($"   Bounds: [{rule.LowerBound:F2}, {rule.UpperBound:F2}]");
-                Console.WriteLine($"   Target: {rule.TargetValue:F2}");
-                Console.WriteLine($"   Action: {rule.Action}");
-                Console.WriteLine();
+                string status = rule.IsActive ? "[green]✓[/]" : "[grey]✗[/]";
+                table.AddRow(
+                    status,
+                    $"{rule.Priority:F1}",
+                    Markup.Escape(rule.Name),
+                    Markup.Escape(rule.TargetSignal.ToString()),
+                    $"[{rule.LowerBound:F2}, {rule.UpperBound:F2}]",
+                    $"{rule.TargetValue:F2}",
+                    Markup.Escape(rule.Action.ToString()));
             }
+
+            AnsiConsole.Write(table);
         }
 
         // Show recent violations
         List<PolicyViolation> violations = _homeostasisPolicy.GetViolationHistory(5);
         if (violations.Any())
         {
-            Console.WriteLine("--- Recent Violations ---");
+            AnsiConsole.WriteLine();
+            AnsiConsole.Write(OuroborosTheme.ThemedRule("Recent Violations"));
             foreach (PolicyViolation violation in violations)
             {
-                Console.WriteLine($"  [{violation.Severity:P0}] {violation.RuleName}: {violation.ViolationType}");
-                Console.WriteLine($"      Value: {violation.ObservedValue:F3} (bounds: [{violation.LowerBound:F2}, {violation.UpperBound:F2}])");
+                AnsiConsole.MarkupLine($"  [yellow][[{violation.Severity:P0}]][/] {Markup.Escape(violation.RuleName)}: {Markup.Escape(violation.ViolationType.ToString())}");
+                AnsiConsole.MarkupLine($"    {OuroborosTheme.Dim($"Value: {violation.ObservedValue:F3} (bounds: [{violation.LowerBound:F2}, {violation.UpperBound:F2}])")}");
             }
         }
 
@@ -161,14 +175,16 @@ public static class AffectCommands
         if (rule == null)
         {
             PrintError($"Rule not found: {options.RuleName}");
-            Console.WriteLine("Available rules: " + string.Join(", ", rules.Select(r => r.Name)));
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim("Available rules: " + string.Join(", ", rules.Select(r => r.Name)))}");
             return Task.CompletedTask;
         }
 
-        Console.WriteLine($"=== Tuning Rule: {rule.Name} ===\n");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule($"Tuning Rule: {rule.Name}"));
+        AnsiConsole.WriteLine();
 
-        Console.WriteLine($"Current bounds: [{rule.LowerBound:F2}, {rule.UpperBound:F2}]");
-        Console.WriteLine($"Current target: {rule.TargetValue:F2}\n");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Current bounds:")} [{rule.LowerBound:F2}, {rule.UpperBound:F2}]");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Current target:")} {rule.TargetValue:F2}");
+        AnsiConsole.WriteLine();
 
         _homeostasisPolicy.UpdateRule(
             rule.Id,
@@ -182,9 +198,9 @@ public static class AffectCommands
 
         if (updated != null)
         {
-            Console.WriteLine($"Updated bounds: [{updated.LowerBound:F2}, {updated.UpperBound:F2}]");
-            Console.WriteLine($"Updated target: {updated.TargetValue:F2}");
-            Console.WriteLine("\n✓ Rule updated successfully");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Updated bounds:")} [{updated.LowerBound:F2}, {updated.UpperBound:F2}]");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Updated target:")} {updated.TargetValue:F2}");
+            AnsiConsole.MarkupLine(OuroborosTheme.Ok("\n✓ Rule updated successfully"));
         }
 
         return Task.CompletedTask;
@@ -207,35 +223,36 @@ public static class AffectCommands
         if (!Enum.TryParse<SignalType>(options.SignalType, true, out SignalType signalType))
         {
             PrintError($"Invalid signal type: {options.SignalType}");
-            Console.WriteLine("Valid types: stress, confidence, curiosity, valence, arousal");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim("Valid types: stress, confidence, curiosity, valence, arousal")}");
             return Task.CompletedTask;
         }
 
-        Console.WriteLine($"=== Recording Signal ===\n");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Recording Signal"));
+        AnsiConsole.WriteLine();
 
         AffectiveState before = _valenceMonitor!.GetCurrentState();
         _valenceMonitor.RecordSignal("cli", options.SignalValue.Value, signalType);
         AffectiveState after = _valenceMonitor.GetCurrentState();
 
-        Console.WriteLine($"Signal: {signalType} = {options.SignalValue.Value:F3}");
-        Console.WriteLine($"\nBefore:");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.GoldText("Signal:")} {signalType} = {options.SignalValue.Value:F3}");
+        AnsiConsole.MarkupLine($"\n  {OuroborosTheme.Accent("Before:")}");
         PrintStateCompact(before);
-        Console.WriteLine($"\nAfter:");
+        AnsiConsole.MarkupLine($"\n  {OuroborosTheme.Accent("After:")}");
         PrintStateCompact(after);
 
         // Check for policy violations
         List<PolicyViolation> violations = _homeostasisPolicy!.EvaluatePolicies(after);
         if (violations.Any())
         {
-            Console.WriteLine($"\n⚠️ Policy Violations Detected: {violations.Count}");
+            AnsiConsole.MarkupLine($"\n  [yellow]⚠ Policy Violations Detected: {violations.Count}[/]");
             foreach (PolicyViolation violation in violations)
             {
-                Console.WriteLine($"   [{violation.Severity:P0}] {violation.RuleName}: {violation.ViolationType}");
+                AnsiConsole.MarkupLine($"    [yellow][[{violation.Severity:P0}]][/] {Markup.Escape(violation.RuleName)}: {Markup.Escape(violation.ViolationType.ToString())}");
             }
         }
         else
         {
-            Console.WriteLine("\n✓ All policies within bounds");
+            AnsiConsole.MarkupLine(OuroborosTheme.Ok("\n  ✓ All policies within bounds"));
         }
 
         return Task.CompletedTask;
@@ -243,29 +260,31 @@ public static class AffectCommands
 
     private static Task ExecuteResetAsync(AffectOptions options)
     {
-        Console.WriteLine("=== Resetting Affective State ===\n");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Resetting Affective State"));
+        AnsiConsole.WriteLine();
 
         AffectiveState before = _valenceMonitor!.GetCurrentState();
-        Console.WriteLine("Before reset:");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Before reset:")}");
         PrintStateCompact(before);
 
         _valenceMonitor.Reset();
 
         AffectiveState after = _valenceMonitor.GetCurrentState();
-        Console.WriteLine("\nAfter reset:");
+        AnsiConsole.MarkupLine($"\n  {OuroborosTheme.Accent("After reset:")}");
         PrintStateCompact(after);
 
-        Console.WriteLine("\n✓ Affective state reset to baseline");
+        AnsiConsole.MarkupLine(OuroborosTheme.Ok("\n  ✓ Affective state reset to baseline"));
 
         return Task.CompletedTask;
     }
 
     private static void PrintStateTable(AffectiveState state)
     {
-        Console.WriteLine($"State ID: {state.Id}");
-        Console.WriteLine($"Timestamp: {state.Timestamp:yyyy-MM-dd HH:mm:ss} UTC\n");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("State ID:")} {state.Id}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Timestamp:")} {state.Timestamp:yyyy-MM-dd HH:mm:ss} UTC");
+        AnsiConsole.WriteLine();
 
-        Console.WriteLine("Affective Dimensions:");
+        AnsiConsole.MarkupLine(OuroborosTheme.Accent("  Affective Dimensions:"));
         PrintDimensionBar("Valence", state.Valence, -1.0, 1.0);
         PrintDimensionBar("Stress", state.Stress, 0.0, 1.0);
         PrintDimensionBar("Confidence", state.Confidence, 0.0, 1.0);
@@ -281,12 +300,12 @@ public static class AffectCommands
         filled = Math.Clamp(filled, 0, barWidth);
 
         string bar = new string('█', filled) + new string('░', barWidth - filled);
-        Console.WriteLine($"  {name,-12}: [{bar}] {value:F3}");
+        AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent($"{name,-12}")} [[{Markup.Escape(bar)}]] {value:F3}");
     }
 
     private static void PrintStateCompact(AffectiveState state)
     {
-        Console.WriteLine($"  Valence: {state.Valence:F3} | Stress: {state.Stress:F3} | Confidence: {state.Confidence:F3} | Curiosity: {state.Curiosity:F3} | Arousal: {state.Arousal:F3}");
+        AnsiConsole.MarkupLine($"    Valence: {state.Valence:F3} | Stress: {state.Stress:F3} | Confidence: {state.Confidence:F3} | Curiosity: {state.Curiosity:F3} | Arousal: {state.Arousal:F3}");
     }
 
     private static void PrintStateSummary(AffectiveState state)
@@ -307,34 +326,40 @@ public static class AffectCommands
             _ => "low stress"
         };
 
-        Console.WriteLine($"Agent affect is {mood} with {stressLevel}.");
-        Console.WriteLine($"Confidence: {state.Confidence:P0}, Curiosity: {state.Curiosity:P0}");
+        var face = IaretCliAvatar.Inline(state.Valence > 0.2
+            ? IaretCliAvatar.Expression.Happy
+            : state.Stress > 0.7
+                ? IaretCliAvatar.Expression.Concerned
+                : IaretCliAvatar.Expression.Idle);
+
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.GoldText(face)} Agent affect is {Markup.Escape(mood)} with {Markup.Escape(stressLevel)}.");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Confidence:")} {state.Confidence:P0}, {OuroborosTheme.Accent("Curiosity:")} {state.Curiosity:P0}");
     }
 
     private static void PrintPolicyHealth(PolicyHealthSummary health)
     {
-        Console.WriteLine($"  Rules: {health.ActiveRules}/{health.TotalRules} active");
-        Console.WriteLine($"  Violations (24h): {health.RecentViolations}");
-        Console.WriteLine($"  Corrections: {health.SuccessfulCorrections}/{health.TotalCorrections} successful ({health.CorrectionSuccessRate:P0})");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Rules:")} {health.ActiveRules}/{health.TotalRules} active");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Violations (24h):")} {health.RecentViolations}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Corrections:")} {health.SuccessfulCorrections}/{health.TotalCorrections} successful ({health.CorrectionSuccessRate:P0})");
     }
 
     private static void PrintQueueStats(QueueStatistics stats)
     {
-        Console.WriteLine($"  Tasks: {stats.PendingTasks} pending, {stats.InProgressTasks} in progress");
-        Console.WriteLine($"  Completed: {stats.CompletedTasks}, Failed: {stats.FailedTasks}");
-        Console.WriteLine($"  Avg Priority: {stats.AverageModulatedPriority:F2}");
-        Console.WriteLine($"  Max Threat: {stats.HighestThreat:F2}, Max Opportunity: {stats.HighestOpportunity:F2}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Tasks:")} {stats.PendingTasks} pending, {stats.InProgressTasks} in progress");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Completed:")} {stats.CompletedTasks}, Failed: {stats.FailedTasks}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Avg Priority:")} {stats.AverageModulatedPriority:F2}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Max Threat:")} {stats.HighestThreat:F2}, Max Opportunity: {stats.HighestOpportunity:F2}");
     }
 
     private static void PrintStressDetection(StressDetectionResult result)
     {
-        Console.WriteLine("FFT Stress Analysis:");
-        Console.WriteLine($"  Stress Level: {result.StressLevel:F3}");
-        Console.WriteLine($"  Dominant Frequency: {result.Frequency:F4} Hz");
-        Console.WriteLine($"  Amplitude: {result.Amplitude:F4}");
-        Console.WriteLine($"  Anomalous: {(result.IsAnomalous ? "⚠️ YES" : "✓ No")}");
-        Console.WriteLine($"  Spectral Peaks: {result.SpectralPeaks.Count}");
-        Console.WriteLine($"  Analysis: {result.Analysis}");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("FFT Stress Analysis"));
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Stress Level:")} {result.StressLevel:F3}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Dominant Frequency:")} {result.Frequency:F4} Hz");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Amplitude:")} {result.Amplitude:F4}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Anomalous:")} {(result.IsAnomalous ? "[yellow]⚠ YES[/]" : OuroborosTheme.Ok("✓ No"))}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Spectral Peaks:")} {result.SpectralPeaks.Count}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Analysis:")} {Markup.Escape(result.Analysis)}");
     }
 
     private static void InitializeDefaults()
@@ -352,8 +377,7 @@ public static class AffectCommands
 
     private static void PrintError(string message)
     {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.Error.WriteLine($"Error: {message}");
-        Console.ResetColor();
+        var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+        AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} ✗ {Markup.Escape(message)}[/]");
     }
 }

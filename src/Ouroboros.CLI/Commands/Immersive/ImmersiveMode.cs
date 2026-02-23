@@ -11,6 +11,8 @@ using LangChain.Providers.Ollama;
 using Ouroboros.Abstractions.Agent;  // For interfaces: ISkillRegistry, IMemoryStore, ISafetyGuard, IUncertaintyRouter
 using Ouroboros.Agent;
 using Ouroboros.Agent.MetaAI;  // For concrete implementations and other types
+using Ouroboros.CLI.Avatar;
+using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Domain;
 using Ouroboros.Network;
 using Ouroboros.Options;
@@ -32,6 +34,7 @@ using Ouroboros.Abstractions;
 using Ouroboros.Abstractions.Monads;
 using Ouroboros.Core.Configuration;
 using Qdrant.Client;
+using Spectre.Console;
 using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 
 /// <summary>
@@ -230,9 +233,7 @@ public sealed partial class ImmersiveMode
     /// </summary>
     public void ShowRoomInterjection(string personaName, string speech)
     {
-        Console.ForegroundColor = ConsoleColor.DarkGreen;
-        Console.WriteLine($"\n  [room] {personaName}: {speech}");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine($"\n  [darkgreen]\\[room] {Markup.Escape(personaName)}: {Markup.Escape(speech)}[/]");
     }
 
     /// <summary>
@@ -241,9 +242,7 @@ public sealed partial class ImmersiveMode
     /// </summary>
     public void ShowRoomAddress(string speaker, string utterance)
     {
-        Console.ForegroundColor = ConsoleColor.DarkCyan;
-        Console.WriteLine($"\n  [room→Iaret] {speaker}: {utterance}");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine($"\n  [darkcyan]\\[room→Iaret] {Markup.Escape(speaker)}: {Markup.Escape(utterance)}[/]");
     }
 
     // DI service provider for resolving cross-cutting services (Qdrant, etc.)
@@ -561,7 +560,7 @@ User: goodbye
         catch (Exception ex)
         {
             // Don't fail the interaction just because learning persistence failed
-            Console.Error.WriteLine($"[WARN] Failed to record learnings: {ex.Message}");
+            AnsiConsole.MarkupLine($"  [yellow]\\[WARN] Failed to record learnings: {Markup.Escape(ex.Message)}[/]");
         }
     }
 
@@ -604,10 +603,8 @@ User: goodbye
 
                 _pendingToolRequest = (topic, description);
 
-                Console.ForegroundColor = ConsoleColor.DarkMagenta;
-                Console.WriteLine($"  [context] Tool creation detected: {topic}");
-                Console.WriteLine($"            Say 'yes', 'ok', or 'create it' to proceed.");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine($"  [rgb(128,0,180)]\\[context] Tool creation detected: {Markup.Escape(topic)}[/]");
+                AnsiConsole.MarkupLine($"  [rgb(128,0,180)]          Say 'yes', 'ok', or 'create it' to proceed.[/]");
                 return;
             }
         }
@@ -621,10 +618,8 @@ User: goodbye
             var topic = ExtractTopicFromDescription(userInput);
             _pendingToolRequest = (topic, userInput);
 
-            Console.ForegroundColor = ConsoleColor.DarkMagenta;
-            Console.WriteLine($"  [context] Offering to create tool: {topic}");
-            Console.WriteLine($"            Say 'yes', 'ok', or 'create it' to proceed.");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"  [rgb(128,0,180)]\\[context] Offering to create tool: {Markup.Escape(topic)}[/]");
+            AnsiConsole.MarkupLine($"  [rgb(128,0,180)]          Say 'yes', 'ok', or 'create it' to proceed.[/]");
         }
     }
 
@@ -661,10 +656,8 @@ User: goodbye
 
         var selfDescription = persona.DescribeSelf();
 
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine($"\n  {personaName} (introspecting):");
-        Console.WriteLine($"  {selfDescription.Replace("\n", "\n  ")}");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine($"\n  [cyan]{Markup.Escape(personaName)} (introspecting):[/]");
+        AnsiConsole.MarkupLine($"  [cyan]{Markup.Escape(selfDescription.Replace("\n", "\n  "))}[/]");
 
         PrintConsciousnessState(persona);
 
@@ -682,12 +675,11 @@ User: goodbye
     /// </summary>
     private async Task ShowBriefStateAsync(string personaName)
     {
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine($"\n  +-- Internal Systems Summary -------------------------------------------+");
+        AnsiConsole.MarkupLine($"\n  [grey]+-- Internal Systems Summary -------------------------------------------+[/]");
 
         // Tools
         var toolCount = _dynamicTools?.All.Count() ?? 0;
-        Console.WriteLine($"  | Tools: {toolCount} registered");
+        AnsiConsole.MarkupLine($"  [grey]| {OuroborosTheme.Accent("Tools:")} {toolCount} registered[/]");
 
         // Skills
         var skillCount = 0;
@@ -696,7 +688,7 @@ User: goodbye
             var skills = await _skillRegistry.FindMatchingSkillsAsync("*");
             skillCount = skills.Count;
         }
-        Console.WriteLine($"  | Skills: {skillCount} learned");
+        AnsiConsole.MarkupLine($"  [grey]| {OuroborosTheme.Accent("Skills:")} {skillCount} learned[/]");
 
         // Index
         if (_selfIndexer != null)
@@ -704,20 +696,19 @@ User: goodbye
             try
             {
                 var stats = await _selfIndexer.GetStatsAsync();
-                Console.WriteLine($"  | Index: {stats.IndexedFiles} files, {stats.TotalVectors} vectors");
+                AnsiConsole.MarkupLine($"  [grey]| {OuroborosTheme.Accent("Index:")} {stats.IndexedFiles} files, {stats.TotalVectors} vectors[/]");
             }
             catch
             {
-                Console.WriteLine($"  | Index: unavailable");
+                AnsiConsole.MarkupLine($"  [grey]| {OuroborosTheme.Accent("Index:")} unavailable[/]");
             }
         }
         else
         {
-            Console.WriteLine($"  | Index: not initialized");
+            AnsiConsole.MarkupLine($"  [grey]| {OuroborosTheme.Accent("Index:")} not initialized[/]");
         }
 
-        Console.WriteLine($"  +------------------------------------------------------------------------+");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine($"  [grey]+------------------------------------------------------------------------+[/]");
     }
 
     /// <summary>
@@ -725,144 +716,137 @@ User: goodbye
     /// </summary>
     private async Task ShowInternalStateAsync(ImmersivePersona persona, string personaName)
     {
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine($"\n  ╔══════════════════════════════════════════════════════════════════════╗");
-        Console.WriteLine($"  ║                    OUROBOROS INTERNAL STATE REPORT                   ║");
-        Console.WriteLine($"  ╚══════════════════════════════════════════════════════════════════════╝");
-        Console.ResetColor();
+        AnsiConsole.WriteLine();
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("OUROBOROS INTERNAL STATE REPORT"));
+        AnsiConsole.WriteLine();
 
         // 1. Consciousness State
         var consciousness = persona.Consciousness;
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine($"\n  ┌── CONSCIOUSNESS ─────────────────────────────────────────────────────┐");
-        Console.WriteLine($"  │ Emotion:    {consciousness.DominantEmotion,-20} Valence: {consciousness.Valence:+0.00;-0.00}");
-        Console.WriteLine($"  │ Arousal:    {consciousness.Arousal:P0,-20} Focus: {consciousness.CurrentFocus}");
-        Console.WriteLine($"  │ Active associations: {consciousness.ActiveAssociations?.Count ?? 0}");
-        Console.WriteLine($"  │ Awareness level: {consciousness.Awareness:P0}");
-        Console.WriteLine($"  └────────────────────────────────────────────────────────────────────────┘");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine($"\n  {OuroborosTheme.GoldText("CONSCIOUSNESS")}");
+        var consciousnessTable = OuroborosTheme.ThemedTable("Property", "Value");
+        consciousnessTable.AddRow(Markup.Escape("Emotion"), Markup.Escape(consciousness.DominantEmotion));
+        consciousnessTable.AddRow(Markup.Escape("Valence"), Markup.Escape($"{consciousness.Valence:+0.00;-0.00}"));
+        consciousnessTable.AddRow(Markup.Escape("Arousal"), Markup.Escape($"{consciousness.Arousal:P0}"));
+        consciousnessTable.AddRow(Markup.Escape("Focus"), Markup.Escape(consciousness.CurrentFocus));
+        consciousnessTable.AddRow(Markup.Escape("Active associations"), Markup.Escape($"{consciousness.ActiveAssociations?.Count ?? 0}"));
+        consciousnessTable.AddRow(Markup.Escape("Awareness level"), Markup.Escape($"{consciousness.Awareness:P0}"));
+        AnsiConsole.Write(consciousnessTable);
 
         // 2. Memory State
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"\n  ┌── MEMORY ────────────────────────────────────────────────────────────┐");
-        Console.WriteLine($"  │ Interactions this session: {persona.InteractionCount}");
-        Console.WriteLine($"  │ Uptime: {persona.Uptime.TotalMinutes:F1} minutes");
+        AnsiConsole.MarkupLine($"\n  {OuroborosTheme.GoldText("MEMORY")}");
+        var memoryTable = OuroborosTheme.ThemedTable("Property", "Value");
+        memoryTable.AddRow(Markup.Escape("Interactions this session"), Markup.Escape($"{persona.InteractionCount}"));
+        memoryTable.AddRow(Markup.Escape("Uptime"), Markup.Escape($"{persona.Uptime.TotalMinutes:F1} minutes"));
         if (_pipelineState?.VectorStore != null)
         {
-            Console.WriteLine($"  │ Vector store: active");
+            memoryTable.AddRow(Markup.Escape("Vector store"), Markup.Escape("active"));
         }
-        Console.WriteLine($"  └────────────────────────────────────────────────────────────────────────┘");
-        Console.ResetColor();
+        AnsiConsole.Write(memoryTable);
 
         // 3. Tools State
-        Console.ForegroundColor = ConsoleColor.Blue;
-        Console.WriteLine($"\n  ┌── TOOLS ─────────────────────────────────────────────────────────────┐");
+        AnsiConsole.MarkupLine($"\n  {OuroborosTheme.GoldText("TOOLS")}");
         var tools = _dynamicTools?.All.ToList() ?? new List<Ouroboros.Tools.ITool>();
-        Console.WriteLine($"  │ Registered tools: {tools.Count}");
+        var toolsTable = OuroborosTheme.ThemedTable("Tool", "Status");
+        toolsTable.AddRow(Markup.Escape("Registered tools"), Markup.Escape($"{tools.Count}"));
         foreach (var tool in tools.Take(10))
         {
-            Console.WriteLine($"  │   • {tool.Name}");
+            toolsTable.AddRow($"  {Markup.Escape(tool.Name)}", "");
         }
         if (tools.Count > 10)
         {
-            Console.WriteLine($"  │   ... and {tools.Count - 10} more");
+            toolsTable.AddRow(Markup.Escape($"... and {tools.Count - 10} more"), "");
         }
-        Console.WriteLine($"  └────────────────────────────────────────────────────────────────────────┘");
-        Console.ResetColor();
+        AnsiConsole.Write(toolsTable);
 
         // 4. Skills State
-        Console.ForegroundColor = ConsoleColor.Magenta;
-        Console.WriteLine($"\n  ┌── SKILLS ────────────────────────────────────────────────────────────┐");
+        AnsiConsole.MarkupLine($"\n  {OuroborosTheme.GoldText("SKILLS")}");
+        var skillsTable = OuroborosTheme.ThemedTable("Skill", "Details");
         if (_skillRegistry != null)
         {
             var skills = await _skillRegistry.FindMatchingSkillsAsync("*");
-            Console.WriteLine($"  │ Learned skills: {skills.Count}");
+            skillsTable.AddRow(Markup.Escape("Learned skills"), Markup.Escape($"{skills.Count}"));
             foreach (var skill in skills.Take(10))
             {
-                Console.WriteLine($"  │   • {skill.Name}: {skill.Description?.Substring(0, Math.Min(40, skill.Description?.Length ?? 0))}...");
+                skillsTable.AddRow($"  {Markup.Escape(skill.Name)}", Markup.Escape($"{skill.Description?.Substring(0, Math.Min(40, skill.Description?.Length ?? 0))}..."));
             }
             if (skills.Count > 10)
             {
-                Console.WriteLine($"  │   ... and {skills.Count - 10} more");
+                skillsTable.AddRow(Markup.Escape($"... and {skills.Count - 10} more"), "");
             }
         }
         else
         {
-            Console.WriteLine($"  │ Skill registry: not initialized");
+            skillsTable.AddRow(Markup.Escape("Skill registry"), Markup.Escape("not initialized"));
         }
-        Console.WriteLine($"  └────────────────────────────────────────────────────────────────────────┘");
-        Console.ResetColor();
+        AnsiConsole.Write(skillsTable);
 
         // 5. Index State
-        Console.ForegroundColor = ConsoleColor.DarkYellow;
-        Console.WriteLine($"\n  ┌── KNOWLEDGE INDEX ───────────────────────────────────────────────────┐");
+        AnsiConsole.MarkupLine($"\n  {OuroborosTheme.GoldText("KNOWLEDGE INDEX")}");
+        var indexTable = OuroborosTheme.ThemedTable("Property", "Value");
         if (_selfIndexer != null)
         {
             try
             {
                 var stats = await _selfIndexer.GetStatsAsync();
-                Console.WriteLine($"  │ Collection: {stats.CollectionName}");
-                Console.WriteLine($"  │ Indexed files: {stats.IndexedFiles}");
-                Console.WriteLine($"  │ Total vectors: {stats.TotalVectors}");
-                Console.WriteLine($"  │ Vector dimensions: {stats.VectorSize}");
-                Console.WriteLine($"  │ File watcher: active");
+                indexTable.AddRow(Markup.Escape("Collection"), Markup.Escape(stats.CollectionName));
+                indexTable.AddRow(Markup.Escape("Indexed files"), Markup.Escape($"{stats.IndexedFiles}"));
+                indexTable.AddRow(Markup.Escape("Total vectors"), Markup.Escape($"{stats.TotalVectors}"));
+                indexTable.AddRow(Markup.Escape("Vector dimensions"), Markup.Escape($"{stats.VectorSize}"));
+                indexTable.AddRow(Markup.Escape("File watcher"), Markup.Escape("active"));
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"  │ Index status: error - {ex.Message}");
+                indexTable.AddRow(Markup.Escape("Index status"), Markup.Escape($"error - {ex.Message}"));
             }
         }
         else
         {
-            Console.WriteLine($"  │ Self-indexer: not initialized");
+            indexTable.AddRow(Markup.Escape("Self-indexer"), Markup.Escape("not initialized"));
         }
-        Console.WriteLine($"  └────────────────────────────────────────────────────────────────────────┘");
-        Console.ResetColor();
+        AnsiConsole.Write(indexTable);
 
         // 6. Learning State
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine($"\n  ┌── LEARNING SYSTEMS ──────────────────────────────────────────────────┐");
+        AnsiConsole.MarkupLine($"\n  {OuroborosTheme.GoldText("LEARNING SYSTEMS")}");
+        var learningTable = OuroborosTheme.ThemedTable("Property", "Value");
         if (_toolLearner != null)
         {
             var learnerStats = _toolLearner.GetStats();
-            Console.WriteLine($"  │ Tool patterns: {learnerStats.TotalPatterns}");
-            Console.WriteLine($"  │ Avg success rate: {learnerStats.AvgSuccessRate:P0}");
-            Console.WriteLine($"  │ Total usage: {learnerStats.TotalUsage}");
+            learningTable.AddRow(Markup.Escape("Tool patterns"), Markup.Escape($"{learnerStats.TotalPatterns}"));
+            learningTable.AddRow(Markup.Escape("Avg success rate"), Markup.Escape($"{learnerStats.AvgSuccessRate:P0}"));
+            learningTable.AddRow(Markup.Escape("Total usage"), Markup.Escape($"{learnerStats.TotalUsage}"));
         }
         else
         {
-            Console.WriteLine($"  │ Tool learner: not initialized");
+            learningTable.AddRow(Markup.Escape("Tool learner"), Markup.Escape("not initialized"));
         }
         if (_interconnectedLearner != null)
         {
-            Console.WriteLine($"  │ Interconnected learner: active");
+            learningTable.AddRow(Markup.Escape("Interconnected learner"), Markup.Escape("active"));
         }
         if (_pipelineState?.MeTTaEngine != null)
         {
-            Console.WriteLine($"  │ MeTTa reasoning engine: active");
+            learningTable.AddRow(Markup.Escape("MeTTa reasoning engine"), Markup.Escape("active"));
         }
-        Console.WriteLine($"  └────────────────────────────────────────────────────────────────────────┘");
-        Console.ResetColor();
+        AnsiConsole.Write(learningTable);
 
         // 7. Pipeline State
-        Console.ForegroundColor = ConsoleColor.White;
-        Console.WriteLine($"\n  ┌── PIPELINE ENGINE ───────────────────────────────────────────────────┐");
+        AnsiConsole.MarkupLine($"\n  {OuroborosTheme.GoldText("PIPELINE ENGINE")}");
+        var pipelineTable = OuroborosTheme.ThemedTable("Property", "Value");
         if (_pipelineState != null)
         {
-            Console.WriteLine($"  │ Pipeline: initialized");
-            Console.WriteLine($"  │ Current topic: {(string.IsNullOrEmpty(_pipelineState.Topic) ? "(none)" : _pipelineState.Topic)}");
-            Console.WriteLine($"  │ Last query: {(string.IsNullOrEmpty(_pipelineState.Query) ? "(none)" : _pipelineState.Query.Substring(0, Math.Min(40, _pipelineState.Query.Length)))}...");
+            pipelineTable.AddRow(Markup.Escape("Pipeline"), Markup.Escape("initialized"));
+            pipelineTable.AddRow(Markup.Escape("Current topic"), Markup.Escape(string.IsNullOrEmpty(_pipelineState.Topic) ? "(none)" : _pipelineState.Topic));
+            pipelineTable.AddRow(Markup.Escape("Last query"), Markup.Escape(string.IsNullOrEmpty(_pipelineState.Query) ? "(none)" : _pipelineState.Query.Substring(0, Math.Min(40, _pipelineState.Query.Length)) + "..."));
         }
         else
         {
-            Console.WriteLine($"  │ Pipeline: not initialized");
+            pipelineTable.AddRow(Markup.Escape("Pipeline"), Markup.Escape("not initialized"));
         }
         var tokenCount = _allTokens?.Count ?? 0;
-        Console.WriteLine($"  │ Available tokens: {tokenCount}");
-        Console.WriteLine($"  └────────────────────────────────────────────────────────────────────────┘");
-        Console.ResetColor();
+        pipelineTable.AddRow(Markup.Escape("Available tokens"), Markup.Escape($"{tokenCount}"));
+        AnsiConsole.Write(pipelineTable);
 
-        Console.WriteLine();
+        AnsiConsole.WriteLine();
     }
 
     private async Task HandleReplicationAsync(
@@ -888,9 +872,7 @@ User: goodbye
 
             var message = $"I've saved a snapshot of my current state to {Path.GetFileName(snapshotPath)}. I can be restored from this later.";
 
-            Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.WriteLine($"\n  {personaName}: {message}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"\n  {OuroborosTheme.Accent(personaName + ":")} {Markup.Escape(message)}");
 
             if (tts != null) await SpeakAsync(tts, message, personaName);
         }
@@ -898,9 +880,7 @@ User: goodbye
         {
             var message = "To save my state, ask me to 'create a snapshot' or 'save yourself'. To create a new instance based on me, say 'clone yourself'.";
 
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"\n  {personaName}: {message}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"\n  {OuroborosTheme.Warn(personaName + ":")} {Markup.Escape(message)}");
 
             if (tts != null) await SpeakAsync(tts, message, personaName);
         }
@@ -918,7 +898,7 @@ User: goodbye
                 var result = await localTts.SpeakDirectAsync(text, CancellationToken.None);
                 result.Match(
                     success => { /* spoken successfully */ },
-                    error => Console.WriteLine($"  [tts: {error}]"));
+                    error => AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"[tts: {error}]")}"));
             }
             else if (tts is Ouroboros.Providers.TextToSpeech.AzureNeuralTtsService azureDirect)
             {
@@ -932,14 +912,12 @@ User: goodbye
                 var result = await tts.SpeakAsync(text, null, CancellationToken.None);
                 result.Match(
                     success => { /* spoken successfully */ },
-                    error => Console.WriteLine($"  [tts: {error}]"));
+                    error => AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"[tts: {error}]")}"));
             }
         }
         catch (Exception ex)
         {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine($"  [tts error: {ex.Message}]");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"[tts error: {ex.Message}]")}");
         }
         finally
         {
@@ -970,10 +948,10 @@ User: goodbye
         // Skip heavy initialization if subsystems already provide these
         if (HasSubsystems)
         {
-            Console.WriteLine("  [OK] Skills and tools provided by agent subsystems");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok("[OK] Skills and tools provided by agent subsystems")}");
             // Still need pipeline tokens and state for DSL commands
             _allTokens = SkillCliSteps.GetAllPipelineTokens();
-            Console.WriteLine($"  [OK] Discovered {_allTokens.Count} pipeline tokens");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok($"[OK] Discovered {_allTokens.Count} pipeline tokens")}");
             return;
         }
 
@@ -1002,18 +980,18 @@ User: goodbye
                 await qdrantRegistry.InitializeAsync();
                 _skillRegistry = qdrantRegistry;
                 var skills = _skillRegistry.GetAllSkills();
-                Console.WriteLine($"  [OK] Loaded {skills.Count()} skills from Qdrant");
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok($"[OK] Loaded {skills.Count()} skills from Qdrant")}");
             }
             else
             {
                 // Use a simple in-memory implementation
                 _skillRegistry = new SimpleInMemorySkillRegistry();
-                Console.WriteLine("  [~] Using in-memory skill storage (no embeddings)");
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim("[~] Using in-memory skill storage (no embeddings)")}");
             }
 
             // Initialize pipeline tokens
             _allTokens = SkillCliSteps.GetAllPipelineTokens();
-            Console.WriteLine($"  [OK] Discovered {_allTokens.Count} pipeline tokens");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok($"[OK] Discovered {_allTokens.Count} pipeline tokens")}");
 
             // Initialize dynamic tool factory
             var provider = new OllamaProvider(options.Endpoint);
@@ -1029,25 +1007,25 @@ User: goodbye
                 .WithTool(_dynamicToolFactory.CreateCalculatorTool())
                 .WithTool(_dynamicToolFactory.CreateGoogleSearchTool());
 
-            Console.WriteLine($"  [DEBUG] After factory tools: {_dynamicTools.Count} tools");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"[DEBUG] After factory tools: {_dynamicTools.Count} tools")}");
 
             // Register comprehensive system access tools for PC control
             var systemTools = SystemAccessTools.CreateAllTools().ToList();
-            Console.WriteLine($"  [DEBUG] SystemAccessTools.CreateAllTools returned {systemTools.Count} tools");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"[DEBUG] SystemAccessTools.CreateAllTools returned {systemTools.Count} tools")}");
             foreach (var tool in systemTools)
             {
                 _dynamicTools = _dynamicTools.WithTool(tool);
             }
-            Console.WriteLine($"  [DEBUG] After system tools: {_dynamicTools.Count} tools");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"[DEBUG] After system tools: {_dynamicTools.Count} tools")}");
 
             // Register perception tools for proactive screen/camera monitoring
             var perceptionTools = PerceptionTools.CreateAllTools().ToList();
-            Console.WriteLine($"  [DEBUG] PerceptionTools returned {perceptionTools.Count} tools");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"[DEBUG] PerceptionTools returned {perceptionTools.Count} tools")}");
             foreach (var tool in perceptionTools)
             {
                 _dynamicTools = _dynamicTools.WithTool(tool);
             }
-            Console.WriteLine($"  [DEBUG] Final tool count: {_dynamicTools.Count} tools");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"[DEBUG] Final tool count: {_dynamicTools.Count} tools")}");
 
             // Initialize vision service for AI-powered visual understanding
             var visionService = new VisionService(new VisionConfig
@@ -1056,19 +1034,21 @@ User: goodbye
                 OllamaVisionModel = "qwen3-vl:235b-cloud", // Strong vision model from swarm
             });
             PerceptionTools.VisionService = visionService;
-            Console.WriteLine("  [OK] Vision service initialized (AI-powered visual understanding)");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok("[OK] Vision service initialized (AI-powered visual understanding)")}");
 
             // Subscribe to perception events for proactive responses
             PerceptionTools.OnScreenChanged += async (msg) =>
             {
-                await Console.Out.WriteLineAsync($"\n🖥️ [Screen Change Detected] {msg}");
+                AnsiConsole.MarkupLine($"\n  {OuroborosTheme.Accent($"[Screen Change Detected] {msg}")}");
+                await Task.CompletedTask;
             };
             PerceptionTools.OnUserActivity += async (msg) =>
             {
-                await Console.Out.WriteLineAsync($"\n👤 [User Activity] {msg}");
+                AnsiConsole.MarkupLine($"\n  {OuroborosTheme.Dim($"[User Activity] {msg}")}");
+                await Task.CompletedTask;
             };
 
-            Console.WriteLine($"  [OK] Dynamic Tool Factory ready (4 built-in + {systemTools.Count} system + {perceptionTools.Count} perception tools)");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok($"[OK] Dynamic Tool Factory ready (4 built-in + {systemTools.Count} system + {perceptionTools.Count} perception tools)")}");
 
             // Initialize pipeline execution state
             var vectorStore = new TrackedVectorStore();
@@ -1084,7 +1064,7 @@ User: goodbye
                 VectorStore = vectorStore,
                 MeTTaEngine = mettaEngine,
             };
-            Console.WriteLine("  [OK] Pipeline execution engine ready");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok("[OK] Pipeline execution engine ready")}");
 
             // Initialize intelligent tool learner
             if (embeddingModel != null)
@@ -1112,7 +1092,7 @@ User: goodbye
                 }
                 await _toolLearner.InitializeAsync();
                 var stats = _toolLearner.GetStats();
-                Console.WriteLine($"  [OK] Intelligent Tool Learner ready ({stats.TotalPatterns} patterns)");
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok($"[OK] Intelligent Tool Learner ready ({stats.TotalPatterns} patterns)")}");
 
                 // Initialize interconnected learner for tool-skill bridging
                 _interconnectedLearner = new InterconnectedLearner(
@@ -1121,7 +1101,7 @@ User: goodbye
                     mettaEngine,
                     embeddingModel,
                     toolAwareLlm);
-                Console.WriteLine("  [OK] Interconnected skill-tool learning ready");
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok("[OK] Interconnected skill-tool learning ready")}");
 
                 // Initialize Qdrant self-indexer for workspace content
                 var siClient = _serviceProvider?.GetService<QdrantClient>();
@@ -1146,19 +1126,20 @@ User: goodbye
                     _selfIndexer = new QdrantSelfIndexer(embeddingModel, indexerConfig);
                 }
                 _selfIndexer.OnFileIndexed += (file, chunks) =>
-                    Console.WriteLine($"  [Index] {Path.GetFileName(file)} ({chunks} chunks)");
+                    AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"[Index] {Path.GetFileName(file)} ({chunks} chunks)")}");
                 await _selfIndexer.InitializeAsync();
 
                 // Wire up the shared indexer for system access tools
                 SystemAccessTools.SharedIndexer = _selfIndexer;
 
                 var indexStats = await _selfIndexer.GetStatsAsync();
-                Console.WriteLine($"  [OK] Self-indexer ready ({indexStats.IndexedFiles} files, {indexStats.TotalVectors} vectors)");
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok($"[OK] Self-indexer ready ({indexStats.IndexedFiles} files, {indexStats.TotalVectors} vectors)")}");
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  [!] Skills initialization error: {ex.Message}");
+            var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+            AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} [!] Skills initialization error: {Markup.Escape(ex.Message)}[/]");
             _skillRegistry = new SimpleInMemorySkillRegistry();
         }
     }
@@ -1554,9 +1535,7 @@ User: goodbye
             {
                 var arg = match.Groups[argGroup].Value.Trim();
                 var command = $"{token} '{arg}'";
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine($"  [~] Interpreted as: {command}");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"[~] Interpreted as: {command}")}");
                 return await TryExecuteSingleTokenAsync(command, personaName, ct);
             }
         }
@@ -1573,16 +1552,15 @@ User: goodbye
         if (skills.Count == 0)
             return "I haven't learned any skills yet. Say 'learn about' something to teach me.";
 
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine($"\n  +-- My Skills ({skills.Count}) --+");
+        AnsiConsole.WriteLine();
+        var skillsTable = OuroborosTheme.ThemedTable("Skill", "Success Rate");
         foreach (var skill in skills.Take(10))
         {
-            Console.WriteLine($"  | {skill.Name,-30} | {skill.SuccessRate:P0} |");
+            skillsTable.AddRow(Markup.Escape(skill.Name), Markup.Escape($"{skill.SuccessRate:P0}"));
         }
         if (skills.Count > 10)
-            Console.WriteLine($"  | ... and {skills.Count - 10} more |");
-        Console.WriteLine("  +--------------------------------+");
-        Console.ResetColor();
+            skillsTable.AddRow(Markup.Escape($"... and {skills.Count - 10} more"), "");
+        AnsiConsole.Write(OuroborosTheme.ThemedPanel(skillsTable, $"My Skills ({skills.Count})"));
 
         return $"I know {skills.Count} skills. The top ones are: {string.Join(", ", skills.Take(5).Select(s => s.Name))}.";
     }
@@ -1618,9 +1596,7 @@ User: goodbye
             }
         }
 
-        Console.ForegroundColor = ConsoleColor.DarkYellow;
-        Console.WriteLine($"\n  [Executing tool: {toolName}...]");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine($"\n  {OuroborosTheme.GoldText($"[Executing tool: {toolName}...]")}");
 
         try
         {
@@ -1684,7 +1660,7 @@ User: goodbye
 
         sb.AppendLine("\n  **Usage:** `tool <name> {\"param\": \"value\"}`");
 
-        Console.WriteLine(sb.ToString());
+        AnsiConsole.MarkupLine(Markup.Escape(sb.ToString()));
         return $"I have {tools.Count} tools available. Key ones: {string.Join(", ", selfTools.Select(t => t.Name))}";
     }
 
@@ -1706,7 +1682,7 @@ User: goodbye
         sb.AppendLine("  6️⃣ **View/revert changes:**");
         sb.AppendLine("     `modification history` or `tool revert_modification {\"backup\": \"filename.backup\"}`");
 
-        Console.WriteLine(sb.ToString());
+        AnsiConsole.MarkupLine(Markup.Escape(sb.ToString()));
         return "Yes, I can modify myself! Use the commands above. Changes create automatic backups.";
     }
 
@@ -1743,23 +1719,22 @@ User: goodbye
         if (_allTokens == null || _allTokens.Count == 0)
             return "No pipeline tokens available.";
 
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine($"\n  +-- Pipeline Tokens ({_allTokens.Count}) --+");
+        AnsiConsole.WriteLine();
+        var tokenTable = OuroborosTheme.ThemedTable("Token", "Description");
         foreach (var (name, info) in _allTokens.Take(15))
         {
             var desc = info.Description.Length > 40 ? info.Description[..40] : info.Description;
-            Console.WriteLine($"  | {name,-25} | {desc,-40} |");
+            tokenTable.AddRow(Markup.Escape(name), Markup.Escape(desc));
         }
         if (_allTokens.Count > 15)
-            Console.WriteLine($"  | ... and {_allTokens.Count - 15} more tokens |");
-        Console.WriteLine("  +----------------------------------+");
-        Console.WriteLine();
-        Console.WriteLine("  Examples:");
-        Console.WriteLine("    ArxivSearch 'neural networks'           - Search papers");
-        Console.WriteLine("    WikiSearch 'quantum computing'          - Search Wikipedia");
-        Console.WriteLine("    ArxivSearch 'AI' | Summarize            - Chain with pipe");
-        Console.WriteLine("    Fetch 'https://example.com'             - Fetch web content");
-        Console.ResetColor();
+            tokenTable.AddRow(Markup.Escape($"... and {_allTokens.Count - 15} more"), "");
+        AnsiConsole.Write(OuroborosTheme.ThemedPanel(tokenTable, $"Pipeline Tokens ({_allTokens.Count})"));
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Examples:")}");
+        AnsiConsole.MarkupLine($"    {OuroborosTheme.GoldText("ArxivSearch 'neural networks'")}           - Search papers");
+        AnsiConsole.MarkupLine($"    {OuroborosTheme.GoldText("WikiSearch 'quantum computing'")}          - Search Wikipedia");
+        AnsiConsole.MarkupLine($"    {OuroborosTheme.GoldText("ArxivSearch 'AI' | Summarize")}            - Chain with pipe");
+        AnsiConsole.MarkupLine($"    {OuroborosTheme.GoldText("Fetch 'https://example.com'")}             - Fetch web content");
 
         // Set context so follow-up questions get pipeline-aware responses
         _lastPipelineContext = "pipeline_tokens";
@@ -1769,36 +1744,33 @@ User: goodbye
 
     private string HandlePipelineHelp(string personaName)
     {
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine(@"
-  +-- Pipeline Usage Guide --+
+        AnsiConsole.WriteLine();
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Pipeline Usage Guide"));
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.GoldText("SINGLE COMMANDS:")}");
+        AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("ArxivSearch 'neural networks'")}     Search academic papers on arXiv");
+        AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("WikiSearch 'quantum computing'")}    Look up topics on Wikipedia");
+        AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("SemanticScholarSearch 'AI'")}        Search Semantic Scholar");
+        AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Fetch 'https://example.com'")}       Fetch content from any URL");
+        AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Generate 'topic'")}                  Generate text about a topic");
+        AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Summarize")}                         Summarize the last output");
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.GoldText("CHAINED PIPELINES (use | to chain):")}");
+        AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("ArxivSearch 'transformers' | Summarize")}");
+        AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("WikiSearch 'machine learning' | Generate 'explanation'")}");
+        AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Fetch 'url' | UseOutput")}");
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.GoldText("NATURAL LANGUAGE (I understand these too):")}");
+        AnsiConsole.MarkupLine($"    'search arxiv for neural networks'");
+        AnsiConsole.MarkupLine($"    'look up AI on wikipedia'");
+        AnsiConsole.MarkupLine($"    'find papers about transformers'");
+        AnsiConsole.MarkupLine($"    'summarize that'");
 
-  SINGLE COMMANDS:
-    ArxivSearch 'neural networks'     Search academic papers on arXiv
-    WikiSearch 'quantum computing'    Look up topics on Wikipedia
-    SemanticScholarSearch 'AI'        Search Semantic Scholar
-    Fetch 'https://example.com'       Fetch content from any URL
-    Generate 'topic'                  Generate text about a topic
-    Summarize                         Summarize the last output
-
-  CHAINED PIPELINES (use | to chain):
-    ArxivSearch 'transformers' | Summarize
-    WikiSearch 'machine learning' | Generate 'explanation'
-    Fetch 'url' | UseOutput
-
-  NATURAL LANGUAGE (I understand these too):
-    'search arxiv for neural networks'
-    'look up AI on wikipedia'
-    'find papers about transformers'
-    'summarize that'
-
-  TIPS:
-    - Use quotes around multi-word arguments
-    - Chain multiple steps with the pipe | symbol
-    - Say 'tokens' to see all available pipeline tokens
-  +---------------------------+
-");
-        Console.ResetColor();
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.GoldText("TIPS:")}");
+        AnsiConsole.MarkupLine($"    - Use quotes around multi-word arguments");
+        AnsiConsole.MarkupLine($"    - Chain multiple steps with the pipe | symbol");
+        AnsiConsole.MarkupLine($"    - Say 'tokens' to see all available pipeline tokens");
 
         _lastPipelineContext = "pipeline_help";
         return "I can execute pipeline commands! Try 'ArxivSearch neural networks' or chain them like 'WikiSearch AI | Summarize'.";
@@ -1810,13 +1782,12 @@ User: goodbye
             return "Tool learning is not available in this session.";
 
         var stats = _toolLearner.GetStats();
-        Console.ForegroundColor = ConsoleColor.Magenta;
-        Console.WriteLine($"\n  +-- Tool Learning Stats --+");
-        Console.WriteLine($"  | Total patterns: {stats.TotalPatterns,-10} |");
-        Console.WriteLine($"  | Success rate: {stats.AvgSuccessRate:P0,-10} |");
-        Console.WriteLine($"  | Total usage: {stats.TotalUsage,-10} |");
-        Console.WriteLine("  +-------------------------+");
-        Console.ResetColor();
+        AnsiConsole.WriteLine();
+        var statsTable = OuroborosTheme.ThemedTable("Metric", "Value");
+        statsTable.AddRow(Markup.Escape("Total patterns"), Markup.Escape($"{stats.TotalPatterns}"));
+        statsTable.AddRow(Markup.Escape("Success rate"), Markup.Escape($"{stats.AvgSuccessRate:P0}"));
+        statsTable.AddRow(Markup.Escape("Total usage"), Markup.Escape($"{stats.TotalUsage}"));
+        AnsiConsole.Write(OuroborosTheme.ThemedPanel(statsTable, "Tool Learning Stats"));
 
         return $"I've learned {stats.TotalPatterns} patterns with a {stats.AvgSuccessRate:P0} success rate. Total usage: {stats.TotalUsage}.";
     }
@@ -1826,21 +1797,21 @@ User: goodbye
         if (_interconnectedLearner == null)
             return "Interconnected learning is not available in this session.";
 
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine("\n  +-- Interconnected Learning --+");
+        AnsiConsole.WriteLine();
 
         // Show stats from the learner
         var stats = _interconnectedLearner.GetStats();
         int totalExecutions = stats.TotalToolExecutions + stats.TotalSkillExecutions + stats.TotalPipelineExecutions;
         double successRate = totalExecutions > 0 ? (double)stats.SuccessfulExecutions / totalExecutions : 0;
-        Console.WriteLine($"  | Patterns Learned: {stats.LearnedPatterns}");
-        Console.WriteLine($"  | Concepts Mapped: {stats.ConceptGraphNodes}");
-        Console.WriteLine($"  | Executions Recorded: {totalExecutions}");
-        Console.WriteLine($"  | Avg Success Rate: {successRate:P0}");
+        var connTable = OuroborosTheme.ThemedTable("Metric", "Value");
+        connTable.AddRow(Markup.Escape("Patterns Learned"), Markup.Escape($"{stats.LearnedPatterns}"));
+        connTable.AddRow(Markup.Escape("Concepts Mapped"), Markup.Escape($"{stats.ConceptGraphNodes}"));
+        connTable.AddRow(Markup.Escape("Executions Recorded"), Markup.Escape($"{totalExecutions}"));
+        connTable.AddRow(Markup.Escape("Avg Success Rate"), Markup.Escape($"{successRate:P0}"));
+        AnsiConsole.Write(OuroborosTheme.ThemedPanel(connTable, "Interconnected Learning"));
 
         // Show sample suggestions
-        Console.WriteLine("  |");
-        Console.WriteLine("  | Sample suggestions for common goals:");
+        AnsiConsole.MarkupLine($"\n  {OuroborosTheme.Accent("Sample suggestions for common goals:")}");
         var sampleGoals = new[] { "search", "analyze", "summarize" };
         foreach (var goal in sampleGoals)
         {
@@ -1848,12 +1819,9 @@ User: goodbye
             var actions = suggestion.MeTTaSuggestions.Concat(suggestion.RelatedConcepts).Take(3).ToList();
             if (actions.Count > 0)
             {
-                Console.WriteLine($"  |   '{goal}' -> [{string.Join(", ", actions)}]");
+                AnsiConsole.MarkupLine($"    {OuroborosTheme.GoldText(goal)} -> \\[{Markup.Escape(string.Join(", ", actions))}]");
             }
         }
-
-        Console.WriteLine("  +-------------------------------+");
-        Console.ResetColor();
 
         return stats.LearnedPatterns > 0
             ? $"I have {stats.LearnedPatterns} learned patterns across {stats.ConceptGraphNodes} concepts. Use tools and skills to build more connections!"
@@ -1865,9 +1833,7 @@ User: goodbye
         string personaName,
         CancellationToken ct)
     {
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine($"\n  [~] Searching Google for: {query}...");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine($"\n  {OuroborosTheme.Accent($"[~] Searching Google for: {query}...")}");
 
         // Find the Google search tool
         var googleTool = _dynamicTools.All
@@ -1885,9 +1851,7 @@ User: goodbye
             var result = await googleTool.InvokeAsync(query);
             stopwatch.Stop();
 
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"  [OK] Search complete");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok("[OK] Search complete")}");
 
             // Parse and display results
             var output = result.IsSuccess ? result.Value : "No results found.";
@@ -1895,7 +1859,8 @@ User: goodbye
             {
                 output = output[..500] + "...";
             }
-            Console.WriteLine($"\n  Results:\n  {output.Replace("\n", "\n  ")}");
+            AnsiConsole.MarkupLine($"\n  {OuroborosTheme.Accent("Results:")}");
+            AnsiConsole.MarkupLine($"  {Markup.Escape(output.Replace("\n", "\n  "))}");
 
             // Learn from the search (interconnected learning)
             if (_interconnectedLearner != null)
@@ -1913,9 +1878,8 @@ User: goodbye
         }
         catch (Exception ex)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"  [!] Search failed: {ex.Message}");
-            Console.ResetColor();
+            var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+            AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} \\[!] Search failed: {Markup.Escape(ex.Message)}[/]");
             return $"I couldn't complete the search. Error: {ex.Message}";
         }
     }
@@ -1935,19 +1899,17 @@ User: goodbye
         if (skill == null)
             return $"I don't know a skill called '{skillName}'. Say 'list skills' to see what I know.";
 
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine($"\n  [>] Executing skill: {skill.Name}");
+        AnsiConsole.MarkupLine($"\n  {OuroborosTheme.GoldText($"[>] Executing skill: {skill.Name}")}");
         var results = new List<string>();
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         foreach (var step in skill.ToSkill().Steps)
         {
-            Console.WriteLine($"      -> {step.Action}: {step.ExpectedOutcome}");
+            AnsiConsole.MarkupLine($"      {OuroborosTheme.Accent("->")} {Markup.Escape(step.Action)}: {Markup.Escape(step.ExpectedOutcome)}");
             results.Add($"Step: {step.Action}");
             await Task.Delay(200, ct); // Simulate step execution
         }
         stopwatch.Stop();
-        Console.WriteLine($"  [OK] Skill complete");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok("[OK] Skill complete")}");
 
         // Learn from skill execution (interconnected learning)
         if (_interconnectedLearner != null)
@@ -1969,16 +1931,14 @@ User: goodbye
         IVoiceOptions options,
         CancellationToken ct)
     {
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine($"\n  [~] Researching: {topic}...");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine($"\n  {OuroborosTheme.GoldText($"[~] Researching: {topic}...")}");
 
         // Use ArxivSearch if available
         if (_allTokens?.ContainsKey("ArxivSearch") == true)
         {
             // Simulate research
             await Task.Delay(500, ct);
-            Console.WriteLine($"  [OK] Found research on {topic}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok($"[OK] Found research on {topic}")}");
         }
 
         // Create a simple skill from the topic
@@ -2009,9 +1969,7 @@ User: goodbye
         if (_dynamicToolFactory == null)
             return "Tool creation is not available.";
 
-        Console.ForegroundColor = ConsoleColor.Magenta;
-        Console.WriteLine($"\n  [~] Creating tool: {toolName}...");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine($"\n  {OuroborosTheme.Accent($"[~] Creating tool: {toolName}...")}");
 
         try
         {
@@ -2030,30 +1988,30 @@ User: goodbye
             if (newTool != null)
             {
                 _dynamicTools = _dynamicTools.WithTool(newTool);
-                Console.WriteLine($"  [OK] Created tool: {newTool.Name}");
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok($"[OK] Created tool: {newTool.Name}")}");
                 return $"I created a new {newTool.Name} tool. It's ready to use.";
             }
 
             // Unknown tool type - use LLM to generate it
-            Console.WriteLine($"  [~] Using AI to generate custom tool...");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim("[~] Using AI to generate custom tool...")}");
             var description = $"A tool named {toolName} that performs operations related to {toolName}";
             var createResult = await _dynamicToolFactory.CreateToolAsync(toolName, description, ct);
 
             if (createResult.IsSuccess)
             {
                 _dynamicTools = _dynamicTools.WithTool(createResult.Value);
-                Console.WriteLine($"  [OK] Created custom tool: {createResult.Value.Name}");
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok($"[OK] Created custom tool: {createResult.Value.Name}")}");
                 return $"I created a custom '{createResult.Value.Name}' tool using AI. It's ready to use.";
             }
             else
             {
-                Console.WriteLine($"  [!] AI tool generation failed: {createResult.Error}");
+                AnsiConsole.MarkupLine($"  [red]\\[!] AI tool generation failed: {Markup.Escape(createResult.Error)}[/]");
                 return $"I couldn't create a '{toolName}' tool. Error: {createResult.Error}";
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  [!] Tool creation failed: {ex.Message}");
+            AnsiConsole.MarkupLine($"  [red]{Markup.Escape($"[!] Tool creation failed: {ex.Message}")}[/]");
         }
 
         return $"I had trouble creating that tool. Try being more specific about what it should do.";
@@ -2067,10 +2025,8 @@ User: goodbye
         if (_dynamicToolFactory == null)
             return "Tool creation is not available.";
 
-        Console.ForegroundColor = ConsoleColor.Magenta;
-        Console.WriteLine($"\n  [~] Creating custom tool from description...");
-        Console.WriteLine($"      Description: {description}");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine($"\n  [rgb(128,0,180)][~] Creating custom tool from description...[/]");
+        AnsiConsole.MarkupLine($"      {OuroborosTheme.Accent("Description:")} {Markup.Escape(description)}");
 
         try
         {
@@ -2087,18 +2043,18 @@ User: goodbye
             if (createResult.IsSuccess)
             {
                 _dynamicTools = _dynamicTools.WithTool(createResult.Value);
-                Console.WriteLine($"  [OK] Created tool: {createResult.Value.Name}");
+                AnsiConsole.MarkupLine(OuroborosTheme.Ok($"  [OK] Created tool: {createResult.Value.Name}"));
                 return $"Done! I created a '{createResult.Value.Name}' tool that {description}. It's ready to use.";
             }
             else
             {
-                Console.WriteLine($"  [!] Tool creation failed: {createResult.Error}");
+                AnsiConsole.MarkupLine($"  [red]{Markup.Escape($"[!] Tool creation failed: {createResult.Error}")}[/]");
                 return $"I couldn't create that tool. Error: {createResult.Error}";
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  [!] Tool creation failed: {ex.Message}");
+            AnsiConsole.MarkupLine($"  [red]{Markup.Escape($"[!] Tool creation failed: {ex.Message}")}[/]");
             return $"Tool creation failed: {ex.Message}";
         }
     }
@@ -2112,10 +2068,8 @@ User: goodbye
         if (_dynamicToolFactory == null)
             return "Tool creation is not available.";
 
-        Console.ForegroundColor = ConsoleColor.Magenta;
-        Console.WriteLine($"\n  [~] Creating tool based on our conversation...");
-        Console.WriteLine($"      Topic: {topic}");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine($"\n  [rgb(128,0,180)][~] Creating tool based on our conversation...[/]");
+        AnsiConsole.MarkupLine($"      {OuroborosTheme.Accent("Topic:")} {Markup.Escape(topic)}");
 
         try
         {
@@ -2125,18 +2079,18 @@ User: goodbye
             if (createResult.IsSuccess)
             {
                 _dynamicTools = _dynamicTools.WithTool(createResult.Value);
-                Console.WriteLine($"  [OK] Created tool: {createResult.Value.Name}");
+                AnsiConsole.MarkupLine(OuroborosTheme.Ok($"  [OK] Created tool: {createResult.Value.Name}"));
                 return $"Done! I created '{createResult.Value.Name}'. It's ready to use.";
             }
             else
             {
-                Console.WriteLine($"  [!] Tool creation failed: {createResult.Error}");
+                AnsiConsole.MarkupLine($"  [red]{Markup.Escape($"[!] Tool creation failed: {createResult.Error}")}[/]");
                 return $"I couldn't create that tool. {createResult.Error}";
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  [!] Tool creation failed: {ex.Message}");
+            AnsiConsole.MarkupLine($"  [red]{Markup.Escape($"[!] Tool creation failed: {ex.Message}")}[/]");
             return $"Tool creation failed: {ex.Message}";
         }
     }
@@ -2149,9 +2103,7 @@ User: goodbye
         if (_toolLearner == null)
             return "Intelligent tool discovery is not available.";
 
-        Console.ForegroundColor = ConsoleColor.Magenta;
-        Console.WriteLine($"\n  [~] Finding best tool for: {goal}...");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine($"\n  [rgb(128,0,180)][~] Finding best tool for: {Markup.Escape(goal)}...[/]");
 
         try
         {
@@ -2159,7 +2111,7 @@ User: goodbye
             if (result.IsSuccess)
             {
                 var (tool, wasCreated) = result.Value;
-                Console.WriteLine($"  [OK] {(wasCreated ? "Created" : "Found")} tool: {tool.Name}");
+                AnsiConsole.MarkupLine(OuroborosTheme.Ok($"  [OK] {(wasCreated ? "Created" : "Found")} tool: {tool.Name}"));
 
                 // Learn from tool usage (interconnected learning)
                 if (_interconnectedLearner != null)
@@ -2190,9 +2142,7 @@ User: goodbye
             return "Conversation memory is not initialized.";
         }
 
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine($"\n  [~] Searching memories for: {topic}...");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine($"\n  [rgb(148,103,189)][~] Searching memories for: {Markup.Escape(topic)}...[/]");
 
         try
         {
@@ -2287,15 +2237,13 @@ User: goodbye
             return "Self-indexer is not available. Qdrant may not be connected.";
         }
 
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine($"\n  [~] Starting full workspace reindex...");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine($"\n  [rgb(148,103,189)][~] Starting full workspace reindex...[/]");
 
         var progress = new Progress<IndexingProgress>(p =>
         {
             if (p.ProcessedFiles % 10 == 0 && p.ProcessedFiles > 0)
             {
-                Console.WriteLine($"      [{p.ProcessedFiles}/{p.TotalFiles}] {p.CurrentFile}");
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim($"      [{p.ProcessedFiles}/{p.TotalFiles}] {p.CurrentFile}"));
             }
         });
 
@@ -2317,15 +2265,13 @@ User: goodbye
             return "Self-indexer is not available. Qdrant may not be connected.";
         }
 
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine($"\n  [~] Starting incremental reindex (changed files only)...");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine($"\n  [rgb(148,103,189)][~] Starting incremental reindex (changed files only)...[/]");
 
         var progress = new Progress<IndexingProgress>(p =>
         {
             if (!string.IsNullOrEmpty(p.CurrentFile))
             {
-                Console.WriteLine($"      [{p.ProcessedFiles}/{p.TotalFiles}] {Path.GetFileName(p.CurrentFile)}");
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim($"      [{p.ProcessedFiles}/{p.TotalFiles}] {Path.GetFileName(p.CurrentFile)}"));
             }
         });
 
@@ -2351,9 +2297,7 @@ User: goodbye
             return "Self-indexer is not available. Qdrant may not be connected.";
         }
 
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine($"\n  [~] Searching indexed workspace for: {query}");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine($"\n  [rgb(148,103,189)][~] Searching indexed workspace for: {Markup.Escape(query)}[/]");
 
         try
         {
@@ -2410,18 +2354,16 @@ User: goodbye
         IVoiceOptions options,
         CancellationToken ct)
     {
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine($"\n  [~] Running Ouroboros emergence cycle on: {topic}...");
-        Console.WriteLine("      Phase 1: Research gathering...");
+        AnsiConsole.MarkupLine($"\n  [rgb(148,103,189)][~] Running Ouroboros emergence cycle on: {Markup.Escape(topic)}...[/]");
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim("      Phase 1: Research gathering..."));
         await Task.Delay(300, ct);
-        Console.WriteLine("      Phase 2: Pattern extraction...");
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim("      Phase 2: Pattern extraction..."));
         await Task.Delay(300, ct);
-        Console.WriteLine("      Phase 3: Synthesis...");
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim("      Phase 3: Synthesis..."));
         await Task.Delay(300, ct);
-        Console.WriteLine("      Phase 4: Emergence detection...");
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim("      Phase 4: Emergence detection..."));
         await Task.Delay(300, ct);
-        Console.WriteLine($"  [OK] Emergence cycle complete for {topic}");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine(OuroborosTheme.Ok($"  [OK] Emergence cycle complete for {topic}"));
 
         return $"I completed an emergence cycle on {topic}. I've synthesized new patterns from the research.";
     }
@@ -2435,8 +2377,7 @@ User: goodbye
         if (_allTokens == null || _pipelineState == null)
             return "Pipeline execution is not available.";
 
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine($"\n  [>] Executing pipeline: {pipeline}");
+        AnsiConsole.MarkupLine(OuroborosTheme.Warn($"\n  [>] Executing pipeline: {pipeline}"));
 
         try
         {
@@ -2450,7 +2391,7 @@ User: goodbye
                 var match = Regex.Match(stepStr, @"^(\w+)\s*(?:'([^']*)'|""([^""]*)""|(.*))?$");
                 if (!match.Success)
                 {
-                    Console.WriteLine($"      [!] Invalid step syntax: {stepStr}");
+                    AnsiConsole.MarkupLine($"      [red]{Markup.Escape($"[!] Invalid step syntax: {stepStr}")}[/]");
                     continue;
                 }
 
@@ -2462,7 +2403,7 @@ User: goodbye
                 // Find the token
                 if (_allTokens.TryGetValue(tokenName, out var tokenInfo))
                 {
-                    Console.WriteLine($"      -> {tokenName}" + (string.IsNullOrEmpty(arg) ? "" : $" '{arg}'"));
+                    AnsiConsole.MarkupLine(OuroborosTheme.Dim($"      -> {tokenName}" + (string.IsNullOrEmpty(arg) ? "" : $" '{arg}'")));
 
                     try
                     {
@@ -2488,18 +2429,18 @@ User: goodbye
                         }
                         else
                         {
-                            Console.WriteLine($"         [!] Step returned unexpected type: {stepInstance?.GetType().Name ?? "null"}");
+                            AnsiConsole.MarkupLine($"         [red]{Markup.Escape($"[!] Step returned unexpected type: {stepInstance?.GetType().Name ?? "null"}")}[/]");
                         }
                     }
                     catch (Exception ex)
                     {
                         var innerEx = ex.InnerException ?? ex;
-                        Console.WriteLine($"         [!] Step error: {innerEx.Message}");
+                        AnsiConsole.MarkupLine($"         [red]{Markup.Escape($"[!] Step error: {innerEx.Message}")}[/]");
                     }
                 }
                 else
                 {
-                    Console.WriteLine($"      [!] Unknown token: {tokenName}");
+                    AnsiConsole.MarkupLine($"      [red]{Markup.Escape($"[!] Unknown token: {tokenName}")}[/]");
                     // Try to suggest similar tokens
                     var suggestions = _allTokens.Keys
                         .Where(k => k.Contains(tokenName, StringComparison.OrdinalIgnoreCase) ||
@@ -2507,7 +2448,7 @@ User: goodbye
                         .Take(3);
                     if (suggestions.Any())
                     {
-                        Console.WriteLine($"         Did you mean: {string.Join(", ", suggestions)}?");
+                        AnsiConsole.MarkupLine(OuroborosTheme.Dim($"         Did you mean: {string.Join(", ", suggestions)}?"));
                     }
                 }
             }
@@ -2515,15 +2456,14 @@ User: goodbye
             // Update the shared pipeline state with results
             _pipelineState = state;
 
-            Console.WriteLine($"  [OK] Pipeline complete");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine(OuroborosTheme.Ok("  [OK] Pipeline complete"));
 
             // Return meaningful output
             if (!string.IsNullOrEmpty(state.Output))
             {
                 // Truncate for voice but show full in console
                 var preview = state.Output.Length > 300 ? state.Output[..300] + "..." : state.Output;
-                Console.WriteLine($"\n  Pipeline Output:\n  {preview}");
+                AnsiConsole.MarkupLine($"\n  {OuroborosTheme.Accent("Pipeline Output:")}\n  {Markup.Escape(preview)}");
                 return $"I ran your {steps.Count}-step pipeline. Here's what I found: {preview}";
             }
 
@@ -2531,8 +2471,7 @@ User: goodbye
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  [!] Pipeline error: {ex.Message}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"  [red]{Markup.Escape($"[!] Pipeline error: {ex.Message}")}[/]");
             return $"Pipeline error: {ex.Message}";
         }
     }
@@ -2561,8 +2500,7 @@ User: goodbye
         if (!_allTokens.TryGetValue(tokenName, out var tokenInfo))
             return null;
 
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine($"\n  [>] Executing: {tokenName}" + (string.IsNullOrEmpty(arg) ? "" : $" '{arg}'"));
+        AnsiConsole.MarkupLine(OuroborosTheme.Warn($"\n  [>] Executing: {tokenName}" + (string.IsNullOrEmpty(arg) ? "" : $" '{arg}'")));
 
         try
         {
@@ -2587,8 +2525,7 @@ User: goodbye
             }
 
             _pipelineState = state;
-            Console.WriteLine($"  [OK] {tokenName} complete");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine(OuroborosTheme.Ok($"  [OK] {tokenName} complete"));
 
             if (!string.IsNullOrEmpty(state.Output))
             {
@@ -2601,8 +2538,7 @@ User: goodbye
         catch (Exception ex)
         {
             var innerEx = ex.InnerException ?? ex;
-            Console.WriteLine($"  [!] Error: {innerEx.Message}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"  [red]{Markup.Escape($"[!] Error: {innerEx.Message}")}[/]");
             return $"Error executing {tokenName}: {innerEx.Message}";
         }
     }
@@ -2673,9 +2609,7 @@ User: goodbye
         catch (Exception ex)
         {
             // Log the error but don't disrupt the interaction
-            Console.ForegroundColor = ConsoleColor.DarkRed;
-            Console.WriteLine($"  [!] Distinction learning error: {ex.Message}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"  [red]{Markup.Escape($"[!] Distinction learning error: {ex.Message}")}[/]");
         }
     }
 

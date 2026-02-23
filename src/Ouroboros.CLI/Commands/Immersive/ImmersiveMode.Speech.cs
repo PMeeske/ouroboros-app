@@ -4,10 +4,12 @@
 
 namespace Ouroboros.CLI.Commands;
 
+using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Options;
 using Ouroboros.Providers.SpeechToText;
 using Ouroboros.Providers.TextToSpeech;
 using Ouroboros.Speech;
+using Spectre.Console;
 
 public sealed partial class ImmersiveMode
 {
@@ -34,15 +36,15 @@ public sealed partial class ImmersiveMode
             ? Services.SharedAgentBootstrap.CreateTtsService(
                 azureKey, azureRegion, personaName, ttsVoice,
                 preferLocal: true,
-                log: msg => Console.WriteLine($"  [OK] {msg}"))
+                log: msg => AnsiConsole.MarkupLine(OuroborosTheme.Ok($"  [OK] {Markup.Escape(msg)}")))
             : Services.SharedAgentBootstrap.CreateTtsService(
                 null, azureRegion, personaName, ttsVoice,
                 preferLocal: true,
-                log: msg => Console.WriteLine($"  [OK] {msg}"));
+                log: msg => AnsiConsole.MarkupLine(OuroborosTheme.Ok($"  [OK] {Markup.Escape(msg)}")));
 
         // STT via SharedAgentBootstrap
         var stt = await Services.SharedAgentBootstrap.CreateSttService(
-            log: msg => Console.WriteLine($"  [OK] {msg}"));
+            log: msg => AnsiConsole.MarkupLine(OuroborosTheme.Ok($"  [OK] {Markup.Escape(msg)}")));
 
         // Create speech detector if STT is available
         AdaptiveSpeechDetector? detector = null;
@@ -51,8 +53,8 @@ public sealed partial class ImmersiveMode
             detector = Services.SharedAgentBootstrap.CreateSpeechDetector();
         }
 
-        if (tts == null) Console.WriteLine("  [~] Voice output: Text only (set OPENAI_API_KEY for voice)");
-        if (stt == null) Console.WriteLine("  [~] Voice input: Keyboard only (install Whisper for voice)");
+        if (tts == null) AnsiConsole.MarkupLine(OuroborosTheme.Dim("  [~] Voice output: Text only (set OPENAI_API_KEY for voice)"));
+        if (stt == null) AnsiConsole.MarkupLine(OuroborosTheme.Dim("  [~] Voice input: Keyboard only (install Whisper for voice)"));
 
         return (tts, stt, detector);
     }

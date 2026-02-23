@@ -1,6 +1,9 @@
 using LangChain.DocumentLoaders;
 using MediatR;
+using Ouroboros.CLI.Avatar;
 using Ouroboros.CLI.Commands;
+using Ouroboros.CLI.Infrastructure;
+using Spectre.Console;
 using PipelineReasoningStep = Ouroboros.Domain.Events.ReasoningStep;
 
 namespace Ouroboros.CLI.Mediator;
@@ -30,13 +33,11 @@ public sealed class ProcessDslHandler : IRequestHandler<ProcessDslRequest, strin
 
         try
         {
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine($"\n  \ud83d\udcdc Executing DSL: {dsl}\n");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"\n  [rgb(148,103,189)]\ud83d\udcdc Executing DSL: {Markup.Escape(dsl)}[/]\n");
 
             // Explain the DSL first
             var explanation = PipelineDsl.Explain(dsl);
-            Console.WriteLine(explanation);
+            AnsiConsole.MarkupLine(Markup.Escape(explanation));
 
             // Build and execute the pipeline
             if (embedding != null && llm != null)
@@ -80,11 +81,11 @@ public sealed class ProcessDslHandler : IRequestHandler<ProcessDslRequest, strin
                     if (config.Debug)
                     {
                         var stepEvents = state.Branch.Events.OfType<StepExecutionEvent>().ToList();
-                        Console.WriteLine($"  \ud83d\udcca Network state: {trackResult.Value} events reified ({stepEvents.Count} steps tracked)");
+                        AnsiConsole.MarkupLine($"  \ud83d\udcca Network state: {Markup.Escape(trackResult.Value.ToString())} events reified ({stepEvents.Count} steps tracked)");
                         foreach (var stepEvt in stepEvents.TakeLast(5))
                         {
                             var status = stepEvt.Success ? "\u2713" : "\u2717";
-                            Console.WriteLine($"      {status} [{stepEvt.TokenName}] {stepEvt.Description} ({stepEvt.DurationMs}ms)");
+                            AnsiConsole.MarkupLine($"      {Markup.Escape(status)} [[{Markup.Escape(stepEvt.TokenName)}]] {Markup.Escape(stepEvt.Description)} ({stepEvt.DurationMs}ms)");
                         }
                     }
                 }
@@ -104,26 +105,24 @@ public sealed class ProcessDslHandler : IRequestHandler<ProcessDslRequest, strin
                     "dsl-execution",
                     new List<string> { "dsl", "pipeline", success ? "success" : "failure" });
 
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("\n  \u2713 Pipeline completed");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine(OuroborosTheme.Ok("\n  \u2713 Pipeline completed"));
 
                 // Get last reasoning output
                 var lastReasoning = state.Branch.Events.OfType<PipelineReasoningStep>().LastOrDefault();
                 if (lastReasoning != null)
                 {
-                    Console.WriteLine($"\n{lastReasoning.State.Text}");
+                    AnsiConsole.MarkupLine($"\n{Markup.Escape(lastReasoning.State.Text)}");
                     await _agent.VoiceService.SayAsync(lastReasoning.State.Text);
                 }
                 else if (!string.IsNullOrEmpty(state.Output))
                 {
-                    Console.WriteLine($"\n{state.Output}");
+                    AnsiConsole.MarkupLine($"\n{Markup.Escape(state.Output)}");
                     await _agent.VoiceService.SayAsync(state.Output);
                 }
             }
             else
             {
-                Console.WriteLine("  \u26a0 Cannot execute DSL: LLM or embeddings not available");
+                AnsiConsole.MarkupLine(OuroborosTheme.Warn("  \u26a0 Cannot execute DSL: LLM or embeddings not available"));
             }
 
             return string.Empty;
@@ -137,9 +136,7 @@ public sealed class ProcessDslHandler : IRequestHandler<ProcessDslRequest, strin
                 await capabilityRegistry.UpdateCapabilityAsync("pipeline_execution", execResult);
             }
 
-            Console.ForegroundColor = ConsoleColor.Red;
-            output.WriteError($"DSL execution failed: {ex.Message}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"[red]{Markup.Escape($"DSL execution failed: {ex.Message}")}[/]");
 
             return string.Empty;
         }

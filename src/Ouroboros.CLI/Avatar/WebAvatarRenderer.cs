@@ -11,6 +11,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Ouroboros.Application.Avatar;
+using Spectre.Console;
 
 namespace Ouroboros.CLI.Avatar;
 
@@ -74,9 +75,7 @@ public sealed class WebAvatarRenderer : IAvatarRenderer, IVideoFrameRenderer
         var url = $"http://localhost:{_port}/avatar.html";
         OpenBrowser(url);
 
-        Console.ForegroundColor = ConsoleColor.DarkMagenta;
-        Console.WriteLine($"\n  ☥ Iaret avatar viewer: {url}");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine($"\n[rgb(128,0,180)]  ☥ Iaret avatar viewer: {Markup.Escape(url)}[/]");
 
         await Task.CompletedTask;
     }

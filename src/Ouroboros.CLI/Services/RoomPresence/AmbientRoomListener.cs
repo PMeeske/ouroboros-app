@@ -2,8 +2,10 @@
 namespace Ouroboros.CLI.Services.RoomPresence;
 
 using Ouroboros.Abstractions.Monads;
+using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Providers.SpeechToText;
 using Ouroboros.Speech;
+using Spectre.Console;
 
 /// <summary>
 /// A transcribed utterance captured from the ambient microphone.
@@ -191,9 +193,7 @@ public sealed class AmbientRoomListener : IAsyncDisposable
                     if (!string.IsNullOrWhiteSpace(text))
                     {
                         _wordFilterDiscards++;
-                        Console.ForegroundColor = ConsoleColor.DarkGray;
-                        Console.WriteLine($"  [room] Filtered ({words.Length} word{(words.Length == 1 ? "" : "s")}): \"{text}\"");
-                        Console.ResetColor();
+                        AnsiConsole.MarkupLine(OuroborosTheme.Dim($"  [room] Filtered ({words.Length} word{(words.Length == 1 ? "" : "s")}): \"{Markup.Escape(text)}\""));
                     }
                     LogDiagnosticsPeriodically();
                     continue;
@@ -212,9 +212,7 @@ public sealed class AmbientRoomListener : IAsyncDisposable
             catch (Exception ex)
             {
                 // Log to console so the user knows the mic loop is struggling, but keep running
-                Console.ForegroundColor = ConsoleColor.DarkYellow;
-                Console.WriteLine($"  [room] Capture error: {ex.Message}");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  [room] Capture error: {Markup.Escape(ex.Message)}"));
 
                 // Brief back-off before retrying
                 await Task.Delay(2000, ct).ConfigureAwait(false);
@@ -226,11 +224,9 @@ public sealed class AmbientRoomListener : IAsyncDisposable
     {
         if (DateTime.UtcNow - _lastDiagnosticLog < TimeSpan.FromSeconds(60)) return;
         _lastDiagnosticLog = DateTime.UtcNow;
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine($"  [room] Audio stats: {_totalChunks} chunks, " +
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim($"  [room] Audio stats: {_totalChunks} chunks, " +
             $"{_vadDiscards} VAD discards, {_sttFailures} STT fails, " +
-            $"{_recordFailures} mic fails, {_wordFilterDiscards} word-filter drops");
-        Console.ResetColor();
+            $"{_recordFailures} mic fails, {_wordFilterDiscards} word-filter drops"));
     }
 
     public async ValueTask DisposeAsync()

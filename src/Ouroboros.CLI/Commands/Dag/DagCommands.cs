@@ -1,6 +1,9 @@
 using System.Text.Json;
 using LangChain.DocumentLoaders;
+using Ouroboros.CLI.Avatar;
+using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Options;
+using Spectre.Console;
 
 namespace Ouroboros.CLI.Commands;
 
@@ -8,7 +11,7 @@ namespace Ouroboros.CLI.Commands;
 /// DAG (Directed Acyclic Graph) commands for pipeline branch management.
 /// Provides snapshot, show, replay, and retention operations.
 /// Uses immutable PipelineBranch event sourcing pattern for tracking epochs.
-/// 
+///
 /// Note: This CLI infrastructure maintains session-scoped state, which is acceptable
 /// per refactoring guidelines (infrastructure code may use imperative patterns).
 /// Each CLI invocation represents a single session with one tracking branch.
@@ -65,19 +68,20 @@ public static class DagCommands
             PrintError($"DAG operation failed: {ex.Message}");
             if (options.Verbose)
             {
-                Console.Error.WriteLine(ex.StackTrace);
+                AnsiConsole.WriteException(ex);
             }
         }
     }
 
     private static async Task ExecuteSnapshotAsync(DagOptions options)
     {
-        Console.WriteLine("=== Creating DAG Snapshot ===");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Creating DAG Snapshot"));
+        AnsiConsole.WriteLine();
 
         // For demonstration, create a snapshot with test branches
         // In production, this would load actual pipeline branches
         var branches = new List<PipelineBranch>();
-        
+
         if (!string.IsNullOrWhiteSpace(options.BranchName))
         {
             var branch = CreateTestBranch(options.BranchName);
@@ -98,20 +102,20 @@ public static class DagCommands
 
         var trackingBranch = GetTrackingBranch();
         var result = await GlobalProjectionService.CreateEpochAsync(trackingBranch, branches, metadata);
-        
+
         if (result.IsSuccess)
         {
             var (epoch, updatedBranch) = result.Value;
             UpdateTrackingBranch(updatedBranch);
-            
-            Console.WriteLine($"✓ Created epoch {epoch.EpochNumber} (ID: {epoch.EpochId})");
-            Console.WriteLine($"  Branches: {epoch.Branches.Count}");
-            Console.WriteLine($"  Created: {epoch.CreatedAt:yyyy-MM-dd HH:mm:ss} UTC");
+
+            AnsiConsole.MarkupLine(OuroborosTheme.Ok($"✓ Created epoch {epoch.EpochNumber} (ID: {epoch.EpochId})"));
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Branches:")} {epoch.Branches.Count}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Created:")} {epoch.CreatedAt:yyyy-MM-dd HH:mm:ss} UTC");
 
             if (!string.IsNullOrWhiteSpace(options.OutputPath))
             {
                 await ExportEpochAsync(epoch, options.OutputPath);
-                Console.WriteLine($"  Exported to: {options.OutputPath}");
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Exported to:")} {Markup.Escape(options.OutputPath)}");
             }
         }
         else
@@ -122,7 +126,8 @@ public static class DagCommands
 
     private static Task ExecuteShowAsync(DagOptions options)
     {
-        Console.WriteLine("=== DAG Information ===");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("DAG Information"));
+        AnsiConsole.WriteLine();
 
         var trackingBranch = GetTrackingBranch();
 
@@ -151,7 +156,8 @@ public static class DagCommands
             var latestResult = GlobalProjectionService.GetLatestEpoch(trackingBranch);
             if (latestResult.IsSuccess)
             {
-                Console.WriteLine("\nLatest Epoch:");
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine(OuroborosTheme.Accent("Latest Epoch:"));
                 PrintEpochInfo(latestResult.Value, options.Format == "json");
             }
         }
@@ -161,7 +167,8 @@ public static class DagCommands
 
     private static async Task ExecuteReplayAsync(DagOptions options)
     {
-        Console.WriteLine("=== DAG Replay ===");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("DAG Replay"));
+        AnsiConsole.WriteLine();
 
         if (string.IsNullOrWhiteSpace(options.InputPath))
         {
@@ -186,25 +193,26 @@ public static class DagCommands
                 return;
             }
 
-            Console.WriteLine($"Replaying epoch {epoch.EpochNumber} from {options.InputPath}");
-            Console.WriteLine($"  Branches: {epoch.Branches.Count}");
-            Console.WriteLine($"  Created: {epoch.CreatedAt:yyyy-MM-dd HH:mm:ss} UTC");
+            AnsiConsole.MarkupLine($"  Replaying epoch {epoch.EpochNumber} from {Markup.Escape(options.InputPath)}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Branches:")} {epoch.Branches.Count}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Created:")} {epoch.CreatedAt:yyyy-MM-dd HH:mm:ss} UTC");
 
             foreach (var branchSnapshot in epoch.Branches)
             {
-                Console.WriteLine($"\n  Branch: {branchSnapshot.Name}");
-                Console.WriteLine($"    Events: {branchSnapshot.Events.Count}");
-                Console.WriteLine($"    Vectors: {branchSnapshot.Vectors.Count}");
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.GoldText($"Branch: {branchSnapshot.Name}")}");
+                AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Events:")} {branchSnapshot.Events.Count}");
+                AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Vectors:")} {branchSnapshot.Vectors.Count}");
 
                 if (options.Verbose)
                 {
                     foreach (var evt in branchSnapshot.Events.Take(5))
                     {
-                        Console.WriteLine($"      - {evt.GetType().Name} at {evt.Timestamp:HH:mm:ss}");
+                        AnsiConsole.MarkupLine($"      - {Markup.Escape(evt.GetType().Name)} at {evt.Timestamp:HH:mm:ss}");
                     }
                     if (branchSnapshot.Events.Count > 5)
                     {
-                        Console.WriteLine($"      ... and {branchSnapshot.Events.Count - 5} more");
+                        AnsiConsole.MarkupLine(OuroborosTheme.Dim($"      ... and {branchSnapshot.Events.Count - 5} more"));
                     }
                 }
             }
@@ -217,10 +225,11 @@ public static class DagCommands
 
     private static Task ExecuteValidateAsync(DagOptions options)
     {
-        Console.WriteLine("=== DAG Validation ===");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("DAG Validation"));
+        AnsiConsole.WriteLine();
 
         var allEpochs = GlobalProjectionService.GetEpochs(GetTrackingBranch());
-        Console.WriteLine($"Total epochs: {allEpochs.Count}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Total epochs:")} {allEpochs.Count}");
 
         var validationErrors = 0;
         foreach (var epoch in allEpochs)
@@ -230,16 +239,13 @@ public static class DagCommands
             {
                 // Compute hash
                 var hash = BranchHash.ComputeHash(branchSnapshot);
-                Console.WriteLine($"Epoch {epoch.EpochNumber}, Branch '{branchSnapshot.Name}': Hash {hash[..8]}...");
-
-                // Could add additional validation logic here
-                // e.g., check event ordering, validate vector embeddings, etc.
+                AnsiConsole.MarkupLine($"  Epoch {epoch.EpochNumber}, Branch '{Markup.Escape(branchSnapshot.Name)}': Hash {Markup.Escape(hash[..8])}...");
             }
         }
 
         if (validationErrors == 0)
         {
-            Console.WriteLine("✓ All snapshots validated successfully");
+            AnsiConsole.MarkupLine(OuroborosTheme.Ok("\n✓ All snapshots validated successfully"));
         }
         else
         {
@@ -251,7 +257,9 @@ public static class DagCommands
 
     private static Task ExecuteRetentionAsync(DagOptions options)
     {
-        Console.WriteLine($"=== Retention Policy Evaluation{(options.DryRun ? " (DRY RUN)" : "")} ===");
+        var title = options.DryRun ? "Retention Policy Evaluation (DRY RUN)" : "Retention Policy Evaluation";
+        AnsiConsole.Write(OuroborosTheme.ThemedRule(title));
+        AnsiConsole.WriteLine();
 
         // Build retention policy from options
         RetentionPolicy policy;
@@ -287,34 +295,34 @@ public static class DagCommands
 
         if (snapshots.Count == 0)
         {
-            Console.WriteLine("No snapshots found to evaluate");
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim("No snapshots found to evaluate"));
             return Task.CompletedTask;
         }
 
         var plan = RetentionEvaluator.Evaluate(snapshots, policy, options.DryRun);
 
-        Console.WriteLine(plan.GetSummary());
-        Console.WriteLine($"\nSnapshots to keep: {plan.ToKeep.Count}");
+        AnsiConsole.MarkupLine(Markup.Escape(plan.GetSummary()));
+        AnsiConsole.MarkupLine($"\n  {OuroborosTheme.Ok($"Snapshots to keep: {plan.ToKeep.Count}")}");
         if (options.Verbose)
         {
             foreach (var snapshot in plan.ToKeep)
             {
-                Console.WriteLine($"  ✓ {snapshot.BranchName} ({snapshot.CreatedAt:yyyy-MM-dd HH:mm:ss})");
+                AnsiConsole.MarkupLine($"    [green]✓[/] {Markup.Escape(snapshot.BranchName)} ({snapshot.CreatedAt:yyyy-MM-dd HH:mm:ss})");
             }
         }
 
-        Console.WriteLine($"\nSnapshots to delete: {plan.ToDelete.Count}");
+        AnsiConsole.MarkupLine($"\n  {OuroborosTheme.Err($"Snapshots to delete: {plan.ToDelete.Count}")}");
         if (options.Verbose)
         {
             foreach (var snapshot in plan.ToDelete)
             {
-                Console.WriteLine($"  ✗ {snapshot.BranchName} ({snapshot.CreatedAt:yyyy-MM-dd HH:mm:ss})");
+                AnsiConsole.MarkupLine($"    [red]✗[/] {Markup.Escape(snapshot.BranchName)} ({snapshot.CreatedAt:yyyy-MM-dd HH:mm:ss})");
             }
         }
 
         if (!options.DryRun && plan.ToDelete.Count > 0)
         {
-            Console.WriteLine("\nNote: Actual deletion not implemented in this phase");
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim("\nNote: Actual deletion not implemented in this phase"));
         }
 
         return Task.CompletedTask;
@@ -325,17 +333,17 @@ public static class DagCommands
         if (asJson)
         {
             var json = JsonSerializer.Serialize(epoch, new JsonSerializerOptions { WriteIndented = true });
-            Console.WriteLine(json);
+            AnsiConsole.WriteLine(json);
         }
         else
         {
-            Console.WriteLine($"Epoch {epoch.EpochNumber}:");
-            Console.WriteLine($"  ID: {epoch.EpochId}");
-            Console.WriteLine($"  Created: {epoch.CreatedAt:yyyy-MM-dd HH:mm:ss} UTC");
-            Console.WriteLine($"  Branches: {epoch.Branches.Count}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.GoldText($"Epoch {epoch.EpochNumber}:")}");
+            AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("ID:")} {epoch.EpochId}");
+            AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Created:")} {epoch.CreatedAt:yyyy-MM-dd HH:mm:ss} UTC");
+            AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Branches:")} {epoch.Branches.Count}");
             foreach (var branch in epoch.Branches)
             {
-                Console.WriteLine($"    - {branch.Name}: {branch.Events.Count} events, {branch.Vectors.Count} vectors");
+                AnsiConsole.MarkupLine($"      - {Markup.Escape(branch.Name)}: {branch.Events.Count} events, {branch.Vectors.Count} vectors");
             }
         }
     }
@@ -345,18 +353,18 @@ public static class DagCommands
         if (asJson)
         {
             var json = JsonSerializer.Serialize(metrics, new JsonSerializerOptions { WriteIndented = true });
-            Console.WriteLine(json);
+            AnsiConsole.WriteLine(json);
         }
         else
         {
-            Console.WriteLine("Global Metrics:");
-            Console.WriteLine($"  Total Epochs: {metrics.TotalEpochs}");
-            Console.WriteLine($"  Total Branches: {metrics.TotalBranches}");
-            Console.WriteLine($"  Total Events: {metrics.TotalEvents}");
-            Console.WriteLine($"  Average Events per Branch: {metrics.AverageEventsPerBranch:F2}");
+            AnsiConsole.MarkupLine(OuroborosTheme.Accent("Global Metrics:"));
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Total Epochs:")} {metrics.TotalEpochs}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Total Branches:")} {metrics.TotalBranches}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Total Events:")} {metrics.TotalEvents}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Average Events per Branch:")} {metrics.AverageEventsPerBranch:F2}");
             if (metrics.LastEpochAt.HasValue)
             {
-                Console.WriteLine($"  Last Epoch: {metrics.LastEpochAt.Value:yyyy-MM-dd HH:mm:ss} UTC");
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Last Epoch:")} {metrics.LastEpochAt.Value:yyyy-MM-dd HH:mm:ss} UTC");
             }
         }
     }
@@ -382,9 +390,8 @@ public static class DagCommands
 
     private static void PrintError(string message)
     {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.Error.WriteLine($"✗ {message}");
-        Console.ResetColor();
+        var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+        AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} ✗ {Markup.Escape(message)}[/]");
     }
 
     private static Task PrintErrorAsync(string message)

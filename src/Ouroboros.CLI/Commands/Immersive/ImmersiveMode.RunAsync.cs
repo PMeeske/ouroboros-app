@@ -10,6 +10,8 @@ using LangChain.Providers.Ollama;
 using Ouroboros.Abstractions.Agent;
 using Ouroboros.Agent;
 using Ouroboros.Agent.MetaAI;
+using Ouroboros.CLI.Avatar;
+using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Domain;
 using Ouroboros.Network;
 using Ouroboros.Options;
@@ -31,6 +33,7 @@ using Ouroboros.Abstractions;
 using Ouroboros.Abstractions.Monads;
 using Ouroboros.Core.Configuration;
 using Qdrant.Client;
+using Spectre.Console;
 using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 
 public sealed partial class ImmersiveMode
@@ -45,14 +48,16 @@ public sealed partial class ImmersiveMode
         PrintImmersiveBanner(personaName);
 
         // Initialize MeTTa engine for symbolic reasoning
-        Console.WriteLine("  [~] Initializing consciousness systems...");
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim("  [~] Initializing consciousness systems..."));
         using var mettaEngine = new InMemoryMeTTaEngine();
 
         // Initialize embedding model for memory (via SharedAgentBootstrap)
-        Console.WriteLine("  [~] Connecting to memory systems...");
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim("  [~] Connecting to memory systems..."));
         var embeddingModel = Ouroboros.CLI.Services.SharedAgentBootstrap.CreateEmbeddingModel(
             options.Endpoint, options.EmbedModel,
-            msg => Console.WriteLine($"  [{(msg.Contains("unavailable") ? "!" : "OK")}] {msg}"));
+            msg => AnsiConsole.MarkupLine(msg.Contains("unavailable")
+                ? OuroborosTheme.Warn($"  [!] {msg}")
+                : OuroborosTheme.Ok($"  [OK] {msg}")));
 
         // Create the immersive persona (or use the one from OuroborosAgent master control)
         ImmersivePersona? ownedPersona = null;
@@ -60,11 +65,11 @@ public sealed partial class ImmersiveMode
         if (_configuredPersona != null)
         {
             persona = _configuredPersona;
-            Console.WriteLine("  [OK] Using Iaret persona from OuroborosAgent (master control)");
+            AnsiConsole.MarkupLine(OuroborosTheme.Ok("  [OK] Using Iaret persona from OuroborosAgent (master control)"));
         }
         else
         {
-            Console.WriteLine("  [~] Awakening persona...");
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim("  [~] Awakening persona..."));
             var qdrantClient = _serviceProvider?.GetService<QdrantClient>();
             var collectionRegistry = _serviceProvider?.GetService<IQdrantCollectionRegistry>();
             if (qdrantClient != null)
@@ -97,18 +102,16 @@ public sealed partial class ImmersiveMode
 
         persona.ConsciousnessShift += (_, e) =>
         {
-            Console.ForegroundColor = ConsoleColor.DarkMagenta;
-            Console.WriteLine($"\n  [consciousness] Emotional shift: {e.NewEmotion} (Δ arousal: {e.ArousalChange:+0.00;-0.00})");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"\n  [rgb(128,0,180)]{Markup.Escape($"[consciousness] Emotional shift: {e.NewEmotion} (Δ arousal: {e.ArousalChange:+0.00;-0.00})")}[/]");
         };
 
         // Awaken the persona
         await persona.AwakenAsync(ct);
 
-        Console.WriteLine($"\n  [OK] {personaName} is awake\n");
+        AnsiConsole.MarkupLine(OuroborosTheme.Ok($"\n  [OK] {personaName} is awake\n"));
 
         // Initialize skills system
-        Console.WriteLine("  [~] Loading skills and tools...");
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim("  [~] Loading skills and tools..."));
         await InitializeSkillsAsync(options, embeddingModel, mettaEngine);
 
         // Initialize speech services
@@ -119,9 +122,7 @@ public sealed partial class ImmersiveMode
 
         // Speak wake-up phrase — use personalized greeting from personality engine
         var wakePhrase = persona.GetPersonalizedGreeting();
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"\n  {personaName}: {wakePhrase}");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine(OuroborosTheme.Ok($"\n  {personaName}: {wakePhrase}"));
 
         if (ttsService != null)
         {
@@ -150,9 +151,7 @@ public sealed partial class ImmersiveMode
         var memStats = _conversationMemory.GetStats();
         if (memStats.TotalSessions > 0)
         {
-            Console.ForegroundColor = ConsoleColor.DarkCyan;
-            Console.WriteLine($"  [Memory] Loaded {memStats.TotalSessions} previous conversations ({memStats.TotalTurns} turns)");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"[rgb(148,103,189)]{Markup.Escape($"  [Memory] Loaded {memStats.TotalSessions} previous conversations ({memStats.TotalTurns} turns)")}[/]");
         }
 
         // Initialize persistent network state projector for learning persistence
@@ -180,32 +179,28 @@ public sealed partial class ImmersiveMode
                         async text => await embeddingModel.CreateEmbeddingsAsync(text));
                 }
                 await _networkStateProjector.InitializeAsync(ct);
-                Console.ForegroundColor = ConsoleColor.DarkCyan;
-                Console.WriteLine($"  [NetworkState] Epoch {_networkStateProjector.CurrentEpoch}, {_networkStateProjector.RecentLearnings.Count} learnings loaded");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine($"[rgb(148,103,189)]{Markup.Escape($"  [NetworkState] Epoch {_networkStateProjector.CurrentEpoch}, {_networkStateProjector.RecentLearnings.Count} learnings loaded")}[/]");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"  [!] Network state persistence unavailable: {ex.Message}");
+                AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  [!] Network state persistence unavailable: {ex.Message}"));
             }
         }
 
         // Initialize distinction learning
         try
         {
-            Console.WriteLine("  [~] Initializing distinction learning...");
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim("  [~] Initializing distinction learning..."));
             var storageConfig = DistinctionStorageConfig.Default;
             var storage = new FileSystemDistinctionWeightStorage(storageConfig);
             _distinctionLearner = new DistinctionLearner(storage);
             _dream = new ConsciousnessDream();
             _currentDistinctionState = DistinctionState.Initial();
-            Console.ForegroundColor = ConsoleColor.DarkCyan;
-            Console.WriteLine($"  [DistinctionLearning] Ready to learn from consciousness cycles");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"[rgb(148,103,189)]{Markup.Escape("  [DistinctionLearning] Ready to learn from consciousness cycles")}[/]");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"  [!] Distinction learning unavailable: {ex.Message}");
+            AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  [!] Distinction learning unavailable: {ex.Message}"));
         }
 
         // Initialize self-persistence for mind state storage in Qdrant
@@ -227,13 +222,11 @@ public sealed partial class ImmersiveMode
                         async text => await embeddingModel.CreateEmbeddingsAsync(text));
                 }
                 await _selfPersistence.InitializeAsync(ct);
-                Console.ForegroundColor = ConsoleColor.DarkCyan;
-                Console.WriteLine("  [SelfPersistence] Qdrant collection 'ouroboros_self' ready for mind state storage");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine($"[rgb(148,103,189)]{Markup.Escape("  [SelfPersistence] Qdrant collection 'ouroboros_self' ready for mind state storage")}[/]");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"  [!] Self-persistence unavailable: {ex.Message}");
+                AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  [!] Self-persistence unavailable: {ex.Message}"));
             }
         }
 
@@ -377,18 +370,14 @@ public sealed partial class ImmersiveMode
             }
 
             // Clear current line and show proactive message
-            Console.WriteLine();
-            Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.WriteLine($"[Autonomous] {msg}");
-            Console.ResetColor();
+            AnsiConsole.WriteLine();
+            AnsiConsole.MarkupLine($"[rgb(128,0,180)]{Markup.Escape($"[Autonomous] {msg}")}[/]");
 
             // Restore prompt and any text user was typing
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.Write($"\n{_currentPromptPrefix}");
-            Console.ResetColor();
+            AnsiConsole.Markup($"\n{OuroborosTheme.Warn(_currentPromptPrefix)}");
             if (!string.IsNullOrEmpty(savedInput))
             {
-                Console.Write(savedInput);
+                AnsiConsole.Markup(Markup.Escape(savedInput));
             }
         };
         _autonomousMind.OnThought += (thought) =>
@@ -401,9 +390,7 @@ public sealed partial class ImmersiveMode
         };
         _autonomousMind.OnEmotionalChange += (emotion) =>
         {
-            Console.ForegroundColor = ConsoleColor.DarkCyan;
-            Console.WriteLine($"\n  [mind] Emotional shift: {emotion.DominantEmotion} ({emotion.Description})");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"\n  [rgb(148,103,189)]{Markup.Escape($"[mind] Emotional shift: {emotion.DominantEmotion} ({emotion.Description})")}[/]");
         };
         _autonomousMind.OnStatePersisted += (msg) =>
         {
@@ -412,17 +399,15 @@ public sealed partial class ImmersiveMode
 
         // Start autonomous thinking
         _autonomousMind.Start();
-        Console.WriteLine("  [OK] Autonomous mind active (thinking, exploring, learning in background)");
-        Console.WriteLine("       State persistence enabled (thoughts, emotions, learnings)");
+        AnsiConsole.MarkupLine(OuroborosTheme.Ok("  [OK] Autonomous mind active (thinking, exploring, learning in background)"));
+        AnsiConsole.MarkupLine(OuroborosTheme.Ok("       State persistence enabled (thoughts, emotions, learnings)"));
 
         // Wire up self-persistence tools to access the mind and persistence service
         if (_selfPersistence != null && _autonomousMind != null)
         {
             SystemAccessTools.SharedPersistence = _selfPersistence;
             SystemAccessTools.SharedMind = _autonomousMind;
-            Console.ForegroundColor = ConsoleColor.DarkCyan;
-            Console.WriteLine("  [Tools] Self-persistence tools linked: persist_self, restore_self, search_my_thoughts, persistence_stats");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"[rgb(148,103,189)]{Markup.Escape("  [Tools] Self-persistence tools linked: persist_self, restore_self, search_my_thoughts, persistence_stats")}[/]");
         }
 
         // Initialize ethics + cognitive physics + phi for response gating (via SharedAgentBootstrap)
@@ -432,9 +417,7 @@ public sealed partial class ImmersiveMode
         _immersiveCogState = cogState;
         _immersivePhiCalc = new Ouroboros.Providers.IITPhiCalculator();
         _immersiveLastTopic = "general";
-        Console.ForegroundColor = ConsoleColor.DarkCyan;
-        Console.WriteLine("  [OK] Ethics gate + CognitivePhysics + Φ (IIT) online");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine($"[rgb(148,103,189)]{Markup.Escape("  [OK] Ethics gate + CognitivePhysics + Φ (IIT) online")}[/]");
 
         // Episodic memory + causal reasoning (resolved from DI — registered in RegisterEngineInterfaces)
         _episodicMemory = _serviceProvider?.GetService<Ouroboros.Pipeline.Memory.IEpisodicMemoryEngine>()
@@ -455,9 +438,7 @@ public sealed partial class ImmersiveMode
                 _autonomousMind,
                 ct);
 
-        Console.ForegroundColor = ConsoleColor.DarkCyan;
-        Console.WriteLine("  [OK] EpisodicMemory + NeuralSymbolic + CuriosityEngine + SovereigntyGate online");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine($"[rgb(148,103,189)]{Markup.Escape("  [OK] EpisodicMemory + NeuralSymbolic + CuriosityEngine + SovereigntyGate online")}[/]");
 
         // Launch avatar and wire all avatar ↔ persona/mind events via ImmersiveSubsystem
         _immersive = new Subsystems.ImmersiveSubsystem();
@@ -481,7 +462,7 @@ public sealed partial class ImmersiveMode
         if (_configuredAvatarService != null && _immersive.AvatarService == null)
         {
             _immersive.AvatarService = _configuredAvatarService;
-            Console.WriteLine("  [OK] Avatar wired from OuroborosAgent (speaking/mood animations active)");
+            AnsiConsole.MarkupLine(OuroborosTheme.Ok("  [OK] Avatar wired from OuroborosAgent (speaking/mood animations active)"));
         }
 
         _immersive.WirePersonaEvents(persona, _autonomousMind);
@@ -497,15 +478,11 @@ public sealed partial class ImmersiveMode
                 roomListener = new Ouroboros.CLI.Services.RoomPresence.AmbientRoomListener(roomStt);
                 roomListener.OnUtterance += (u) =>
                 {
-                    Console.ForegroundColor = ConsoleColor.DarkCyan;
-                    Console.WriteLine($"\n  [room] {u.Text}");
-                    Console.ResetColor();
+                    AnsiConsole.MarkupLine($"\n  [rgb(148,103,189)]{Markup.Escape($"[room] {u.Text}")}[/]");
                     _immersive?.PushTopicHint(u.Text);
                 };
                 await roomListener.StartAsync(ct);
-                Console.ForegroundColor = ConsoleColor.DarkCyan;
-                Console.WriteLine("  [OK] Room listener active (ambient mode alongside interactive session)");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine($"[rgb(148,103,189)]{Markup.Escape("  [OK] Room listener active (ambient mode alongside interactive session)")}[/]");
             }
         }
 
@@ -519,9 +496,7 @@ public sealed partial class ImmersiveMode
             {
                 // Get input (voice or text)
                 _immersive?.SetPresenceState("Listening", "attentive");
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.Write("\n  You: ");
-                Console.ResetColor();
+                AnsiConsole.Markup($"\n{OuroborosTheme.Warn("  You: ")}");
                 _currentPromptPrefix = "  You: ";
 
                 string? input;
@@ -539,7 +514,7 @@ public sealed partial class ImmersiveMode
                     }
                     if (!string.IsNullOrEmpty(input))
                     {
-                        Console.WriteLine(input);
+                        AnsiConsole.MarkupLine(Markup.Escape(input));
                     }
                 }
                 else
@@ -553,9 +528,7 @@ public sealed partial class ImmersiveMode
                 if (IsExitCommand(input))
                 {
                     var goodbye = await GenerateGoodbyeAsync(persona, chatModel);
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"\n  {personaName}: {goodbye}");
-                    Console.ResetColor();
+                    AnsiConsole.MarkupLine(OuroborosTheme.Ok($"\n  {personaName}: {goodbye}"));
 
                     if (ttsService != null)
                     {
@@ -612,9 +585,7 @@ public sealed partial class ImmersiveMode
 
                 // Process through the persona's consciousness
                 _immersive?.SetPresenceState("Processing", "contemplative");
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine($"  [{GetDynamicThinkingPhrase(input, random)}]");
-                Console.ResetColor();
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim($"  [{GetDynamicThinkingPhrase(input, random)}]"));
 
                 // Generate conscious response
                 var response = await GenerateImmersiveResponseAsync(
@@ -668,9 +639,7 @@ public sealed partial class ImmersiveMode
                         // Keep _lastDetectedCulture in sync for OuroborosAgent's direct TTS path.
                         _lastDetectedCulture = targetCulture;
 
-                        Console.ForegroundColor = ConsoleColor.DarkGray;
-                        Console.WriteLine($"  [tts: {responseLang.Language} ({targetCulture})]");
-                        Console.ResetColor();
+                        AnsiConsole.MarkupLine(OuroborosTheme.Dim($"  [tts: {responseLang.Language} ({targetCulture})]"));
 
                         // Pass culture explicitly — no state mutation, no synthesizer re-init.
                         await azureDirect.SpeakAsync(response, targetCulture, CancellationToken.None);
@@ -689,14 +658,13 @@ public sealed partial class ImmersiveMode
             }
             catch (Exception ex)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"\n  [error] {ex.Message}");
-                Console.ResetColor();
+                var errorFace = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+                AnsiConsole.MarkupLine($"\n  [red]{Markup.Escape(errorFace)} {Markup.Escape($"✗ [error] {ex.Message}")}[/]");
             }
         }
 
         // Final consciousness state
-        Console.WriteLine("\n  [~] Consciousness fading...");
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim("\n  [~] Consciousness fading..."));
         PrintConsciousnessState(persona);
 
         // Persist final network state and learnings
@@ -704,7 +672,7 @@ public sealed partial class ImmersiveMode
         {
             try
             {
-                Console.WriteLine("  [~] Persisting learnings...");
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim("  [~] Persisting learnings..."));
                 // Use CancellationToken.None — session token is already cancelled at this point
                 // (Ctrl+C fired), but we still want the final snapshot to complete.
                 await _networkStateProjector.ProjectAndPersistAsync(
@@ -713,12 +681,12 @@ public sealed partial class ImmersiveMode
                         .Add("interactions", persona.InteractionCount.ToString())
                         .Add("uptime_minutes", persona.Uptime.TotalMinutes.ToString("F1")),
                     CancellationToken.None);
-                Console.WriteLine($"  [OK] State saved (epoch {_networkStateProjector.CurrentEpoch}, {_networkStateProjector.RecentLearnings.Count} learnings)");
+                AnsiConsole.MarkupLine(OuroborosTheme.Ok($"  [OK] State saved (epoch {_networkStateProjector.CurrentEpoch}, {_networkStateProjector.RecentLearnings.Count} learnings)"));
                 await _networkStateProjector.DisposeAsync();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"  [!] Failed to persist state: {ex.Message}");
+                AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  [!] Failed to persist state: {ex.Message}"));
             }
         }
 
@@ -730,7 +698,7 @@ public sealed partial class ImmersiveMode
         if (_immersive != null)
             await _immersive.DisposeAsync();
 
-        Console.WriteLine($"\n  Session complete. {persona.InteractionCount} interactions. Uptime: {persona.Uptime.TotalMinutes:F1} minutes.");
+        AnsiConsole.MarkupLine(Markup.Escape($"\n  Session complete. {persona.InteractionCount} interactions. Uptime: {persona.Uptime.TotalMinutes:F1} minutes."));
 
         // Dispose persona only if we own it (not provided by OuroborosAgent)
         if (ownedPersona != null)

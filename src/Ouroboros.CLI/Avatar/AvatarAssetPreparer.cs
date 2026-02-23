@@ -4,6 +4,7 @@
 
 using System.Drawing;
 using System.Drawing.Imaging;
+using Spectre.Console;
 
 namespace Ouroboros.CLI.Avatar;
 
@@ -179,9 +180,7 @@ public static class AvatarAssetPreparer
             return false;
         }
 
-        Console.ForegroundColor = ConsoleColor.DarkCyan;
-        Console.WriteLine("  [Avatar] Cropping character sheet for holographic assets...");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine($"[rgb(148,103,189)]  [Avatar] Cropping character sheet for holographic assets...[/]");
 
         // Iaret sheet: 1024×1536 → 6 columns × 3 rows
         var created = CropCharacterSheet(
@@ -191,9 +190,7 @@ public static class AvatarAssetPreparer
             columns: 6,
             IaretHoloMappings);
 
-        Console.ForegroundColor = ConsoleColor.DarkCyan;
-        Console.WriteLine($"  [Avatar] Created {created.Count} holographic overlay(s)");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine($"[rgb(148,103,189)]  [Avatar] Created {created.Count} holographic overlay(s)[/]");
 
         return created.Count > 0;
     }

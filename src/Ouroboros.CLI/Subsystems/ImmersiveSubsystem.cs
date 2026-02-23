@@ -5,6 +5,8 @@ using Ouroboros.Application.Avatar;
 using Ouroboros.Application.Personality;
 using Ouroboros.Application.Services;
 using Ouroboros.CLI.Avatar;
+using Ouroboros.CLI.Infrastructure;
+using Spectre.Console;
 
 /// <summary>
 /// Self-contained subsystem for avatar rendering and persona event wiring.
@@ -78,15 +80,15 @@ public sealed class ImmersiveSubsystem : IImmersiveSubsystem
         {
             try
             {
-                Console.WriteLine("  [~] Launching interactive avatar...");
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim("  [~] Launching interactive avatar..."));
                 var (service, _) = await AvatarIntegration.CreateAndStartAsync(
                     personaName, avatarPort, ct: ct);
                 AvatarService = service;
-                Console.WriteLine("  [OK] Avatar viewer launched — Iaret is watching");
+                AnsiConsole.MarkupLine(OuroborosTheme.Ok("  [OK] Avatar viewer launched — Iaret is watching"));
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"  [!] Avatar launch failed: {ex.Message}");
+                AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  [!] Avatar launch failed: {Markup.Escape(ex.Message)}"));
             }
         }
 
@@ -132,9 +134,7 @@ public sealed class ImmersiveSubsystem : IImmersiveSubsystem
             _lastThoughtContent = content;
             _lastThoughtTime = now;
 
-            Console.ForegroundColor = ConsoleColor.DarkMagenta;
-            Console.WriteLine($"\n  💭 {content}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"\n[rgb(128,0,180)]  💭 {Markup.Escape(content)}[/]");
 
             if (AvatarService is { } svc)
                 svc.NotifyMoodChange(svc.CurrentState.Mood, svc.CurrentState.Energy,

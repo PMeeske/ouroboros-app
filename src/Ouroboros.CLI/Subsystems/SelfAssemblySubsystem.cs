@@ -4,8 +4,11 @@ namespace Ouroboros.CLI.Subsystems;
 using Ouroboros.Agent.MetaAI;
 using Ouroboros.Application.SelfAssembly;
 using Ouroboros.Application.Tools;
+using Ouroboros.CLI.Avatar;
+using Ouroboros.CLI.Infrastructure;
 using Ouroboros.CLI.Resources;
 using Ouroboros.Domain.Autonomous;
+using Spectre.Console;
 
 /// <summary>
 /// Self-assembly subsystem: LLM-based neuron code generation, interactive approval flow,
@@ -152,43 +155,34 @@ public sealed class SelfAssemblySubsystem : ISelfAssemblySubsystem
     {
         var blueprint = proposal.Blueprint;
 
-        Console.WriteLine();
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("╔═══════════════════════════════════════════════════════════════╗");
-        Console.WriteLine("║           🧬 SELF-ASSEMBLY PROPOSAL                           ║");
-        Console.WriteLine("╚═══════════════════════════════════════════════════════════════╝");
-        Console.ResetColor();
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine(OuroborosTheme.Warn("╔═══════════════════════════════════════════════════════════════╗"));
+        AnsiConsole.MarkupLine(OuroborosTheme.Warn("║           🧬 SELF-ASSEMBLY PROPOSAL                           ║"));
+        AnsiConsole.MarkupLine(OuroborosTheme.Warn("╚═══════════════════════════════════════════════════════════════╝"));
 
-        Console.WriteLine($"\n  Neuron: {blueprint.Name}");
-        Console.WriteLine($"  Description: {blueprint.Description}");
-        Console.WriteLine($"  Rationale: {blueprint.Rationale}");
-        Console.WriteLine($"  Type: {blueprint.Type}");
-        Console.WriteLine($"  Topics: {string.Join(", ", blueprint.SubscribedTopics)}");
-        Console.WriteLine($"  Capabilities: {string.Join(", ", blueprint.Capabilities)}");
-        Console.WriteLine($"  Confidence: {blueprint.ConfidenceScore:P0}");
+        AnsiConsole.MarkupLine($"\n  {OuroborosTheme.Accent("Neuron:")} {Markup.Escape(blueprint.Name)}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Description:")} {Markup.Escape(blueprint.Description)}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Rationale:")} {Markup.Escape(blueprint.Rationale)}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Type:")} {Markup.Escape(blueprint.Type.ToString())}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Topics:")} {Markup.Escape(string.Join(", ", blueprint.SubscribedTopics))}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Capabilities:")} {Markup.Escape(string.Join(", ", blueprint.Capabilities))}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Confidence:")} {blueprint.ConfidenceScore:P0}");
 
-        Console.ForegroundColor = proposal.Validation.SafetyScore >= 0.8
-            ? ConsoleColor.Green
-            : ConsoleColor.Yellow;
-        Console.WriteLine($"  Safety Score: {proposal.Validation.SafetyScore:P0}");
-        Console.ResetColor();
+        var safetyColor = proposal.Validation.SafetyScore >= 0.8 ? "green" : "yellow";
+        AnsiConsole.MarkupLine($"  [{safetyColor}]Safety Score: {proposal.Validation.SafetyScore:P0}[/]");
 
         if (proposal.Validation.Violations.Count > 0)
         {
-            Console.ForegroundColor = ConsoleColor.DarkYellow;
-            Console.WriteLine($"  Violations: {string.Join(", ", proposal.Validation.Violations)}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  Violations: {Markup.Escape(string.Join(", ", proposal.Validation.Violations))}"));
         }
 
         if (proposal.Validation.Warnings.Count > 0)
         {
-            Console.ForegroundColor = ConsoleColor.DarkYellow;
-            Console.WriteLine($"  Warnings: {string.Join(", ", proposal.Validation.Warnings)}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  Warnings: {Markup.Escape(string.Join(", ", proposal.Validation.Warnings))}"));
         }
 
-        Console.WriteLine();
-        Console.Write("  Approve this self-assembly? [y/N]: ");
+        AnsiConsole.WriteLine();
+        AnsiConsole.Markup(OuroborosTheme.Accent("  Approve this self-assembly? [y/N]: "));
 
         var response = await Task.Run(Console.ReadLine);
         return response?.Trim().ToLowerInvariant() is "y" or "yes";
@@ -196,10 +190,8 @@ public sealed class SelfAssemblySubsystem : ISelfAssemblySubsystem
 
     private void OnNeuronAssembled(object? sender, NeuronAssembledEvent e)
     {
-        Console.WriteLine();
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"  🧬 SELF-ASSEMBLED: {e.NeuronName} (Type: {e.NeuronType.Name})");
-        Console.ResetColor();
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine(OuroborosTheme.Ok($"  🧬 SELF-ASSEMBLED: {Markup.Escape(e.NeuronName)} (Type: {Markup.Escape(e.NeuronType.Name)})"));
 
         if (_engine is not null)
         {
@@ -216,10 +208,8 @@ public sealed class SelfAssemblySubsystem : ISelfAssemblySubsystem
 
     private static void OnAssemblyFailed(object? sender, AssemblyFailedEvent e)
     {
-        Console.WriteLine();
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine($"  ⚠ Assembly failed for '{e.NeuronName}': {e.Reason}");
-        Console.ResetColor();
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine($"  {IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned)} [red]{Markup.Escape($"⚠ Assembly failed for '{e.NeuronName}': {e.Reason}")}[/]");
     }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;

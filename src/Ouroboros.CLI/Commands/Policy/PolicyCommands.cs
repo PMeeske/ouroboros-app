@@ -1,6 +1,9 @@
 using System.Text.Json;
+using Ouroboros.CLI.Avatar;
+using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Domain.Governance;
 using Ouroboros.Options;
+using Spectre.Console;
 
 namespace Ouroboros.CLI.Commands;
 
@@ -36,27 +39,28 @@ public static class PolicyCommands
             PrintError($"Policy operation failed: {ex.Message}");
             if (options.Verbose)
             {
-                Console.Error.WriteLine(ex.StackTrace);
+                AnsiConsole.WriteException(ex);
             }
         }
     }
 
     private static Task ExecuteListAsync(PolicyOptions options)
     {
-        Console.WriteLine("=== Registered Policies ===\n");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Registered Policies"));
+        AnsiConsole.WriteLine();
 
         var policies = _policyEngine.GetPolicies(activeOnly: false);
 
         if (policies.Count == 0)
         {
-            Console.WriteLine("No policies registered.");
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim("No policies registered."));
             return Task.CompletedTask;
         }
 
         if (options.Format.Equals("json", StringComparison.OrdinalIgnoreCase))
         {
             var json = JsonSerializer.Serialize(policies, new JsonSerializerOptions { WriteIndented = true });
-            Console.WriteLine(json);
+            AnsiConsole.WriteLine(json);
         }
         else if (options.Format.Equals("table", StringComparison.OrdinalIgnoreCase))
         {
@@ -72,7 +76,8 @@ public static class PolicyCommands
 
     private static Task ExecuteCreateAsync(PolicyOptions options)
     {
-        Console.WriteLine("=== Creating Policy ===\n");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Creating Policy"));
+        AnsiConsole.WriteLine();
 
         Policy policy;
 
@@ -114,13 +119,13 @@ public static class PolicyCommands
 
         if (result.IsSuccess)
         {
-            Console.WriteLine($"✓ Policy '{policy.Name}' created successfully");
-            Console.WriteLine($"  ID: {policy.Id}");
-            Console.WriteLine($"  Priority: {policy.Priority}");
-            Console.WriteLine($"  Rules: {policy.Rules.Count}");
-            Console.WriteLine($"  Quotas: {policy.Quotas.Count}");
-            Console.WriteLine($"  Thresholds: {policy.Thresholds.Count}");
-            Console.WriteLine($"  Approval Gates: {policy.ApprovalGates.Count}");
+            AnsiConsole.MarkupLine(OuroborosTheme.Ok($"✓ Policy '{policy.Name}' created successfully"));
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("ID:")} {Markup.Escape(policy.Id.ToString())}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Priority:")} {policy.Priority}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Rules:")} {policy.Rules.Count}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Quotas:")} {policy.Quotas.Count}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Thresholds:")} {policy.Thresholds.Count}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Approval Gates:")} {policy.ApprovalGates.Count}");
         }
         else
         {
@@ -132,7 +137,8 @@ public static class PolicyCommands
 
     private static async Task ExecuteSimulateAsync(PolicyOptions options)
     {
-        Console.WriteLine("=== Simulating Policy ===\n");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Simulating Policy"));
+        AnsiConsole.WriteLine();
 
         if (string.IsNullOrWhiteSpace(options.PolicyId))
         {
@@ -168,27 +174,29 @@ public static class PolicyCommands
         if (result.IsSuccess)
         {
             var simulation = result.Value;
-            Console.WriteLine($"Policy: {simulation.Policy.Name}");
-            Console.WriteLine($"Compliant: {simulation.EvaluationResult.IsCompliant}");
-            Console.WriteLine($"Would Block: {simulation.WouldBlock}");
-            Console.WriteLine($"Violations: {simulation.EvaluationResult.Violations.Count}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Policy:")} {Markup.Escape(simulation.Policy.Name)}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Compliant:")} {(simulation.EvaluationResult.IsCompliant ? OuroborosTheme.Ok("Yes") : OuroborosTheme.Err("No"))}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Would Block:")} {(simulation.WouldBlock ? OuroborosTheme.Err("Yes") : OuroborosTheme.Ok("No"))}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Violations:")} {simulation.EvaluationResult.Violations.Count}");
 
             if (simulation.EvaluationResult.Violations.Count > 0)
             {
-                Console.WriteLine("\nViolations:");
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine(OuroborosTheme.Accent("Violations:"));
                 foreach (var violation in simulation.EvaluationResult.Violations)
                 {
-                    Console.WriteLine($"  [{violation.Severity}] {violation.Message}");
-                    Console.WriteLine($"    Action: {violation.RecommendedAction}");
+                    AnsiConsole.MarkupLine($"  [yellow][[{Markup.Escape(violation.Severity.ToString())}]][/] {Markup.Escape(violation.Message)}");
+                    AnsiConsole.MarkupLine($"    {OuroborosTheme.Dim($"Action: {violation.RecommendedAction}")}");
                 }
             }
 
             if (simulation.RequiredApprovals.Count > 0)
             {
-                Console.WriteLine($"\nRequired Approvals: {simulation.RequiredApprovals.Count}");
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent($"Required Approvals: {simulation.RequiredApprovals.Count}")}");
                 foreach (var gate in simulation.RequiredApprovals)
                 {
-                    Console.WriteLine($"  - {gate.Name}: {gate.MinimumApprovals} approval(s) required");
+                    AnsiConsole.MarkupLine($"  - {Markup.Escape(gate.Name)}: {gate.MinimumApprovals} approval(s) required");
                 }
             }
         }
@@ -200,27 +208,28 @@ public static class PolicyCommands
 
     private static async Task ExecuteEnforceAsync(PolicyOptions options)
     {
-        Console.WriteLine("=== Enforcing Policies ===\n");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Enforcing Policies"));
+        AnsiConsole.WriteLine();
 
         // Skip enforcement if self-modification is not enabled
         if (!options.EnableSelfModification)
         {
-            Console.WriteLine("Self-modification is DISABLED.");
-            Console.WriteLine("Enable with: --enable-self-mod");
-            Console.WriteLine("\nEnforcement skipped. Use --enable-self-mod to allow policy enforcement.");
+            AnsiConsole.MarkupLine(OuroborosTheme.Warn("Self-modification is DISABLED."));
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim("Enable with: --enable-self-mod"));
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim("\nEnforcement skipped. Use --enable-self-mod to allow policy enforcement."));
             return;
         }
 
         // Log culture and self-modification settings if provided
         if (!string.IsNullOrWhiteSpace(options.Culture))
         {
-            Console.WriteLine($"Culture: {options.Culture}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Culture:")} {Markup.Escape(options.Culture)}");
         }
 
-        Console.WriteLine($"Self-Modification: ENABLED");
-        Console.WriteLine($"  Risk Level Threshold: {options.RiskLevel}");
-        Console.WriteLine($"  Auto-Approve Low Risk: {options.AutoApproveLow}");
-        Console.WriteLine();
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Self-Modification:")} {OuroborosTheme.Ok("ENABLED")}");
+        AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Risk Level Threshold:")} {Markup.Escape(options.RiskLevel)}");
+        AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Auto-Approve Low Risk:")} {options.AutoApproveLow}");
+        AnsiConsole.WriteLine();
 
         // Create a test context
         var context = new
@@ -238,38 +247,42 @@ public static class PolicyCommands
         if (result.IsSuccess)
         {
             var enforcement = result.Value;
-            Console.WriteLine($"Evaluations: {enforcement.Evaluations.Count}");
-            Console.WriteLine($"Total Violations: {enforcement.Evaluations.Sum(e => e.Violations.Count)}");
-            Console.WriteLine($"Blocked: {enforcement.IsBlocked}");
-            Console.WriteLine($"Actions Required: {enforcement.ActionsRequired.Count}");
-            Console.WriteLine($"Approvals Required: {enforcement.ApprovalsRequired.Count}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Evaluations:")} {enforcement.Evaluations.Count}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Total Violations:")} {enforcement.Evaluations.Sum(e => e.Violations.Count)}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Blocked:")} {(enforcement.IsBlocked ? OuroborosTheme.Err("Yes") : OuroborosTheme.Ok("No"))}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Actions Required:")} {enforcement.ActionsRequired.Count}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Approvals Required:")} {enforcement.ApprovalsRequired.Count}");
 
             // Apply self-modifications based on violations
             if (enforcement.Evaluations.Count > 0)
             {
-                Console.WriteLine("\n=== Applying Self-Modifications ===\n");
+                AnsiConsole.WriteLine();
+                AnsiConsole.Write(OuroborosTheme.ThemedRule("Applying Self-Modifications"));
+                AnsiConsole.WriteLine();
                 await ApplySelfModificationsAsync(enforcement, options);
             }
 
             if (enforcement.ActionsRequired.Count > 0)
             {
-                Console.WriteLine("\nRequired Actions:");
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine(OuroborosTheme.Accent("Required Actions:"));
                 foreach (var action in enforcement.ActionsRequired.Distinct())
                 {
                     var count = enforcement.ActionsRequired.Count(a => a == action);
-                    Console.WriteLine($"  - {action}: {count}");
+                    AnsiConsole.MarkupLine($"  - {Markup.Escape(action.ToString())}: {count}");
                 }
             }
 
             if (enforcement.ApprovalsRequired.Count > 0)
             {
-                Console.WriteLine("\nApproval Requests Created:");
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine(OuroborosTheme.Accent("Approval Requests Created:"));
                 foreach (var request in enforcement.ApprovalsRequired)
                 {
-                    Console.WriteLine($"  ID: {request.Id}");
-                    Console.WriteLine($"  Operation: {request.OperationDescription}");
-                    Console.WriteLine($"  Deadline: {request.Deadline:yyyy-MM-dd HH:mm:ss} UTC");
-                    Console.WriteLine();
+                    AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("ID:")} {Markup.Escape(request.Id.ToString())}");
+                    AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Operation:")} {Markup.Escape(request.OperationDescription)}");
+                    AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Deadline:")} {request.Deadline:yyyy-MM-dd HH:mm:ss} UTC");
+                    AnsiConsole.WriteLine();
                 }
             }
         }
@@ -281,7 +294,8 @@ public static class PolicyCommands
 
     private static async Task ExecuteAuditAsync(PolicyOptions options)
     {
-        Console.WriteLine("=== Policy Audit Trail ===\n");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Policy Audit Trail"));
+        AnsiConsole.WriteLine();
 
         DateTime? since = null;
         if (!string.IsNullOrWhiteSpace(options.Since))
@@ -296,19 +310,19 @@ public static class PolicyCommands
 
         if (auditTrail.Count == 0)
         {
-            Console.WriteLine("No audit entries found.");
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim("No audit entries found."));
             return;
         }
 
         if (options.Format.Equals("json", StringComparison.OrdinalIgnoreCase))
         {
             var json = JsonSerializer.Serialize(auditTrail, new JsonSerializerOptions { WriteIndented = true });
-            Console.WriteLine(json);
+            AnsiConsole.WriteLine(json);
 
             if (!string.IsNullOrWhiteSpace(options.OutputPath))
             {
                 await File.WriteAllTextAsync(options.OutputPath, json);
-                Console.WriteLine($"\n✓ Audit trail exported to: {options.OutputPath}");
+                AnsiConsole.MarkupLine(OuroborosTheme.Ok($"\n✓ Audit trail exported to: {options.OutputPath}"));
             }
         }
         else
@@ -319,7 +333,8 @@ public static class PolicyCommands
 
     private static Task ExecuteApproveAsync(PolicyOptions options)
     {
-        Console.WriteLine("=== Approval Management ===\n");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Approval Management"));
+        AnsiConsole.WriteLine();
 
         if (string.IsNullOrWhiteSpace(options.ApprovalId))
         {
@@ -328,22 +343,24 @@ public static class PolicyCommands
 
             if (pending.Count == 0)
             {
-                Console.WriteLine("No pending approval requests.");
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim("No pending approval requests."));
                 return Task.CompletedTask;
             }
 
-            Console.WriteLine($"Pending Approvals: {pending.Count}\n");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent($"Pending Approvals: {pending.Count}")}");
+            AnsiConsole.WriteLine();
+
             foreach (var request in pending)
             {
                 TimeSpan timeUntilDeadline = request.Deadline - DateTime.UtcNow;
-                string urgency = timeUntilDeadline.TotalHours < 24 ? "⚠️ URGENT" : "";
+                string urgency = timeUntilDeadline.TotalHours < 24 ? OuroborosTheme.Err("URGENT") : "";
 
-                Console.WriteLine($"ID: {request.Id}");
-                Console.WriteLine($"Operation: {request.OperationDescription}");
-                Console.WriteLine($"Required Approvals: {request.Gate.MinimumApprovals}");
-                Console.WriteLine($"Current Approvals: {request.Approvals.Count}");
-                Console.WriteLine($"Deadline: {request.Deadline:yyyy-MM-dd HH:mm:ss} UTC {urgency}");
-                Console.WriteLine();
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("ID:")} {Markup.Escape(request.Id.ToString())}");
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Operation:")} {Markup.Escape(request.OperationDescription)}");
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Required Approvals:")} {request.Gate.MinimumApprovals}");
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Current Approvals:")} {request.Approvals.Count}");
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Deadline:")} {request.Deadline:yyyy-MM-dd HH:mm:ss} UTC {urgency}");
+                AnsiConsole.WriteLine();
             }
 
             return Task.CompletedTask;
@@ -388,14 +405,14 @@ public static class PolicyCommands
         if (result.IsSuccess)
         {
             var updated = result.Value;
-            Console.WriteLine($"✓ Approval submitted successfully");
-            Console.WriteLine($"  Request ID: {updated.Id}");
-            Console.WriteLine($"  New Status: {updated.Status}");
-            Console.WriteLine($"  Total Approvals: {updated.Approvals.Count}");
+            AnsiConsole.MarkupLine(OuroborosTheme.Ok("✓ Approval submitted successfully"));
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Request ID:")} {Markup.Escape(updated.Id.ToString())}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("New Status:")} {Markup.Escape(updated.Status.ToString())}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Total Approvals:")} {updated.Approvals.Count}");
 
             if (updated.IsApproved)
             {
-                Console.WriteLine($"  ✓ Request is now APPROVED");
+                AnsiConsole.MarkupLine(OuroborosTheme.Ok("  ✓ Request is now APPROVED"));
             }
         }
         else
@@ -408,90 +425,98 @@ public static class PolicyCommands
 
     private static void PrintPoliciesTable(IReadOnlyList<Policy> policies, bool verbose)
     {
-        Console.WriteLine($"Total Policies: {policies.Count}\n");
+        var table = OuroborosTheme.ThemedTable("Priority", "Status", "Name", "Rules", "Quotas", "Thresholds", "Gates", "Created");
 
         foreach (var policy in policies)
         {
-            string status = policy.IsActive ? "✓ ACTIVE" : "  INACTIVE";
-            Console.WriteLine($"[{policy.Priority:F1}] {status} {policy.Name}");
-            Console.WriteLine($"  ID: {policy.Id}");
-            Console.WriteLine($"  Description: {policy.Description}");
-            Console.WriteLine($"  Rules: {policy.Rules.Count}, Quotas: {policy.Quotas.Count}, Thresholds: {policy.Thresholds.Count}, Gates: {policy.ApprovalGates.Count}");
-            Console.WriteLine($"  Created: {policy.CreatedAt:yyyy-MM-dd HH:mm:ss} UTC");
+            string status = policy.IsActive ? "[green]ACTIVE[/]" : "[grey]INACTIVE[/]";
+            table.AddRow(
+                $"{policy.Priority:F1}",
+                status,
+                Markup.Escape(policy.Name),
+                $"{policy.Rules.Count}",
+                $"{policy.Quotas.Count}",
+                $"{policy.Thresholds.Count}",
+                $"{policy.ApprovalGates.Count}",
+                $"{policy.CreatedAt:yyyy-MM-dd HH:mm}");
+        }
 
-            if (verbose)
+        AnsiConsole.Write(table);
+
+        if (verbose)
+        {
+            foreach (var policy in policies)
             {
                 if (policy.Rules.Count > 0)
                 {
-                    Console.WriteLine("  Rules:");
+                    AnsiConsole.WriteLine();
+                    AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent($"Rules for {policy.Name}:")}");
                     foreach (var rule in policy.Rules)
                     {
-                        Console.WriteLine($"    - {rule.Name}: {rule.Condition} → {rule.Action}");
+                        AnsiConsole.MarkupLine($"    - {Markup.Escape(rule.Name)}: {Markup.Escape(rule.Condition)} → {Markup.Escape(rule.Action.ToString())}");
                     }
                 }
 
                 if (policy.Quotas.Count > 0)
                 {
-                    Console.WriteLine("  Quotas:");
+                    AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Quotas:")}");
                     foreach (var quota in policy.Quotas)
                     {
-                        Console.WriteLine($"    - {quota.ResourceName}: {quota.CurrentValue}/{quota.MaxValue} {quota.Unit} ({quota.UtilizationPercent:F0}%)");
+                        AnsiConsole.MarkupLine($"    - {Markup.Escape(quota.ResourceName)}: {quota.CurrentValue}/{quota.MaxValue} {Markup.Escape(quota.Unit)} ({quota.UtilizationPercent:F0}%)");
                     }
                 }
             }
-
-            Console.WriteLine();
         }
     }
 
     private static void PrintPoliciesSummary(IReadOnlyList<Policy> policies)
     {
         var active = policies.Count(p => p.IsActive);
-        Console.WriteLine($"Total: {policies.Count} policies ({active} active, {policies.Count - active} inactive)");
-        Console.WriteLine($"Total Rules: {policies.Sum(p => p.Rules.Count)}");
-        Console.WriteLine($"Total Quotas: {policies.Sum(p => p.Quotas.Count)}");
-        Console.WriteLine($"Total Thresholds: {policies.Sum(p => p.Thresholds.Count)}");
-        Console.WriteLine($"Total Approval Gates: {policies.Sum(p => p.ApprovalGates.Count)}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Total:")} {policies.Count} policies ({active} active, {policies.Count - active} inactive)");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Total Rules:")} {policies.Sum(p => p.Rules.Count)}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Total Quotas:")} {policies.Sum(p => p.Quotas.Count)}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Total Thresholds:")} {policies.Sum(p => p.Thresholds.Count)}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Total Approval Gates:")} {policies.Sum(p => p.ApprovalGates.Count)}");
     }
 
     private static void PrintAuditTrailTable(IReadOnlyList<PolicyAuditEntry> entries, bool verbose)
     {
-        Console.WriteLine($"Audit Entries: {entries.Count}\n");
+        var table = OuroborosTheme.ThemedTable("Timestamp", "Action", "Actor", "Policy", "Compliant", "Violations");
 
         foreach (var entry in entries)
         {
-            Console.WriteLine($"[{entry.Timestamp:yyyy-MM-dd HH:mm:ss}] {entry.Action} by {entry.Actor}");
-            Console.WriteLine($"  Policy: {entry.Policy.Name}");
+            table.AddRow(
+                $"{entry.Timestamp:yyyy-MM-dd HH:mm:ss}",
+                Markup.Escape(entry.Action),
+                Markup.Escape(entry.Actor),
+                Markup.Escape(entry.Policy.Name),
+                entry.EvaluationResult != null
+                    ? (entry.EvaluationResult.IsCompliant ? "[green]Yes[/]" : "[red]No[/]")
+                    : "[grey]—[/]",
+                entry.EvaluationResult != null
+                    ? $"{entry.EvaluationResult.Violations.Count}"
+                    : "—");
+        }
 
-            if (entry.EvaluationResult != null)
-            {
-                Console.WriteLine($"  Compliant: {entry.EvaluationResult.IsCompliant}");
-                Console.WriteLine($"  Violations: {entry.EvaluationResult.Violations.Count}");
-            }
+        AnsiConsole.Write(table);
 
-            if (entry.ApprovalRequest != null)
+        if (verbose)
+        {
+            foreach (var entry in entries.Where(e => e.Metadata.Count > 0))
             {
-                Console.WriteLine($"  Approval: {entry.ApprovalRequest.Status}");
-            }
-
-            if (verbose && entry.Metadata.Count > 0)
-            {
-                Console.WriteLine("  Metadata:");
+                AnsiConsole.MarkupLine($"\n  {OuroborosTheme.Dim("Metadata:")}");
                 foreach (var kvp in entry.Metadata)
                 {
-                    Console.WriteLine($"    {kvp.Key}: {kvp.Value}");
+                    AnsiConsole.MarkupLine($"    {Markup.Escape(kvp.Key)}: {Markup.Escape(kvp.Value?.ToString() ?? "null")}");
                 }
             }
-
-            Console.WriteLine();
         }
     }
 
     private static void PrintError(string message)
     {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.Error.WriteLine($"✗ {message}");
-        Console.ResetColor();
+        var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+        AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} ✗ {Markup.Escape(message)}[/]");
     }
 
     /// <summary>
@@ -515,26 +540,27 @@ public static class PolicyCommands
 
                 if (requiresApproval)
                 {
-                    Console.WriteLine($"[PENDING APPROVAL] {violation.Message}");
-                    Console.WriteLine($"  Risk: {violationRisk}");
-                    Console.WriteLine($"  Recommended: {violation.RecommendedAction}");
+                    AnsiConsole.MarkupLine($"  [yellow][[PENDING APPROVAL]][/] {Markup.Escape(violation.Message)}");
+                    AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Risk:")} {violationRisk}");
+                    AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Recommended:")} {Markup.Escape(violation.RecommendedAction.ToString())}");
                     approvalCount++;
                 }
                 else
                 {
                     // Auto-apply low-risk modifications
-                    Console.WriteLine($"[AUTO-APPLIED] {violation.Message}");
-                    Console.WriteLine($"  Risk: {violationRisk}");
-                    Console.WriteLine($"  Action: {violation.RecommendedAction}");
+                    AnsiConsole.MarkupLine($"  [green][[AUTO-APPLIED]][/] {Markup.Escape(violation.Message)}");
+                    AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Risk:")} {violationRisk}");
+                    AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Action:")} {Markup.Escape(violation.RecommendedAction.ToString())}");
                     modificationCount++;
                     await Task.Delay(100); // Simulate modification work
                 }
             }
         }
 
-        Console.WriteLine($"\n=== Modification Summary ===");
-        Console.WriteLine($"Auto-Applied: {modificationCount}");
-        Console.WriteLine($"Pending Approval: {approvalCount}");
+        AnsiConsole.WriteLine();
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Modification Summary"));
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok($"Auto-Applied: {modificationCount}")}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"Pending Approval: {approvalCount}")}");
     }
 
     /// <summary>

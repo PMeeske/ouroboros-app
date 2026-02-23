@@ -3,7 +3,10 @@
 // </copyright>
 
 using MediatR;
+using Ouroboros.CLI.Avatar;
+using Ouroboros.CLI.Infrastructure;
 using Ouroboros.CLI.Mediator;
+using Spectre.Console;
 
 namespace Ouroboros.CLI.Commands;
 
@@ -11,44 +14,40 @@ public sealed partial class OuroborosAgent
 {
     private void PrintFeatureStatus()
     {
-        Console.WriteLine("  Configuration:");
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine($"    Model: {_config.Model}");
-        Console.WriteLine($"    Persona: {_config.Persona}");
+        AnsiConsole.MarkupLine(Markup.Escape("  Configuration:"));
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim($"    Model: {_config.Model}"));
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim($"    Persona: {_config.Persona}"));
         var ttsMode = _config.AzureTts ? "✓ Azure (cloud)" : "○ Local (Windows)";
-        Console.WriteLine($"    Voice: {(_config.Voice ? "✓ enabled" : "○ disabled")} - {ttsMode}");
-        Console.ResetColor();
-        Console.WriteLine();
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim($"    Voice: {(_config.Voice ? "✓ enabled" : "○ disabled")} - {ttsMode}"));
+        AnsiConsole.WriteLine();
 
-        Console.WriteLine("  Features (all enabled by default, use --no-X to disable):");
-        Console.ForegroundColor = _config.EnableSkills ? ConsoleColor.Green : ConsoleColor.DarkGray;
-        Console.WriteLine($"    {(_config.EnableSkills ? "✓" : "○")} Skills       - Persistent learning with Qdrant");
-        Console.ForegroundColor = _config.EnableMeTTa ? ConsoleColor.Green : ConsoleColor.DarkGray;
-        Console.WriteLine($"    {(_config.EnableMeTTa ? "✓" : "○")} MeTTa        - Symbolic reasoning engine");
-        Console.ForegroundColor = _config.EnableTools ? ConsoleColor.Green : ConsoleColor.DarkGray;
-        Console.WriteLine($"    {(_config.EnableTools ? "✓" : "○")} Tools        - Web search, calculator, URL fetch");
-        Console.ForegroundColor = _config.EnableBrowser ? ConsoleColor.Green : ConsoleColor.DarkGray;
-        Console.WriteLine($"    {(_config.EnableBrowser ? "✓" : "○")} Browser      - Playwright automation");
-        Console.ForegroundColor = _config.EnablePersonality ? ConsoleColor.Green : ConsoleColor.DarkGray;
-        Console.WriteLine($"    {(_config.EnablePersonality ? "✓" : "○")} Personality  - Affective states & traits");
-        Console.ForegroundColor = _config.EnableMind ? ConsoleColor.Green : ConsoleColor.DarkGray;
-        Console.WriteLine($"    {(_config.EnableMind ? "✓" : "○")} Mind         - Autonomous inner thoughts");
-        Console.ForegroundColor = _config.EnableConsciousness ? ConsoleColor.Green : ConsoleColor.DarkGray;
-        Console.WriteLine($"    {(_config.EnableConsciousness ? "✓" : "○")} Consciousness- ImmersivePersona self-awareness");
-        Console.ForegroundColor = _config.EnableEmbodiment ? ConsoleColor.Green : ConsoleColor.DarkGray;
-        Console.WriteLine($"    {(_config.EnableEmbodiment ? "✓" : "○")} Embodiment   - Multimodal sensors & actuators");
-        Console.ForegroundColor = _config.EnablePush ? ConsoleColor.Cyan : ConsoleColor.DarkGray;
-        Console.WriteLine($"    {(_config.EnablePush ? "⚡" : "○")} Push Mode    - Propose actions for approval (--push)");
-        Console.ResetColor();
-        Console.WriteLine();
+        AnsiConsole.MarkupLine(Markup.Escape("  Features (all enabled by default, use --no-X to disable):"));
+        PrintFeatureLine(_config.EnableSkills, "Skills       - Persistent learning with Qdrant");
+        PrintFeatureLine(_config.EnableMeTTa, "MeTTa        - Symbolic reasoning engine");
+        PrintFeatureLine(_config.EnableTools, "Tools        - Web search, calculator, URL fetch");
+        PrintFeatureLine(_config.EnableBrowser, "Browser      - Playwright automation");
+        PrintFeatureLine(_config.EnablePersonality, "Personality  - Affective states & traits");
+        PrintFeatureLine(_config.EnableMind, "Mind         - Autonomous inner thoughts");
+        PrintFeatureLine(_config.EnableConsciousness, "Consciousness- ImmersivePersona self-awareness");
+        PrintFeatureLine(_config.EnableEmbodiment, "Embodiment   - Multimodal sensors & actuators");
+        AnsiConsole.MarkupLine(_config.EnablePush
+            ? $"[rgb(148,103,189)]    {Markup.Escape("⚡ Push Mode    - Propose actions for approval (--push)")}[/]"
+            : OuroborosTheme.Dim("    ○ Push Mode    - Propose actions for approval (--push)"));
+        AnsiConsole.WriteLine();
+
+        static void PrintFeatureLine(bool enabled, string description)
+        {
+            var symbol = enabled ? "✓" : "○";
+            var line = $"    {symbol} {description}";
+            AnsiConsole.MarkupLine(enabled ? OuroborosTheme.Ok(line) : OuroborosTheme.Dim(line));
+        }
     }
 
     private void PrintQuickHelp()
     {
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine("  Quick commands: 'help' | 'status' | 'skills' | 'tools' | 'exit'");
-        Console.WriteLine("  Say or type anything to chat. Use [TOOL:name args] to call tools.\n");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim("  Quick commands: 'help' | 'status' | 'skills' | 'tools' | 'exit'"));
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim("  Say or type anything to chat. Use [TOOL:name args] to call tools."));
+        AnsiConsole.WriteLine();
     }
 
     public async Task RunAsync()
@@ -110,9 +109,7 @@ public sealed partial class OuroborosAgent
                 if (_config.ShowCosts && _costTracker != null)
                 {
                     var costString = _costTracker.GetCostString();
-                    Console.ForegroundColor = ConsoleColor.DarkGray;
-                    Console.WriteLine($"  [{costString}]");
-                    Console.ResetColor();
+                    AnsiConsole.MarkupLine(OuroborosTheme.Dim($"  [{costString}]"));
                 }
 
                 // Strip tool results for voice output (full response shown in console)

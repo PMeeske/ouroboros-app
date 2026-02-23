@@ -1,6 +1,8 @@
 // Copyright (c) Ouroboros. All rights reserved.
 namespace Ouroboros.CLI.Services.RoomPresence;
 
+using Spectre.Console;
+
 /// <summary>
 /// Identifies and enrolls speakers by their acoustic voice signature.
 ///
@@ -78,9 +80,7 @@ public sealed class VoiceSignatureService
     {
         _ownerId = speakerId;
         AddSample(speakerId, sig);
-        Console.ForegroundColor = ConsoleColor.DarkMagenta;
-        Console.WriteLine($"\n  [voice] Owner enrolled — I'll recognise your voice from now on.");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine($"\n[rgb(128,0,180)]  [voice] Owner enrolled — I'll recognise your voice from now on.[/]");
     }
 
     /// <summary>

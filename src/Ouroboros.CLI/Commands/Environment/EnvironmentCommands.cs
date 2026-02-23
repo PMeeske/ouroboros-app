@@ -1,15 +1,18 @@
-// <copyright file="EnvironmentCommands.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="EnvironmentCommands.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 using System.Text.Json;
 using Ouroboros.Abstractions;
 using Ouroboros.Abstractions.Monads;
+using Ouroboros.CLI.Avatar;
+using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Domain.Environment;
 using Ouroboros.Domain.Reinforcement;
 using Ouroboros.Options;
 using Ouroboros.Application.Services.Reinforcement;
 using Ouroboros.Examples.Environments;
+using Spectre.Console;
 
 namespace Ouroboros.CLI.Commands;
 
@@ -37,15 +40,16 @@ public static class EnvironmentCommands
                 await ReplayEpisodeAsync(options);
                 break;
             default:
-                Console.WriteLine($"Unknown command: {options.Command}");
-                Console.WriteLine("Available commands: step, run, replay");
+                PrintError($"Unknown command: {options.Command}");
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim("Available commands: step, run, replay"));
                 break;
         }
     }
 
     private static async Task RunSingleStepAsync(EnvironmentOptions options)
     {
-        Console.WriteLine("=== Environment Single Step ===\n");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Environment Single Step"));
+        AnsiConsole.WriteLine();
 
         var (environment, policy) = CreateEnvironmentAndPolicy(options);
 
@@ -53,59 +57,63 @@ public static class EnvironmentCommands
         var stateResult = await environment.GetStateAsync();
         if (stateResult.IsFailure)
         {
-            Console.WriteLine($"Error getting state: {stateResult.Error}");
+            PrintError($"Error getting state: {stateResult.Error}");
             return;
         }
 
-        Console.WriteLine($"Current State: {FormatState(stateResult.Value)}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Current State:")} {Markup.Escape(FormatState(stateResult.Value))}");
 
         // Get available actions
         var actionsResult = await environment.GetAvailableActionsAsync();
         if (actionsResult.IsFailure)
         {
-            Console.WriteLine($"Error getting actions: {actionsResult.Error}");
+            PrintError($"Error getting actions: {actionsResult.Error}");
             return;
         }
 
-        Console.WriteLine($"Available Actions: {string.Join(", ", actionsResult.Value.Select(a => a.ActionType))}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Available Actions:")} {Markup.Escape(string.Join(", ", actionsResult.Value.Select(a => a.ActionType)))}");
 
         // Select action
         var actionResult = await policy.SelectActionAsync(stateResult.Value, actionsResult.Value);
         if (actionResult.IsFailure)
         {
-            Console.WriteLine($"Error selecting action: {actionResult.Error}");
+            PrintError($"Error selecting action: {actionResult.Error}");
             return;
         }
 
-        Console.WriteLine($"Selected Action: {actionResult.Value.ActionType}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.GoldText("Selected Action:")} {Markup.Escape(actionResult.Value.ActionType)}");
 
         // Execute action
         var observationResult = await environment.ExecuteActionAsync(actionResult.Value);
         if (observationResult.IsFailure)
         {
-            Console.WriteLine($"Error executing action: {observationResult.Error}");
+            PrintError($"Error executing action: {observationResult.Error}");
             return;
         }
 
         var observation = observationResult.Value;
-        Console.WriteLine($"\nObservation:");
-        Console.WriteLine($"  New State: {FormatState(observation.State)}");
-        Console.WriteLine($"  Reward: {observation.Reward:F2}");
-        Console.WriteLine($"  Terminal: {observation.IsTerminal}");
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine(OuroborosTheme.Accent("  Observation:"));
+        AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("New State:")} {Markup.Escape(FormatState(observation.State))}");
+        AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Reward:")} {observation.Reward:F2}");
+        AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Terminal:")} {observation.IsTerminal}");
 
         if (observation.Info != null && observation.Info.Count > 0)
         {
-            Console.WriteLine($"  Info: {string.Join(", ", observation.Info.Select(kv => $"{kv.Key}={kv.Value}"))}");
+            AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Info:")} {Markup.Escape(string.Join(", ", observation.Info.Select(kv => $"{kv.Key}={kv.Value}")))}");
         }
     }
 
     private static async Task RunEpisodesAsync(EnvironmentOptions options)
     {
-        Console.WriteLine("=== Running Episodes ===\n");
-        Console.WriteLine($"Environment: {options.Environment}");
-        Console.WriteLine($"Policy: {options.Policy}");
-        Console.WriteLine($"Episodes: {options.Episodes}");
-        Console.WriteLine($"Max Steps: {options.MaxSteps}\n");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Running Episodes"));
+        AnsiConsole.WriteLine();
+
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Environment:")} {Markup.Escape(options.Environment)}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Policy:")} {Markup.Escape(options.Policy)}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Episodes:")} {options.Episodes}");
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.Accent("Max Steps:")} {options.MaxSteps}");
+        AnsiConsole.WriteLine();
 
         var (environment, policy) = CreateEnvironmentAndPolicy(options);
         var runner = new EpisodeRunner(environment, policy, options.Environment);
@@ -119,7 +127,7 @@ public static class EnvironmentCommands
 
             if (result.IsFailure)
             {
-                Console.WriteLine($"Episode {i + 1} failed: {result.Error}");
+                PrintError($"Episode {i + 1} failed: {result.Error}");
                 continue;
             }
 
@@ -129,22 +137,22 @@ public static class EnvironmentCommands
             var episodeMetrics = EpisodeMetrics.FromEpisode(episode);
             metrics.Add(episodeMetrics);
 
-            Console.WriteLine($"Episode {i + 1}/{options.Episodes}:");
-            Console.WriteLine($"  Steps: {episode.StepCount}");
-            Console.WriteLine($"  Reward: {episode.TotalReward:F2}");
-            Console.WriteLine($"  Success: {episode.Success}");
-            Console.WriteLine($"  Duration: {episode.Duration?.TotalSeconds:F2}s");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.GoldText($"Episode {i + 1}/{options.Episodes}:")}");
+            AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Steps:")} {episode.StepCount}");
+            AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Reward:")} {episode.TotalReward:F2}");
+            AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Success:")} {(episode.Success ? OuroborosTheme.Ok("Yes") : OuroborosTheme.Err("No"))}");
+            AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Duration:")} {episode.Duration?.TotalSeconds:F2}s");
 
             if (options.Verbose)
             {
-                Console.WriteLine($"  Steps detail:");
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim("    Steps detail:"));
                 foreach (var step in episode.Steps)
                 {
-                    Console.WriteLine($"    Step {step.StepNumber}: {step.Action.ActionType} → Reward: {step.Observation.Reward:F2}");
+                    AnsiConsole.MarkupLine($"      Step {step.StepNumber}: {Markup.Escape(step.Action.ActionType)} → Reward: {step.Observation.Reward:F2}");
                 }
             }
 
-            Console.WriteLine();
+            AnsiConsole.WriteLine();
         }
 
         // Print summary statistics
@@ -154,7 +162,7 @@ public static class EnvironmentCommands
         if (!string.IsNullOrWhiteSpace(options.OutputFile))
         {
             await SaveEpisodesToFileAsync(episodes, options.OutputFile);
-            Console.WriteLine($"\nEpisodes saved to {options.OutputFile}");
+            AnsiConsole.MarkupLine(OuroborosTheme.Ok($"\nEpisodes saved to {options.OutputFile}"));
         }
     }
 
@@ -162,11 +170,12 @@ public static class EnvironmentCommands
     {
         if (string.IsNullOrWhiteSpace(options.InputFile))
         {
-            Console.WriteLine("Error: Input file required for replay. Use -i or --input option.");
+            PrintError("Input file required for replay. Use -i or --input option.");
             return;
         }
 
-        Console.WriteLine("=== Replaying Episode ===\n");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Replaying Episode"));
+        AnsiConsole.WriteLine();
 
         try
         {
@@ -175,35 +184,35 @@ public static class EnvironmentCommands
 
             if (episodes == null || episodes.Count == 0)
             {
-                Console.WriteLine("No episodes found in file.");
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim("No episodes found in file."));
                 return;
             }
 
             foreach (var episode in episodes)
             {
-                Console.WriteLine($"Episode {episode.Id}:");
-                Console.WriteLine($"  Environment: {episode.EnvironmentName}");
-                Console.WriteLine($"  Steps: {episode.StepCount}");
-                Console.WriteLine($"  Total Reward: {episode.TotalReward:F2}");
-                Console.WriteLine($"  Success: {episode.Success}");
-                Console.WriteLine($"  Duration: {episode.Duration?.TotalSeconds:F2}s");
-                Console.WriteLine();
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.GoldText($"Episode {episode.Id}:")}");
+                AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Environment:")} {Markup.Escape(episode.EnvironmentName)}");
+                AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Steps:")} {episode.StepCount}");
+                AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Total Reward:")} {episode.TotalReward:F2}");
+                AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Success:")} {(episode.Success ? OuroborosTheme.Ok("Yes") : OuroborosTheme.Err("No"))}");
+                AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Duration:")} {episode.Duration?.TotalSeconds:F2}s");
+                AnsiConsole.WriteLine();
 
                 foreach (var step in episode.Steps)
                 {
-                    Console.WriteLine($"  Step {step.StepNumber}:");
-                    Console.WriteLine($"    State: {FormatState(step.State)}");
-                    Console.WriteLine($"    Action: {step.Action.ActionType}");
-                    Console.WriteLine($"    Reward: {step.Observation.Reward:F2}");
-                    Console.WriteLine($"    Next State: {FormatState(step.Observation.State)}");
-                    Console.WriteLine($"    Terminal: {step.Observation.IsTerminal}");
-                    Console.WriteLine();
+                    AnsiConsole.MarkupLine($"    {OuroborosTheme.GoldText($"Step {step.StepNumber}:")}");
+                    AnsiConsole.MarkupLine($"      {OuroborosTheme.Accent("State:")} {Markup.Escape(FormatState(step.State))}");
+                    AnsiConsole.MarkupLine($"      {OuroborosTheme.Accent("Action:")} {Markup.Escape(step.Action.ActionType)}");
+                    AnsiConsole.MarkupLine($"      {OuroborosTheme.Accent("Reward:")} {step.Observation.Reward:F2}");
+                    AnsiConsole.MarkupLine($"      {OuroborosTheme.Accent("Next State:")} {Markup.Escape(FormatState(step.Observation.State))}");
+                    AnsiConsole.MarkupLine($"      {OuroborosTheme.Accent("Terminal:")} {step.Observation.IsTerminal}");
+                    AnsiConsole.WriteLine();
                 }
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error replaying episode: {ex.Message}");
+            PrintError($"Error replaying episode: {ex.Message}");
         }
     }
 
@@ -244,18 +253,23 @@ public static class EnvironmentCommands
             return;
         }
 
-        Console.WriteLine("=== Summary Statistics ===");
-        Console.WriteLine($"Total Episodes: {metrics.Count}");
-        Console.WriteLine($"Success Rate: {metrics.Count(m => m.Success) / (double)metrics.Count:P1}");
-        Console.WriteLine($"Average Reward: {metrics.Average(m => m.TotalReward):F2}");
-        Console.WriteLine($"Average Steps: {metrics.Average(m => m.StepCount):F2}");
-        Console.WriteLine($"Average Duration: {TimeSpan.FromTicks((long)metrics.Average(m => m.Duration.Ticks)).TotalSeconds:F2}s");
+        AnsiConsole.Write(OuroborosTheme.ThemedRule("Summary Statistics"));
+        AnsiConsole.WriteLine();
+
+        var table = OuroborosTheme.ThemedTable("Metric", "Value");
+        table.AddRow("Total Episodes", $"{metrics.Count}");
+        table.AddRow("Success Rate", $"{metrics.Count(m => m.Success) / (double)metrics.Count:P1}");
+        table.AddRow("Average Reward", $"{metrics.Average(m => m.TotalReward):F2}");
+        table.AddRow("Average Steps", $"{metrics.Average(m => m.StepCount):F2}");
+        table.AddRow("Average Duration", $"{TimeSpan.FromTicks((long)metrics.Average(m => m.Duration.Ticks)).TotalSeconds:F2}s");
+        AnsiConsole.Write(table);
 
         var bestEpisode = metrics.OrderByDescending(m => m.TotalReward).First();
-        Console.WriteLine($"\nBest Episode:");
-        Console.WriteLine($"  ID: {bestEpisode.EpisodeId}");
-        Console.WriteLine($"  Reward: {bestEpisode.TotalReward:F2}");
-        Console.WriteLine($"  Steps: {bestEpisode.StepCount}");
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine($"  {OuroborosTheme.GoldText("Best Episode:")}");
+        AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("ID:")} {bestEpisode.EpisodeId}");
+        AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Reward:")} {bestEpisode.TotalReward:F2}");
+        AnsiConsole.MarkupLine($"    {OuroborosTheme.Accent("Steps:")} {bestEpisode.StepCount}");
     }
 
     private static async Task SaveEpisodesToFileAsync(List<Episode> episodes, string filePath)
@@ -267,6 +281,12 @@ public static class EnvironmentCommands
 
         var json = JsonSerializer.Serialize(episodes, options);
         await File.WriteAllTextAsync(filePath, json);
+    }
+
+    private static void PrintError(string message)
+    {
+        var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+        AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} ✗ {Markup.Escape(message)}[/]");
     }
 
     /// <summary>

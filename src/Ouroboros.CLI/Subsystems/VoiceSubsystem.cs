@@ -5,6 +5,7 @@ using System.Collections.Concurrent;
 using Ouroboros.CLI.Commands;
 using Ouroboros.CLI.Infrastructure;
 using Ouroboros.CLI.Services;
+using Spectre.Console;
 
 /// <summary>
 /// Voice subsystem implementation owning voice services, speech processes, and listening.
@@ -62,9 +63,7 @@ public sealed class VoiceSubsystem : IVoiceSubsystem
                 {
                     if (ctx.Config.Debug)
                     {
-                        Console.ForegroundColor = ConsoleColor.DarkGray;
-                        Console.WriteLine($"  \ud83d\udd0a [{msg.PersonaName}] spoke: {msg.Text[..Math.Min(50, msg.Text.Length)]}...");
-                        Console.ResetColor();
+                        AnsiConsole.MarkupLine(OuroborosTheme.Dim($"  🔊 [{Markup.Escape(msg.PersonaName)}] spoke: {Markup.Escape(msg.Text[..Math.Min(50, msg.Text.Length)])}..."));
                     }
                 };
                 ctx.Output.RecordInit("Voice Side Channel", true, $"{ctx.Config.Persona} (parallel playback)");
