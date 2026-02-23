@@ -19,8 +19,8 @@ namespace Ouroboros.ApiHost.Extensions;
 public static class WebApiApplicationExtensions
 {
     /// <summary>
-    /// Applies the Ouroboros middleware pipeline: request-localisation, correlation ID
-    /// header, global exception handler, Swagger UI, and CORS.
+    /// Applies the Ouroboros middleware pipeline: request-localisation, API key auth,
+    /// correlation ID header, global exception handler, rate limiting, Swagger UI, and CORS.
     /// </summary>
     /// <param name="app">The application builder.</param>
     /// <returns><paramref name="app"/> for fluent chaining.</returns>
@@ -35,8 +35,12 @@ public static class WebApiApplicationExtensions
         app.UseRequestLocalization(localizationOptions);
 
         // Middleware pipeline — order matters
+        app.UseMiddleware<ApiKeyAuthMiddleware>();
         app.UseMiddleware<CorrelationIdMiddleware>();
         app.UseMiddleware<GlobalExceptionMiddleware>();
+
+        // Rate limiting (registered in AddOuroborosWebApi)
+        app.UseRateLimiter();
 
         // Swagger (all environments — useful when embedded in CLI or Android dev build)
         app.UseSwagger();

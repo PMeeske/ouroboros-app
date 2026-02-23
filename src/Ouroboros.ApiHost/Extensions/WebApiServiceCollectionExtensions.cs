@@ -2,6 +2,8 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OpenApi;
@@ -49,10 +51,34 @@ public static class WebApiServiceCollectionExtensions
                 Version = "v1",
                 Description = "Kubernetes-friendly ASP.NET Core Web API for Ouroboros – A functional programming-based AI pipeline system",
             });
+            c.AddSecurityDefinition("ApiKey", new Microsoft.OpenApi.OpenApiSecurityScheme
+            {
+                Name = "X-Api-Key",
+                Type = Microsoft.OpenApi.SecuritySchemeType.ApiKey,
+                In = Microsoft.OpenApi.ParameterLocation.Header,
+                Description = "API key for authentication. Set the 'ApiKey' configuration value to enable."
+            });
         });
 
         // Pipeline service (Web API flavour — accepts AskRequest / PipelineRequest DTOs)
         services.AddSingleton<IPipelineService, PipelineService>();
+
+        // Rate limiting — per-IP sliding window: 60 requests per minute
+        services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+                RateLimitPartition.GetSlidingWindowLimiter(
+                    partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    factory: _ => new SlidingWindowRateLimiterOptions
+                    {
+                        PermitLimit = 60,
+                        Window = TimeSpan.FromMinutes(1),
+                        SegmentsPerWindow = 6,
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = 2,
+                    }));
+        });
 
         // CORS
         services.AddCors(options =>
