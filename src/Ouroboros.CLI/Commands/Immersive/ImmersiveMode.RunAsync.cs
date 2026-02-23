@@ -1,4 +1,4 @@
-// <copyright file="ImmersiveMode.RunAsync.cs" company="Ouroboros">
+﻿// <copyright file="ImmersiveMode.RunAsync.cs" company="Ouroboros">
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
@@ -135,7 +135,7 @@ public sealed partial class ImmersiveMode
             var registry = _serviceProvider?.GetService<IQdrantCollectionRegistry>();
             if (client != null && registry != null)
             {
-                _conversationMemory = new PersistentConversationMemory(embeddingModel, client, registry);
+                _conversationMemory = new PersistentConversationMemory(client, registry, embeddingModel);
             }
             else
             {
@@ -164,13 +164,12 @@ public sealed partial class ImmersiveMode
                 var nsClient = _serviceProvider?.GetService<QdrantClient>();
                 var nsRegistry = _serviceProvider?.GetService<IQdrantCollectionRegistry>();
                 var nsSettings = _serviceProvider?.GetService<QdrantSettings>();
-                if (nsClient != null && nsRegistry != null && nsSettings != null)
+                if (nsClient != null && nsRegistry != null)
                 {
                     _networkStateProjector = new PersistentNetworkStateProjector(
                         dag,
                         nsClient,
                         nsRegistry,
-                        nsSettings,
                         async text => await embeddingModel.CreateEmbeddingsAsync(text));
                 }
                 else
