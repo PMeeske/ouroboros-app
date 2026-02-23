@@ -100,6 +100,29 @@ public sealed partial class RoomMode
             quiet, cooldown, maxPer10, phiThreshold, ct);
     }
 
+    /// <summary>
+    /// Convenience entry point accepting a <see cref="RoomConfig"/> record.
+    /// Parallels <see cref="ImmersiveMode.RunImmersiveAsync"/> for consistent service invocation.
+    /// </summary>
+    public Task RunAsync(RoomConfig config, CancellationToken ct = default)
+        => RunAsync(
+            personaName:      config.Persona,
+            model:            config.Model,
+            endpoint:         config.Endpoint,
+            embedModel:       config.EmbedModel,
+            qdrant:           config.QdrantEndpoint,
+            azureSpeechKey:   config.AzureSpeechKey,
+            azureSpeechRegion: config.AzureSpeechRegion,
+            ttsVoice:         config.TtsVoice,
+            localTts:         config.LocalTts,
+            avatarOn:         config.Avatar,
+            avatarPort:       config.AvatarPort,
+            quiet:            config.Quiet,
+            cooldown:         TimeSpan.FromSeconds(config.CooldownSeconds),
+            maxPerWindow:     config.MaxInterjections,
+            phiThreshold:     config.PhiThreshold,
+            ct:               ct);
+
     // ── Main entry point ─────────────────────────────────────────────────────
 
     public async Task RunAsync(
@@ -136,24 +159,15 @@ public sealed partial class RoomMode
         Console.WriteLine("  [~] Initializing consciousness systems...");
         using var mettaEngine = new InMemoryMeTTaEngine();
 
-        // ─── 2. Embedding model ───────────────────────────────────────────────
+        // ─── 2. Embedding model (via SharedAgentBootstrap) ─────────────────────
         Console.WriteLine("  [~] Connecting to memory systems...");
-        IEmbeddingModel? embeddingModel = null;
-        try
-        {
-            var embedProvider = new OllamaProvider(endpoint);
-            var ollamaEmbed = new OllamaEmbeddingModel(embedProvider, embedModel);
-            embeddingModel = new OllamaEmbeddingAdapter(ollamaEmbed);
-            Console.WriteLine("  [OK] Memory systems online");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"  [!] Memory unavailable: {ex.Message}");
-        }
+        var embeddingModel = Ouroboros.CLI.Services.SharedAgentBootstrap.CreateEmbeddingModel(
+            endpoint, embedModel, msg => Console.WriteLine($"  [{(msg.Contains("unavailable") ? "!" : "OK")}] {msg}"));
 
-        // ─── 3. ImmersivePersona ──────────────────────────────────────────────
-        Console.WriteLine("  [~] Awakening persona...");
-        await using var persona = new ImmersivePersona(personaName, mettaEngine, embeddingModel, qdrant);
+        // ─── 3. ImmersivePersona (via SharedAgentBootstrap) ────────────────────
+        await using var persona = await Services.SharedAgentBootstrap.CreateAndAwakenPersonaAsync(
+            personaName, mettaEngine, embeddingModel, qdrant, ct,
+            log: msg => Console.WriteLine($"  [~] {msg}"));
         persona.AutonomousThought += (_, e) =>
         {
             if (e.Thought.Type is not (InnerThoughtType.Curiosity
@@ -164,16 +178,17 @@ public sealed partial class RoomMode
             Console.WriteLine($"\n  💭 {e.Thought.Content}");
             Console.ResetColor();
         };
-        await persona.AwakenAsync(ct);
         Console.WriteLine($"  [OK] {personaName} is awake\n");
 
         // ─── 4. ImmersiveSubsystem → avatar ───────────────────────────────────
         var immersive = new ImmersiveSubsystem();
         await immersive.InitializeStandaloneAsync(personaName, avatarOn, avatarPort, ct);
 
-        // ─── 5. Ambient listener ──────────────────────────────────────────────
+        // ─── 5. Ambient listener (via SharedAgentBootstrap) ────────────────────
         Console.WriteLine("  [~] Opening microphone...");
-        var stt = await InitializeSttAsync(azureSpeechKey, azureSpeechRegion);
+        var stt = await Services.SharedAgentBootstrap.CreateSttService(
+            azureSpeechKey, azureSpeechRegion,
+            log: msg => Console.WriteLine($"  [OK] {msg}"));
         if (stt == null)
         {
             Console.ForegroundColor = ConsoleColor.Yellow;
@@ -199,97 +214,29 @@ public sealed partial class RoomMode
         var settings = new ChatRuntimeSettings(0.8, 256, 60, false);
         IChatCompletionModel chatModel = new OllamaCloudChatModel(endpoint, "ollama", model, settings);
 
-        // ─── 9. CognitivePhysics & Phi ────────────────────────────────────────
-#pragma warning disable CS0618 // Obsolete IEmbeddingProvider/IEthicsGate — CPE requires them
-        var cogPhysics = new CognitivePhysicsEngine(new NullEmbeddingProvider(), new PermissiveEthicsGate());
-#pragma warning restore CS0618
+        // ─── 9. CognitivePhysics & Phi (via SharedAgentBootstrap) ──────────────
+        var (cogPhysics, cogState) = Ouroboros.CLI.Services.SharedAgentBootstrap.CreateCognitivePhysics();
         var phiCalc = new IITPhiCalculator();
-        _roomCogState = CognitiveState.Create("general");
+        _roomCogState = cogState;
         _roomLastTopic = "general";
 
-        // ─── 9b. Episodic memory ──────────────────────────────────────────────
-        if (embeddingModel != null)
-        {
-            try
-            {
-                _roomEpisodic = new Ouroboros.Pipeline.Memory.EpisodicMemoryEngine(
-                    qdrant, embeddingModel, "ouroboros_episodes");
-            }
-            catch { /* Qdrant unavailable */ }
-        }
+        // ─── 9b. Episodic memory (via SharedAgentBootstrap) ────────────────────
+        _roomEpisodic = Ouroboros.CLI.Services.SharedAgentBootstrap.CreateEpisodicMemory(
+            qdrant, embeddingModel);
 
-        // ─── 9c. Neural-symbolic bridge ───────────────────────────────────────
-        try
-        {
-            var kb = new Ouroboros.Agent.NeuralSymbolic.SymbolicKnowledgeBase(mettaEngine);
-            _roomNeuralSymbolic = new Ouroboros.Agent.NeuralSymbolic.NeuralSymbolicBridge(chatModel, kb);
-        }
-        catch { }
+        // ─── 9c. Neural-symbolic bridge (via SharedAgentBootstrap) ─────────────
+        _roomNeuralSymbolic = Ouroboros.CLI.Services.SharedAgentBootstrap.CreateNeuralSymbolicBridge(
+            chatModel, mettaEngine);
 
-        // ─── 9d. Curiosity engine → AutonomousMind ────────────────────────────
-        try
-        {
-            var roomEthics = EthicsFrameworkFactory.CreateDefault();
-            var memStore = new Ouroboros.Agent.MetaAI.MemoryStore(embeddingModel);
-            var safetyGuard = new Ouroboros.Agent.MetaAI.SafetyGuard(
-                Ouroboros.Agent.MetaAI.PermissionLevel.Read, mettaEngine);
-            var skills = new Ouroboros.Agent.MetaAI.SkillRegistry();
-            _roomCuriosity = new Ouroboros.Agent.MetaAI.CuriosityEngine(
-                chatModel, memStore, skills, safetyGuard, roomEthics);
+        // ─── 9d. Curiosity engine → AutonomousMind (via SharedAgentBootstrap) ──
+        (_roomCuriosity, _roomSovereigntyGate) = Ouroboros.CLI.Services.SharedAgentBootstrap
+            .CreateCuriosityAndSovereignty(chatModel, embeddingModel, mettaEngine, mind, ct);
 
-            // Iaret's sovereignty gate
-            try { _roomSovereigntyGate = new Ouroboros.CLI.Sovereignty.PersonaSovereigntyGate(chatModel); }
-            catch { }
-
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    while (!ct.IsCancellationRequested)
-                    {
-                        await Task.Delay(TimeSpan.FromSeconds(90), ct).ConfigureAwait(false);
-                        if (await _roomCuriosity.ShouldExploreAsync(ct: ct).ConfigureAwait(false))
-                        {
-                            var opps = await _roomCuriosity.IdentifyExplorationOpportunitiesAsync(2, ct)
-                                .ConfigureAwait(false);
-                            foreach (var opp in opps)
-                            {
-                                if (_roomSovereigntyGate != null)
-                                {
-                                    var v = await _roomSovereigntyGate
-                                        .EvaluateExplorationAsync(opp.Description, ct)
-                                        .ConfigureAwait(false);
-                                    if (!v.Approved) continue;
-                                }
-                                mind.InjectTopic(opp.Description);
-                            }
-                        }
-                    }
-                }
-                catch { }
-            }, ct);
-        }
-        catch { }
-
-        // ─── 10. TTS for interjections ────────────────────────────────────────
-        ITextToSpeechService? ttsService = null;
-        if (!string.IsNullOrEmpty(azureSpeechKey))
-        {
-            try
-            {
-                ttsService = new AzureNeuralTtsService(azureSpeechKey, azureSpeechRegion, personaName);
-                Console.WriteLine($"  [OK] Voice output: Azure Neural TTS ({ttsVoice})");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"  [!] Azure TTS unavailable: {ex.Message}");
-            }
-        }
-        if (ttsService == null && localTts && LocalWindowsTtsService.IsAvailable())
-        {
-            try { ttsService = new LocalWindowsTtsService(rate: 1, volume: 100, useEnhancedProsody: true); }
-            catch { }
-        }
+        // ─── 10. TTS for interjections (via SharedAgentBootstrap) ──────────────
+        var ttsService = Services.SharedAgentBootstrap.CreateTtsService(
+            azureSpeechKey, azureSpeechRegion, personaName, ttsVoice,
+            preferLocal: localTts,
+            log: msg => Console.WriteLine($"  [OK] {msg}"));
 
         // ─── 11. Rolling room transcript ─────────────────────────────────────
         var transcript = new List<(string SpeakerLabel, string Text, DateTime When)>();

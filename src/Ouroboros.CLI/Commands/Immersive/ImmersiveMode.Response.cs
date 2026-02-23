@@ -383,14 +383,14 @@ public sealed partial class ImmersiveMode
 
         // ── Causal reasoning ─────────────────────────────────────────────────
         string? causalNote = null;
-        var causalTerms = TryExtractCausalTerms(input);
+        var causalTerms = Services.SharedAgentBootstrap.TryExtractCausalTerms(input);
         if (causalTerms.HasValue)
         {
             try
             {
-                var graph = BuildMinimalCausalGraph(causalTerms.Value.cause, causalTerms.Value.effect);
+                var graph = Services.SharedAgentBootstrap.BuildMinimalCausalGraph(causalTerms.Value.Cause, causalTerms.Value.Effect);
                 var explanation = await _causalReasoning.ExplainCausallyAsync(
-                    causalTerms.Value.effect, [causalTerms.Value.cause], graph, ct)
+                    causalTerms.Value.Effect, [causalTerms.Value.Cause], graph, ct)
                     .ConfigureAwait(false);
                 if (explanation.IsSuccess && !string.IsNullOrEmpty(explanation.Value.NarrativeExplanation))
                 {

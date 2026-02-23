@@ -315,9 +315,8 @@ static Command CreateServeCommand()
 }
 
 /// <summary>
-/// 'immersive' subcommand — runs the full ImmersiveMode.RunImmersiveAsync persona experience.
-/// This is the immersive AI persona shell: consciousness, memory, voice, skills, tools, avatar.
-/// Default when no other subcommand is specified.
+/// 'immersive' subcommand — runs the full ImmersiveMode persona experience.
+/// Uses the handler pattern: ImmersiveCommandOptions → ImmersiveConfig → ImmersiveCommandHandler → IImmersiveModeService.
 /// </summary>
 static Command CreateImmersiveCommand(IHost host, System.CommandLine.Option<bool> globalVoiceOption)
 {
@@ -327,6 +326,10 @@ static Command CreateImmersiveCommand(IHost host, System.CommandLine.Option<bool
     return command.ConfigureImmersiveCommand(host, options, globalVoiceOption);
 }
 
+/// <summary>
+/// 'room' subcommand — starts Iaret as ambient room presence.
+/// Uses the handler pattern: RoomCommandOptions → RoomConfig → RoomCommandHandler → IRoomModeService.
+/// </summary>
 static Command CreateRoomCommand(IHost host)
 {
     var options = new RoomCommandOptions();

@@ -7,7 +7,7 @@ namespace Ouroboros.CLI.Commands.Handlers;
 
 /// <summary>
 /// Extension methods for wiring the room command to its handler via DI.
-/// Parallels <see cref="OuroborosCommandHandlerExtensions"/> for the ouroboros command.
+/// Follows the same pattern as <see cref="OuroborosCommandHandlerExtensions"/>.
 /// </summary>
 public static class RoomCommandHandlerExtensions
 {

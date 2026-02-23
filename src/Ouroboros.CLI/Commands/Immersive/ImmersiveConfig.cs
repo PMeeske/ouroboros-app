@@ -14,11 +14,10 @@ public sealed record ImmersiveConfig(
     bool Voice = false,
     bool VoiceOnly = false,
     bool LocalTts = false,
-    bool VoiceLoop = false,
+    bool AzureTts = true,
+    string? AzureSpeechKey = null,
+    string AzureSpeechRegion = "eastus",
+    string TtsVoice = "en-US-AvaMultilingualNeural",
     bool Avatar = true,
     int AvatarPort = 9471,
-    bool RoomMode = false,
-    bool AzureTts = true,
-    string TtsVoice = "en-US-AvaMultilingualNeural",
-    string? AzureSpeechKey = null,
-    string AzureSpeechRegion = "eastus");
+    bool RoomMode = false);

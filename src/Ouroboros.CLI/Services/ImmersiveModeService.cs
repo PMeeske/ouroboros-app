@@ -35,14 +35,13 @@ public sealed class ImmersiveModeService : IImmersiveModeService
             Voice          = config.Voice,
             VoiceOnly      = config.VoiceOnly,
             LocalTts       = config.LocalTts,
-            VoiceLoop      = config.VoiceLoop,
+            AzureTts       = config.AzureTts,
+            TtsVoice       = config.TtsVoice,
+            AzureSpeechKey    = config.AzureSpeechKey,
+            AzureSpeechRegion = config.AzureSpeechRegion,
             Avatar         = config.Avatar,
             AvatarPort     = config.AvatarPort,
             RoomMode       = config.RoomMode,
-            AzureTts       = config.AzureTts,
-            TtsVoice       = config.TtsVoice,
-            AzureSpeechKey = config.AzureSpeechKey,
-            AzureSpeechRegion = config.AzureSpeechRegion,
         };
 
         await ImmersiveMode.RunImmersiveAsync(opts, cancellationToken);
