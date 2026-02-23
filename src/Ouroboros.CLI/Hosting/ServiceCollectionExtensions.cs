@@ -51,6 +51,8 @@ public static class ServiceCollectionExtensions
         services.TryAddScoped<IAskService, AskService>();
         services.TryAddScoped<IPipelineService, PipelineService>();
         services.TryAddScoped<IOuroborosAgentService, OuroborosAgentService>();
+        services.TryAddScoped<IImmersiveModeService, ImmersiveModeService>();
+        services.TryAddScoped<IRoomModeService, RoomModeService>();
         services.TryAddScoped<ISkillsService, SkillsService>();
         services.TryAddScoped<IOrchestratorService, OrchestratorService>();
         services.TryAddScoped<ICognitivePhysicsService, CognitivePhysicsService>();
@@ -65,6 +67,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<AskCommandHandler>();
         services.AddScoped<PipelineCommandHandler>();
         services.AddScoped<OuroborosCommandHandler>();
+        services.AddScoped<ImmersiveCommandHandler>();
+        services.AddScoped<RoomCommandHandler>();
         services.AddScoped<SkillsCommandHandler>();
         services.AddScoped<OrchestratorCommandHandler>();
         services.AddScoped<CognitivePhysicsCommandHandler>();
