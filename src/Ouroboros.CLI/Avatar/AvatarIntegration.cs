@@ -91,7 +91,8 @@ public static class AvatarIntegration
         {
             frameGenerator = new AvatarVideoGenerator(
                 stabilityAiApiKey: stabilityAiApiKey,
-                visionModel: visionModel);
+                visionModel: visionModel,
+                assetDirectory: assetDirectory);
         }
 
         var liveVision = new LiveVisionStream(

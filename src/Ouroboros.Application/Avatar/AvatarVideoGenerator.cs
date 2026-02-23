@@ -27,6 +27,7 @@ public sealed class AvatarVideoGenerator
     private readonly string? _stabilityAiApiKey;
     private readonly string _stabilityModel;
     private readonly double _stabilityStrength;
+    private readonly string? _assetDirectory;
     private readonly ILogger<AvatarVideoGenerator>? _logger;
     private readonly IVisionModel? _visionModel;
 
@@ -58,7 +59,8 @@ public sealed class AvatarVideoGenerator
         IVisionModel? visionModel = null,
         string? stabilityAiApiKey = null,
         string stabilityModel = "sd3.5-large-turbo",
-        double stabilityStrength = 0.15)
+        double stabilityStrength = 0.15,
+        string? assetDirectory = null)
     {
         _sdCheckpoint = string.IsNullOrWhiteSpace(sdModel) || sdModel == "stable-diffusion"
             ? null
@@ -68,6 +70,7 @@ public sealed class AvatarVideoGenerator
         _stabilityAiApiKey = stabilityAiApiKey;
         _stabilityModel = stabilityModel;
         _stabilityStrength = stabilityStrength;
+        _assetDirectory = assetDirectory;
         _http = new HttpClient
         {
             BaseAddress = new Uri(sdEndpoint.TrimEnd('/')),
@@ -166,7 +169,11 @@ public sealed class AvatarVideoGenerator
     /// Only the face region (top 48 %) is sent to SD; the result is blended back onto the
     /// full seed image with a feathered seam so body and background are never touched.
     /// </summary>
-    public async Task<string?> GenerateFrameAsync(string prompt, string seedBase64, CancellationToken ct)
+    /// <param name="prompt">Expression prompt for the generation.</param>
+    /// <param name="seedBase64">Base64-encoded seed image (JPEG or PNG).</param>
+    /// <param name="targetState">Current visual state — used to build reference sheet with all expressions.</param>
+    /// <param name="ct">Cancellation token.</param>
+    public async Task<string?> GenerateFrameAsync(string prompt, string seedBase64, AvatarVisualState targetState, CancellationToken ct)
     {
         try
         {
@@ -191,11 +198,23 @@ public sealed class AvatarVideoGenerator
                 seedJpegBase64 = Convert.ToBase64String(jpegMs.ToArray());
             }
 
-            // ── 2. Cloud path: send full image (no face crop) ─────────────────────
+            // ── 2. Cloud path: build reference sheet with all expressions ─────────
             if (_stabilityHttp != null)
             {
-                string? resultBase64 = await CallStabilityAiFaceAsync(prompt, seedJpegBase64, ct);
-                return resultBase64; // null → CSS fallback
+                // Build a composite reference sheet so the model sees all expressions
+                // of the same character, anchoring identity across the sheet.
+                var (compositeJpeg, cropRect) = BuildReferenceSheet(seedBytes, targetState);
+                string compositeBase64 = Convert.ToBase64String(compositeJpeg);
+
+                var sheetPrompt = "character expression reference sheet, identical character in each cell, " +
+                    "adult woman, same face shape, same sharp features, same outfit, same art style, " +
+                    "consistent identity across all cells, subtle expression variation only: " + prompt;
+
+                string? resultBase64 = await CallStabilityAiFaceAsync(sheetPrompt, compositeBase64, ct);
+                if (resultBase64 == null) return null;
+
+                // Crop the target expression cell from the generated sheet
+                return CropCellFromSheet(resultBase64, cropRect);
             }
 
             // ── 3. Local SD path: face crop + composite (unchanged) ───────────────
@@ -300,6 +319,133 @@ public sealed class AvatarVideoGenerator
             if (_logger == null) Console.Error.WriteLine($"[AvatarVideoGenerator] Frame generation failed: {ex.Message}");
             return null;
         }
+    }
+
+    /// <summary>
+    /// Builds a 2×3 reference sheet compositing all 5 expression assets plus the target.
+    /// The target expression is placed at the top-center cell (row 0, col 1).
+    /// Other cells contain the 4 remaining static expression assets + a duplicate of the target.
+    /// This gives the SD model full character identity context across all expressions.
+    /// </summary>
+    private (byte[] compositeJpeg, Rectangle cropRect) BuildReferenceSheet(
+        byte[] targetImageBytes, AvatarVisualState targetState)
+    {
+        // All 5 visual states
+        var allStates = new[]
+        {
+            AvatarVisualState.Idle,
+            AvatarVisualState.Listening,
+            AvatarVisualState.Thinking,
+            AvatarVisualState.Speaking,
+            AvatarVisualState.Encouraging,
+        };
+
+        // Separate target from other states
+        var otherStates = allStates.Where(s => s != targetState).ToArray();
+
+        // Layout: 2 rows × 3 columns
+        // [0,0]=other[0]  [0,1]=TARGET  [0,2]=other[1]
+        // [1,0]=other[2]  [1,1]=other[3] [1,2]=TARGET (duplicate for emphasis)
+        const int Cols = 3, Rows = 2;
+
+        // Load the target image
+        using var targetMs = new MemoryStream(targetImageBytes);
+        using var targetBmp = new Bitmap(targetMs);
+        int cellW = targetBmp.Width;
+        int cellH = targetBmp.Height;
+
+        // Scale cells so total sheet fits within 1536×1536 (SD3 limit)
+        float scale = 1.0f;
+        if (cellW * Cols > 1536) scale = Math.Min(scale, 1536f / (cellW * Cols));
+        if (cellH * Rows > 1536) scale = Math.Min(scale, 1536f / (cellH * Rows));
+        int sCellW = (int)(cellW * scale) / 8 * 8; // Round to multiple of 8 for SD
+        int sCellH = (int)(cellH * scale) / 8 * 8;
+        if (sCellW < 8) sCellW = 8;
+        if (sCellH < 8) sCellH = 8;
+        int sheetW = sCellW * Cols;
+        int sheetH = sCellH * Rows;
+
+        using var composite = new Bitmap(sheetW, sheetH, PixelFormat.Format24bppRgb);
+        using var g = Graphics.FromImage(composite);
+        g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+        g.SmoothingMode = SmoothingMode.HighQuality;
+
+        // Helper: draw a bitmap into a grid cell
+        void DrawCell(Bitmap src, int col, int row)
+        {
+            g.DrawImage(src,
+                new Rectangle(col * sCellW, row * sCellH, sCellW, sCellH),
+                new Rectangle(0, 0, src.Width, src.Height),
+                GraphicsUnit.Pixel);
+        }
+
+        // Load reference assets for the 4 non-target states
+        var refBitmaps = new List<Bitmap>();
+        foreach (var state in otherStates)
+        {
+            var path = _assetDirectory != null
+                ? GetSeedAssetPath(state, _assetDirectory)
+                : null;
+
+            if (path != null && File.Exists(path))
+            {
+                refBitmaps.Add(new Bitmap(path));
+            }
+            else
+            {
+                // Fallback: duplicate target
+                var cloneMs = new MemoryStream(targetImageBytes);
+                refBitmaps.Add(new Bitmap(cloneMs));
+            }
+        }
+
+        // Draw the grid:
+        // Row 0: other[0], TARGET, other[1]
+        // Row 1: other[2], other[3], TARGET (duplicate)
+        if (refBitmaps.Count >= 1) DrawCell(refBitmaps[0], 0, 0);
+        DrawCell(targetBmp, 1, 0); // TARGET at top-center
+        if (refBitmaps.Count >= 2) DrawCell(refBitmaps[1], 2, 0);
+        if (refBitmaps.Count >= 3) DrawCell(refBitmaps[2], 0, 1);
+        if (refBitmaps.Count >= 4) DrawCell(refBitmaps[3], 1, 1);
+        DrawCell(targetBmp, 2, 1); // Duplicate target at bottom-right
+
+        // Clean up reference bitmaps
+        foreach (var bmp in refBitmaps) bmp.Dispose();
+
+        // Encode composite as JPEG
+        using var outMs = new MemoryStream();
+        composite.Save(outMs, ImageFormat.Jpeg);
+
+        // Crop rect for target: row 0, col 1
+        var cropRect = new Rectangle(sCellW, 0, sCellW, sCellH);
+
+        return (outMs.ToArray(), cropRect);
+    }
+
+    /// <summary>
+    /// Crops a single cell from a generated reference sheet and returns it as base64 JPEG.
+    /// </summary>
+    private static string? CropCellFromSheet(string sheetBase64, Rectangle cropRect)
+    {
+        byte[] sheetBytes = Convert.FromBase64String(sheetBase64);
+        using var ms = new MemoryStream(sheetBytes);
+        using var sheetBmp = new Bitmap(ms);
+
+        // The generated sheet should match seed dimensions, but derive cell size
+        // from actual output just in case the API resized it.
+        int genCellW = sheetBmp.Width / 3;  // 3 columns
+        int genCellH = sheetBmp.Height / 2; // 2 rows
+        // Target is at col=1, row=0
+        var genCropRect = new Rectangle(genCellW, 0, genCellW, genCellH);
+
+        // Clamp to image bounds
+        if (genCropRect.Right > sheetBmp.Width) genCropRect.Width = sheetBmp.Width - genCropRect.X;
+        if (genCropRect.Bottom > sheetBmp.Height) genCropRect.Height = sheetBmp.Height - genCropRect.Y;
+
+        using var cropped = sheetBmp.Clone(genCropRect, sheetBmp.PixelFormat);
+        using var outMs = new MemoryStream();
+        cropped.Save(outMs, ImageFormat.Jpeg);
+        return Convert.ToBase64String(outMs.ToArray());
     }
 
     /// <summary>
