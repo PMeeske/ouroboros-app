@@ -51,10 +51,9 @@ public static class MultiModelPresets
             new ModelSlotConfig
             {
                 Role = "reasoner",
-                ModelName = "claude-opus-4-6",
-                ProviderType = "anthropic",
-                Endpoint = "https://api.anthropic.com/v1",
-                ApiKeyEnvVar = "ANTHROPIC_API_KEY",
+                ModelName = "deepseek-v3.1:671b-cloud",
+                ProviderType = "ollama",
+                Endpoint = "http://localhost:11434",
                 Temperature = 0.3,
                 MaxTokens = 4096,
                 Tags = ["reasoning", "analysis", "logic", "explanation", "math"],
