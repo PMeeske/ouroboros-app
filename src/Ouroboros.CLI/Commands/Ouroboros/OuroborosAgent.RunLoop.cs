@@ -2,6 +2,9 @@
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
+using MediatR;
+using Ouroboros.CLI.Mediator;
+
 namespace Ouroboros.CLI.Commands;
 
 public sealed partial class OuroborosAgent
@@ -151,21 +154,12 @@ public sealed partial class OuroborosAgent
 
     /// <summary>
     /// Speaks text using the unified voice service with Rx streaming and Cortana-style voice.
+    /// Delegates to <see cref="SayWithVoiceHandler"/> via MediatR.
     /// </summary>
     /// <param name="text">The text to speak.</param>
 
-    private async Task SayWithVoiceAsync(string text, CancellationToken ct = default, bool isWhisper = false)
-    {
-        // Unified VoiceModeService with Rx streaming - use WhisperAsync for inner thoughts
-        if (isWhisper)
-        {
-            await _voice.WhisperAsync(text);
-        }
-        else
-        {
-            await _voice.SayAsync(text);
-        }
-    }
+    private Task SayWithVoiceAsync(string text, CancellationToken ct = default, bool isWhisper = false)
+        => _mediator.Send(new SayWithVoiceRequest(text, isWhisper), ct);
 
     /// <summary>
     /// Speaks an inner thought using soft whispering style.
@@ -175,19 +169,17 @@ public sealed partial class OuroborosAgent
     private Task SayThoughtWithVoiceAsync(string thought, CancellationToken ct = default)
         => SayWithVoiceAsync(thought, ct, isWhisper: true);
 
-    private async Task<string> GetInputWithVoiceAsync(string prompt, CancellationToken ct = default)
-    {
-        return await _voice.GetInputAsync(prompt, ct) ?? string.Empty;
-    }
+    private Task<string> GetInputWithVoiceAsync(string prompt, CancellationToken ct = default)
+        => _mediator.Send(new GetInputWithVoiceRequest(prompt), ct);
 
     // ── Pipe processing (delegated to PipeProcessingSubsystem) ─────────────────
 
     /// <summary>Runs in non-interactive mode for piping, batch processing, or single command execution.</summary>
     private Task RunNonInteractiveModeAsync() => _pipeSub.RunNonInteractiveModeAsync();
 
-    /// <summary>Processes input with support for | piping syntax.</summary>
+    /// <summary>Processes input with support for | piping syntax. Delegates to <see cref="ProcessInputPipingHandler"/> via MediatR.</summary>
     public Task<string> ProcessInputWithPipingAsync(string input, int maxPipeDepth = 5)
-        => _pipeSub.ProcessInputWithPipingAsync(input, maxPipeDepth);
+        => _mediator.Send(new ProcessInputPipingRequest(input, maxPipeDepth));
 
     /// <summary>
     /// Processes user input and returns a response.

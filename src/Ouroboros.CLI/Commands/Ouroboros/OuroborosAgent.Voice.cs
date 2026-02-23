@@ -3,6 +3,8 @@
 // </copyright>
 
 using System.Text.RegularExpressions;
+using MediatR;
+using Ouroboros.CLI.Mediator;
 
 namespace Ouroboros.CLI.Commands;
 
@@ -12,7 +14,7 @@ public sealed partial class OuroborosAgent
     /// Strips tool results from text for voice output.
     /// Tool results like "[tool_name]: output" and "[TOOL-RESULT:...]" are removed.
     /// </summary>
-    private static string StripToolResults(string text)
+    internal static string StripToolResults(string text)
     {
         if (string.IsNullOrWhiteSpace(text)) return text;
 
@@ -84,15 +86,10 @@ public sealed partial class OuroborosAgent
 
     /// <summary>
     /// Speaks text and waits for completion (blocking).
+    /// Delegates to <see cref="SayAndWaitHandler"/> via MediatR.
     /// </summary>
     public async Task SayAndWaitAsync(string text, string? persona = null, CancellationToken ct = default)
-    {
-        var cleanText = StripToolResults(text);
-        if (string.IsNullOrWhiteSpace(cleanText)) return;
-        if (_voiceSideChannel == null) return;
-
-        await _voiceSideChannel.SayAndWaitAsync(cleanText, persona ?? _config.Persona, ct);
-    }
+        => await _mediator.Send(new SayAndWaitRequest(text, persona), ct);
 
     /// <summary>
     /// Announces a system message (high priority).
@@ -105,69 +102,17 @@ public sealed partial class OuroborosAgent
     /// <summary>
     /// Starts listening for voice input using the enhanced listening service.
     /// Supports continuous streaming STT, wake word detection, barge-in, and Whisper fallback.
+    /// Delegates to <see cref="StartListeningHandler"/> via MediatR.
     /// </summary>
     public async Task StartListeningAsync()
-    {
-
-
-        _listeningCts = new CancellationTokenSource();
-        _isListening = true;
-
-        _output.WriteSystem(GetLocalizedString("listening_start"));
-
-        // Create the enhanced listening service
-        _enhancedListener = new Ouroboros.CLI.Services.EnhancedListeningService(
-            _config,
-            _output,
-            processInput: ChatAsync,
-            speak: (text, ct) => SpeakResponseWithAzureTtsAsync(
-                text,
-                _config.AzureSpeechKey ?? Environment.GetEnvironmentVariable("AZURE_SPEECH_KEY") ?? "",
-                _config.AzureSpeechRegion,
-                ct));
-
-        _listeningTask = Task.Run(async () =>
-        {
-            try
-            {
-                await _enhancedListener.StartAsync(_listeningCts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                // Expected when stopping
-            }
-            catch (Exception ex)
-            {
-                _output.WriteError($"Listening error: {ex.Message}");
-            }
-            finally
-            {
-                _isListening = false;
-            }
-        });
-
-        await Task.CompletedTask;
-    }
+        => await _mediator.Send(new StartListeningRequest());
 
     /// <summary>
     /// Stops listening for voice input.
+    /// Delegates to <see cref="StopListeningHandler"/> via MediatR.
     /// </summary>
     public void StopListening()
-    {
-        if (!_isListening) return;
-
-        _listeningCts?.Cancel();
-
-        // Dispose the enhanced listener
-        if (_enhancedListener != null)
-        {
-            _enhancedListener.DisposeAsync().AsTask().GetAwaiter().GetResult();
-            _enhancedListener = null;
-        }
-
-        _isListening = false;
-        _output.WriteSystem(GetLocalizedString("listening_stop"));
-    }
+        => _mediator.Send(new StopListeningRequest()).GetAwaiter().GetResult();
 
     /// <summary>
     /// Continuous listening loop using Azure Speech Recognition with optional Azure TTS response.

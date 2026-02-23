@@ -2,6 +2,9 @@
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
+using MediatR;
+using Ouroboros.CLI.Mediator;
+
 namespace Ouroboros.CLI.Commands;
 
 public sealed partial class OuroborosAgent
@@ -88,20 +91,8 @@ public sealed partial class OuroborosAgent
 
     /// <inheritdoc/>
 
-    private async Task<string> GenerateWithOrchestrationAsync(string prompt, CancellationToken ct = default)
-    {
-        if (_orchestratedModel != null)
-        {
-            return await _orchestratedModel.GenerateTextAsync(prompt, ct);
-        }
-
-        if (_chatModel != null)
-        {
-            return await _chatModel.GenerateTextAsync(prompt, ct);
-        }
-
-        return "[error] No LLM available";
-    }
+    private Task<string> GenerateWithOrchestrationAsync(string prompt, CancellationToken ct = default)
+        => _mediator.Send(new OrchestrationRequest(prompt), ct);
 
     /// <summary>
     /// Processes large text input using divide-and-conquer parallel processing.
@@ -111,43 +102,8 @@ public sealed partial class OuroborosAgent
     /// <param name="largeInput">The large text input to process</param>
     /// <param name="ct">Cancellation token</param>
     /// <returns>Merged result from all chunk processing</returns>
-    public async Task<string> ProcessLargeInputAsync(string task, string largeInput, CancellationToken ct = default)
-    {
-        // Use divide-and-conquer if available and input is large enough
-        if (_divideAndConquer != null && largeInput.Length > 2000)
-        {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine($"  [D&C] Processing large input ({largeInput.Length} chars) in parallel...");
-            Console.ResetColor();
-
-            var chunks = _divideAndConquer.DivideIntoChunks(largeInput);
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine($"  [D&C] Split into {chunks.Count} chunks");
-            Console.ResetColor();
-
-            var result = await _divideAndConquer.ExecuteAsync(task, chunks, ct);
-
-            return result.Match(
-                success =>
-                {
-                    Console.ForegroundColor = ConsoleColor.DarkGray;
-                    Console.WriteLine("  [D&C] Parallel processing completed");
-                    Console.ResetColor();
-                    return success;
-                },
-                error =>
-                {
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine($"  [D&C] Error: {error}");
-                    Console.ResetColor();
-                    // Fall back to direct processing
-                    return GenerateWithOrchestrationAsync($"{task}\n\n{largeInput}", ct).Result;
-                });
-        }
-
-        // For smaller inputs, use direct orchestration
-        return await GenerateWithOrchestrationAsync($"{task}\n\n{largeInput}", ct);
-    }
+    public Task<string> ProcessLargeInputAsync(string task, string largeInput, CancellationToken ct = default)
+        => _mediator.Send(new ProcessLargeInputRequest(task, largeInput), ct);
 
     /// <summary>
     /// Gets the current orchestration metrics showing model usage statistics.
