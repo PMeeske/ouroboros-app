@@ -29,6 +29,9 @@ using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 ///
 ///   Ethics gate  → CognitivePhysics shift cost  → Phi (IIT)  → LLM decision  → TTS + console
 ///
+/// When <c>--proactive</c> is enabled (default), Iaret also speaks during
+/// prolonged silence, reacts to camera-based presence, and responds to gestures.
+///
 /// Launch with: <c>ouroboros room</c> or <c>ouroboros room --quiet</c>
 /// </summary>
 public sealed partial class RoomMode
@@ -57,6 +60,13 @@ public sealed partial class RoomMode
     // ── Voice signature service (speaker biometric identification) ─────────────
     private readonly VoiceSignatureService _voiceSignatures = new();
 
+    // ── Proactive silence tracking ────────────────────────────────────────────
+    private DateTime _lastUtteranceTime = DateTime.UtcNow;
+    private DateTime _lastProactiveSpeech = DateTime.MinValue;
+
+    // ── Presence detection ────────────────────────────────────────────────────
+    private readonly PresenceDetector? _presenceDetector;
+
     /// <summary>
     /// Creates a RoomMode instance wired to the agent's subsystems.
     /// </summary>
@@ -65,13 +75,15 @@ public sealed partial class RoomMode
         IModelSubsystem?    agentModels      = null,
         IMemorySubsystem?   agentMemory      = null,
         IAutonomySubsystem? agentAutonomy    = null,
-        IServiceProvider?   serviceProvider  = null)
+        IServiceProvider?   serviceProvider  = null,
+        PresenceDetector?   presenceDetector = null)
     {
-        _immersiveMode   = immersiveMode;
-        _agentModels     = agentModels;
-        _agentMemory     = agentMemory;
-        _agentAutonomy   = agentAutonomy;
-        _serviceProvider = serviceProvider;
+        _immersiveMode    = immersiveMode;
+        _agentModels      = agentModels;
+        _agentMemory      = agentMemory;
+        _agentAutonomy    = agentAutonomy;
+        _serviceProvider  = serviceProvider;
+        _presenceDetector = presenceDetector;
     }
 
     /// <summary>
@@ -96,12 +108,16 @@ public sealed partial class RoomMode
         var cooldown     = TimeSpan.FromSeconds(parseResult.GetValue(opts.CooldownOption));
         var maxPer10     = parseResult.GetValue(opts.MaxInterjectionsOption);
         var phiThreshold = parseResult.GetValue(opts.PhiThresholdOption);
+        var proactive    = parseResult.GetValue(opts.ProactiveOption);
+        var idleDelay    = TimeSpan.FromSeconds(parseResult.GetValue(opts.IdleDelayOption));
+        var enableCamera = parseResult.GetValue(opts.CameraOption);
 
         return RunAsync(
             personaName, model, endpoint, embedModel, qdrant,
             speechKey, speechRegion, ttsVoice, localTts,
             avatarOn, avatarPort,
-            quiet, cooldown, maxPer10, phiThreshold, ct);
+            quiet, cooldown, maxPer10, phiThreshold,
+            proactive, idleDelay, enableCamera, ct);
     }
 
     /// <summary>
@@ -125,6 +141,9 @@ public sealed partial class RoomMode
             cooldown:         TimeSpan.FromSeconds(config.CooldownSeconds),
             maxPerWindow:     config.MaxInterjections,
             phiThreshold:     config.PhiThreshold,
+            proactiveMode:    config.Proactive,
+            idleSpeechDelay:  TimeSpan.FromSeconds(config.IdleDelaySeconds),
+            enableCamera:     config.EnableCamera,
             ct:               ct);
 
     // ── Main entry point ─────────────────────────────────────────────────────
@@ -143,19 +162,29 @@ public sealed partial class RoomMode
         int    avatarPort         = 9471,
         bool   quiet              = false,
         TimeSpan? cooldown        = null,
-        int    maxPerWindow       = 4,
-        double phiThreshold       = 0.15,
+        int    maxPerWindow       = 8,
+        double phiThreshold       = 0.05,
+        bool   proactiveMode      = true,
+        TimeSpan? idleSpeechDelay = null,
+        bool   enableCamera       = false,
         CancellationToken ct      = default)
     {
         _lastInterjection = DateTime.MinValue;
         _recentInterjections.Clear();
-        var interjectionCooldown = cooldown ?? TimeSpan.FromSeconds(45);
+        _lastUtteranceTime = DateTime.UtcNow;
+        _lastProactiveSpeech = DateTime.MinValue;
+        var interjectionCooldown = cooldown ?? TimeSpan.FromSeconds(20);
+        var idleDelay = idleSpeechDelay ?? TimeSpan.FromSeconds(120);
 
         // ─── Banner ──────────────────────────────────────────────────────────
         Console.ForegroundColor = ConsoleColor.Cyan;
         Console.WriteLine($"\n  ╔══════════════════════════════════════════════════════╗");
         Console.WriteLine($"  ║   {personaName} — Room Presence Mode                      ║");
         Console.WriteLine($"  ║   Listening passively · Ethics gated · IIT Φ aware   ║");
+        if (proactiveMode)
+            Console.WriteLine($"  ║   Proactive mode ON · Idle delay {idleDelay.TotalSeconds:F0}s              ║");
+        if (enableCamera)
+            Console.WriteLine($"  ║   Camera presence + gesture detection enabled       ║");
         Console.WriteLine($"  ╚══════════════════════════════════════════════════════╝\n");
         Console.ResetColor();
 
@@ -210,6 +239,13 @@ public sealed partial class RoomMode
         // ─── 7. AutonomousMind ────────────────────────────────────────────────
         var mind = new AutonomousMind();
         immersive.WirePersonaEvents(persona, mind);
+
+        // Tune AutonomousMind for proactive room presence
+        if (proactiveMode)
+        {
+            mind.Config.ShareDiscoveryProbability = 0.7;
+            mind.Config.CuriosityIntervalSeconds = 60;
+        }
 
         // ─── 8. LLM model for interjection decisions ──────────────────────────
         // RoomMode always creates its own model instance — it must NOT share the ImmersiveMode
@@ -305,9 +341,65 @@ public sealed partial class RoomMode
 
         mind.Start();
 
+        // ─── 13b. Presence detection (camera-based) ─────────────────────────
+        PresenceDetector? presenceDetector = null;
+        GestureDetector? gestureDetector = null;
+
+        if (enableCamera)
+        {
+            Console.WriteLine("  [~] Enabling camera presence detection...");
+
+            // Use injected detector or create a standalone one
+            presenceDetector = _presenceDetector ?? new PresenceDetector(new PresenceConfig
+            {
+                CheckIntervalSeconds = 5,
+                PresenceThreshold = 0.5,
+                UseWifi = false,
+                UseCamera = true,
+                UseInputActivity = false,
+            });
+
+            var lastAbsenceTime = DateTime.UtcNow;
+
+            presenceDetector.OnPresenceDetected += (evt) =>
+            {
+                var awayDuration = DateTime.UtcNow - lastAbsenceTime;
+                _ = GreetOnPresenceAsync(
+                    chatModel, ttsService, listener, immersive, personaName,
+                    awayDuration.TotalMinutes > 1 ? awayDuration : null, ct);
+            };
+
+            presenceDetector.OnAbsenceDetected += (_) =>
+            {
+                lastAbsenceTime = DateTime.UtcNow;
+                immersive.SetPresenceState("Idle", "contemplative");
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.WriteLine($"  [room] No one detected — switching to idle");
+                Console.ResetColor();
+            };
+
+            presenceDetector.Start();
+            Console.WriteLine("  [OK] Camera presence detection active");
+
+            // ── Gesture detector ──────────────────────────────────────────
+            gestureDetector = new GestureDetector();
+            gestureDetector.OnGestureDetected += (gestureType, description) =>
+            {
+                _ = RespondToGestureAsync(
+                    gestureType, description,
+                    ethicsFramework, chatModel, ttsService, listener, immersive,
+                    personaName, ct);
+            };
+            await gestureDetector.StartAsync(ct).ConfigureAwait(false);
+            Console.WriteLine("  [OK] Gesture detection active");
+        }
+
         // ─── 14. Main utterance handler ───────────────────────────────────────
         listener.OnUtterance += async (utterance) =>
         {
+            // Track last utterance time for silence detection
+            _lastUtteranceTime = DateTime.UtcNow;
+
             // Suppress utterances while Iaret is speaking — acoustic echo / coupling prevention.
             // The room mic picks up Iaret's TTS voice; we must not loop it back as input.
             if (_immersiveMode?.IsSpeaking ?? false)
@@ -382,13 +474,13 @@ public sealed partial class RoomMode
             await personIdentifier.RecordUtteranceAsync(person, utterance.Text, CancellationToken.None)
                                   .ConfigureAwait(false);
 
-            // Greet returning speaker if this is a known person
+            // Greet returning speaker if this is a known person (spoken greeting)
             if (!person.IsNewPerson() && person.InteractionCount > 1 && IsFirstUtteranceThisSession(person))
             {
-                var recall = await personIdentifier.GetPersonContextAsync(
-                    person, utterance.Text, CancellationToken.None).ConfigureAwait(false);
-                if (!string.IsNullOrEmpty(recall))
-                    immersive.SetPresenceState("Speaking", "warm");
+                await GreetReturningPersonAsync(
+                    person, speaker, personIdentifier,
+                    chatModel, ttsService, listener, immersive,
+                    personaName, ct).ConfigureAwait(false);
             }
 
             // Run interjection pipeline (pass isDirectAddress to force a response)
@@ -405,7 +497,39 @@ public sealed partial class RoomMode
         await listener.StartAsync(ct).ConfigureAwait(false);
         Console.WriteLine("  [OK] Room listener active — Ctrl+C to stop\n");
 
-        // ─── 15. Keep running until cancelled ─────────────────────────────────
+        // ─── 15. Silence monitor (proactive speech when room is quiet) ───────
+        var silenceMonitorTask = proactiveMode
+            ? Task.Run(async () =>
+            {
+                while (!ct.IsCancellationRequested)
+                {
+                    try
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(15), ct).ConfigureAwait(false);
+                        var silenceDuration = DateTime.UtcNow - _lastUtteranceTime;
+                        var sinceLastProactive = DateTime.UtcNow - _lastProactiveSpeech;
+
+                        if (silenceDuration >= idleDelay && sinceLastProactive >= idleDelay)
+                        {
+                            await TryProactiveSpeechAsync(
+                                mind, immersive, ethicsFramework,
+                                chatModel, ttsService, listener,
+                                personaName, ct).ConfigureAwait(false);
+                            _lastProactiveSpeech = DateTime.UtcNow;
+                        }
+                    }
+                    catch (OperationCanceledException) { break; }
+                    catch (Exception ex)
+                    {
+                        Console.ForegroundColor = ConsoleColor.DarkYellow;
+                        Console.WriteLine($"  [room] Proactive monitor error: {ex.Message}");
+                        Console.ResetColor();
+                    }
+                }
+            }, ct)
+            : Task.CompletedTask;
+
+        // ─── 16. Keep running until cancelled ─────────────────────────────────
         try
         {
             await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
@@ -414,6 +538,16 @@ public sealed partial class RoomMode
 
         // ─── Cleanup ─────────────────────────────────────────────────────────
         await mind.StopAsync().ConfigureAwait(false);
+
+        if (gestureDetector != null)
+            await gestureDetector.DisposeAsync().ConfigureAwait(false);
+
+        if (presenceDetector != null && presenceDetector != _presenceDetector)
+        {
+            await presenceDetector.StopAsync();
+            presenceDetector.Dispose();
+        }
+
         await immersive.DisposeAsync().ConfigureAwait(false);
 
         Console.ForegroundColor = ConsoleColor.Cyan;

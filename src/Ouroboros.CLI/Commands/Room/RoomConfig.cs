@@ -21,6 +21,9 @@ public sealed record RoomConfig(
     bool Avatar = true,
     int AvatarPort = 9471,
     bool Quiet = false,
-    int CooldownSeconds = 45,
-    int MaxInterjections = 4,
-    double PhiThreshold = 0.15);
+    int CooldownSeconds = 20,
+    int MaxInterjections = 8,
+    double PhiThreshold = 0.05,
+    bool Proactive = true,
+    int IdleDelaySeconds = 120,
+    bool EnableCamera = false);
