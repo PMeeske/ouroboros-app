@@ -3,6 +3,7 @@ namespace Ouroboros.CLI.Subsystems;
 
 using System.Text;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.DependencyInjection;
 using Ouroboros.Application.Personality;
 using Ouroboros.Application.Services;
 using Ouroboros.Application.Tools;
@@ -36,11 +37,11 @@ public sealed class ChatSubsystem : IChatSubsystem
     private string? _lastUserInput;
     private DateTime _lastInteractionStart;
 
-    // High-priority integrated systems
+    // High-priority integrated systems (resolved from DI via RegisterEngineInterfaces)
     private Ouroboros.Pipeline.Memory.IEpisodicMemoryEngine? _episodicMemory;
     private readonly Ouroboros.Pipeline.Metacognition.MetacognitiveReasoner _metacognition = new();
     private Ouroboros.Agent.NeuralSymbolic.INeuralSymbolicBridge? _neuralSymbolicBridge;
-    private readonly Ouroboros.Core.Reasoning.CausalReasoningEngine _causalReasoning = new();
+    private Ouroboros.Core.Reasoning.ICausalReasoningEngine _causalReasoning = new Ouroboros.Core.Reasoning.CausalReasoningEngine();
     private Ouroboros.Agent.MetaAI.ICuriosityEngine? _curiosityEngine;
     private int _responseCount;
     private Ouroboros.CLI.Sovereignty.PersonaSovereigntyGate? _sovereigntyGate;
@@ -66,16 +67,10 @@ public sealed class ChatSubsystem : IChatSubsystem
         _autonomySub = ctx.Autonomy;
         IsInitialized = true;
 
-        // ── Episodic memory ───────────────────────────────────────────────────
-        if (ctx.Models.Embedding != null && !string.IsNullOrEmpty(ctx.Config.QdrantEndpoint))
-        {
-            try
-            {
-                _episodicMemory = new Ouroboros.Pipeline.Memory.EpisodicMemoryEngine(
-                    ctx.Config.QdrantEndpoint, ctx.Models.Embedding, "ouroboros_episodes");
-            }
-            catch { }
-        }
+        // ── Engine interfaces (resolved from DI — registered in RegisterEngineInterfaces) ──
+        _episodicMemory = ctx.Services?.GetService<Ouroboros.Pipeline.Memory.IEpisodicMemoryEngine>();
+        _causalReasoning = ctx.Services?.GetService<Ouroboros.Core.Reasoning.ICausalReasoningEngine>()
+            ?? new Ouroboros.Core.Reasoning.CausalReasoningEngine();
 
         // ── Neural-symbolic bridge ────────────────────────────────────────────
         if (ctx.Models.ChatModel != null && ctx.Memory.MeTTaEngine != null)

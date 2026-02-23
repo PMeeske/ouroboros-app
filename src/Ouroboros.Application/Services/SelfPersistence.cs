@@ -35,6 +35,24 @@ public class SelfPersistence : IDisposable
     /// </summary>
     public event Action<string>? OnRestored;
 
+    /// <summary>
+    /// Initializes a new instance using DI-provided QdrantSettings.
+    /// </summary>
+    public SelfPersistence(
+        Ouroboros.Core.Configuration.QdrantSettings settings,
+        Func<string, Task<float[]>>? embeddingFunc = null)
+    {
+        var httpEndpoint = settings.HttpEndpoint;
+        _qdrantEndpoint = httpEndpoint;
+        _embeddingFunc = embeddingFunc;
+        _httpClient = new HttpClient { BaseAddress = new Uri(httpEndpoint) };
+        _persistenceDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".ouroboros", "persistence");
+        Directory.CreateDirectory(_persistenceDir);
+    }
+
+    [Obsolete("Use the constructor accepting QdrantSettings from DI.")]
     public SelfPersistence(
         string qdrantEndpoint = "http://localhost:6333",
         Func<string, Task<float[]>>? embeddingFunc = null)

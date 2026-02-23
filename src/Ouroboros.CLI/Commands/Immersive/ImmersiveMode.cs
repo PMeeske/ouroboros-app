@@ -27,8 +27,11 @@ using Ouroboros.Core.DistinctionLearning;
 using Ouroboros.Domain.DistinctionLearning;
 using Ouroboros.Tools.MeTTa;
 using static Ouroboros.Application.Tools.AutonomousTools;
+using Microsoft.Extensions.DependencyInjection;
 using Ouroboros.Abstractions;
 using Ouroboros.Abstractions.Monads;
+using Ouroboros.Core.Configuration;
+using Qdrant.Client;
 using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 
 /// <summary>
@@ -198,7 +201,8 @@ public sealed partial class ImmersiveMode
         Subsystems.IMemorySubsystem memory,
         Subsystems.IAutonomySubsystem autonomy,
         ImmersivePersona? persona = null,
-        Application.Avatar.InteractiveAvatarService? avatarService = null)
+        Application.Avatar.InteractiveAvatarService? avatarService = null,
+        IServiceProvider? serviceProvider = null)
     {
         _modelsSub = models;
         _toolsSub = tools;
@@ -206,6 +210,7 @@ public sealed partial class ImmersiveMode
         _autonomySub = autonomy;
         _configuredPersona = persona;
         _configuredAvatarService = avatarService;
+        _serviceProvider = serviceProvider;
 
         // Wire shared instances from subsystems
         _orchestratedModel = models.OrchestratedModel;
@@ -240,6 +245,9 @@ public sealed partial class ImmersiveMode
         Console.WriteLine($"\n  [room→Iaret] {speaker}: {utterance}");
         Console.ResetColor();
     }
+
+    // DI service provider for resolving cross-cutting services (Qdrant, etc.)
+    private readonly IServiceProvider? _serviceProvider;
 
     // Skill registry for this session
     private ISkillRegistry? _skillRegistry;
@@ -285,7 +293,7 @@ public sealed partial class ImmersiveMode
     private Ouroboros.Pipeline.Memory.IEpisodicMemoryEngine? _episodicMemory;
     private readonly Ouroboros.Pipeline.Metacognition.MetacognitiveReasoner _metacognition = new();
     private Ouroboros.Agent.NeuralSymbolic.INeuralSymbolicBridge? _neuralSymbolicBridge;
-    private readonly Ouroboros.Core.Reasoning.CausalReasoningEngine _causalReasoning = new();
+    private Ouroboros.Core.Reasoning.ICausalReasoningEngine _causalReasoning = new Ouroboros.Core.Reasoning.CausalReasoningEngine();
     private Ouroboros.Agent.MetaAI.ICuriosityEngine? _curiosityEngine;
     private int _immersiveResponseCount;
     private Ouroboros.CLI.Sovereignty.PersonaSovereigntyGate? _sovereigntyGate;
@@ -978,8 +986,18 @@ User: goodbye
                 var testEmbed = await embeddingModel.CreateEmbeddingsAsync("test");
                 var vectorSize = testEmbed.Length > 0 ? testEmbed.Length : 32;
 
-                var config = new QdrantSkillConfig(options.QdrantEndpoint, "ouroboros_skills", true, vectorSize);
-                var qdrantRegistry = new QdrantSkillRegistry(embeddingModel, config);
+                QdrantSkillRegistry qdrantRegistry;
+                var skClient = _serviceProvider?.GetService<QdrantClient>();
+                var skRegistry = _serviceProvider?.GetService<IQdrantCollectionRegistry>();
+                if (skClient != null && skRegistry != null)
+                {
+                    qdrantRegistry = new QdrantSkillRegistry(embeddingModel, skClient, skRegistry, vectorSize);
+                }
+                else
+                {
+                    var config = new QdrantSkillConfig(options.QdrantEndpoint, "ouroboros_skills", true, vectorSize);
+                    qdrantRegistry = new QdrantSkillRegistry(embeddingModel, config);
+                }
                 await qdrantRegistry.InitializeAsync();
                 _skillRegistry = qdrantRegistry;
                 var skills = _skillRegistry.GetAllSkills();
@@ -1070,12 +1088,27 @@ User: goodbye
             // Initialize intelligent tool learner
             if (embeddingModel != null)
             {
-                _toolLearner = new IntelligentToolLearner(
-                    _dynamicToolFactory,
-                    mettaEngine,
-                    embeddingModel,
-                    toolAwareLlm,
-                    options.QdrantEndpoint);
+                var tlClient = _serviceProvider?.GetService<QdrantClient>();
+                var tlRegistry = _serviceProvider?.GetService<IQdrantCollectionRegistry>();
+                if (tlClient != null && tlRegistry != null)
+                {
+                    _toolLearner = new IntelligentToolLearner(
+                        _dynamicToolFactory,
+                        mettaEngine,
+                        embeddingModel,
+                        toolAwareLlm,
+                        tlClient,
+                        tlRegistry);
+                }
+                else
+                {
+                    _toolLearner = new IntelligentToolLearner(
+                        _dynamicToolFactory,
+                        mettaEngine,
+                        embeddingModel,
+                        toolAwareLlm,
+                        options.QdrantEndpoint);
+                }
                 await _toolLearner.InitializeAsync();
                 var stats = _toolLearner.GetStats();
                 Console.WriteLine($"  [OK] Intelligent Tool Learner ready ({stats.TotalPatterns} patterns)");
@@ -1090,13 +1123,25 @@ User: goodbye
                 Console.WriteLine("  [OK] Interconnected skill-tool learning ready");
 
                 // Initialize Qdrant self-indexer for workspace content
-                var indexerConfig = new QdrantIndexerConfig
+                var siClient = _serviceProvider?.GetService<QdrantClient>();
+                var siRegistry = _serviceProvider?.GetService<IQdrantCollectionRegistry>();
+                if (siClient != null && siRegistry != null)
                 {
-                    QdrantEndpoint = options.QdrantEndpoint,
-                    RootPaths = new List<string> { Environment.CurrentDirectory },
-                    EnableFileWatcher = true
-                };
-                _selfIndexer = new QdrantSelfIndexer(embeddingModel, indexerConfig);
+                    _selfIndexer = new QdrantSelfIndexer(
+                        embeddingModel, siClient, siRegistry,
+                        new List<string> { Environment.CurrentDirectory },
+                        enableFileWatcher: true);
+                }
+                else
+                {
+                    var indexerConfig = new QdrantIndexerConfig
+                    {
+                        QdrantEndpoint = options.QdrantEndpoint,
+                        RootPaths = new List<string> { Environment.CurrentDirectory },
+                        EnableFileWatcher = true
+                    };
+                    _selfIndexer = new QdrantSelfIndexer(embeddingModel, indexerConfig);
+                }
                 _selfIndexer.OnFileIndexed += (file, chunks) =>
                     Console.WriteLine($"  [Index] {Path.GetFileName(file)} ({chunks} chunks)");
                 await _selfIndexer.InitializeAsync();

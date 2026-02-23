@@ -11,6 +11,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Ouroboros.ApiHost.Extensions;
 using Ouroboros.Application.Integration;
 using Ouroboros.Core.EmbodiedInteraction;
 using Ouroboros.Providers;
@@ -48,6 +49,9 @@ public static class OuroborosCliIntegration
 
             // Register configuration
             services.AddSingleton(ouroborosConfig);
+
+            // Register Qdrant + engine infrastructure (shared with all hosts)
+            services.AddOuroborosEngine(config);
 
             // Add full Ouroboros system with monitoring
             services.AddOuroborosFullWithMonitoring();

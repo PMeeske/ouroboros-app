@@ -69,8 +69,26 @@ public sealed class ImmersivePersona : IAsyncDisposable
     public event EventHandler<HyperonPatternMatchEventArgs>? HyperonPatternMatch;
 
     /// <summary>
+    /// Creates a new immersive persona instance with DI-provided Qdrant client.
+    /// </summary>
+    public ImmersivePersona(
+        string personaName,
+        IMeTTaEngine mettaEngine,
+        IEmbeddingModel embeddingModel,
+        Qdrant.Client.QdrantClient qdrantClient,
+        Ouroboros.Core.Configuration.IQdrantCollectionRegistry? registry = null)
+    {
+        _personaId = Guid.NewGuid().ToString("N")[..8];
+        _mettaEngine = mettaEngine;
+        _embeddingModel = embeddingModel;
+        _personality = new PersonalityEngine(mettaEngine, embeddingModel, qdrantClient, registry);
+        Identity = PersonaIdentity.Create(personaName, _personaId);
+    }
+
+    /// <summary>
     /// Creates a new immersive persona instance.
     /// </summary>
+    [Obsolete("Use the constructor accepting QdrantClient + IQdrantCollectionRegistry from DI.")]
     public ImmersivePersona(
         string personaName,
         IMeTTaEngine mettaEngine,
@@ -82,9 +100,11 @@ public sealed class ImmersivePersona : IAsyncDisposable
         _embeddingModel = embeddingModel;
 
         // Create personality engine with optional memory
+#pragma warning disable CS0618 // Obsolete
         _personality = embeddingModel != null && !string.IsNullOrEmpty(qdrantUrl)
             ? new PersonalityEngine(mettaEngine, embeddingModel, qdrantUrl)
             : new PersonalityEngine(mettaEngine);
+#pragma warning restore CS0618
 
         // Initialize identity
         Identity = PersonaIdentity.Create(personaName, _personaId);

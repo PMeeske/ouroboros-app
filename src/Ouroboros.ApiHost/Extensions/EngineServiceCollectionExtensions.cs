@@ -45,6 +45,7 @@ public static class EngineServiceCollectionExtensions
         if (configuration != null)
         {
             services.AddQdrant(configuration);
+            services.AddQdrantServices();
         }
 
         // ── Cognitive Physics Engine defaults ─────────────────────────────────

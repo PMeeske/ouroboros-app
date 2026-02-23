@@ -39,6 +39,7 @@ public sealed partial class OuroborosAgent
             Output = _output,
             VoiceService = _voice,
             StaticConfiguration = _staticConfiguration,
+            Services = _serviceProvider,
             Voice = _voiceSub,
             Models = _modelsSub,
             Tools = _toolsSub,
