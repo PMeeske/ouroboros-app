@@ -229,6 +229,10 @@ public sealed class EmbodimentSubsystem : IEmbodimentSubsystem
         try
         {
             var stabilityKey = ApiKeyProvider.GetApiKey("StabilityAI");
+            var hasStability = !string.IsNullOrEmpty(stabilityKey);
+            if (ctx.Config.Debug || true) // Always log this for now
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim($"    Stability AI key: {(hasStability ? "found" : "[yellow]NOT FOUND[/]")}"));
+
             var (service, videoStream, liveVision) = await Avatar.AvatarIntegration.CreateAndStartWithVisionAsync(
                 ctx.Config.Persona,
                 ctx.Config.AvatarPort,
@@ -243,7 +247,8 @@ public sealed class EmbodimentSubsystem : IEmbodimentSubsystem
             AvatarVideoStream = videoStream;
             LiveVisionStream = liveVision;
 
-            ctx.Output.RecordInit("Avatar", true, $"port {ctx.Config.AvatarPort} + video stream + live vision");
+            var frameInfo = hasStability ? "Stability AI frame gen" : "static frames + Ollama vision";
+            ctx.Output.RecordInit("Avatar", true, $"port {ctx.Config.AvatarPort} + {frameInfo}");
         }
         catch (Exception ex)
         {
