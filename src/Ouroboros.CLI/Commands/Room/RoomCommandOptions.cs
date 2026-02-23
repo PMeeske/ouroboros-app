@@ -2,6 +2,7 @@
 namespace Ouroboros.CLI.Commands.Options;
 
 using System.CommandLine;
+using System.CommandLine.Parsing;
 
 /// <summary>
 /// Options for the <c>room</c> subcommand — Iaret as ambient room presence.
@@ -122,5 +123,29 @@ public sealed class RoomCommandOptions
         command.Add(CooldownOption);
         command.Add(MaxInterjectionsOption);
         command.Add(PhiThresholdOption);
+    }
+
+    /// <summary>
+    /// Binds a <see cref="ParseResult"/> to a fully populated <see cref="RoomConfig"/>.
+    /// Parallels <see cref="OuroborosCommandOptions.BindConfig"/>.
+    /// </summary>
+    public RoomConfig BindConfig(ParseResult parseResult)
+    {
+        return new RoomConfig(
+            Persona: parseResult.GetValue(PersonaOption) ?? "Iaret",
+            Model: parseResult.GetValue(ModelOption) ?? "llama3:latest",
+            Endpoint: parseResult.GetValue(EndpointOption) ?? "http://localhost:11434",
+            EmbedModel: parseResult.GetValue(EmbedModelOption) ?? "nomic-embed-text",
+            QdrantEndpoint: parseResult.GetValue(QdrantEndpointOption) ?? "http://localhost:6334",
+            AzureSpeechKey: parseResult.GetValue(AzureSpeechKeyOption),
+            AzureSpeechRegion: parseResult.GetValue(AzureSpeechRegionOption) ?? "eastus",
+            TtsVoice: parseResult.GetValue(TtsVoiceOption) ?? "en-US-AvaMultilingualNeural",
+            LocalTts: parseResult.GetValue(LocalTtsOption),
+            Avatar: parseResult.GetValue(AvatarOption),
+            AvatarPort: parseResult.GetValue(AvatarPortOption),
+            Quiet: parseResult.GetValue(QuietOption),
+            CooldownSeconds: parseResult.GetValue(CooldownOption),
+            MaxInterjections: parseResult.GetValue(MaxInterjectionsOption),
+            PhiThreshold: parseResult.GetValue(PhiThresholdOption));
     }
 }

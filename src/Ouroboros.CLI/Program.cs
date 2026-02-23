@@ -137,7 +137,7 @@ rootCommand.Add(CreateMeTTaCommand(host, voiceOption));
 
 // Immersive persona mode and ambient room presence
 rootCommand.Add(CreateImmersiveCommand(host, voiceOption));
-rootCommand.Add(CreateRoomCommand());
+rootCommand.Add(CreateRoomCommand(host));
 
 // Add a special 'serve' subcommand for running API-only mode
 rootCommand.Add(CreateServeCommand());
@@ -190,7 +190,7 @@ static Command CreateOuroborosCommand(IHost host, System.CommandLine.Option<bool
 
     // Immersive and room as subcommands of ouroboros (also available at top level)
     command.Add(CreateImmersiveCommand(host, globalVoiceOption));
-    command.Add(CreateRoomCommand());
+    command.Add(CreateRoomCommand(host));
 
     // Configure handler via extension method (mirrors CreateAskCommand pattern)
     return command.ConfigureOuroborosCommand(host, options, globalVoiceOption);
@@ -321,60 +321,16 @@ static Command CreateServeCommand()
 /// </summary>
 static Command CreateImmersiveCommand(IHost host, System.CommandLine.Option<bool> globalVoiceOption)
 {
+    var options = new ImmersiveCommandOptions();
     var command = new Command("immersive", "Run Iaret as an immersive persona (consciousness + memory + voice + avatar)");
-
-    // Core model options
-    var personaOpt   = new System.CommandLine.Option<string>("--persona")   { DefaultValueFactory = _ => "Iaret" };
-    var modelOpt     = new System.CommandLine.Option<string>("--model")     { DefaultValueFactory = _ => "llama3:latest" };
-    var endpointOpt  = new System.CommandLine.Option<string>("--endpoint")  { DefaultValueFactory = _ => "http://localhost:11434" };
-    var embedOpt     = new System.CommandLine.Option<string>("--embed-model") { DefaultValueFactory = _ => "nomic-embed-text" };
-    var qdrantOpt    = new System.CommandLine.Option<string>("--qdrant")    { DefaultValueFactory = _ => "http://localhost:6334" };
-    var voiceOpt     = new System.CommandLine.Option<bool>("--voice-mode")  { DefaultValueFactory = _ => false };
-    var localTtsOpt  = new System.CommandLine.Option<bool>("--local-tts")   { DefaultValueFactory = _ => false };
-    var avatarOpt    = new System.CommandLine.Option<bool>("--avatar")      { DefaultValueFactory = _ => true };
-    var avatarPortOpt = new System.CommandLine.Option<int>("--avatar-port") { DefaultValueFactory = _ => 9471 };
-    var roomModeOpt  = new System.CommandLine.Option<bool>("--room-mode")   { DefaultValueFactory = _ => false };
-
-    command.Add(personaOpt); command.Add(modelOpt); command.Add(endpointOpt);
-    command.Add(embedOpt); command.Add(qdrantOpt); command.Add(voiceOpt);
-    command.Add(localTtsOpt); command.Add(avatarOpt); command.Add(avatarPortOpt);
-    command.Add(roomModeOpt);
-
-    command.SetAction(async (parseResult, cancellationToken) =>
-    {
-        var opts = new Ouroboros.Options.ImmersiveCommandVoiceOptions
-        {
-            Persona       = parseResult.GetValue(personaOpt) ?? "Iaret",
-            Model         = parseResult.GetValue(modelOpt) ?? "llama3:latest",
-            Endpoint      = parseResult.GetValue(endpointOpt) ?? "http://localhost:11434",
-            EmbedModel    = parseResult.GetValue(embedOpt) ?? "nomic-embed-text",
-            QdrantEndpoint = parseResult.GetValue(qdrantOpt) ?? "http://localhost:6334",
-            Voice         = parseResult.GetValue(voiceOpt) || parseResult.GetValue(globalVoiceOption),
-            LocalTts      = parseResult.GetValue(localTtsOpt),
-            Avatar        = parseResult.GetValue(avatarOpt),
-            AvatarPort    = parseResult.GetValue(avatarPortOpt),
-            RoomMode      = parseResult.GetValue(roomModeOpt),
-        };
-        await Ouroboros.CLI.Commands.ImmersiveMode.RunImmersiveAsync(opts, cancellationToken);
-    });
-
-    return command;
+    options.AddToCommand(command);
+    return command.ConfigureImmersiveCommand(host, options, globalVoiceOption);
 }
 
-/// <summary>
-/// 'room' subcommand — starts Iaret as ambient room presence.
-/// Listens to the microphone, identifies speakers, and interjects with ethics + CogPhysics + Phi gating.
-/// </summary>
-static Command CreateRoomCommand()
+static Command CreateRoomCommand(IHost host)
 {
-    var opts = new Ouroboros.CLI.Commands.Options.RoomCommandOptions();
+    var options = new RoomCommandOptions();
     var command = new Command("room", "Run Iaret as ambient room presence (ambient listening + ethics-gated interjections)");
-    opts.AddToCommand(command);
-
-    command.SetAction(async (parseResult, cancellationToken) =>
-    {
-        await new Ouroboros.CLI.Commands.RoomMode().RunAsync(parseResult, opts, cancellationToken);
-    });
-
-    return command;
+    options.AddToCommand(command);
+    return command.ConfigureRoomCommand(host, options);
 }
