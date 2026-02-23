@@ -2,6 +2,7 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OpenApi;
 using Ouroboros.ApiHost.Client;
@@ -28,11 +29,12 @@ public static class WebApiServiceCollectionExtensions
     /// <returns><paramref name="services"/> for fluent chaining.</returns>
     public static IServiceCollection AddOuroborosWebApi(
         this IServiceCollection services,
+        IConfiguration? configuration = null,
         string[]? allowedOrigins = null)
     {
         // ── Shared engine + foundational dependencies ────────────────────────
         // Cognitive physics, self-model, health checks — shared with CLI host.
-        services.AddOuroborosEngine();
+        services.AddOuroborosEngine(configuration);
 
         // ── Web API–specific services ────────────────────────────────────────
 

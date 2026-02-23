@@ -8,6 +8,7 @@ using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 using LangChain.Splitters.Text;
+using Ouroboros.Core.Configuration;
 using Ouroboros.Domain;
 using Qdrant.Client;
 using Qdrant.Client.Grpc;
@@ -42,8 +43,33 @@ public sealed class QdrantSelfIndexer : IAsyncDisposable
     public event Action<string, int>? OnFileIndexed;
 
     /// <summary>
+    /// Initializes a new instance using the DI-provided client and collection registry.
+    /// </summary>
+    public QdrantSelfIndexer(
+        QdrantClient client,
+        IQdrantCollectionRegistry registry,
+        IEmbeddingModel embedding,
+        QdrantIndexerConfig? config = null)
+    {
+        _client = client ?? throw new ArgumentNullException(nameof(client));
+        ArgumentNullException.ThrowIfNull(registry);
+        _embedding = embedding ?? throw new ArgumentNullException(nameof(embedding));
+        _config = config ?? new QdrantIndexerConfig();
+        _config = _config with
+        {
+            CollectionName = registry.GetCollectionName(QdrantCollectionRole.SelfIndex),
+            HashCollectionName = registry.GetCollectionName(QdrantCollectionRole.FileHashes),
+        };
+
+        _splitter = new RecursiveCharacterTextSplitter(
+            chunkSize: _config.ChunkSize,
+            chunkOverlap: _config.ChunkOverlap);
+    }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="QdrantSelfIndexer"/> class.
     /// </summary>
+    [Obsolete("Use the constructor accepting QdrantClient + IQdrantCollectionRegistry from DI.")]
     public QdrantSelfIndexer(IEmbeddingModel embedding, QdrantIndexerConfig? config = null)
     {
         _embedding = embedding ?? throw new ArgumentNullException(nameof(embedding));

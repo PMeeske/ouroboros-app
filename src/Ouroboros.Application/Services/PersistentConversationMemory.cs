@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using System.Text.Json;
+using Ouroboros.Core.Configuration;
 using Qdrant.Client;
 using Qdrant.Client.Grpc;
 
@@ -30,8 +31,29 @@ public sealed class PersistentConversationMemory : IAsyncDisposable
     public IReadOnlyList<ConversationSession> RecentSessions => _recentSessions;
 
     /// <summary>
+    /// Creates a new instance using the DI-provided client and collection registry.
+    /// </summary>
+    public PersistentConversationMemory(
+        QdrantClient client,
+        IQdrantCollectionRegistry registry,
+        IEmbeddingModel? embedding = null,
+        ConversationMemoryConfig? config = null)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        ArgumentNullException.ThrowIfNull(registry);
+        _config = config ?? new ConversationMemoryConfig();
+        _config = _config with
+        {
+            CollectionName = registry.GetCollectionName(QdrantCollectionRole.Conversations),
+        };
+        _embedding = embedding;
+        _qdrantClient = client;
+    }
+
+    /// <summary>
     /// Creates a new persistent conversation memory instance.
     /// </summary>
+    [Obsolete("Use the constructor accepting QdrantClient + IQdrantCollectionRegistry from DI.")]
     public PersistentConversationMemory(
         IEmbeddingModel? embedding = null,
         ConversationMemoryConfig? config = null)

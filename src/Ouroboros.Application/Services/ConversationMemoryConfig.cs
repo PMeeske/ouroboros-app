@@ -11,6 +11,7 @@ public sealed record ConversationMemoryConfig
         ".ouroboros", "conversations");
 
     /// <summary>Qdrant endpoint for semantic memory.</summary>
+    [Obsolete("Use QdrantSettings from DI instead. This property is ignored when using the DI constructor.")]
     public string QdrantEndpoint { get; init; } = "http://localhost:6334";
 
     /// <summary>Collection name for conversation embeddings.</summary>
@@ -23,5 +24,6 @@ public sealed record ConversationMemoryConfig
     public int RecentSessionsToLoad { get; init; } = 5;
 
     /// <summary>Vector dimensions.</summary>
+    [Obsolete("Use QdrantSettings.DefaultVectorSize from DI instead.")]
     public int VectorSize { get; init; } = 768;
 }

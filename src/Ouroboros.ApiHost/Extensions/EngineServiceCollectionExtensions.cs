@@ -2,12 +2,14 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Ouroboros.Agent.MetaAI;
 using Ouroboros.Agent.MetaAI.SelfModel;
 using Ouroboros.ApiHost.Services;
 using Ouroboros.Core.CognitivePhysics;
+using Ouroboros.Providers;
 
 namespace Ouroboros.ApiHost.Extensions;
 
@@ -33,9 +35,18 @@ public static class EngineServiceCollectionExtensions
     /// or the CLI's own extension methods.
     /// </summary>
     /// <param name="services">The DI container.</param>
+    /// <param name="configuration">Application configuration root (used for Qdrant settings).</param>
     /// <returns><paramref name="services"/> for fluent chaining.</returns>
-    public static IServiceCollection AddOuroborosEngine(this IServiceCollection services)
+    public static IServiceCollection AddOuroborosEngine(
+        this IServiceCollection services,
+        IConfiguration? configuration = null)
     {
+        // ── Qdrant cross-cutting infrastructure ──────────────────────────────
+        if (configuration != null)
+        {
+            services.AddQdrant(configuration);
+        }
+
         // ── Cognitive Physics Engine defaults ─────────────────────────────────
 #pragma warning disable CS0618 // Obsolete IEmbeddingProvider/IEthicsGate — CPE still requires them
         services.TryAddSingleton<IEthicsGate, PermissiveEthicsGate>();

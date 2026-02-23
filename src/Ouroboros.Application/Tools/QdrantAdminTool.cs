@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using Ouroboros.Core.Configuration;
 
 namespace Ouroboros.Application.Tools;
 
@@ -17,12 +18,35 @@ public sealed class QdrantAdminTool : ITool
 {
     private readonly HttpClient _httpClient;
     private readonly string _baseUrl;
+    private readonly IQdrantCollectionRegistry? _registry;
     private readonly Func<string, CancellationToken, Task<float[]>>? _embedFunc;
     private readonly Func<string, CancellationToken, Task<string>>? _llmFunc;
 
     /// <summary>
+    /// Initializes a new instance using the DI-provided settings and collection registry.
+    /// </summary>
+    public QdrantAdminTool(
+        QdrantSettings settings,
+        IQdrantCollectionRegistry registry,
+        Func<string, CancellationToken, Task<float[]>>? embedFunc = null,
+        Func<string, CancellationToken, Task<string>>? llmFunc = null)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+        _baseUrl = settings.HttpEndpoint;
+        _httpClient = new HttpClient
+        {
+            BaseAddress = new Uri(_baseUrl),
+            Timeout = TimeSpan.FromSeconds(60)
+        };
+        _embedFunc = embedFunc;
+        _llmFunc = llmFunc;
+    }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="QdrantAdminTool"/> class.
     /// </summary>
+    [Obsolete("Use the constructor accepting QdrantSettings + IQdrantCollectionRegistry from DI.")]
     public QdrantAdminTool(
         string qdrantEndpoint = "http://localhost:6333",
         Func<string, CancellationToken, Task<float[]>>? embedFunc = null,

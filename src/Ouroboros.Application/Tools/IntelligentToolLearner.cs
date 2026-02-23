@@ -7,6 +7,7 @@ namespace Ouroboros.Application.Tools;
 using System.Collections.Concurrent;
 using System.Text.Json;
 using Ouroboros.Agent.MetaAI;
+using Ouroboros.Core.Configuration;
 using Ouroboros.Genetic.Abstractions;
 using Ouroboros.Genetic.Core;
 using Ouroboros.Providers;
@@ -34,11 +35,33 @@ public sealed class IntelligentToolLearner : IAsyncDisposable
     private bool _isInitialized;
     private int _vectorSize = 32; // Will be detected from embedding model
 
-    private const string CollectionName = "ouroboros_tool_patterns";
+    private readonly string _collectionName;
+
+    /// <summary>
+    /// Initializes a new instance using the DI-provided client and collection registry.
+    /// </summary>
+    public IntelligentToolLearner(
+        DynamicToolFactory toolFactory,
+        IMeTTaEngine mettaEngine,
+        IEmbeddingModel embedding,
+        ToolAwareChatModel llm,
+        QdrantClient qdrantClient,
+        IQdrantCollectionRegistry registry)
+    {
+        _toolFactory = toolFactory ?? throw new ArgumentNullException(nameof(toolFactory));
+        _mettaEngine = mettaEngine ?? throw new ArgumentNullException(nameof(mettaEngine));
+        _embedding = embedding ?? throw new ArgumentNullException(nameof(embedding));
+        _llm = llm ?? throw new ArgumentNullException(nameof(llm));
+        _qdrantClient = qdrantClient ?? throw new ArgumentNullException(nameof(qdrantClient));
+        ArgumentNullException.ThrowIfNull(registry);
+        _mettaRepresentation = new MeTTaRepresentation(mettaEngine);
+        _collectionName = registry.GetCollectionName(QdrantCollectionRole.ToolPatterns);
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="IntelligentToolLearner"/> class.
     /// </summary>
+    [Obsolete("Use the constructor accepting QdrantClient + IQdrantCollectionRegistry from DI.")]
     public IntelligentToolLearner(
         DynamicToolFactory toolFactory,
         IMeTTaEngine mettaEngine,
@@ -51,6 +74,7 @@ public sealed class IntelligentToolLearner : IAsyncDisposable
         _embedding = embedding ?? throw new ArgumentNullException(nameof(embedding));
         _llm = llm ?? throw new ArgumentNullException(nameof(llm));
         _mettaRepresentation = new MeTTaRepresentation(mettaEngine);
+        _collectionName = "ouroboros_tool_patterns";
 
         var uri = new Uri(qdrantUrl);
         _qdrantClient = new QdrantClient(uri.Host, uri.Port > 0 ? uri.Port : 6334, uri.Scheme == "https");
@@ -396,11 +420,11 @@ Respond in JSON format:
             // Semantic search in Qdrant
             var embedding = await _embedding.CreateEmbeddingsAsync(goal);
 
-            var collectionExists = await _qdrantClient.CollectionExistsAsync(CollectionName, ct);
+            var collectionExists = await _qdrantClient.CollectionExistsAsync(_collectionName, ct);
             if (!collectionExists) return null;
 
             var searchResults = await _qdrantClient.SearchAsync(
-                CollectionName,
+                _collectionName,
                 embedding,
                 limit: 3,
                 cancellationToken: ct);
@@ -535,7 +559,7 @@ Respond in JSON format:
                 }
             };
 
-            await _qdrantClient.UpsertAsync(CollectionName, new[] { point }, cancellationToken: ct);
+            await _qdrantClient.UpsertAsync(_collectionName, new[] { point }, cancellationToken: ct);
         }
         catch (Exception ex)
         {
@@ -580,7 +604,7 @@ Respond in JSON format:
                     }
                 };
 
-                await _qdrantClient.UpsertAsync(CollectionName, new[] { point }, cancellationToken: ct);
+                await _qdrantClient.UpsertAsync(_collectionName, new[] { point }, cancellationToken: ct);
             }
         }
         catch (Exception ex)
@@ -633,16 +657,16 @@ Respond in JSON format:
     {
         try
         {
-            var exists = await _qdrantClient.CollectionExistsAsync(CollectionName, ct);
+            var exists = await _qdrantClient.CollectionExistsAsync(_collectionName, ct);
             if (exists)
             {
                 // Check if dimension matches - use same pattern as PersonalityEngine
-                var info = await _qdrantClient.GetCollectionInfoAsync(CollectionName, ct);
+                var info = await _qdrantClient.GetCollectionInfoAsync(_collectionName, ct);
                 var existingSize = info.Config?.Params?.VectorsConfig?.Params?.Size ?? 0;
                 if (existingSize > 0 && existingSize != (ulong)_vectorSize)
                 {
-                    Console.WriteLine($"  [!] Collection {CollectionName} has dimension {existingSize}, expected {_vectorSize}. Recreating...");
-                    await _qdrantClient.DeleteCollectionAsync(CollectionName);
+                    Console.WriteLine($"  [!] Collection {_collectionName} has dimension {existingSize}, expected {_vectorSize}. Recreating...");
+                    await _qdrantClient.DeleteCollectionAsync(_collectionName);
                     exists = false;
                 }
             }
@@ -650,7 +674,7 @@ Respond in JSON format:
             if (!exists)
             {
                 await _qdrantClient.CreateCollectionAsync(
-                    CollectionName,
+                    _collectionName,
                     new VectorParams
                     {
                         Size = (ulong)_vectorSize,
@@ -672,11 +696,11 @@ Respond in JSON format:
     {
         try
         {
-            var exists = await _qdrantClient.CollectionExistsAsync(CollectionName, ct);
+            var exists = await _qdrantClient.CollectionExistsAsync(_collectionName, ct);
             if (!exists) return;
 
             var points = await _qdrantClient.ScrollAsync(
-                CollectionName,
+                _collectionName,
                 limit: 100,
                 cancellationToken: ct);
 
