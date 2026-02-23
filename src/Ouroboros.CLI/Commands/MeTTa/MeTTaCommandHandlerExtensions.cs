@@ -11,12 +11,6 @@ namespace Ouroboros.CLI.Commands;
 /// </summary>
 public static class MeTTaCommandHandlerExtensions
 {
-    public static IServiceCollection AddMeTTaCommandHandler(this IServiceCollection services)
-    {
-        services.AddScoped<MeTTaCommandHandler>();
-        return services;
-    }
-
     public static Command ConfigureMeTTaCommand(
         this Command command,
         IHost host,
