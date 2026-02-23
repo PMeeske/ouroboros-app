@@ -17,6 +17,7 @@ public sealed class VoicePipeline
     private string? _voiceName;
     private bool _enableVoiceInput = false;
     private bool _enableVoiceOutput = false;
+    private string? _deferredError;
 
     private VoicePipeline(Pipeline basePipeline)
     {
@@ -41,7 +42,8 @@ public sealed class VoicePipeline
     {
         if (_sttService == null)
         {
-            throw new InvalidOperationException("Speech-to-text service must be configured using WithSpeechToText()");
+            _deferredError = "Speech-to-text service must be configured using WithSpeechToText()";
+            return this;
         }
 
         TranscriptionOptions options = new TranscriptionOptions(Language: _language);
@@ -53,7 +55,7 @@ public sealed class VoicePipeline
         }
         else
         {
-            throw new InvalidOperationException($"Transcription failed: {result.Error}");
+            _deferredError = $"Transcription failed: {result.Error}";
         }
 
         return this;
@@ -200,6 +202,12 @@ public sealed class VoicePipeline
     /// <returns>A result containing the pipeline output and optional audio file path.</returns>
     public async Task<VoicePipelineResult> RunAsync(string? outputAudioPath = null)
     {
+        // Check for deferred errors from builder methods (e.g., voice transcription failure)
+        if (_deferredError != null)
+        {
+            return VoicePipelineResult.Failure(_deferredError);
+        }
+
         // Execute the base pipeline
         PipelineResult result = await _basePipeline.RunAsync();
 
