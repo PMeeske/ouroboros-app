@@ -3,6 +3,7 @@ using MediatR;
 using Ouroboros.Application;
 using Ouroboros.Application.Agent;
 using Ouroboros.CLI.Commands;
+using AgentMessage = Ouroboros.Application.Agent.AgentMessage;
 
 namespace Ouroboros.CLI.Mediator;
 
@@ -77,7 +78,7 @@ public sealed class RunAutoAgentHandler : IRequestHandler<RunAutoAgentRequest, s
 
             if (action.Type == AgentActionType.Complete)
             {
-                resultBuilder.AppendLine(action.Content ?? "Task completed.");
+                resultBuilder.AppendLine(action.Summary ?? "Task completed.");
                 break;
             }
 
@@ -85,12 +86,14 @@ public sealed class RunAutoAgentHandler : IRequestHandler<RunAutoAgentRequest, s
             {
                 var toolResult = await AgentToolExecutor.ExecuteAsync(
                     agentTools, action.ToolName, action.ToolArgs ?? "", state);
-                executedActions.Add($"[{action.ToolName}] {StringHelpers.TruncateForDisplay(toolResult, 200)}");
+                var display = (toolResult ?? "").Replace("\r\n", " ").Replace("\n", " ");
+                if (display.Length > 200) display = display[..200] + "...";
+                executedActions.Add($"[{action.ToolName}] {display}");
                 conversationHistory.Add(new AgentMessage("tool", toolResult));
             }
             else if (action.Type == AgentActionType.Think)
             {
-                conversationHistory.Add(new AgentMessage("system", $"Thought: {action.Content}"));
+                conversationHistory.Add(new AgentMessage("system", $"Thought: {action.Thought}"));
             }
         }
 

@@ -20,43 +20,41 @@ public sealed class QualityCommandHandler : ICommandHandler
 
     public Task<int> HandleAsync(CancellationToken cancellationToken = default)
     {
-        var c = _console.Console;
-
-        RenderHeader(c);
-        RenderOverallHealth(c);
-        RenderLayerStatus(c);
-        RenderSubsystemCompletion(c);
-        RenderTestCoverage(c);
-        RenderCriticalIssues(c);
-        RenderConsistencyIssues(c);
-        RenderTopPriorities(c);
-        RenderFooter(c);
+        RenderHeader();
+        RenderOverallHealth();
+        RenderLayerStatus();
+        RenderSubsystemCompletion();
+        RenderTestCoverage();
+        RenderCriticalIssues();
+        RenderConsistencyIssues();
+        RenderTopPriorities();
+        RenderFooter();
 
         return Task.FromResult(0);
     }
 
     // ─── Sections ────────────────────────────────────────────────────────────
 
-    private static void RenderHeader(IAnsiConsole c)
+    private void RenderHeader()
     {
-        c.WriteLine();
-        c.Write(new FigletText("OUROBOROS")
+        _console.WriteLine();
+        _console.Write(new FigletText("OUROBOROS")
             .Centered()
             .Color(new Color(99, 179, 237)));
 
-        c.Write(new Rule("[bold cyan]Product Quality & Consistency Report[/]")
+        _console.Write(new Rule("[bold cyan]Product Quality & Consistency Report[/]")
             .RuleStyle("cyan dim")
             .Centered());
 
-        c.MarkupLine($"[dim]  Generated: [/][cyan]{DateTime.Today:yyyy-MM-dd}[/]" +
+        _console.MarkupLine($"[dim]  Generated: [/][cyan]{DateTime.Today:yyyy-MM-dd}[/]" +
                      $"[dim]   ·   Repos: foundation / engine / app / build[/]");
-        c.WriteLine();
+        _console.WriteLine();
     }
 
-    private static void RenderOverallHealth(IAnsiConsole c)
+    private void RenderOverallHealth()
     {
-        c.Write(new Rule("[yellow bold] Overall Health Score [/]").RuleStyle("yellow dim"));
-        c.WriteLine();
+        _console.Write(new Rule("[yellow bold] Overall Health Score [/]").RuleStyle("yellow dim"));
+        _console.WriteLine();
 
         // Big score display
         var scorePanel = new Panel(
@@ -83,14 +81,14 @@ public sealed class QualityCommandHandler : ICommandHandler
                 "  [red]Weaknesses:[/] Advanced AI features are stubs, inconsistent\n" +
                 "              error handling, placeholder copyrights"));
 
-        c.Write(healthGrid);
-        c.WriteLine();
+        _console.Write(healthGrid);
+        _console.WriteLine();
     }
 
-    private static void RenderLayerStatus(IAnsiConsole c)
+    private void RenderLayerStatus()
     {
-        c.Write(new Rule("[blue bold] Layer Readiness [/]").RuleStyle("blue dim"));
-        c.WriteLine();
+        _console.Write(new Rule("[blue bold] Layer Readiness [/]").RuleStyle("blue dim"));
+        _console.WriteLine();
 
         var table = new Table()
             .Border(TableBorder.Rounded)
@@ -118,14 +116,14 @@ public sealed class QualityCommandHandler : ICommandHandler
             "[cyan]Multiple suites[/]",
             "CLI ✓  WebAPI ✓  Android ✓  Voice / Git TODOs");
 
-        c.Write(table);
-        c.WriteLine();
+        _console.Write(table);
+        _console.WriteLine();
     }
 
-    private static void RenderSubsystemCompletion(IAnsiConsole c)
+    private void RenderSubsystemCompletion()
     {
-        c.Write(new Rule("[magenta bold] Subsystem Completion [/]").RuleStyle("magenta dim"));
-        c.WriteLine();
+        _console.Write(new Rule("[magenta bold] Subsystem Completion [/]").RuleStyle("magenta dim"));
+        _console.WriteLine();
 
         var chart = new BarChart()
             .Width(70)
@@ -138,8 +136,8 @@ public sealed class QualityCommandHandler : ICommandHandler
             .AddItem("Self-Assembly",70, Color.Orange3)
             .AddItem("Embodiment",   60, Color.Red3);
 
-        c.Write(chart);
-        c.WriteLine();
+        _console.Write(chart);
+        _console.WriteLine();
 
         // Engine advanced features
         var engineChart = new BarChart()
@@ -153,14 +151,14 @@ public sealed class QualityCommandHandler : ICommandHandler
             .AddItem("Theory of Mind",          20, Color.Red)
             .AddItem("Meta-Learning",           15, Color.Red);
 
-        c.Write(engineChart);
-        c.WriteLine();
+        _console.Write(engineChart);
+        _console.WriteLine();
     }
 
-    private static void RenderTestCoverage(IAnsiConsole c)
+    private void RenderTestCoverage()
     {
-        c.Write(new Rule("[green bold] Test Coverage [/]").RuleStyle("green dim"));
-        c.WriteLine();
+        _console.Write(new Rule("[green bold] Test Coverage [/]").RuleStyle("green dim"));
+        _console.WriteLine();
 
         var table = new Table()
             .Border(TableBorder.Simple)
@@ -175,15 +173,15 @@ public sealed class QualityCommandHandler : ICommandHandler
         table.AddRow("[yellow]engine[/]",    "~2 556", "[red]26 ✱[/]", "[yellow]★★★☆☆[/]", "Unit · Integration · ✱ pre-existing (API/Network)");
         table.AddRow("[cyan]app[/]",         "Multiple","[cyan]—[/]",  "[cyan]★★★☆☆[/]", "CLI · Application · Integration");
 
-        c.Write(table);
-        c.MarkupLine("[dim]  ✱ pre-existing failures are NOT caused by build changes (Providers / Safety / Network / Meta)[/]");
-        c.WriteLine();
+        _console.Write(table);
+        _console.MarkupLine("[dim]  ✱ pre-existing failures are NOT caused by build changes (Providers / Safety / Network / Meta)[/]");
+        _console.WriteLine();
     }
 
-    private static void RenderCriticalIssues(IAnsiConsole c)
+    private void RenderCriticalIssues()
     {
-        c.Write(new Rule("[red bold] Critical Issues [/]").RuleStyle("red dim"));
-        c.WriteLine();
+        _console.Write(new Rule("[red bold] Critical Issues [/]").RuleStyle("red dim"));
+        _console.WriteLine();
 
         var issues = new[]
         {
@@ -257,20 +255,20 @@ public sealed class QualityCommandHandler : ICommandHandler
                 $"  [dim link]{Markup.Escape(issue.FilePath)}[/]\n" +
                 $"  [dim]{Markup.Escape(issue.Description)}[/]");
 
-            c.Write(new Panel(content)
+            _console.Write(new Panel(content)
             {
                 Border = BoxBorder.Rounded,
                 BorderStyle = new Style(color),
                 Padding = new Padding(1, 0),
             });
-            c.WriteLine();
+            _console.WriteLine();
         }
     }
 
-    private static void RenderConsistencyIssues(IAnsiConsole c)
+    private void RenderConsistencyIssues()
     {
-        c.Write(new Rule("[orange3 bold] Consistency Issues [/]").RuleStyle("orange3 dim"));
-        c.WriteLine();
+        _console.Write(new Rule("[orange3 bold] Consistency Issues [/]").RuleStyle("orange3 dim"));
+        _console.WriteLine();
 
         var table = new Table()
             .Border(TableBorder.Rounded)
@@ -304,14 +302,14 @@ public sealed class QualityCommandHandler : ICommandHandler
             "Some synchronous code paths in agent core logic.\n" +
             "[dim]→ Risk of blocking the thread-pool under load.[/]");
 
-        c.Write(table);
-        c.WriteLine();
+        _console.Write(table);
+        _console.WriteLine();
     }
 
-    private static void RenderTopPriorities(IAnsiConsole c)
+    private void RenderTopPriorities()
     {
-        c.Write(new Rule("[cyan bold] Top Priorities [/]").RuleStyle("cyan dim"));
-        c.WriteLine();
+        _console.Write(new Rule("[cyan bold] Top Priorities [/]").RuleStyle("cyan dim"));
+        _console.WriteLine();
 
         var priorities = new[]
         {
@@ -337,16 +335,16 @@ public sealed class QualityCommandHandler : ICommandHandler
             tree.AddNode(new Markup(label));
         }
 
-        c.Write(tree);
-        c.WriteLine();
+        _console.Write(tree);
+        _console.WriteLine();
     }
 
-    private static void RenderFooter(IAnsiConsole c)
+    private void RenderFooter()
     {
-        c.Write(new Rule().RuleStyle("grey dim"));
-        c.MarkupLine("[dim]  Run [cyan]ouroboros quality[/] any time to re-display this dashboard.[/]");
-        c.MarkupLine("[dim]  Explore critical files directly — paths are shown above each issue.[/]");
-        c.WriteLine();
+        _console.Write(new Rule().RuleStyle("grey dim"));
+        _console.MarkupLine("[dim]  Run [cyan]ouroboros quality[/] any time to re-display this dashboard.[/]");
+        _console.MarkupLine("[dim]  Explore critical files directly — paths are shown above each issue.[/]");
+        _console.WriteLine();
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────

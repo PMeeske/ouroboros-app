@@ -1,26 +1,35 @@
 using Microsoft.Extensions.Logging;
-using Ouroboros.Options;
+using Ouroboros.CLI.Abstractions;
+using Ouroboros.CLI.Infrastructure;
+using Ouroboros.CLI.Services;
 
-namespace Ouroboros.CLI.Commands;
+namespace Ouroboros.CLI.Commands.Handlers;
 
 /// <summary>
-/// DI handler for the <c>metta</c> command.
-/// Wraps <see cref="MeTTaCommands.RunMeTTaAsync"/> with proper error handling and exit-code semantics.
+/// Handler for the <c>metta</c> command. Delegates to <see cref="IMeTTaService"/>.
+/// Follows the same pattern as <see cref="ImmersiveCommandHandler"/>.
 /// </summary>
-public sealed class MeTTaCommandHandler
+public sealed class MeTTaCommandHandler : ICommandHandler<MeTTaConfig>
 {
+    private readonly IMeTTaService _mettaService;
+    private readonly ISpectreConsoleService _console;
     private readonly ILogger<MeTTaCommandHandler> _logger;
 
-    public MeTTaCommandHandler(ILogger<MeTTaCommandHandler> logger)
+    public MeTTaCommandHandler(
+        IMeTTaService mettaService,
+        ISpectreConsoleService console,
+        ILogger<MeTTaCommandHandler> logger)
     {
+        _mettaService = mettaService;
+        _console = console;
         _logger = logger;
     }
 
-    public async Task<int> HandleAsync(MeTTaOptions options, CancellationToken cancellationToken = default)
+    public async Task<int> HandleAsync(MeTTaConfig config, CancellationToken cancellationToken = default)
     {
         try
         {
-            await MeTTaCommands.RunMeTTaAsync(options);
+            await _mettaService.RunAsync(config, cancellationToken);
             return 0;
         }
         catch (OperationCanceledException)
@@ -30,6 +39,7 @@ public sealed class MeTTaCommandHandler
         catch (Exception ex)
         {
             _logger.LogError(ex, "metta command failed");
+            _console.MarkupLine($"[red]Error:[/] {ex.Message}");
             return 1;
         }
     }
