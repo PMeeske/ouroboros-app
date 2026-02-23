@@ -6,9 +6,8 @@ namespace Ouroboros.CLI.Services;
 
 /// <summary>
 /// Production implementation of <see cref="IImmersiveModeService"/>.
-/// Converts <see cref="ImmersiveConfig"/> to <see cref="ImmersiveCommandVoiceOptions"/>
+/// Adapts <see cref="ImmersiveConfig"/> to <see cref="ImmersiveCommandVoiceOptions"/>
 /// and delegates to <see cref="ImmersiveMode.RunImmersiveAsync"/>.
-/// Parallels <see cref="OuroborosAgentService"/> for the ouroboros command.
 /// </summary>
 public sealed class ImmersiveModeService : IImmersiveModeService
 {

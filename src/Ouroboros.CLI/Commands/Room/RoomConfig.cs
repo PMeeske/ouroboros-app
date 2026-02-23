@@ -1,10 +1,8 @@
 namespace Ouroboros.CLI.Commands;
 
 /// <summary>
-/// Configuration for the room presence command.
-/// Maps CLI options from <see cref="Options.RoomCommandOptions"/> to a
-/// strongly-typed record consumed by <see cref="Handlers.RoomCommandHandler"/>.
-/// Mirrors the <see cref="OuroborosConfig"/> pattern.
+/// Configuration for the room presence mode.
+/// Immutable record carrying all CLI-parsed values for an ambient room session.
 /// </summary>
 public sealed record RoomConfig(
     string Persona = "Iaret",

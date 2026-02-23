@@ -137,7 +137,7 @@ rootCommand.Add(CreateMeTTaCommand(host, voiceOption));
 
 // Immersive persona mode and ambient room presence
 rootCommand.Add(CreateImmersiveCommand(host, voiceOption));
-rootCommand.Add(CreateRoomCommand(host, voiceOption));
+rootCommand.Add(CreateRoomCommand(host));
 
 // Add a special 'serve' subcommand for running API-only mode
 rootCommand.Add(CreateServeCommand());
@@ -190,7 +190,7 @@ static Command CreateOuroborosCommand(IHost host, System.CommandLine.Option<bool
 
     // Immersive and room as subcommands of ouroboros (also available at top level)
     command.Add(CreateImmersiveCommand(host, globalVoiceOption));
-    command.Add(CreateRoomCommand(host, globalVoiceOption));
+    command.Add(CreateRoomCommand(host));
 
     // Configure handler via extension method (mirrors CreateAskCommand pattern)
     return command.ConfigureOuroborosCommand(host, options, globalVoiceOption);
@@ -316,7 +316,7 @@ static Command CreateServeCommand()
 
 /// <summary>
 /// 'immersive' subcommand — runs the full ImmersiveMode persona experience.
-/// Now uses the handler pattern: ImmersiveCommandOptions → ImmersiveConfig → ImmersiveCommandHandler → IImmersiveModeService.
+/// Uses the handler pattern: ImmersiveCommandOptions → ImmersiveConfig → ImmersiveCommandHandler → IImmersiveModeService.
 /// </summary>
 static Command CreateImmersiveCommand(IHost host, System.CommandLine.Option<bool> globalVoiceOption)
 {
@@ -328,12 +328,12 @@ static Command CreateImmersiveCommand(IHost host, System.CommandLine.Option<bool
 
 /// <summary>
 /// 'room' subcommand — starts Iaret as ambient room presence.
-/// Now uses the handler pattern: RoomCommandOptions → RoomConfig → RoomCommandHandler → IRoomModeService.
+/// Uses the handler pattern: RoomCommandOptions → RoomConfig → RoomCommandHandler → IRoomModeService.
 /// </summary>
-static Command CreateRoomCommand(IHost host, System.CommandLine.Option<bool> globalVoiceOption)
+static Command CreateRoomCommand(IHost host)
 {
     var options = new RoomCommandOptions();
     var command = new Command("room", "Run Iaret as ambient room presence (ambient listening + ethics-gated interjections)");
     options.AddToCommand(command);
-    return command.ConfigureRoomCommand(host, options, globalVoiceOption);
+    return command.ConfigureRoomCommand(host, options);
 }

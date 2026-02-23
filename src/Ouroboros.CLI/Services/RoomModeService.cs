@@ -5,8 +5,7 @@ namespace Ouroboros.CLI.Services;
 
 /// <summary>
 /// Production implementation of <see cref="IRoomModeService"/>.
-/// Converts <see cref="RoomConfig"/> and delegates to <see cref="RoomMode.RunAsync"/>.
-/// Parallels <see cref="OuroborosAgentService"/> for the ouroboros command.
+/// Adapts <see cref="RoomConfig"/> and delegates to <see cref="RoomMode.RunAsync"/>.
 /// </summary>
 public sealed class RoomModeService : IRoomModeService
 {

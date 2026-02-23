@@ -7,7 +7,7 @@ namespace Ouroboros.CLI.Commands.Handlers;
 
 /// <summary>
 /// Extension methods for wiring the room command to its handler via DI.
-/// Parallels <see cref="OuroborosCommandHandlerExtensions"/> for the ouroboros command.
+/// Follows the same pattern as <see cref="OuroborosCommandHandlerExtensions"/>.
 /// </summary>
 public static class RoomCommandHandlerExtensions
 {
@@ -19,13 +19,12 @@ public static class RoomCommandHandlerExtensions
     public static Command ConfigureRoomCommand(
         this Command command,
         IHost host,
-        RoomCommandOptions options,
-        Option<bool> globalVoiceOption)
+        RoomCommandOptions options)
     {
         command.SetAction(async (parseResult, cancellationToken) =>
         {
             var handler = host.Services.GetRequiredService<RoomCommandHandler>();
-            var config = options.BindConfig(parseResult, globalVoiceOption);
+            var config = options.BindConfig(parseResult);
             await handler.HandleAsync(config, cancellationToken);
         });
 
