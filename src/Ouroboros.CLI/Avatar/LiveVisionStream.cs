@@ -138,8 +138,12 @@ public sealed class LiveVisionStream : IAsyncDisposable
                 // Broadcast frame to avatar.html canvas
                 await _avatarService.BroadcastVideoFrameAsync(jpegBytes);
 
-                // Send to Ollama vision model with streaming and relay tokens
-                await StreamVisionAnalysisAsync(jpegBytes, state, ct);
+                // Send to Ollama vision model with streaming — skip when frame generator
+                // is active (the generated frames are the product, not text descriptions)
+                if (_frameGenerator == null)
+                {
+                    await StreamVisionAnalysisAsync(jpegBytes, state, ct);
+                }
             }
             catch (TaskCanceledException) when (ct.IsCancellationRequested)
             {
@@ -148,7 +152,6 @@ public sealed class LiveVisionStream : IAsyncDisposable
             catch (Exception ex)
             {
                 _logger?.LogWarning(ex, "Error in live vision stream loop");
-                Console.Error.WriteLine($"  [LiveVision] {ex.Message}");
             }
 
             await Task.Delay(FrameIntervalMs, ct);
@@ -183,7 +186,6 @@ public sealed class LiveVisionStream : IAsyncDisposable
         {
             var error = await response.Content.ReadAsStringAsync(ct);
             _logger?.LogWarning("Ollama vision request failed ({Status}): {Error}", response.StatusCode, error);
-            Console.Error.WriteLine($"  [LiveVision] Ollama {response.StatusCode}: {error}");
             return;
         }
 
