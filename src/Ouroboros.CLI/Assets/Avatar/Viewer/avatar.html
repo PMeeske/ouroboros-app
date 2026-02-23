@@ -1550,29 +1550,21 @@ connectWs();
 
 
 // ═══════════════════════════════════════════════
-//  AUTONOMOUS LIFE ENGINE — Canvas Mesh Warp
+//  AUTONOMOUS LIFE ENGINE — Natural Presence
 //
-//  Draws expression images through a displacement
-//  grid to create real visible face movement:
-//  jaw, eyes tracking, breathing, expression
-//  blending, and emotional drift.
+//  No canvas warping. Uses clean CSS transforms +
+//  opacity crossfades to look like a real person
+//  on a video call: mostly still, subtle sway,
+//  natural expression changes, gentle breathing.
 // ═══════════════════════════════════════════════
 let lastUpdateTime = Date.now();
 let serverDriving = false;
 
-const gazeEl       = document.getElementById('gaze-highlight');
-const breathFlash  = document.getElementById('breath-flash');
 const portraitFrame = document.getElementById('portrait-frame');
 
-// ── Life canvas — renders warped face over static layers ──
-const lifeCanvas = document.createElement('canvas');
-lifeCanvas.style.cssText =
-  'position:absolute;inset:0;width:100%;height:100%;' +
-  'border-radius:inherit;z-index:6;pointer-events:none;';
-portraitFrame.insertBefore(lifeCanvas, document.getElementById('eye-shimmer'));
-const lifeCtx = lifeCanvas.getContext('2d');
-
 // ── Emotion blend weights ──
+// Smoothly interpolated opacities on each expression layer.
+// Crossfading between real expression images = natural face change.
 const emotionWeights = {
   Idle: 1, Listening: 0, Thinking: 0, Speaking: 0, Encouraging: 0,
 };
@@ -1606,7 +1598,7 @@ setAvatarState = function(state) {
   statusText.textContent = texts[Math.floor(Math.random() * texts.length)];
 };
 
-// ── Mouse tracking ──
+// ── Mouse tracking (very gentle) ──
 let mouseX = 0.5, mouseY = 0.5;
 let smoothX = 0.5, smoothY = 0.5;
 let mouseSpeed = 0, prevMX = 0.5, prevMY = 0.5;
@@ -1619,153 +1611,38 @@ document.addEventListener('mousemove', (e) => {
 document.addEventListener('mouseleave', () => { mouseInWindow = false; });
 document.addEventListener('mouseenter', () => { mouseInWindow = true; });
 
-// ── Strip-based mesh warp renderer ──
-// Draws an image in horizontal strips with per-strip displacement,
-// creating visible organic face movement like a video.
-const STRIPS = 48;
-
-function drawWarped(ctx, img, w, h, t) {
-  const srcW = img.naturalWidth;
-  const srcH = img.naturalHeight;
-  if (!srcW || !srcH) return;
-
-  const stripH_dst = h / STRIPS;
-  const stripH_src = srcH / STRIPS;
-
-  // Gaze offset from mouse — eyes follow cursor
-  const gazeX = (smoothX - 0.5) * 2;  // -1..1
-  const gazeY = (smoothY - 0.5) * 2;
-
-  // Breathing phase
-  const breathe = Math.sin(t * 1.4);
-  const breathe2 = Math.sin(t * 1.4 + 0.3);
-
-  // Speaking jaw amplitude (from lip sync engine)
-  const jawAmp = lipSyncActive ? lipAmplitude : 0;
-
-  for (let i = 0; i < STRIPS; i++) {
-    const ny = i / STRIPS;  // 0..1 normalised Y position
-
-    // ── Horizontal displacement (organic sway) ──
-    let dx = Math.sin(t * 0.9 + ny * 6.5) * 1.8
-           + Math.sin(t * 1.7 + ny * 11) * 0.9
-           + Math.sin(t * 0.5 + ny * 3) * 1.2;
-
-    // ── Vertical displacement ──
-    let dy = 0;
-
-    // Breathing — chest/body expands (lower half)
-    if (ny > 0.55) {
-      const chestFactor = (ny - 0.55) / 0.45;
-      dy += breathe * chestFactor * 3.5;
-      dx += breathe2 * chestFactor * 1.5;
-    }
-
-    // Forehead/brow micro-movement (thinking furrow)
-    if (ny > 0.22 && ny < 0.34) {
-      const browW = emotionWeights.Thinking;
-      dy += Math.sin(t * 2.2) * browW * 1.5;
-      dx += Math.sin(t * 1.8 + 1) * browW * 0.8;
-    }
-
-    // Eye region — gaze tracking + micro-saccades
-    if (ny > 0.28 && ny < 0.42) {
-      const eyeZone = 1 - Math.abs(ny - 0.35) / 0.07;
-      const ef = Math.max(0, eyeZone);
-      // Eyes follow cursor
-      dx += gazeX * 5 * ef;
-      dy += gazeY * 2.5 * ef;
-      // Micro-saccades (tiny fast eye movements)
-      dx += Math.sin(t * 7.3 + ny * 20) * 0.5 * ef;
-      dy += Math.sin(t * 8.1 + ny * 15) * 0.3 * ef;
-    }
-
-    // Nose region — subtle breathing flare
-    if (ny > 0.42 && ny < 0.55) {
-      const noseZone = 1 - Math.abs(ny - 0.48) / 0.06;
-      dx += breathe * Math.max(0, noseZone) * 0.8;
-    }
-
-    // Mouth / jaw region — speaking + breathing
-    if (ny > 0.58 && ny < 0.78) {
-      const mouthZone = 1 - Math.abs(ny - 0.68) / 0.10;
-      const mf = Math.max(0, mouthZone);
-      // Jaw drops during speaking
-      dy += jawAmp * mf * 6;
-      // Subtle mouth movement even when not speaking
-      dy += Math.sin(t * 2.3 + 0.5) * mf * 1.0;
-      dx += Math.sin(t * 3.1) * mf * 0.8;
-      // Encouraging → slight smile lift at corners
-      if (ny > 0.60 && ny < 0.68) {
-        dy -= emotionWeights.Encouraging * mf * 1.5;
-      }
-    }
-
-    // Cheeks — micro-movement, puff with emotion
-    if (ny > 0.45 && ny < 0.62) {
-      const cheekFactor = 1 - Math.abs(ny - 0.53) / 0.09;
-      const cf = Math.max(0, cheekFactor);
-      dx += Math.sin(t * 1.3 + 2) * cf * 0.6;
-      // Cheeks lift with encouraging/smile
-      dy -= emotionWeights.Encouraging * cf * 1.0;
-    }
-
-    // Global head sway — very subtle
-    dx += Math.sin(t * 0.35) * 1.0;
-    dy += Math.sin(t * 0.28 + 1) * 0.5;
-
-    // Scale displacement by emotion intensity
-    const intensity = 1.0 + emotionWeights.Speaking * 0.3
-                          + emotionWeights.Thinking * 0.15;
-    dx *= intensity;
-    dy *= intensity;
-
-    // Draw strip
-    ctx.drawImage(img,
-      0, i * stripH_src, srcW, stripH_src + 1,
-      dx, i * stripH_dst + dy, w, stripH_dst + 1
-    );
-  }
-}
-
-// ── Main life animation loop ──
+// ── Main presence loop (30fps is plenty for natural movement) ──
 let lifeTime = 0;
-let lifeRafId = null;
 
-function lifeLoop() {
-  lifeRafId = requestAnimationFrame(lifeLoop);
-
-  // Skip in fullbody mode or when server video is active
-  const videoActive = document.getElementById('avatarCanvas').style.display === 'block';
-  if (isFullbody || videoActive) {
-    lifeCanvas.style.display = 'none';
-    return;
-  }
-  lifeCanvas.style.display = 'block';
-
-  // Resize canvas to match frame
-  const fw = portraitFrame.offsetWidth;
-  const fh = portraitFrame.offsetHeight;
-  if (lifeCanvas.width !== fw || lifeCanvas.height !== fh) {
-    lifeCanvas.width = fw;
-    lifeCanvas.height = fh;
-  }
+function presenceLoop() {
+  requestAnimationFrame(presenceLoop);
+  if (isFullbody) return;
 
   lifeTime += 0.016;
 
-  // Smooth mouse chase
-  smoothX += (mouseX - smoothX) * 0.06;
-  smoothY += (mouseY - smoothY) * 0.06;
+  // Smooth mouse chase — very slow, like a person shifting gaze
+  smoothX += (mouseX - smoothX) * 0.02;
+  smoothY += (mouseY - smoothY) * 0.02;
   mouseSpeed = Math.sqrt((mouseX - prevMX) ** 2 + (mouseY - prevMY) ** 2);
   prevMX = mouseX; prevMY = mouseY;
 
-  // Smooth emotion weight chase
+  // ── Smooth emotion weight interpolation ──
   for (const k of Object.keys(emotionWeights)) {
     const delta = emotionTargets[k] - emotionWeights[k];
-    emotionWeights[k] += delta * 0.035;
+    // ~1s crossfade — fast enough to see expression change
+    emotionWeights[k] += delta * 0.06;
+    if (Math.abs(delta) < 0.003) emotionWeights[k] = emotionTargets[k];
   }
 
-  // Determine dominant emotion for body class + effects
+  // Apply opacities to expression layers
+  for (const [key, el] of Object.entries(layers)) {
+    if (!el) continue;
+    const w = emotionWeights[key];
+    el.style.opacity = w.toFixed(3);
+    el.classList.toggle('active', w > 0.05);
+  }
+
+  // Dominant emotion for body class
   let dominant = 'Idle', maxW = 0;
   for (const [k, w] of Object.entries(emotionWeights)) {
     if (w > maxW) { maxW = w; dominant = k; }
@@ -1779,78 +1656,82 @@ function lifeLoop() {
   if (speakW > 0.3 && !lipSyncActive) startLipSync();
   if (speakW <= 0.3 && lipSyncActive) stopLipSync();
 
-  // Breath rate varies with emotion
-  const breathDur = 4.5
-    - emotionWeights.Listening * 1.0
-    + emotionWeights.Thinking * 1.0
-    - speakW * 1.7;
-  document.documentElement.style.setProperty(
-    '--breath-duration', Math.max(2.5, Math.min(6.0, breathDur)).toFixed(1) + 's');
-
-  // Gaze highlight on eyes
+  // ── Natural head movement via CSS transforms ──
+  // Like a real person on a webcam: tiny, slow, organic.
+  // Layered sine waves at different frequencies = non-repeating.
   if (!serverDriving) {
-    const eyeCX = 38 + smoothX * 24;
-    const eyeCY = 30 + smoothY * 12;
-    gazeEl.style.background =
-      `radial-gradient(ellipse 14% 8% at ${eyeCX.toFixed(1)}% ${eyeCY.toFixed(1)}%, ` +
-      `rgba(255, 255, 255, 0.18) 0%, transparent 100%)`;
-    // Head parallax
-    const px = (smoothX - 0.5) * 8;
-    const py = (smoothY - 0.5) * 5;
-    portraitFrame.style.setProperty('--expr-x', px.toFixed(2) + 'px');
-    portraitFrame.style.setProperty('--expr-y', py.toFixed(2) + 'px');
-    portraitFrame.style.setProperty('--expr-rotate', ((smoothX - 0.5) * -1.2).toFixed(2) + 'deg');
-  }
+    // Slow idle sway (period ~10-15s, ±2px)
+    const swayX = Math.sin(lifeTime * 0.42) * 1.2
+                + Math.sin(lifeTime * 0.67 + 1.3) * 0.8;
+    const swayY = Math.sin(lifeTime * 0.31 + 0.7) * 0.7
+                + Math.sin(lifeTime * 0.53 + 2.1) * 0.5;
 
-  // ── Draw blended warped layers to canvas ──
-  const lctx = lifeCtx;
-  lctx.clearRect(0, 0, fw, fh);
-  for (const [key, el] of Object.entries(layers)) {
-    const w = emotionWeights[key];
-    if (w < 0.01 || !el || !el.naturalWidth) continue;
-    lctx.globalAlpha = w;
-    drawWarped(lctx, el, fw, fh, lifeTime);
-  }
-  lctx.globalAlpha = 1.0;
+    // Head tilt (very subtle, ±0.4deg)
+    const tilt  = Math.sin(lifeTime * 0.23) * 0.25
+                + Math.sin(lifeTime * 0.41 + 1.8) * 0.15;
 
-  // Hide static img layers — canvas is rendering them warped
-  for (const [key, el] of Object.entries(layers)) {
-    if (el) el.style.opacity = '0';
+    // Breathing scale (tiny, ±0.2%)
+    const breathScale = 1 + Math.sin(lifeTime * 1.4) * 0.002;
+
+    // Mouse-follow gaze — very gentle, like glancing at something
+    const gazeX = (smoothX - 0.5) * 3;   // max ±1.5px
+    const gazeY = (smoothY - 0.5) * 2;   // max ±1px
+
+    const totalX = swayX + gazeX;
+    const totalY = swayY + gazeY;
+
+    portraitFrame.style.setProperty('--expr-x', totalX.toFixed(2) + 'px');
+    portraitFrame.style.setProperty('--expr-y', totalY.toFixed(2) + 'px');
+    portraitFrame.style.setProperty('--expr-rotate', tilt.toFixed(3) + 'deg');
+    portraitFrame.style.setProperty('--expr-scale', breathScale.toFixed(5));
   }
 }
-lifeRafId = requestAnimationFrame(lifeLoop);
+requestAnimationFrame(presenceLoop);
 
-// ── Emotion impulse scheduler ──
+// ── Expression impulse scheduler ──
+// Visible expression changes: smiles, mouth movement, thoughtful looks.
+// Each has a blend + duration, then returns to idle.
 const EMOTION_IMPULSES = [
-  { w: 4, blend: { Idle: 0.5, Thinking: 0.5 },   dur: [4000, 6000], status: 'Lost in thought...' },
-  { w: 2, blend: { Thinking: 0.85, Idle: 0.15 },  dur: [3000, 5000], status: 'Pondering deeply...' },
-  { w: 4, blend: { Idle: 0.4, Listening: 0.6 },   dur: [3000, 5000], status: 'Something caught her attention...' },
-  { w: 3, blend: { Listening: 0.8, Idle: 0.2 },    dur: [2500, 4000], status: 'Listening intently...' },
-  { w: 3, blend: { Idle: 0.3, Encouraging: 0.7 },  dur: [3000, 5000], status: 'A gentle warmth...' },
-  { w: 2, blend: { Encouraging: 0.9, Idle: 0.1 },  dur: [2000, 3500], status: 'Radiating kindness...' },
-  { w: 2, blend: { Listening: 0.4, Thinking: 0.4, Idle: 0.2 }, dur: [4000, 6000], status: 'Curious contemplation...' },
-  { w: 2, blend: { Encouraging: 0.4, Listening: 0.3, Idle: 0.3 }, dur: [3000, 5000], status: 'Warmly attentive...' },
-  { w: 1, blend: { Thinking: 0.3, Encouraging: 0.4, Idle: 0.3 }, dur: [3500, 5000], status: 'Thoughtful compassion...' },
-  { w: 1, blend: { Speaking: 0.5, Idle: 0.3, Thinking: 0.2 }, dur: [1500, 2500], status: 'About to speak...' },
-  { w: 6, blend: { Idle: 1.0 }, dur: [5000, 10000], status: null },
+  // Neutral rest periods
+  { w: 5,  blend: { Idle: 1.0 }, dur: [4000, 8000], status: null },
+  // Smile (encouraging expression)
+  { w: 5,  blend: { Encouraging: 0.85, Idle: 0.15 }, dur: [3000, 5000], status: 'Smiling softly' },
+  { w: 3,  blend: { Idle: 0.4, Encouraging: 0.6 }, dur: [2500, 4500], status: 'Warmth' },
+  // Mouth movement — blend toward Speaking image (mouth open)
+  { w: 4,  blend: { Speaking: 0.7, Idle: 0.3 }, dur: [1500, 3000], status: 'Speaking' },
+  { w: 3,  blend: { Speaking: 0.5, Encouraging: 0.3, Idle: 0.2 }, dur: [2000, 3500], status: 'Sharing a thought...' },
+  // Listening — attentive look
+  { w: 4,  blend: { Listening: 0.8, Idle: 0.2 }, dur: [3000, 5000], status: 'Listening...' },
+  { w: 3,  blend: { Idle: 0.3, Listening: 0.7 }, dur: [2500, 4000], status: 'Attentive' },
+  // Thinking — contemplative
+  { w: 3,  blend: { Thinking: 0.75, Idle: 0.25 }, dur: [3000, 6000], status: 'Contemplating...' },
+  { w: 2,  blend: { Idle: 0.4, Thinking: 0.6 }, dur: [3000, 5000], status: 'Reflecting...' },
+  // Mixed / transitional expressions
+  { w: 2,  blend: { Listening: 0.4, Encouraging: 0.4, Idle: 0.2 }, dur: [3000, 5000], status: null },
+  { w: 2,  blend: { Thinking: 0.3, Encouraging: 0.5, Idle: 0.2 }, dur: [3000, 5000], status: null },
+  { w: 2,  blend: { Speaking: 0.4, Listening: 0.3, Idle: 0.3 }, dur: [2000, 3500], status: null },
 ];
 
 function pickImpulse() {
   const total = EMOTION_IMPULSES.reduce((s, i) => s + i.w, 0);
   let r = Math.random() * total;
   for (const imp of EMOTION_IMPULSES) { r -= imp.w; if (r <= 0) return imp; }
-  return EMOTION_IMPULSES[EMOTION_IMPULSES.length - 1];
+  return EMOTION_IMPULSES[0];
 }
 
 function scheduleImpulse() {
   const delay = serverDriving
     ? (12000 + Math.random() * 15000)
-    : (4000 + Math.random() * 6000);
+    : (3000 + Math.random() * 5000);
   setTimeout(() => {
     if (!serverDriving && !isFullbody) {
       const imp = pickImpulse();
       setEmotionTarget(imp.blend);
       if (imp.status) statusText.textContent = imp.status;
+      else {
+        const texts = EMOTION_STATUS.Idle;
+        statusText.textContent = texts[Math.floor(Math.random() * texts.length)];
+      }
       const dur = imp.dur[0] + Math.random() * (imp.dur[1] - imp.dur[0]);
       setTimeout(() => {
         if (!serverDriving) {
@@ -1865,40 +1746,43 @@ function scheduleImpulse() {
 }
 scheduleImpulse();
 
-// ── Mouse-reactive emotions ──
+// ── Mouth movement pulses (periodic) ──
+// Brief flashes toward Speaking image — as if about to say something,
+// reacting to a thought, or sub-vocalising. Makes the mouth visibly move.
 setInterval(() => {
   if (serverDriving || isFullbody) return;
-  if (!mouseInWindow) {
-    if (emotionTargets.Thinking < 0.3)
-      setEmotionTarget({ Idle: 0.5, Thinking: 0.5 });
-    return;
-  }
-  if (mouseSpeed > 0.02) {
-    const a = Math.min(0.6, mouseSpeed * 8);
-    setEmotionTarget({ Idle: 1 - a, Listening: a });
-    return;
-  }
-  const dx = smoothX - 0.5, dy = smoothY - 0.5;
-  const dist = Math.sqrt(dx * dx + dy * dy);
-  if (dist < 0.15) {
-    const warmth = Math.max(0, (0.15 - dist) / 0.15) * 0.4;
-    if (warmth > 0.1)
-      setEmotionTarget({ Idle: 1 - warmth, Encouraging: warmth });
-  }
-}, 500);
-
-// ── Deep breath (periodic) ──
-setInterval(() => {
-  if (serverDriving) return;
-  if (Math.random() < 0.25) {
-    document.documentElement.style.setProperty('--breath-duration', '6.5s');
-    breathFlash.style.opacity = '1';
+  if (Math.random() < 0.35 && emotionTargets.Speaking < 0.3) {
+    // Quick mouth open-close
+    setEmotionTarget({ Speaking: 0.6, Idle: 0.4 });
     setTimeout(() => {
-      document.documentElement.style.setProperty('--breath-duration', '4.5s');
-      breathFlash.style.opacity = '0';
-    }, 3000);
+      if (!serverDriving) setEmotionTarget({ Idle: 1.0 });
+    }, 800 + Math.random() * 600);
   }
-}, 12000);
+}, 5000);
+
+// ── Smile pulses (periodic) ──
+// Brief warm smiles — the encouraging image shows a smile.
+setInterval(() => {
+  if (serverDriving || isFullbody) return;
+  if (Math.random() < 0.3 && emotionTargets.Encouraging < 0.3) {
+    setEmotionTarget({ Encouraging: 0.8, Idle: 0.2 });
+    setTimeout(() => {
+      if (!serverDriving) setEmotionTarget({ Idle: 1.0 });
+    }, 2000 + Math.random() * 2000);
+  }
+}, 7000);
+
+// ── Mouse-reactive emotion ──
+setInterval(() => {
+  if (serverDriving || isFullbody) return;
+  if (!mouseInWindow && emotionTargets.Idle > 0.7) {
+    setEmotionTarget({ Idle: 0.5, Thinking: 0.5 });
+    return;
+  }
+  if (mouseSpeed > 0.03) {
+    setEmotionTarget({ Idle: 0.3, Listening: 0.7 });
+  }
+}, 1000);
 
 // ── Server snapshot integration ──
 const origApply = applySnapshot;
