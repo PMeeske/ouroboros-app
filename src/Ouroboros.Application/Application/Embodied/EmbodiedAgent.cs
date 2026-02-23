@@ -20,6 +20,7 @@ public sealed class EmbodiedAgent : IEmbodiedAgent
 {
     private readonly IEnvironmentManager environmentManager;
     private readonly IEthicsFramework ethics;
+    private readonly IHumanApprovalProvider approvalProvider;
     private readonly ILogger<EmbodiedAgent> logger;
     private readonly UnityMLAgentsClient? unityClient;
     private readonly VisualProcessor? visualProcessor;
@@ -37,6 +38,7 @@ public sealed class EmbodiedAgent : IEmbodiedAgent
     /// <param name="ethics">Ethics framework for action validation</param>
     /// <param name="logger">Logger for diagnostic output</param>
     /// <param name="maxBufferSize">Maximum size of experience replay buffer (default: 10000)</param>
+    /// <param name="approvalProvider">Optional human approval provider for ethics-flagged actions</param>
     /// <param name="unityClient">Optional Unity ML-Agents client for environment communication</param>
     /// <param name="visualProcessor">Optional visual processor for image observations (currently unused, reserved for future integration)</param>
     /// <param name="rlAgent">Optional RL agent for policy-based action selection</param>
@@ -46,6 +48,7 @@ public sealed class EmbodiedAgent : IEmbodiedAgent
         IEthicsFramework ethics,
         ILogger<EmbodiedAgent> logger,
         int maxBufferSize = 10000,
+        IHumanApprovalProvider? approvalProvider = null,
         UnityMLAgentsClient? unityClient = null,
         VisualProcessor? visualProcessor = null,
         RLAgent? rlAgent = null,
@@ -55,6 +58,7 @@ public sealed class EmbodiedAgent : IEmbodiedAgent
         this.ethics = ethics ?? throw new ArgumentNullException(nameof(ethics));
         this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
         this.maxBufferSize = maxBufferSize > 0 ? maxBufferSize : throw new ArgumentOutOfRangeException(nameof(maxBufferSize), "Max buffer size must be positive");
+        this.approvalProvider = approvalProvider ?? new AutoDenyApprovalProvider();
         this.unityClient = unityClient;
         this.visualProcessor = visualProcessor;
         this.rlAgent = rlAgent;
@@ -206,12 +210,32 @@ public sealed class EmbodiedAgent : IEmbodiedAgent
 
             if (ethicsResult.Value.Level == EthicalClearanceLevel.RequiresHumanApproval)
             {
-                // TODO: Implement actual human-in-the-loop approval workflow
-                // Currently, actions requiring approval are treated as denied (blocked).
-                // Future enhancement: Add mechanism to request/receive human approval
-                // and resume execution upon authorization.
                 this.logger.LogInformation("Action requires human approval: {Reasoning}", ethicsResult.Value.Reasoning);
-                return Result<ActionResult, string>.Failure($"Action requires human approval: {ethicsResult.Value.Reasoning}");
+
+                var approvalRequest = new HumanApprovalRequest
+                {
+                    Category = "embodied_action",
+                    Description = $"Embodied action: {action.ActionName ?? "Unnamed"} in environment {this.currentEnvironment.Id}",
+                    Clearance = ethicsResult.Value,
+                    Context = new Dictionary<string, object>
+                    {
+                        ["action_name"] = action.ActionName ?? "Unnamed",
+                        ["environment_id"] = this.currentEnvironment.Id,
+                        ["concerns"] = ethicsResult.Value.Concerns.Select(c => c.Description).ToList(),
+                        ["reasoning"] = ethicsResult.Value.Reasoning
+                    }
+                };
+
+                var approvalResponse = await this.approvalProvider.RequestApprovalAsync(approvalRequest, ct);
+
+                if (approvalResponse.Decision != HumanApprovalDecision.Approved)
+                {
+                    return Result<ActionResult, string>.Failure(
+                        $"Action requires human approval and was {approvalResponse.Decision}: " +
+                        $"{approvalResponse.ReviewerComments ?? ethicsResult.Value.Reasoning}");
+                }
+
+                this.logger.LogInformation("Action approved by human reviewer: {ReviewerId}", approvalResponse.ReviewerId ?? "unknown");
             }
 
             // Execute action through Unity client if available
