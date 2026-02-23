@@ -6,6 +6,25 @@ namespace Ouroboros.Application.Integration;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
+using Ouroboros.Agent.MetaAI;
+using Ouroboros.Agent.MetaAI.WorldModel;
+using Ouroboros.Agent.MetaLearning;
+using Ouroboros.Application.Embodied;
+using Ouroboros.Application.Services.Reflection;
+using Ouroboros.Core.Configuration;
+using Ouroboros.Core.Learning;
+using Ouroboros.Core.Reasoning;
+using Ouroboros.Core.Synthesis;
+using Ouroboros.Domain.Benchmarks;
+using Ouroboros.Domain.Embodied;
+using Ouroboros.Domain.Learning;
+using Ouroboros.Domain.MetaLearning;
+using Ouroboros.Domain.MultiAgent;
+using Ouroboros.Domain.Reflection;
+using Ouroboros.Pipeline.Memory;
+using Ouroboros.Tools.MeTTa;
+using Qdrant.Client;
 
 /// <summary>
 /// Extension methods for registering Ouroboros services with dependency injection.
@@ -140,23 +159,91 @@ public static class OuroborosServiceCollectionExtensions
 
     private static void RegisterEngineInterfaces(IServiceCollection services)
     {
-        // Register available Tier 1 engines
-        // Note: EpisodicMemoryEngine requires QdrantClient and IEmbeddingModel dependencies
-        // Commenting out to avoid DI errors in minimal setup
-        // services.TryAddSingleton<IEpisodicMemoryEngine, EpisodicMemoryEngine>();
+        // ── Tier 1: EpisodicMemoryEngine (Qdrant-backed) ────────────────────
+        services.TryAddSingleton<IEpisodicMemoryEngine>(sp =>
+        {
+            var client = sp.GetService<QdrantClient>();
+            var registry = sp.GetService<IQdrantCollectionRegistry>();
+            var embedding = sp.GetService<Ouroboros.Domain.IEmbeddingModel>();
+            if (client != null && registry != null && embedding != null)
+                return new EpisodicMemoryEngine(client, registry, embedding);
+            return NullEpisodicMemoryEngine.Instance;
+        });
 
-        // Tier 2 and 3 engines are defined in interface but require implementation
-        // Uncomment when implementations become available:
-        // services.TryAddSingleton<IAdapterLearningEngine, AdapterLearningEngine>();
-        // services.TryAddSingleton<IAdvancedMeTTaEngine, AdvancedMeTTaEngine>();
-        // services.TryAddSingleton<IHierarchicalPlanner, HierarchicalPlanner>();
-        // services.TryAddSingleton<IReflectionEngine, ReflectionEngine>();
-        // services.TryAddSingleton<IBenchmarkSuite, BenchmarkSuite>();
-        // services.TryAddSingleton<IProgramSynthesisEngine, ProgramSynthesisEngine>();
-        // services.TryAddSingleton<IWorldModelEngine, WorldModelEngine>();
-        // services.TryAddSingleton<IMultiAgentCoordinator, MultiAgentCoordinator>();
-        // services.TryAddSingleton<ICausalReasoningEngine, CausalReasoningEngine>();
-        // services.TryAddSingleton<IMetaLearningEngine, MetaLearningEngine>();
-        // services.TryAddSingleton<IEmbodiedAgent, EmbodiedAgent>();
+        // ── Tier 1: AdapterLearningEngine (needs PEFT + storage) ────────────
+        services.TryAddSingleton<IAdapterLearningEngine>(sp =>
+        {
+            var peft = sp.GetService<IPeftIntegration>();
+            var storage = sp.GetService<IAdapterStorage>();
+            var blob = sp.GetService<IAdapterBlobStorage>();
+            if (peft != null && storage != null && blob != null)
+                return new AdapterLearningEngine(peft, storage, blob, "ouroboros-base",
+                    sp.GetService<ILogger<AdapterLearningEngine>>());
+            return NullAdapterLearningEngine.Instance;
+        });
+
+        // ── Tier 1: AdvancedMeTTaEngine (needs IMeTTaEngine) ────────────────
+        services.TryAddSingleton<IAdvancedMeTTaEngine>(sp =>
+        {
+            var metta = sp.GetService<IMeTTaEngine>();
+            if (metta != null)
+                return new AdvancedMeTTaEngine(metta);
+            return NullAdvancedMeTTaEngine.Instance;
+        });
+
+        // ── Tier 1: HierarchicalPlanner (needs orchestrator + LLM) ──────────
+        services.TryAddSingleton<IHierarchicalPlanner>(sp =>
+        {
+            var orchestrator = sp.GetService<IMetaAIPlannerOrchestrator>();
+            var llm = sp.GetService<Ouroboros.Abstractions.Core.IChatCompletionModel>();
+            if (orchestrator != null && llm != null)
+                return new HierarchicalPlanner(orchestrator, llm);
+            return NullHierarchicalPlanner.Instance;
+        });
+
+        // ── Tier 1: ReflectionEngine (parameterless) ────────────────────────
+        services.TryAddSingleton<IReflectionEngine, ReflectionEngine>();
+
+        // ── Tier 1: BenchmarkSuite (parameterless) ──────────────────────────
+        services.TryAddSingleton<IBenchmarkSuite, BenchmarkSuite>();
+
+        // ── Tier 2: ProgramSynthesisEngine (parameterless) ──────────────────
+        services.TryAddSingleton<IProgramSynthesisEngine, ProgramSynthesisEngine>();
+
+        // ── Tier 2: WorldModelEngine (parameterless) ────────────────────────
+        services.TryAddSingleton<IWorldModelEngine, WorldModelEngine>();
+
+        // ── Tier 2: MultiAgentCoordinator (needs message queue + registry) ──
+        services.TryAddSingleton<IMultiAgentCoordinator>(sp =>
+        {
+            var queue = sp.GetService<IMessageQueue>();
+            var agentRegistry = sp.GetService<IAgentRegistry>();
+            if (queue != null && agentRegistry != null)
+                return new MultiAgentCoordinator(queue, agentRegistry);
+            return NullMultiAgentCoordinator.Instance;
+        });
+
+        // ── Tier 2: CausalReasoningEngine (parameterless) ───────────────────
+        services.TryAddSingleton<ICausalReasoningEngine, CausalReasoningEngine>();
+
+        // ── Tier 3: MetaLearningEngine (needs IEmbeddingModel) ──────────────
+        services.TryAddSingleton<IMetaLearningEngine>(sp =>
+        {
+            var embedding = sp.GetService<Ouroboros.Domain.IEmbeddingModel>();
+            if (embedding != null)
+                return new MetaLearningEngine(embedding);
+            return NullMetaLearningEngine.Instance;
+        });
+
+        // ── Tier 3: EmbodiedAgent (needs environment + ethics) ──────────────
+        services.TryAddSingleton<IEmbodiedAgent>(sp =>
+        {
+            var env = sp.GetService<IEnvironmentManager>();
+            var ethics = sp.GetService<Ouroboros.Core.Ethics.IEthicsFramework>();
+            var logger = sp.GetService<ILogger<EmbodiedAgent>>();
+            if (env != null && ethics != null && logger != null)
+                return new EmbodiedAgent(env, ethics, logger);
+            return NullEmbodiedAgent.Instance;
+        });
     }
 }

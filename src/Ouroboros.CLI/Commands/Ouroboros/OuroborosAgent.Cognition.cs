@@ -17,10 +17,10 @@ public sealed partial class OuroborosAgent
         // 1. Create ImmersiveMode — Iaret's interactive face
         var immersive = new ImmersiveMode(
             _modelsSub, _toolsSub, _memorySub, _autonomySub,
-            _immersivePersona, AvatarService);
+            _immersivePersona, AvatarService, _serviceProvider);
 
         // 2. Create RoomMode — ambient presence
-        var room = new RoomMode(immersive, _modelsSub, _memorySub, _autonomySub);
+        var room = new RoomMode(immersive, _modelsSub, _memorySub, _autonomySub, _serviceProvider);
 
         // 3. Wire RoomIntentBus → ImmersiveMode (room events appear in the chat pane)
         Ouroboros.CLI.Services.RoomPresence.RoomIntentBus.Reset();

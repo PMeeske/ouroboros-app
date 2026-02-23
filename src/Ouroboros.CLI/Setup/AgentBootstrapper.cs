@@ -6,6 +6,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Ouroboros.ApiHost.Extensions;
+using Ouroboros.Application.Integration;
 using Ouroboros.Application.Tools;
 using Ouroboros.CLI.Commands;
 using Ouroboros.CLI.Infrastructure;
@@ -203,10 +205,11 @@ public static class AgentBootstrapper
         services.AddOuroboros(config);
 
         // ── Bridge host services into the child container ──────────────
+        IConfiguration? hostConfig = null;
         if (hostServices != null)
         {
             // Forward IConfiguration so agent subsystems see the same config as the CLI host
-            var hostConfig = hostServices.GetService<IConfiguration>();
+            hostConfig = hostServices.GetService<IConfiguration>();
             if (hostConfig != null)
                 services.AddSingleton(hostConfig);
 
@@ -227,6 +230,14 @@ public static class AgentBootstrapper
             if (spectreConsole != null)
                 services.AddSingleton(spectreConsole);
         }
+
+        // ── Qdrant + engine infrastructure (shared with all hosts) ───────
+        // Registers QdrantClient, IQdrantCollectionRegistry, QdrantSettings,
+        // and eagerly-resolvable Qdrant-backed services.
+        services.AddOuroborosEngine(hostConfig);
+
+        // ── Application-layer integration (IOuroborosCore, IEventBus, etc.) ──
+        services.AddOuroboros();
 
         var provider = services.BuildServiceProvider();
         var agent = provider.GetRequiredService<OuroborosAgent>();

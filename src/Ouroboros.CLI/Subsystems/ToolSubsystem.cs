@@ -2,13 +2,16 @@
 namespace Ouroboros.CLI.Subsystems;
 
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.DependencyInjection;
 using Ouroboros.Application.Mcp;
 using Ouroboros.Application.Services;
 using Ouroboros.Application.Tools;
 using Ouroboros.CLI.Commands;
 using Ouroboros.CLI.Infrastructure;
+using Ouroboros.Core.Configuration;
 using Ouroboros.Pipeline.WorldModel;
 using Ouroboros.Tools.MeTTa;
+using Qdrant.Client;
 
 /// <summary>
 /// Tool subsystem implementation owning tool lifecycle and browser automation.
@@ -84,15 +87,25 @@ public sealed class ToolSubsystem : IToolSubsystem
                     .WithTool(ToolFactory.CreateCalculatorTool());
 
                 // Qdrant admin for self-managing neuro-symbolic memory
-                if (!string.IsNullOrEmpty(ctx.Config.QdrantEndpoint))
                 {
-                    var qdrantRest = ctx.Config.QdrantEndpoint.Replace(":6334", ":6333");
+                    var qdrantSettings = ctx.Services?.GetService<QdrantSettings>();
+                    var qdrantRegistry = ctx.Services?.GetService<IQdrantCollectionRegistry>();
                     Func<string, CancellationToken, Task<float[]>>? embedFunc = null;
                     if (ctx.Models.Embedding != null)
                         embedFunc = async (text, ct) => await ctx.Models.Embedding.CreateEmbeddingsAsync(text, ct);
-                    var qdrantAdmin = new QdrantAdminTool(qdrantRest, embedFunc);
-                    Tools = Tools.WithTool(qdrantAdmin);
-                    ctx.Output.RecordInit("Qdrant Admin", true, "self-management tool");
+                    if (qdrantSettings != null && qdrantRegistry != null)
+                    {
+                        var qdrantAdmin = new QdrantAdminTool(qdrantSettings, qdrantRegistry, embedFunc);
+                        Tools = Tools.WithTool(qdrantAdmin);
+                        ctx.Output.RecordInit("Qdrant Admin", true, "self-management tool (DI)");
+                    }
+                    else if (!string.IsNullOrEmpty(ctx.Config.QdrantEndpoint))
+                    {
+                        var qdrantRest = ctx.Config.QdrantEndpoint.Replace(":6334", ":6333");
+                        var qdrantAdmin = new QdrantAdminTool(qdrantRest, embedFunc);
+                        Tools = Tools.WithTool(qdrantAdmin);
+                        ctx.Output.RecordInit("Qdrant Admin", true, "self-management tool");
+                    }
                 }
 
                 // Playwright browser automation
@@ -130,8 +143,14 @@ public sealed class ToolSubsystem : IToolSubsystem
                     var mettaEngine = new InMemoryMeTTaEngine();
                     ctx.Memory.MeTTaEngine = mettaEngine; // Set MeTTa on Memory subsystem
 
-                    ToolLearner = new IntelligentToolLearner(
-                        ToolFactory, mettaEngine, ctx.Models.Embedding, Llm, ctx.Config.QdrantEndpoint);
+                    var tlClient = ctx.Services?.GetService<QdrantClient>();
+                    var tlRegistry = ctx.Services?.GetService<IQdrantCollectionRegistry>();
+                    if (tlClient != null && tlRegistry != null)
+                        ToolLearner = new IntelligentToolLearner(
+                            ToolFactory, mettaEngine, ctx.Models.Embedding, Llm, tlClient, tlRegistry);
+                    else
+                        ToolLearner = new IntelligentToolLearner(
+                            ToolFactory, mettaEngine, ctx.Models.Embedding, Llm, ctx.Config.QdrantEndpoint);
                     await ToolLearner.InitializeAsync();
                     var stats = ToolLearner.GetStats();
                     ctx.Output.RecordInit("Tool Learner", true, $"{stats.TotalPatterns} patterns (GA+MeTTa)");

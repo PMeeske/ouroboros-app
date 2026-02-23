@@ -1,13 +1,17 @@
 // Copyright (c) Ouroboros. All rights reserved.
 namespace Ouroboros.CLI.Subsystems;
 
+using Microsoft.Extensions.DependencyInjection;
 using Ouroboros.Abstractions.Agent;
 using Ouroboros.Agent.MetaAI;
 using Ouroboros.Agent.MetaAI.Affect;
 using Ouroboros.Application.Personality;
 using Ouroboros.Application.Services;
 using Ouroboros.Application.Tools;
+using Ouroboros.Core.Configuration;
+using Ouroboros.Domain.Autonomous;
 using Ouroboros.Tools.MeTTa;
+using Qdrant.Client;
 
 /// <summary>
 /// Memory subsystem implementation owning skills, personality, symbolic reasoning, and persistence.
@@ -98,7 +102,9 @@ public sealed class MemorySubsystem : IMemorySubsystem
     private async Task InitializeNeuralMemoryCoreAsync(SubsystemInitContext ctx)
     {
         var embedding = ctx.Models.Embedding;
-        if (embedding == null || string.IsNullOrEmpty(ctx.Config.QdrantEndpoint))
+        // Try DI first, fall back to endpoint string check
+        var diMemory = ctx.Services?.GetService<QdrantNeuralMemory>();
+        if (embedding == null || (diMemory == null && string.IsNullOrEmpty(ctx.Config.QdrantEndpoint)))
         {
             ctx.Output.RecordInit("Neural Memory", false, "requires embeddings + Qdrant");
             return;
@@ -106,14 +112,15 @@ public sealed class MemorySubsystem : IMemorySubsystem
 
         try
         {
-            var qdrantRest = ctx.Config.QdrantEndpoint.Replace(":6334", ":6333");
-            NeuralMemory = new QdrantNeuralMemory(qdrantRest);
+            NeuralMemory = diMemory ?? new QdrantNeuralMemory(ctx.Config.QdrantEndpoint.Replace(":6334", ":6333"));
             NeuralMemory.EmbedFunction = async (text, ct) => await embedding.CreateEmbeddingsAsync(text);
             var testEmbed = await embedding.CreateEmbeddingsAsync("test");
             await NeuralMemory.InitializeAsync(testEmbed.Length);
             var stats = await NeuralMemory.GetStatsAsync();
             Ouroboros.Application.Tools.ServiceContainerFactory.RegisterSingleton(NeuralMemory);
-            ctx.Output.RecordInit("Neural Memory", true, $"Qdrant @ {qdrantRest}");
+            var settings = ctx.Services?.GetService<QdrantSettings>();
+            var label = settings != null ? $"Qdrant @ {settings.HttpEndpoint}" : "Qdrant";
+            ctx.Output.RecordInit("Neural Memory", true, label);
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.WriteLine($"    Messages: {stats.NeuronMessagesCount} | Intentions: {stats.IntentionsCount} | Memories: {stats.MemoriesCount}");
             Console.ResetColor();
@@ -154,8 +161,13 @@ public sealed class MemorySubsystem : IMemorySubsystem
             {
                 try
                 {
-                    var qdrantConfig = new QdrantSkillConfig { ConnectionString = ctx.Config.QdrantEndpoint };
-                    var qdrantSkills = new QdrantSkillRegistry(embedding, qdrantConfig);
+                    var qdrantClient = ctx.Services?.GetService<QdrantClient>();
+                    var registry = ctx.Services?.GetService<IQdrantCollectionRegistry>();
+                    QdrantSkillRegistry qdrantSkills;
+                    if (qdrantClient != null && registry != null)
+                        qdrantSkills = new QdrantSkillRegistry(embedding, qdrantClient, registry);
+                    else
+                        qdrantSkills = new QdrantSkillRegistry(embedding, new QdrantSkillConfig { ConnectionString = ctx.Config.QdrantEndpoint });
                     await qdrantSkills.InitializeAsync();
                     Skills = qdrantSkills;
                     var stats = qdrantSkills.GetStats();
@@ -199,10 +211,15 @@ public sealed class MemorySubsystem : IMemorySubsystem
         {
             var metta = new InMemoryMeTTaEngine();
             var embedding = ctx.Models.Embedding;
+            var qdrantClient = ctx.Services?.GetService<QdrantClient>();
+            var collectionRegistry = ctx.Services?.GetService<IQdrantCollectionRegistry>();
 
-            PersonalityEngine = (embedding != null && !string.IsNullOrEmpty(ctx.Config.QdrantEndpoint))
-                ? new PersonalityEngine(metta, embedding, ctx.Config.QdrantEndpoint)
-                : new PersonalityEngine(metta);
+            if (embedding != null && qdrantClient != null)
+                PersonalityEngine = new PersonalityEngine(metta, embedding, qdrantClient, collectionRegistry);
+            else if (embedding != null && !string.IsNullOrEmpty(ctx.Config.QdrantEndpoint))
+                PersonalityEngine = new PersonalityEngine(metta, embedding, ctx.Config.QdrantEndpoint);
+            else
+                PersonalityEngine = new PersonalityEngine(metta);
 
             await PersonalityEngine.InitializeAsync();
 
@@ -254,8 +271,15 @@ public sealed class MemorySubsystem : IMemorySubsystem
                     embeddingFunc = async (text) => await ctx.Models.Embedding.CreateEmbeddingsAsync(text);
                 }
 
-                ThoughtPersistence = await ThoughtPersistenceService.CreateWithQdrantAsync(
-                    sessionId, ctx.Config.QdrantEndpoint, embeddingFunc);
+                var tpClient = ctx.Services?.GetService<QdrantClient>();
+                var tpRegistry = ctx.Services?.GetService<IQdrantCollectionRegistry>();
+                var tpSettings = ctx.Services?.GetService<QdrantSettings>();
+                if (tpClient != null && tpRegistry != null && tpSettings != null)
+                    ThoughtPersistence = await ThoughtPersistenceService.CreateWithQdrantAsync(
+                        sessionId, tpClient, tpRegistry, tpSettings, embeddingFunc);
+                else
+                    ThoughtPersistence = await ThoughtPersistenceService.CreateWithQdrantAsync(
+                        sessionId, ctx.Config.QdrantEndpoint, embeddingFunc);
                 ctx.Output.RecordInit("Persistent Memory", true, "Qdrant-backed thought map");
             }
             catch (Exception qdrantEx)
@@ -296,9 +320,14 @@ public sealed class MemorySubsystem : IMemorySubsystem
         try
         {
             var embedding = ctx.Models.Embedding;
-            ConversationMemory = new PersistentConversationMemory(
-                embedding,
-                new ConversationMemoryConfig { QdrantEndpoint = ctx.Config.QdrantEndpoint });
+            var cmClient = ctx.Services?.GetService<QdrantClient>();
+            var cmRegistry = ctx.Services?.GetService<IQdrantCollectionRegistry>();
+            if (cmClient != null && cmRegistry != null)
+                ConversationMemory = new PersistentConversationMemory(cmClient, cmRegistry, embedding);
+            else
+                ConversationMemory = new PersistentConversationMemory(
+                    embedding,
+                    new ConversationMemoryConfig { QdrantEndpoint = ctx.Config.QdrantEndpoint });
             await ConversationMemory.InitializeAsync(ctx.Config.Persona, CancellationToken.None);
             var memStats = ConversationMemory.GetStats();
             if (memStats.TotalSessions > 0)
@@ -327,9 +356,13 @@ public sealed class MemorySubsystem : IMemorySubsystem
 
         try
         {
-            SelfPersistence = new SelfPersistence(
-                ctx.Config.QdrantEndpoint,
-                async text => await embedding.CreateEmbeddingsAsync(text));
+            var spSettings = ctx.Services?.GetService<QdrantSettings>();
+            if (spSettings != null)
+                SelfPersistence = new SelfPersistence(spSettings,
+                    async text => await embedding.CreateEmbeddingsAsync(text));
+            else
+                SelfPersistence = new SelfPersistence(ctx.Config.QdrantEndpoint,
+                    async text => await embedding.CreateEmbeddingsAsync(text));
             await SelfPersistence.InitializeAsync(CancellationToken.None);
             ctx.Output.RecordInit("Self-Persistence", true, "Qdrant mind state storage");
         }

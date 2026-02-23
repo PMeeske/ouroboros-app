@@ -29,9 +29,9 @@ public sealed class PersonalityEngine : IAsyncDisposable
     // Qdrant memory integration
     private readonly Qdrant.Client.QdrantClient? _qdrantClient;
     private readonly IEmbeddingModel? _embeddingModel;
-    private const string ConversationCollectionName = "ouroboros_conversations";
-    private const string PersonalityCollectionName = "ouroboros_personalities";
-    private const string PersonCollectionName = "ouroboros_persons";
+    private readonly string ConversationCollectionName = "ouroboros_conversations";
+    private readonly string PersonalityCollectionName = "ouroboros_personalities";
+    private readonly string PersonCollectionName = "ouroboros_persons";
     private int _vectorSize = 1536; // Will be detected from embedding model
 
     // Person detection
@@ -99,8 +99,30 @@ public sealed class PersonalityEngine : IAsyncDisposable
     }
 
     /// <summary>
+    /// Initializes a new instance of the <see cref="PersonalityEngine"/> class with a DI-provided Qdrant client.
+    /// </summary>
+    public PersonalityEngine(
+        IMeTTaEngine mettaEngine,
+        IEmbeddingModel embeddingModel,
+        Qdrant.Client.QdrantClient qdrantClient,
+        Ouroboros.Core.Configuration.IQdrantCollectionRegistry? registry = null)
+    {
+        _mettaEngine = mettaEngine ?? throw new ArgumentNullException(nameof(mettaEngine));
+        _embeddingModel = embeddingModel ?? throw new ArgumentNullException(nameof(embeddingModel));
+        _qdrantClient = qdrantClient ?? throw new ArgumentNullException(nameof(qdrantClient));
+        if (registry != null)
+        {
+            ConversationCollectionName = registry.GetCollectionName(Ouroboros.Core.Configuration.QdrantCollectionRole.Conversations);
+            PersonalityCollectionName = registry.GetCollectionName(Ouroboros.Core.Configuration.QdrantCollectionRole.Personalities);
+            PersonCollectionName = registry.GetCollectionName(Ouroboros.Core.Configuration.QdrantCollectionRole.Persons);
+        }
+        InitializeSelfAwareness();
+    }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="PersonalityEngine"/> class with Qdrant memory.
     /// </summary>
+    [Obsolete("Use the constructor accepting QdrantClient + IQdrantCollectionRegistry from DI.")]
     public PersonalityEngine(
         IMeTTaEngine mettaEngine,
         IEmbeddingModel embeddingModel,

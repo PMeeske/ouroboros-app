@@ -23,6 +23,9 @@ public sealed record SubsystemInitContext
     /// <summary>Static configuration for Azure credentials and device sections.</summary>
     public Microsoft.Extensions.Configuration.IConfiguration? StaticConfiguration { get; init; }
 
+    /// <summary>DI service provider for resolving cross-cutting services (Qdrant, etc.).</summary>
+    public IServiceProvider? Services { get; init; }
+
     // ── Peer subsystem references ──
     // Populated by the agent before calling InitializeAsync.
     // Each subsystem may query peer subsystem state that was set by earlier-initialized peers.

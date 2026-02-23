@@ -37,6 +37,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     private readonly IConsoleOutput _output;
     private readonly VoiceModeService _voice;
     private readonly IMediator _mediator;
+    private readonly IServiceProvider? _serviceProvider;
 
     // Static configuration for Azure credentials (set from OuroborosCommands)
     private static Microsoft.Extensions.Configuration.IConfiguration? _staticConfiguration;
@@ -288,10 +289,12 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
         ISelfAssemblySubsystem selfAssembly,
         IPipeProcessingSubsystem pipeProcessing,
         IChatSubsystem chat,
-        ICommandRoutingSubsystem commandRouting)
+        ICommandRoutingSubsystem commandRouting,
+        IServiceProvider? serviceProvider = null)
     {
         _config = config;
         _mediator = mediator;
+        _serviceProvider = serviceProvider;
         _output = new ConsoleOutput(config.Verbosity);
 
         _voiceSub = (VoiceSubsystem)voice;

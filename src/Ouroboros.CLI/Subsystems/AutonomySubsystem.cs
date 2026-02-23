@@ -3,6 +3,7 @@ namespace Ouroboros.CLI.Subsystems;
 
 using System.Collections.Concurrent;
 using LangChain.DocumentLoaders;
+using Microsoft.Extensions.DependencyInjection;
 using Ouroboros.Abstractions.Monads;
 using Unit = Ouroboros.Abstractions.Unit;
 using PipelineReasoningStep = Ouroboros.Domain.Events.ReasoningStep;
@@ -17,10 +18,12 @@ using Ouroboros.Application.SelfAssembly;
 using Ouroboros.Application.Services;
 using Ouroboros.Application.Tools;
 using Ouroboros.CLI.Commands;
+using Ouroboros.Core.Configuration;
 using Ouroboros.Domain.Voice;
 using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Network;
 using Ouroboros.Tools.MeTTa;
+using Qdrant.Client;
 using static Ouroboros.Application.Tools.AutonomousTools;
 using MetaAgentCapability = Ouroboros.Agent.MetaAI.AgentCapability;
 using MetaAgentStatus = Ouroboros.Agent.MetaAI.AgentStatus;
@@ -250,7 +253,28 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
         {
             NetworkTracker = new NetworkStateTracker();
 
-            if (!string.IsNullOrEmpty(ctx.Config.QdrantEndpoint))
+            var dagClient = ctx.Services?.GetService<QdrantClient>();
+            var dagRegistry = ctx.Services?.GetService<IQdrantCollectionRegistry>();
+            if (dagClient != null && dagRegistry != null)
+            {
+                try
+                {
+                    Func<string, Task<float[]>>? embeddingFunc = null;
+                    if (ctx.Models.Embedding != null)
+                        embeddingFunc = async (text) => await ctx.Models.Embedding.CreateEmbeddingsAsync(text);
+
+                    var dagStore = new Ouroboros.Network.QdrantDagStore(dagClient, dagRegistry, embeddingFunc);
+                    await dagStore.InitializeAsync();
+                    NetworkTracker.ConfigureQdrantPersistence(dagStore, autoPersist: true);
+                    ctx.Output.RecordInit("Network State", true, "Merkle-DAG with Qdrant persistence (DI)");
+                }
+                catch (Exception qdrantEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[NetworkState] Qdrant DAG storage unavailable: {qdrantEx.Message}");
+                    ctx.Output.RecordInit("Network State", true, "Merkle-DAG (in-memory)");
+                }
+            }
+            else if (!string.IsNullOrEmpty(ctx.Config.QdrantEndpoint))
             {
                 try
                 {
@@ -303,15 +327,23 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
     {
         var embedding = ctx.Models.Embedding;
         if (embedding == null) return;
-        var qdrantEndpoint = NormalizeEndpoint(ctx.Config.QdrantEndpoint, "http://localhost:6334");
 
         try
         {
             var dag = new Ouroboros.Network.MerkleDag();
-            NetworkProjector = new PersistentNetworkStateProjector(
-                dag,
-                qdrantEndpoint,
-                async text => await embedding.CreateEmbeddingsAsync(text));
+            Func<string, Task<float[]>> embedFunc = async text => await embedding.CreateEmbeddingsAsync(text);
+            var npClient = ctx.Services?.GetService<QdrantClient>();
+            var npRegistry = ctx.Services?.GetService<IQdrantCollectionRegistry>();
+            var npSettings = ctx.Services?.GetService<QdrantSettings>();
+            if (npClient != null && npRegistry != null && npSettings != null)
+                NetworkProjector = new PersistentNetworkStateProjector(
+                    dag, npClient, npRegistry, npSettings, embedFunc);
+            else
+            {
+                var qdrantEndpoint = NormalizeEndpoint(ctx.Config.QdrantEndpoint, "http://localhost:6334");
+                NetworkProjector = new PersistentNetworkStateProjector(
+                    dag, qdrantEndpoint, embedFunc);
+            }
             await NetworkProjector.InitializeAsync(CancellationToken.None);
             ctx.Output.RecordInit("Network Projector", true,
                 $"epoch {NetworkProjector.CurrentEpoch}, {NetworkProjector.RecentLearnings.Count} learnings");
@@ -376,7 +408,12 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
                 ChunkOverlap = 150
             };
 
-            SelfIndexer = new QdrantSelfIndexer(ctx.Models.Embedding, indexerConfig);
+            var siClient = ctx.Services?.GetService<QdrantClient>();
+            var siRegistry = ctx.Services?.GetService<IQdrantCollectionRegistry>();
+            if (siClient != null && siRegistry != null)
+                SelfIndexer = new QdrantSelfIndexer(siClient, siRegistry, ctx.Models.Embedding, indexerConfig);
+            else
+                SelfIndexer = new QdrantSelfIndexer(ctx.Models.Embedding, indexerConfig);
             SelfIndexer.OnFileIndexed += (file, chunks) =>
             {
                 System.Diagnostics.Debug.WriteLine($"[SelfIndex] {Path.GetFileName(file)}: {chunks} chunks");

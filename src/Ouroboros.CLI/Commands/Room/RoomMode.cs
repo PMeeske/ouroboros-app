@@ -1,6 +1,7 @@
 // Copyright (c) Ouroboros. All rights reserved.
 namespace Ouroboros.CLI.Commands;
 
+using Microsoft.Extensions.DependencyInjection;
 using LangChain.Providers.Ollama;
 using Ouroboros.Abstractions.Monads;
 using Ouroboros.Application.Personality;
@@ -40,7 +41,7 @@ public sealed partial class RoomMode
     private Ouroboros.Pipeline.Memory.IEpisodicMemoryEngine? _roomEpisodic;
     private readonly Ouroboros.Pipeline.Metacognition.MetacognitiveReasoner _roomMetacognition = new();
     private Ouroboros.Agent.NeuralSymbolic.INeuralSymbolicBridge? _roomNeuralSymbolic;
-    private readonly Ouroboros.Core.Reasoning.CausalReasoningEngine _roomCausalReasoning = new();
+    private Ouroboros.Core.Reasoning.ICausalReasoningEngine _roomCausalReasoning = new Ouroboros.Core.Reasoning.CausalReasoningEngine();
     private Ouroboros.Agent.MetaAI.ICuriosityEngine? _roomCuriosity;
     private Ouroboros.CLI.Sovereignty.PersonaSovereigntyGate? _roomSovereigntyGate;
 
@@ -48,6 +49,7 @@ public sealed partial class RoomMode
     private readonly IModelSubsystem?    _agentModels;
     private readonly IMemorySubsystem?   _agentMemory;
     private readonly IAutonomySubsystem? _agentAutonomy;
+    private readonly IServiceProvider?   _serviceProvider;
 
     // ── ImmersiveMode reference for IsSpeaking check ──────────────────────────
     private readonly ImmersiveMode? _immersiveMode;
@@ -59,15 +61,17 @@ public sealed partial class RoomMode
     /// Creates a RoomMode instance wired to the agent's subsystems.
     /// </summary>
     public RoomMode(
-        ImmersiveMode?    immersiveMode = null,
-        IModelSubsystem?    agentModels   = null,
-        IMemorySubsystem?   agentMemory   = null,
-        IAutonomySubsystem? agentAutonomy = null)
+        ImmersiveMode?      immersiveMode    = null,
+        IModelSubsystem?    agentModels      = null,
+        IMemorySubsystem?   agentMemory      = null,
+        IAutonomySubsystem? agentAutonomy    = null,
+        IServiceProvider?   serviceProvider  = null)
     {
-        _immersiveMode = immersiveMode;
-        _agentModels   = agentModels;
-        _agentMemory   = agentMemory;
-        _agentAutonomy = agentAutonomy;
+        _immersiveMode   = immersiveMode;
+        _agentModels     = agentModels;
+        _agentMemory     = agentMemory;
+        _agentAutonomy   = agentAutonomy;
+        _serviceProvider = serviceProvider;
     }
 
     /// <summary>
@@ -220,9 +224,11 @@ public sealed partial class RoomMode
         _roomCogState = cogState;
         _roomLastTopic = "general";
 
-        // ─── 9b. Episodic memory (via SharedAgentBootstrap) ────────────────────
-        _roomEpisodic = Ouroboros.CLI.Services.SharedAgentBootstrap.CreateEpisodicMemory(
-            qdrant, embeddingModel);
+        // ─── 9b. Episodic memory + causal reasoning (from DI or SharedAgentBootstrap fallback) ──
+        _roomEpisodic = _serviceProvider?.GetService<Ouroboros.Pipeline.Memory.IEpisodicMemoryEngine>()
+            ?? Ouroboros.CLI.Services.SharedAgentBootstrap.CreateEpisodicMemory(qdrant, embeddingModel);
+        _roomCausalReasoning = _serviceProvider?.GetService<Ouroboros.Core.Reasoning.ICausalReasoningEngine>()
+            ?? new Ouroboros.Core.Reasoning.CausalReasoningEngine();
 
         // ─── 9c. Neural-symbolic bridge (via SharedAgentBootstrap) ─────────────
         _roomNeuralSymbolic = Ouroboros.CLI.Services.SharedAgentBootstrap.CreateNeuralSymbolicBridge(
