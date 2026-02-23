@@ -58,7 +58,7 @@ public sealed class AvatarVideoGenerator
         IVisionModel? visionModel = null,
         string? stabilityAiApiKey = null,
         string stabilityModel = "sd3.5-medium",
-        double stabilityStrength = 0.25)
+        double stabilityStrength = 0.15)
     {
         _sdCheckpoint = string.IsNullOrWhiteSpace(sdModel) || sdModel == "stable-diffusion"
             ? null
@@ -126,7 +126,7 @@ public sealed class AvatarVideoGenerator
         };
 
         // Anchor: remind SD to preserve identity, only change the expression
-        return "same character, same outfit, same background, same art style, subtle expression change only: " +
+        return "identical character, adult woman, same face shape, same sharp features, same outfit, same background, same art style, minimal change, subtle expression only: " +
                expressionPrompt + moodModifier;
     }
 
@@ -328,7 +328,7 @@ public sealed class AvatarVideoGenerator
         WriteTextField("mode", "image-to-image");
         WriteTextField("model", _stabilityModel);
         WriteTextField("strength", _stabilityStrength.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
-        WriteTextField("negative_prompt", "ugly, blurry, low quality, deformed, disfigured, extra limbs, changed hair, different person, different clothes, different background, style change, color change");
+        WriteTextField("negative_prompt", "ugly, blurry, low quality, deformed, disfigured, extra limbs, changed hair, different person, different clothes, different background, style change, color change, baby face, child, young, round face, soft features, aged, wrinkles");
         WriteTextField("output_format", "jpeg");
 
         // Image part
@@ -378,7 +378,7 @@ public sealed class AvatarVideoGenerator
         var payload = new Dictionary<string, object?>
         {
             ["prompt"] = prompt,
-            ["negative_prompt"] = "ugly, blurry, low quality, deformed, disfigured, extra limbs, changed hair, different person, different clothes, different background, style change, color change",
+            ["negative_prompt"] = "ugly, blurry, low quality, deformed, disfigured, extra limbs, changed hair, different person, different clothes, different background, style change, color change, baby face, child, young, round face, soft features, aged, wrinkles",
             ["init_images"] = new[] { faceSeedBase64 },
             ["denoising_strength"] = 0.22,
             ["steps"] = 8,
