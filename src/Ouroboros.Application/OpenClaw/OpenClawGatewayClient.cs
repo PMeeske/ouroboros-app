@@ -165,18 +165,39 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
 
     private async Task SendConnectHandshakeAsync(string? token, CancellationToken ct)
     {
+        var buffer = new byte[8192];
+
+        // Step 1: Wait for the connect.challenge event from the gateway
+        var challengeResult = await _ws.ReceiveAsync(buffer, ct);
+        if (challengeResult.MessageType == WebSocketMessageType.Close)
+            throw new WebSocketException("Gateway closed before challenge");
+
+        var challengeJson = Encoding.UTF8.GetString(buffer, 0, challengeResult.Count);
+        _logger.LogDebug("[OpenClaw] Challenge: {Challenge}", challengeJson);
+
+        // Step 2: Send the connect request
+        var platform = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(
+            System.Runtime.InteropServices.OSPlatform.Windows) ? "win32" :
+            System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(
+            System.Runtime.InteropServices.OSPlatform.OSX) ? "darwin" : "linux";
+
+        var connectParams = new Dictionary<string, object>
+        {
+            ["minProtocol"] = 3,
+            ["maxProtocol"] = 3,
+            ["role"] = "operator",
+            ["client"] = new { id = "gateway-client", version = "1.0.0", platform, mode = "backend" },
+        };
+
+        if (!string.IsNullOrEmpty(token))
+            connectParams["auth"] = new { token };
+
         var handshake = new
         {
             type = "req",
             id = "handshake",
             method = "connect",
-            @params = new
-            {
-                role = "operator",
-                auth = string.IsNullOrEmpty(token) ? null : new { token },
-                client = "ouroboros",
-                version = "1.0",
-            },
+            @params = connectParams,
         };
 
         var json = JsonSerializer.Serialize(handshake);
@@ -192,14 +213,25 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
             _sendLock.Release();
         }
 
-        // Read the handshake response (synchronous at connect time)
-        var buffer = new byte[4096];
-        var result = await _ws.ReceiveAsync(buffer, ct);
-        if (result.MessageType == WebSocketMessageType.Close)
+        // Step 3: Read the hello-ok response
+        var helloResult = await _ws.ReceiveAsync(buffer, ct);
+        if (helloResult.MessageType == WebSocketMessageType.Close)
             throw new WebSocketException("Gateway rejected connection");
 
-        var responseJson = Encoding.UTF8.GetString(buffer, 0, result.Count);
+        var responseJson = Encoding.UTF8.GetString(buffer, 0, helloResult.Count);
         _logger.LogDebug("[OpenClaw] Handshake response: {Response}", responseJson);
+
+        // Verify hello-ok
+        using var doc = JsonDocument.Parse(responseJson);
+        var root = doc.RootElement;
+        if (root.TryGetProperty("ok", out var ok) && !ok.GetBoolean())
+        {
+            var errMsg = root.TryGetProperty("error", out var err)
+                && err.TryGetProperty("message", out var msg)
+                ? msg.GetString() ?? "Handshake rejected"
+                : "Handshake rejected";
+            throw new OpenClawException(errMsg);
+        }
     }
 
     private async Task ReceiveLoopAsync(CancellationToken ct)
