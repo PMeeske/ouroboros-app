@@ -97,39 +97,45 @@ public sealed class AvatarVideoGenerator
     /// </summary>
     public static string BuildPrompt(AvatarStateSnapshot state)
     {
-        // Focus only on the facial expression change — avoid re-describing the full
-        // scene so that img2img with low denoising_strength doesn't drift appearance.
+        // Facial expression per visual state — these are the primary emotional drivers.
         var expressionPrompt = state.VisualState switch
         {
             AvatarVisualState.Idle =>
-                "neutral composed expression, relaxed face, eyes forward",
+                "calm composed expression, relaxed face, gentle steady gaze, eyes forward",
             AvatarVisualState.Listening =>
-                "attentive listening expression, soft focused gaze, slightly raised brows",
+                "attentive expression, focused gaze, raised brows, head tilted slightly, open receptive face",
             AvatarVisualState.Thinking =>
-                "contemplative expression, eyes slightly upward, subtle furrowed brow",
+                "deep contemplative expression, eyes looking upward, furrowed brow, thoughtful introspective face",
             AvatarVisualState.Speaking =>
-                "speaking expression, slightly open mouth, animated face, engaged eyes",
+                "expressive speaking face, open mouth, animated lively eyes, engaged direct gaze, dynamic expression",
             AvatarVisualState.Encouraging =>
-                "warm gentle smile, kind eyes, soft encouraging expression",
+                "warm bright smile, kind glowing eyes, encouraging joyful expression, radiant face",
             _ =>
                 "neutral expression",
         };
 
-        // Append mood as a micro-expression modifier only
+        // Mood modifier — stronger, more specific emotional cues
         var moodModifier = state.Mood?.ToLowerInvariant() switch
         {
-            "warm" or "happy" => ", happy eyes, slight smile",
-            "resolute" or "determined" => ", firm set jaw, confident gaze",
-            "curious" or "intrigued" => ", curious raised eyebrow, interested look",
-            "calm" or "serene" => ", peaceful relaxed face",
-            "concerned" or "worried" => ", slight worried frown",
-            "excited" or "enthusiastic" => ", bright wide eyes, energetic expression",
-            "sad" or "melancholic" => ", sad eyes, downward gaze",
+            "warm" or "happy" or "joyful" => ", genuinely happy eyes, warm smile, glowing",
+            "resolute" or "determined" => ", firm set jaw, intense confident gaze, strong expression",
+            "curious" or "intrigued" => ", raised eyebrow, widened curious eyes, fascinated look",
+            "calm" or "serene" or "peaceful" => ", deeply peaceful face, half-closed serene eyes, tranquil",
+            "concerned" or "worried" => ", worried frown, creased brow, empathetic pained eyes",
+            "excited" or "enthusiastic" or "thrilled" => ", bright wide sparkling eyes, beaming excited face, high energy",
+            "sad" or "melancholic" or "wistful" => ", glistening sad eyes, downward gaze, sorrowful expression",
+            "protective" or "vigilant" => ", piercing watchful gaze, set jaw, fierce protective expression",
+            "loving" or "affectionate" or "tender" => ", soft adoring eyes, tender warm smile, loving gaze",
+            "frustrated" or "intense" => ", tense jaw, narrowed eyes, intense frustrated expression",
+            "surprised" or "amazed" => ", wide open eyes, raised brows, open mouth, shocked amazed face",
+            "playful" or "mischievous" => ", sly smirk, sparkling mischievous eyes, playful grin",
+            "proud" or "satisfied" => ", chin slightly raised, confident proud smile, accomplished look",
+            "contemplative" or "philosophical" => ", distant unfocused gaze, deep in thought, profound expression",
             _ => string.Empty,
         };
 
-        // Anchor: remind SD to preserve identity, only change the expression
-        return "identical character, adult woman, same face shape, same sharp features, same outfit, same background, same art style, minimal change, subtle expression only: " +
+        // Anchor: preserve identity, allow expressive face changes
+        return "identical character, adult woman, same face shape, same sharp features, same outfit, same background, same art style, expressive face: " +
                expressionPrompt + moodModifier;
     }
 
@@ -526,9 +532,9 @@ public sealed class AvatarVideoGenerator
             ["prompt"] = prompt,
             ["negative_prompt"] = "ugly, blurry, low quality, deformed, disfigured, extra limbs, changed hair, different person, different clothes, different background, style change, color change, baby face, child, young, round face, soft features, aged, wrinkles",
             ["init_images"] = new[] { faceSeedBase64 },
-            ["denoising_strength"] = 0.22,
-            ["steps"] = 8,
-            ["cfg_scale"] = 5,
+            ["denoising_strength"] = 0.35,
+            ["steps"] = 10,
+            ["cfg_scale"] = 6.5,
             ["width"] = width,
             ["height"] = height,
             ["sampler_name"] = "Euler",
