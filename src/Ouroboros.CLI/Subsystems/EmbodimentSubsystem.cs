@@ -228,10 +228,14 @@ public sealed class EmbodimentSubsystem : IEmbodimentSubsystem
 
         try
         {
-            var stabilityKey = ApiKeyProvider.GetApiKey("StabilityAI");
+            var stabilityKey = ctx.Config.AvatarCloud ? ApiKeyProvider.GetApiKey("StabilityAI") : null;
             var hasStability = !string.IsNullOrEmpty(stabilityKey);
             if (ctx.Config.Debug || true) // Always log this for now
-                AnsiConsole.MarkupLine(OuroborosTheme.Dim($"    Stability AI key: {(hasStability ? "found" : "[yellow]NOT FOUND[/]")}"));
+            {
+                var cloudStatus = !ctx.Config.AvatarCloud ? "[yellow]OFF (use --avatar-cloud to enable)[/]"
+                    : hasStability ? "found" : "[yellow]NOT FOUND[/]";
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim($"    Stability AI: {cloudStatus}"));
+            }
 
             var (service, videoStream, liveVision) = await Avatar.AvatarIntegration.CreateAndStartWithVisionAsync(
                 ctx.Config.Persona,

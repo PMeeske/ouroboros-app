@@ -19,5 +19,6 @@ public sealed record ImmersiveConfig(
     string AzureSpeechRegion = "eastus",
     string TtsVoice = "en-US-AvaMultilingualNeural",
     bool Avatar = true,
+    bool AvatarCloud = false,
     int AvatarPort = 9471,
     bool RoomMode = false);

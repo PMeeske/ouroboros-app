@@ -74,6 +74,12 @@ public sealed class RoomCommandOptions
         DefaultValueFactory = _ => true,
     };
 
+    public Option<bool> AvatarCloudOption { get; } = new("--avatar-cloud")
+    {
+        Description = "Enable Stability AI cloud frame generation (requires credits)",
+        DefaultValueFactory = _ => false,
+    };
+
     public Option<int> AvatarPortOption { get; } = new("--avatar-port")
     {
         Description = "Port for the avatar viewer WebSocket",
@@ -136,6 +142,7 @@ public sealed class RoomCommandOptions
         command.Add(TtsVoiceOption);
         command.Add(LocalTtsOption);
         command.Add(AvatarOption);
+        command.Add(AvatarCloudOption);
         command.Add(AvatarPortOption);
         command.Add(QuietOption);
         command.Add(CooldownOption);
@@ -166,6 +173,7 @@ public sealed class RoomCommandOptions
             TtsVoice:          parseResult.GetValue(TtsVoiceOption) ?? "en-US-AvaMultilingualNeural",
             LocalTts:          parseResult.GetValue(LocalTtsOption),
             Avatar:            parseResult.GetValue(AvatarOption),
+            AvatarCloud:       parseResult.GetValue(AvatarCloudOption),
             AvatarPort:        parseResult.GetValue(AvatarPortOption),
             Quiet:             parseResult.GetValue(QuietOption),
             CooldownSeconds:   parseResult.GetValue(CooldownOption),

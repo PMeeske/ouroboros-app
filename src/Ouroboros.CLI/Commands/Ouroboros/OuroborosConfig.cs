@@ -86,6 +86,7 @@ public sealed record OuroborosConfig(
     bool ShowOptimization = false,
     // Interactive Avatar
     bool Avatar = true,
+    bool AvatarCloud = false,
     int AvatarPort = 9471,
     string? SdEndpoint = null,
     string? SdModel = null,
