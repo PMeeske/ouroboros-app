@@ -41,9 +41,15 @@ public sealed class PersonIdentifier
         _recentBuffer.Enqueue(utterance.Text);
         if (_recentBuffer.Count > 20) _recentBuffer.Dequeue();
 
+        // Extract voice biometrics tuple from the utterance's acoustic fingerprint
+        (double ZeroCrossRate, double SpeakingRate, double DynamicRange)? voiceSig = null;
+        if (utterance.Voice is { } v)
+            voiceSig = (v.ZeroCrossRate, v.SpeakingRate, v.DynamicRange);
+
         var result = await _personality.DetectPersonAsync(
             utterance.Text,
             [.. _recentBuffer],
+            voiceSig,
             ct).ConfigureAwait(false);
 
         return result.Person;

@@ -644,6 +644,7 @@ public sealed class PersonalityEngine : IAsyncDisposable
     public async Task<PersonDetectionResult> DetectPersonAsync(
         string message,
         string[]? recentMessages = null,
+        (double ZeroCrossRate, double SpeakingRate, double DynamicRange)? voiceSignature = null,
         CancellationToken ct = default)
     {
         // Extract name if explicitly stated
@@ -652,8 +653,9 @@ public sealed class PersonalityEngine : IAsyncDisposable
         // Analyze communication style
         var style = AnalyzeCommunicationStyle(message, recentMessages ?? Array.Empty<string>());
 
-        // Try to match against known persons
-        var (matchedPerson, matchScore, matchReason) = await FindMatchingPersonAsync(extractedName, style, ct);
+        // Try to match against known persons (name → voice → style)
+        var (matchedPerson, matchScore, matchReason) = await FindMatchingPersonAsync(
+            extractedName, style, voiceSignature, ct);
 
         if (matchedPerson != null && matchScore > 0.6)
         {
@@ -665,6 +667,21 @@ public sealed class PersonalityEngine : IAsyncDisposable
                 Style = BlendStyles(matchedPerson.Style, style, 0.1), // Slowly update style
                 Confidence = Math.Min(1.0, matchedPerson.Confidence + 0.05)
             };
+
+            // Blend voice signature into stored average (exponential moving average)
+            if (voiceSignature is var (zcr, sr, dr))
+            {
+                const double alpha = 0.2; // blend rate
+                updated = updated with
+                {
+                    VoiceZeroCrossRate = updated.VoiceZeroCrossRate.HasValue
+                        ? updated.VoiceZeroCrossRate.Value * (1 - alpha) + zcr * alpha : zcr,
+                    VoiceSpeakingRate = updated.VoiceSpeakingRate.HasValue
+                        ? updated.VoiceSpeakingRate.Value * (1 - alpha) + sr * alpha : sr,
+                    VoiceDynamicRange = updated.VoiceDynamicRange.HasValue
+                        ? updated.VoiceDynamicRange.Value * (1 - alpha) + dr * alpha : dr,
+                };
+            }
 
             // Update name if provided with high confidence
             if (extractedName != null && nameConfidence > 0.7 && updated.Name == null)
@@ -685,6 +702,9 @@ public sealed class PersonalityEngine : IAsyncDisposable
             _knownPersons[updated.Id] = updated;
             _currentPerson = updated;
 
+            // Persist updated voice data
+            _ = StorePersonAsync(updated, ct);
+
             return new PersonDetectionResult(
                 Person: updated,
                 IsNewPerson: false,
@@ -693,7 +713,7 @@ public sealed class PersonalityEngine : IAsyncDisposable
                 MatchReason: matchReason);
         }
 
-        // Create new person
+        // Create new person — set initial voice data from current utterance
         var newPerson = new DetectedPerson(
             Id: Guid.NewGuid().ToString(),
             Name: extractedName,
@@ -706,6 +726,9 @@ public sealed class PersonalityEngine : IAsyncDisposable
             InteractionCount: 1,
             FirstSeen: DateTime.UtcNow,
             LastSeen: DateTime.UtcNow,
+            VoiceZeroCrossRate: voiceSignature?.ZeroCrossRate,
+            VoiceSpeakingRate: voiceSignature?.SpeakingRate,
+            VoiceDynamicRange: voiceSignature?.DynamicRange,
             Confidence: extractedName != null ? 0.7 : 0.3);
 
         _knownPersons[newPerson.Id] = newPerson;
@@ -994,6 +1017,7 @@ public sealed class PersonalityEngine : IAsyncDisposable
         {
             // English
             (@"(?:my name is|i'm|i am|call me|this is)\s+([A-Z][a-zäöüßáéíóúàèìòùâêîôûñç]+(?:\s+[A-Z][a-zäöüßáéíóúàèìòùâêîôûñç]+)?)", 0.9),
+            (@"(?:it'?s me),?\s+([A-Z][a-zäöüßáéíóúàèìòùâêîôûñç]+)", 0.9),
             (@"^([A-Z][a-zäöüß]+)\s+here\.?$", 0.8),
             (@"(?:^|\.\s+)([A-Z][a-zäöüß]+)\s+speaking\.?", 0.85),
             (@"(?:hey|hi|hello),?\s+(?:it's|its|this is)\s+([A-Z][a-zäöüß]+)", 0.85),
@@ -1119,9 +1143,10 @@ public sealed class PersonalityEngine : IAsyncDisposable
     private async Task<(DetectedPerson? Person, double Score, string? Reason)> FindMatchingPersonAsync(
         string? name,
         CommunicationStyle style,
+        (double ZeroCrossRate, double SpeakingRate, double DynamicRange)? voiceSignature,
         CancellationToken ct)
     {
-        // First try exact name match
+        // Strategy 1: Exact name match (highest confidence)
         if (name != null)
         {
             var nameMatch = _knownPersons.Values.FirstOrDefault(p =>
@@ -1132,7 +1157,20 @@ public sealed class PersonalityEngine : IAsyncDisposable
                 return (nameMatch, 0.95, $"Name match: {name}");
         }
 
-        // Style matching against ALL known persons (no time cutoff — remember forever).
+        // Strategy 2: Voice signature match (biometric — high confidence)
+        if (voiceSignature is var (zcr, sr, dr))
+        {
+            var voiceMatch = _knownPersons.Values
+                .Where(p => p.VoiceZeroCrossRate.HasValue)
+                .Select(p => (Person: p, Score: p.VoiceSimilarityTo(zcr, sr, dr)))
+                .OrderByDescending(x => x.Score)
+                .FirstOrDefault();
+
+            if (voiceMatch.Score >= 0.78)
+                return (voiceMatch.Person, 0.85, $"Voice match: {voiceMatch.Score:P0}");
+        }
+
+        // Strategy 3: Style matching against ALL known persons (no time cutoff — remember forever).
         // Recency gives a small boost so recent speakers are preferred on near-ties.
         var candidates = _knownPersons.Values.ToList();
         if (candidates.Count == 0)
@@ -1151,6 +1189,15 @@ public sealed class PersonalityEngine : IAsyncDisposable
 
         if (bestMatch.Score > 0.75)
             return (bestMatch.Person, bestMatch.Score, $"Style similarity: {bestMatch.Score:P0}");
+
+        // Strategy 4: Soft match — name provided + moderate style similarity (merge, don't duplicate)
+        if (name != null && bestMatch.Score > 0.50)
+        {
+            // Name was stated but didn't match any stored name — check if style is
+            // close enough to merge (the person may have been stored without a name).
+            if (bestMatch.Person.Name == null)
+                return (bestMatch.Person, 0.70, $"Soft match (unnamed + name provided): style {bestMatch.Score:P0}");
+        }
 
         return (null, 0.0, null);
     }
@@ -1241,6 +1288,9 @@ public sealed class PersonalityEngine : IAsyncDisposable
                 ["first_seen"] = person.FirstSeen.ToString("O"),
                 ["last_seen"] = person.LastSeen.ToString("O"),
                 ["style_json"] = JsonSerializer.Serialize(person.Style),
+                ["voice_zcr"] = person.VoiceZeroCrossRate ?? 0.0,
+                ["voice_speaking_rate"] = person.VoiceSpeakingRate ?? 0.0,
+                ["voice_dynamic_range"] = person.VoiceDynamicRange ?? 0.0,
                 ["confidence"] = person.Confidence
             };
 
@@ -1293,6 +1343,9 @@ public sealed class PersonalityEngine : IAsyncDisposable
                         InteractionCount: payload.TryGetValue("interaction_count", out var ic) ? (int)ic.IntegerValue : 1,
                         FirstSeen: payload.TryGetValue("first_seen", out var fs) && DateTime.TryParse(fs.StringValue, out var fsDt) ? fsDt : DateTime.UtcNow,
                         LastSeen: payload.TryGetValue("last_seen", out var ls) && DateTime.TryParse(ls.StringValue, out var lsDt) ? lsDt : DateTime.UtcNow,
+                        VoiceZeroCrossRate: payload.TryGetValue("voice_zcr", out var vzcr) && vzcr.DoubleValue != 0 ? vzcr.DoubleValue : null,
+                        VoiceSpeakingRate: payload.TryGetValue("voice_speaking_rate", out var vsr) && vsr.DoubleValue != 0 ? vsr.DoubleValue : null,
+                        VoiceDynamicRange: payload.TryGetValue("voice_dynamic_range", out var vdr) && vdr.DoubleValue != 0 ? vdr.DoubleValue : null,
                         Confidence: payload.TryGetValue("confidence", out var c) ? c.DoubleValue : 0.5);
 
                     _knownPersons[person.Id] = person;
