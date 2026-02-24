@@ -133,11 +133,8 @@ public sealed class OpenClawDeviceIdentity
         await JsonSerializer.SerializeAsync(fs, dto, cancellationToken: ct);
     }
 
-    private static string ComputeDeviceId(byte[] publicKey)
-    {
-        byte[] hash = SHA256.HashData(publicKey);
-        return "ed25519:" + Convert.ToHexString(hash).ToLowerInvariant();
-    }
+    private static string ComputeDeviceId(byte[] publicKey) =>
+        "ed25519:" + Convert.ToHexString(publicKey).ToLowerInvariant();
 
     private static string StoragePath() =>
         Path.Combine(
