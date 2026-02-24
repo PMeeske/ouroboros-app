@@ -545,7 +545,7 @@ public class OuroborosCommandOptions
     public System.CommandLine.Option<bool> EnableOpenClawOption { get; } = new("--enable-openclaw")
     {
         Description = "Connect to the OpenClaw Gateway for messaging and device node integration",
-        DefaultValueFactory = _ => false
+        DefaultValueFactory = _ => true
     };
 
     public System.CommandLine.Option<string?> OpenClawGatewayOption { get; } = new("--openclaw-gateway")
