@@ -50,7 +50,7 @@ public sealed class FftVoiceDetector
     /// <summary>
     /// Minimum number of TTS samples needed before the profile is considered valid.
     /// </summary>
-    public int MinProfileSamples { get; set; } = 3;
+    public int MinProfileSamples { get; set; } = 1;
 
     /// <summary>Whether a valid TTS profile has been built.</summary>
     public bool HasProfile => _ttsSamples >= MinProfileSamples;

@@ -41,6 +41,8 @@ public sealed class AmbientRoomListener : IAsyncDisposable
     private Task? _captureLoop;
     private bool _disposed;
     private bool _selfSpeaking;
+    private DateTime _selfSpeechEndedAt = DateTime.MinValue;
+    private static readonly TimeSpan PostSpeechGrace = TimeSpan.FromSeconds(2);
 
     // ── Diagnostics ──────────────────────────────────────────────────────────
     private int _totalChunks;
@@ -131,7 +133,7 @@ public sealed class AmbientRoomListener : IAsyncDisposable
     /// <summary>
     /// Notify the VAD that Iaret's TTS output has finished.
     /// </summary>
-    public void NotifySelfSpeechEnded() { _selfSpeaking = false; _vad.NotifySelfSpeechEnded(); }
+    public void NotifySelfSpeechEnded() { _selfSpeaking = false; _selfSpeechEndedAt = DateTime.UtcNow; _vad.NotifySelfSpeechEnded(); }
 
     /// <summary>
     /// Registers outbound TTS audio (WAV format) with the FFT voice detector
@@ -156,9 +158,11 @@ public sealed class AmbientRoomListener : IAsyncDisposable
         {
             try
             {
-                // Skip chunk if Iaret is speaking (self-voice suppression) or
-                // if ImmersiveMode is actively recording the user's voice (mic mutual exclusion).
-                if (_selfSpeaking || ImmersiveListeningActive)
+                // Skip chunk if Iaret is speaking (self-voice suppression),
+                // if ImmersiveMode is actively recording the user's voice (mic mutual exclusion),
+                // or during the post-speech grace period to let room echo/reverb decay.
+                if (_selfSpeaking || ImmersiveListeningActive ||
+                    (DateTime.UtcNow - _selfSpeechEndedAt) < PostSpeechGrace)
                 {
                     await Task.Delay(500, ct).ConfigureAwait(false);
                     continue;
