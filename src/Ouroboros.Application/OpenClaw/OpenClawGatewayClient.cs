@@ -205,11 +205,19 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
         {
             if (nonce != null)
             {
-                var (sig, signedAt, nonceVal) = _deviceIdentity.SignNonce(nonce);
+                // v2 payload: v2|deviceId|clientId|clientMode|role|scopesCsv|signedAtMs|tokenOrEmpty|nonce
+                var scopesCsv = string.Join(",", (string[])connectParams["scopes"]);
+                var (sig, signedAt, nonceVal) = _deviceIdentity.SignHandshake(
+                    nonce,
+                    clientId: "gateway-client",
+                    clientMode: "backend",
+                    role: "operator",
+                    scopesCsv: scopesCsv,
+                    tokenOrEmpty: token ?? "");
                 connectParams["device"] = new
                 {
                     id = _deviceIdentity.DeviceId,
-                    publicKey = _deviceIdentity.PublicKeyBase64,
+                    publicKey = _deviceIdentity.PublicKeyBase64Url,
                     signature = sig,
                     signedAt,
                     nonce = nonceVal,
@@ -237,6 +245,9 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
         var json = JsonSerializer.Serialize(handshake);
         var bytes = Encoding.UTF8.GetBytes(json);
 
+        // DEBUG — remove once handshake is stable
+        Console.Error.WriteLine($"[OpenClaw DEBUG] Sending handshake: {json}");
+
         await _sendLock.WaitAsync(ct);
         try
         {
@@ -249,7 +260,8 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
 
         // Step 3: Read the full hello-ok response (handles fragmented frames)
         var responseJson = await ReadFullMessageAsync(ct);
-        _logger.LogDebug("[OpenClaw] Handshake response: {Response}", responseJson);
+        // DEBUG — remove once handshake is stable
+        Console.Error.WriteLine($"[OpenClaw DEBUG] Handshake response: {responseJson}");
 
         // Verify hello-ok
         using var doc = JsonDocument.Parse(responseJson);
