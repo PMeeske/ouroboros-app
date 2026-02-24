@@ -172,24 +172,16 @@ public sealed class ToolSubsystem : IToolSubsystem
                 ctx.Output.RecordInit("Roslyn", true, "C# analysis tools registered");
 
                 // OpenClaw Gateway integration
-                if (ctx.Config.EnableOpenClaw && !string.IsNullOrEmpty(ctx.Config.OpenClawGateway))
+                if (ctx.Config.EnableOpenClaw)
                 {
                     try
                     {
-                        var openClawClient = new Ouroboros.Application.OpenClaw.OpenClawGatewayClient();
-                        await openClawClient.ConnectAsync(
-                            new Uri(ctx.Config.OpenClawGateway),
-                            ctx.Config.OpenClawToken,
-                            CancellationToken.None);
-                        OpenClawTools.SharedClient = openClawClient;
-
-                        var auditLog = new Ouroboros.Application.OpenClaw.OpenClawAuditLog();
-                        var securityConfig = Ouroboros.Application.OpenClaw.OpenClawSecurityConfig.CreateDevelopment();
-                        OpenClawTools.SharedPolicy = new Ouroboros.Application.OpenClaw.OpenClawSecurityPolicy(securityConfig, auditLog);
-
+                        var gw = await OpenClawTools.ConnectGatewayAsync(
+                            ctx.Config.OpenClawGateway,
+                            ctx.Config.OpenClawToken);
                         Tools = Tools.WithOpenClawTools();
                         ctx.Output.RecordInit("OpenClaw", true,
-                            $"gateway {ctx.Config.OpenClawGateway} (5 tools)");
+                            $"gateway {gw} (5 tools)");
                     }
                     catch (Exception ex)
                     {

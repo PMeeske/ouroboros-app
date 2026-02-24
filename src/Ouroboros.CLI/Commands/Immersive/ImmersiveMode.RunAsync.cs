@@ -695,6 +695,10 @@ public sealed partial class ImmersiveMode
             }
         }
 
+        // Dispose OpenClaw client
+        if (OpenClawTools.SharedClient != null)
+            await OpenClawTools.SharedClient.DisposeAsync();
+
         // Dispose room listener (if --room-mode was active)
         if (roomListener != null)
             await roomListener.DisposeAsync();

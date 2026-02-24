@@ -1025,6 +1025,24 @@ User: goodbye
             {
                 _dynamicTools = _dynamicTools.WithTool(tool);
             }
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"[DEBUG] After perception tools: {_dynamicTools.Count} tools")}");
+
+            // OpenClaw Gateway integration (env vars: OPENCLAW_GATEWAY, OPENCLAW_TOKEN)
+            if (Environment.GetEnvironmentVariable("OPENCLAW_DISABLE") == null)
+            {
+                try
+                {
+                    var gw = await OpenClawTools.ConnectGatewayAsync();
+                    _dynamicTools = _dynamicTools.WithOpenClawTools();
+                    AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok($"[OK] OpenClaw gateway {gw} (5 tools)")}");
+                }
+                catch (Exception ex)
+                {
+                    AnsiConsole.MarkupLine(OuroborosTheme.Warn(
+                        $"  [!] OpenClaw: {Markup.Escape(ex.Message)}"));
+                }
+            }
+
             AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"[DEBUG] Final tool count: {_dynamicTools.Count} tools")}");
 
             // Initialize vision service for AI-powered visual understanding
