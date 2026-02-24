@@ -28,12 +28,13 @@ public sealed class OpenClawDeviceIdentity
     private readonly byte[] _publicKey;
 
     /// <summary>
-    /// Stable device identifier: <c>ed25519:&lt;sha256-hex-of-public-key&gt;</c>.
+    /// Stable device identifier: SHA-256 of the raw 32-byte Ed25519 public key,
+    /// hex-encoded lowercase (64 chars, no prefix).
     /// </summary>
     public string DeviceId { get; }
 
-    /// <summary>Standard Base64-encoded 32-byte Ed25519 public key.</summary>
-    public string PublicKeyBase64 => Convert.ToBase64String(_publicKey);
+    /// <summary>Base64Url-encoded 32-byte Ed25519 public key (no padding).</summary>
+    public string PublicKeyBase64Url => ToBase64Url(_publicKey);
 
     /// <summary>
     /// Device token received from the gateway after the first successful pairing.
@@ -73,16 +74,26 @@ public sealed class OpenClawDeviceIdentity
     // ── Signing ───────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Sign a nonce string from the gateway's <c>connect.challenge</c> frame.
-    /// The nonce is signed as its UTF-8 bytes.
+    /// Build and sign the OpenClaw v2 handshake payload.
+    ///
+    /// Payload format (pipe-separated, UTF-8):
+    ///   <c>v2|{deviceId}|{clientId}|{clientMode}|{role}|{scopesCsv}|{signedAtMs}|{tokenOrEmpty}|{nonce}</c>
+    ///
     /// Returns the values needed for <c>connect.params.device</c>.
     /// </summary>
-    public (string Signature, long SignedAt, string Nonce) SignNonce(string nonce)
+    public (string Signature, long SignedAt, string Nonce) SignHandshake(
+        string nonce,
+        string clientId,
+        string clientMode,
+        string role,
+        string scopesCsv,
+        string tokenOrEmpty)
     {
-        byte[] data = Encoding.UTF8.GetBytes(nonce);
-        byte[] rawSig = OpenClawEd25519.Sign(data, _seed, _publicKey);
         long signedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        return (Convert.ToBase64String(rawSig), signedAt, nonce);
+        string payload = $"v2|{DeviceId}|{clientId}|{clientMode}|{role}|{scopesCsv}|{signedAt}|{tokenOrEmpty}|{nonce}";
+        byte[] data = Encoding.UTF8.GetBytes(payload);
+        byte[] rawSig = OpenClawEd25519.Sign(data, _seed, _publicKey);
+        return (ToBase64Url(rawSig), signedAt, nonce);
     }
 
     // ── Token persistence ─────────────────────────────────────────────────────────
@@ -133,8 +144,12 @@ public sealed class OpenClawDeviceIdentity
         await JsonSerializer.SerializeAsync(fs, dto, cancellationToken: ct);
     }
 
+    /// <summary>SHA-256 of the raw 32-byte public key, hex-encoded lowercase.</summary>
     private static string ComputeDeviceId(byte[] publicKey) =>
-        "ed25519:" + Convert.ToHexString(publicKey).ToLowerInvariant();
+        Convert.ToHexString(SHA256.HashData(publicKey)).ToLowerInvariant();
+
+    private static string ToBase64Url(byte[] bytes) =>
+        Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_').TrimEnd('=');
 
     private static string StoragePath() =>
         Path.Combine(
