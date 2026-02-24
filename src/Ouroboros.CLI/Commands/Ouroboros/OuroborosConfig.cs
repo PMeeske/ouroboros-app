@@ -91,4 +91,8 @@ public sealed record OuroborosConfig(
     string? SdEndpoint = null,
     string? SdModel = null,
     // Room Presence
-    bool RoomMode = false);
+    bool RoomMode = false,
+    // OpenClaw Gateway integration
+    string? OpenClawGateway = "ws://127.0.0.1:18789",
+    string? OpenClawToken = null,          // gateway auth token
+    bool EnableOpenClaw = true);

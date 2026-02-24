@@ -171,6 +171,38 @@ public sealed class ToolSubsystem : IToolSubsystem
                     Tools = Tools.WithTool(tool);
                 ctx.Output.RecordInit("Roslyn", true, "C# analysis tools registered");
 
+                // OpenClaw Gateway integration
+                if (ctx.Config.EnableOpenClaw && !string.IsNullOrEmpty(ctx.Config.OpenClawGateway))
+                {
+                    try
+                    {
+                        var openClawClient = new Ouroboros.Application.OpenClaw.OpenClawGatewayClient();
+                        await openClawClient.ConnectAsync(
+                            new Uri(ctx.Config.OpenClawGateway),
+                            ctx.Config.OpenClawToken,
+                            CancellationToken.None);
+                        OpenClawTools.SharedClient = openClawClient;
+
+                        var auditLog = new Ouroboros.Application.OpenClaw.OpenClawAuditLog();
+                        var securityConfig = Ouroboros.Application.OpenClaw.OpenClawSecurityConfig.CreateDevelopment();
+                        OpenClawTools.SharedPolicy = new Ouroboros.Application.OpenClaw.OpenClawSecurityPolicy(securityConfig, auditLog);
+
+                        Tools = Tools.WithOpenClawTools();
+                        ctx.Output.RecordInit("OpenClaw", true,
+                            $"gateway {ctx.Config.OpenClawGateway} (5 tools)");
+                    }
+                    catch (Exception ex)
+                    {
+                        AnsiConsole.MarkupLine(OuroborosTheme.Warn(
+                            $"  [!] OpenClaw: {Markup.Escape(ex.Message)}"));
+                        ctx.Output.RecordInit("OpenClaw", false, ex.Message);
+                    }
+                }
+                else
+                {
+                    ctx.Output.RecordInit("OpenClaw", false, "disabled");
+                }
+
                 // CRITICAL: Recreate Llm with ALL tools (immutable ToolRegistry)
                 Llm = new ToolAwareChatModel(effectiveModel, Tools);
                 System.Diagnostics.Debug.WriteLine($"[Tools] Final Llm created with {Tools.Count} tools");
@@ -844,6 +876,9 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
         if (PlaywrightTool != null)
             await PlaywrightTool.DisposeAsync();
 
+        if (OpenClawTools.SharedClient != null)
+            await OpenClawTools.SharedClient.DisposeAsync();
+
         IsInitialized = false;
     }
 
@@ -862,6 +897,8 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
         "camera_ptz",
         "capture_camera",
         "smart_home",
+        "openclaw_send_message",
+        "openclaw_node_invoke",
     };
 
     /// <summary>
