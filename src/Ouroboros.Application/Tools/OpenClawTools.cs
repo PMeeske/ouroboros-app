@@ -39,7 +39,8 @@ public static class OpenClawTools
         string? resolvedToken = token
             ?? Environment.GetEnvironmentVariable("OPENCLAW_TOKEN");
 
-        var client = new OpenClawGatewayClient();
+        var deviceIdentity = await OpenClawDeviceIdentity.LoadOrCreateAsync();
+        var client = new OpenClawGatewayClient(deviceIdentity);
         await client.ConnectAsync(
             new Uri(resolvedGateway),
             resolvedToken,
