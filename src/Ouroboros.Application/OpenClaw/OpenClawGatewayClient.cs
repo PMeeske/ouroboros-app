@@ -29,6 +29,7 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
     private Task? _receiveLoop;
     private readonly ILogger _logger;
     private readonly OpenClawResiliencePipeline _resilience;
+    private readonly OpenClawDeviceIdentity? _deviceIdentity;
     private int _requestId;
 
     /// <summary>Gets a value indicating whether the client is connected.</summary>
@@ -40,8 +41,12 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
     /// <summary>
     /// Initializes a new instance of the <see cref="OpenClawGatewayClient"/> class.
     /// </summary>
-    public OpenClawGatewayClient(OpenClawResilienceConfig? resilienceConfig = null, ILogger? logger = null)
+    public OpenClawGatewayClient(
+        OpenClawDeviceIdentity? deviceIdentity = null,
+        OpenClawResilienceConfig? resilienceConfig = null,
+        ILogger? logger = null)
     {
+        _deviceIdentity = deviceIdentity;
         _logger = logger ?? NullLogger.Instance;
         _resilience = new OpenClawResiliencePipeline(resilienceConfig, _logger);
     }
@@ -175,7 +180,9 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
         var challengeJson = Encoding.UTF8.GetString(buffer, 0, challengeResult.Count);
         _logger.LogDebug("[OpenClaw] Challenge: {Challenge}", challengeJson);
 
-        // Step 2: Send the connect request
+        string? nonce = ExtractNonce(challengeJson);
+
+        // Step 2: Build and send the connect request
         var platform = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(
             System.Runtime.InteropServices.OSPlatform.Windows) ? "win32" :
             System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(
@@ -186,11 +193,45 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
             ["minProtocol"] = 3,
             ["maxProtocol"] = 3,
             ["role"] = "operator",
+            ["scopes"] = new[] { "operator.read", "operator.write" },
             ["client"] = new { id = "gateway-client", version = "1.0.0", platform, mode = "backend" },
         };
 
+        // Auth: bearer token and/or previously-issued device token
+        var authMap = new Dictionary<string, string>();
         if (!string.IsNullOrEmpty(token))
-            connectParams["auth"] = new { token };
+            authMap["token"] = token;
+        if (_deviceIdentity?.DeviceToken is { Length: > 0 } dt)
+            authMap["deviceToken"] = dt;
+        if (authMap.Count > 0)
+            connectParams["auth"] = authMap;
+
+        // Device identity (required by gateway — satisfies "device identity required")
+        if (_deviceIdentity != null)
+        {
+            if (nonce != null)
+            {
+                var (sig, signedAt, nonceVal) = _deviceIdentity.SignNonce(nonce);
+                connectParams["device"] = new
+                {
+                    id = _deviceIdentity.DeviceId,
+                    publicKey = _deviceIdentity.PublicKeyBase64,
+                    signature = sig,
+                    signedAt,
+                    nonce = nonceVal,
+                };
+            }
+            else
+            {
+                // No nonce in challenge — send identity without signature
+                _logger.LogWarning("[OpenClaw] No nonce in challenge; sending device identity without signature");
+                connectParams["device"] = new
+                {
+                    id = _deviceIdentity.DeviceId,
+                    publicKey = _deviceIdentity.PublicKeyBase64,
+                };
+            }
+        }
 
         var handshake = new
         {
@@ -232,6 +273,51 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
                 : "Handshake rejected";
             throw new OpenClawException(errMsg);
         }
+
+        // Persist device token if the gateway issued one after pairing
+        if (_deviceIdentity != null
+            && root.TryGetProperty("auth", out var authEl)
+            && authEl.TryGetProperty("deviceToken", out var dtEl)
+            && dtEl.GetString() is { Length: > 0 } newDeviceToken)
+        {
+            _ = Task.Run(() => _deviceIdentity.SaveDeviceTokenAsync(newDeviceToken, CancellationToken.None));
+        }
+    }
+
+    // Extract the challenge nonce, trying common field locations
+    private static string? ExtractNonce(string challengeJson)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(challengeJson);
+            var root = doc.RootElement;
+
+            // Flat: { "nonce": "..." }
+            if (root.TryGetProperty("nonce", out var n))
+                return n.GetString();
+
+            // Nested: { "data": { "nonce": "..." } }
+            if (root.TryGetProperty("data", out var data))
+            {
+                if (data.TryGetProperty("nonce", out var dn))
+                    return dn.GetString();
+            }
+
+            // Nested: { "challenge": "..." } or { "challenge": { "nonce": "..." } }
+            if (root.TryGetProperty("challenge", out var ch))
+            {
+                if (ch.ValueKind == JsonValueKind.String)
+                    return ch.GetString();
+                if (ch.TryGetProperty("nonce", out var cn))
+                    return cn.GetString();
+            }
+        }
+        catch
+        {
+            // Ignore — non-JSON challenges are treated as having no nonce
+        }
+
+        return null;
     }
 
     private async Task ReceiveLoopAsync(CancellationToken ct)
