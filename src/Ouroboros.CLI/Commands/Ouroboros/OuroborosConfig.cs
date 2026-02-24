@@ -93,6 +93,6 @@ public sealed record OuroborosConfig(
     // Room Presence
     bool RoomMode = false,
     // OpenClaw Gateway integration
-    string? OpenClawGateway = null,        // e.g. "ws://127.0.0.1:18789"
+    string? OpenClawGateway = "ws://127.0.0.1:18789",
     string? OpenClawToken = null,          // gateway auth token
-    bool EnableOpenClaw = false);
+    bool EnableOpenClaw = true);
