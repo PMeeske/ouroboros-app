@@ -1132,16 +1132,20 @@ public sealed class PersonalityEngine : IAsyncDisposable
                 return (nameMatch, 0.95, $"Name match: {name}");
         }
 
-        // Try style matching if we have recent activity
-        var recentPersons = _knownPersons.Values
-            .Where(p => (DateTime.UtcNow - p.LastSeen).TotalHours < 24)
-            .ToList();
-
-        if (recentPersons.Count == 0)
+        // Style matching against ALL known persons (no time cutoff — remember forever).
+        // Recency gives a small boost so recent speakers are preferred on near-ties.
+        var candidates = _knownPersons.Values.ToList();
+        if (candidates.Count == 0)
             return (null, 0.0, null);
 
-        var bestMatch = recentPersons
-            .Select(p => (Person: p, Score: p.Style.SimilarityTo(style)))
+        var bestMatch = candidates
+            .Select(p =>
+            {
+                double styleSim = p.Style.SimilarityTo(style);
+                double daysSince = (DateTime.UtcNow - p.LastSeen).TotalDays;
+                double recencyBoost = 0.10 * Math.Exp(-daysSince / 3.0);
+                return (Person: p, Score: styleSim + recencyBoost);
+            })
             .OrderByDescending(x => x.Score)
             .FirstOrDefault();
 

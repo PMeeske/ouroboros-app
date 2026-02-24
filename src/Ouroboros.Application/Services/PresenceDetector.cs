@@ -24,6 +24,7 @@ public class PresenceDetector : IDisposable
     private PresenceState _currentState = PresenceState.Unknown;
     private readonly HashSet<string> _knownDevices = [];
     private int _lastWifiDeviceCount;
+    private bool _disposed;
 
     /// <summary>
     /// Event fired when user presence is detected.
@@ -447,7 +448,9 @@ public class PresenceDetector : IDisposable
 
     public void Dispose()
     {
-        _cts.Cancel();
+        if (_disposed) return;
+        _disposed = true;
+        try { _cts.Cancel(); } catch (ObjectDisposedException) { }
         _cts.Dispose();
         GC.SuppressFinalize(this);
     }
