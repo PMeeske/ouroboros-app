@@ -468,7 +468,12 @@ public sealed partial class ImmersiveMode
         _immersive.WirePersonaEvents(persona, _autonomousMind);
 
         // If --room-mode is active, also run an ambient room listener alongside the interactive session
-        var roomModeEnabled = options is Ouroboros.Options.OuroborosOptions roomOpts && roomOpts.RoomMode;
+        var roomModeEnabled = options switch
+        {
+            Ouroboros.Options.OuroborosOptions o => o.RoomMode,
+            Ouroboros.Options.ImmersiveCommandVoiceOptions o => o.RoomMode,
+            _ => false
+        };
         Ouroboros.CLI.Services.RoomPresence.AmbientRoomListener? roomListener = null;
         if (roomModeEnabled)
         {
