@@ -516,6 +516,12 @@ public class OuroborosCommandOptions
         DefaultValueFactory = _ => 0
     };
 
+    public System.CommandLine.Option<bool> AvatarCloudOption { get; } = new("--avatar-cloud")
+    {
+        Description = "Enable Stability AI cloud frame generation (requires credits)",
+        DefaultValueFactory = _ => false
+    };
+
     public System.CommandLine.Option<string?> SdEndpointOption { get; } = new("--sd-endpoint")
     {
         Description = "Stable Diffusion (Forge/A1111) endpoint for avatar video stream (default: http://localhost:7860)"
@@ -644,6 +650,7 @@ public class OuroborosCommandOptions
 
         // Interactive Avatar
         command.Add(AvatarOption);
+        command.Add(AvatarCloudOption);
         command.Add(AvatarPortOption);
         command.Add(SdEndpointOption);
         command.Add(SdModelOption);
@@ -768,6 +775,7 @@ public class OuroborosCommandOptions
 
         // Interactive Avatar
         var avatar        = parseResult.GetValue(AvatarOption);
+        var avatarCloud    = parseResult.GetValue(AvatarCloudOption);
         var avatarPort    = parseResult.GetValue(AvatarPortOption);
         var sdEndpoint    = parseResult.GetValue(SdEndpointOption);
         var sdModel       = parseResult.GetValue(SdModelOption);
@@ -847,6 +855,7 @@ public class OuroborosCommandOptions
             ShowElection: showElection,
             ShowOptimization: showOptimization,
             Avatar: avatar,
+            AvatarCloud: avatarCloud,
             AvatarPort: avatarPort,
             SdEndpoint: sdEndpoint,
             SdModel: sdModel,

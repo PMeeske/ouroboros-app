@@ -19,6 +19,7 @@ public sealed record RoomConfig(
     string TtsVoice = "en-US-AvaMultilingualNeural",
     bool LocalTts = false,
     bool Avatar = true,
+    bool AvatarCloud = false,
     int AvatarPort = 9471,
     bool Quiet = false,
     int CooldownSeconds = 20,
