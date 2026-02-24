@@ -221,6 +221,41 @@ public sealed class MemorySubsystem : IMemorySubsystem
 
             ctx.Output.RecordInit("Personality", true, $"{persona.Name} ({Personality.Traits.Count} traits)");
 
+            // Restore personality state from previous session's snapshot
+            try
+            {
+                var snapshot = await PersonalityEngine.LoadLatestPersonalitySnapshotAsync(persona.Name);
+                if (snapshot != null)
+                {
+                    // Apply saved trait intensities
+                    foreach (var (traitName, intensity) in snapshot.TraitIntensities)
+                    {
+                        if (Personality.Traits.TryGetValue(traitName, out var existing))
+                            Personality.Traits[traitName] = existing with { Intensity = intensity };
+                    }
+
+                    // Restore mood and interaction count
+                    var restoredMood = new MoodState(
+                        snapshot.CurrentMood,
+                        Personality.CurrentMood.Energy,
+                        Personality.CurrentMood.Positivity,
+                        Personality.CurrentMood.TraitModifiers);
+                    Personality = Personality with
+                    {
+                        CurrentMood = restoredMood,
+                        AdaptabilityScore = snapshot.AdaptabilityScore,
+                        InteractionCount = snapshot.InteractionCount,
+                    };
+
+                    ctx.Output.RecordInit("Personality Restore", true,
+                        $"restored from {snapshot.Timestamp:g} ({snapshot.InteractionCount} interactions)");
+                }
+            }
+            catch (Exception ex)
+            {
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ Personality restore: {Markup.Escape(ex.Message)}")}");
+            }
+
             ValenceMonitor = new ValenceMonitor();
             ctx.Output.RecordInit("Valence Monitor", true);
         }

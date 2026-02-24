@@ -35,6 +35,7 @@ public sealed class AmbientRoomListener : IAsyncDisposable
 
     private readonly ISpeechToTextService _stt;
     private readonly AdaptiveSpeechDetector _vad;
+    private readonly FftVoiceDetector _fftDetector = new();
     private readonly int _minWords;
     private CancellationTokenSource? _cts;
     private Task? _captureLoop;
@@ -44,6 +45,7 @@ public sealed class AmbientRoomListener : IAsyncDisposable
     // ── Diagnostics ──────────────────────────────────────────────────────────
     private int _totalChunks;
     private int _vadDiscards;
+    private int _fftEchoDiscards;
     private int _sttFailures;
     private int _wordFilterDiscards;
     private int _recordFailures;
@@ -131,6 +133,21 @@ public sealed class AmbientRoomListener : IAsyncDisposable
     /// </summary>
     public void NotifySelfSpeechEnded() { _selfSpeaking = false; _vad.NotifySelfSpeechEnded(); }
 
+    /// <summary>
+    /// Registers outbound TTS audio (WAV format) with the FFT voice detector
+    /// so that subsequent mic chunks matching Iaret's spectral profile are
+    /// suppressed as self-echo.  Call this every time Azure TTS produces audio.
+    /// The WAV header is stripped automatically.
+    /// </summary>
+    public void RegisterTtsAudio(byte[] wavData)
+    {
+        if (wavData == null || wavData.Length < 100) return;
+        // Strip WAV header to get raw PCM
+        var pcm = wavData.Length > 44 ? wavData[44..] : wavData;
+        _fftDetector.RegisterTtsAudio(pcm);
+        _vad.RegisterSelfVoiceAudio(pcm);
+    }
+
     // ── Private ──────────────────────────────────────────────────────────────
 
     private async Task CaptureLoopAsync(CancellationToken ct)
@@ -173,6 +190,14 @@ public sealed class AmbientRoomListener : IAsyncDisposable
                     continue;
                 }
 
+                // FFT spectral echo detection: compare mic chunk against Iaret's TTS profile
+                if (_fftDetector.IsTtsEcho(pcmForVad))
+                {
+                    _fftEchoDiscards++;
+                    LogDiagnosticsPeriodically();
+                    continue;
+                }
+
                 // Transcribe the chunk via Whisper (or whichever STT service was injected)
                 var transcribeResult = await _stt.TranscribeBytesAsync(
                     audioBytes, "chunk.wav", ct: ct).ConfigureAwait(false);
@@ -185,6 +210,14 @@ public sealed class AmbientRoomListener : IAsyncDisposable
                 }
 
                 var text = transcribeResult.Value.Text.Trim();
+
+                // Filter: Whisper hallucination artifacts on silence/noise
+                if (IsWhisperHallucination(text))
+                {
+                    _wordFilterDiscards++;
+                    LogDiagnosticsPeriodically();
+                    continue;
+                }
 
                 // Filter: at least _minWords meaningful words
                 var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -220,12 +253,61 @@ public sealed class AmbientRoomListener : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Detects common Whisper hallucination artifacts produced on silence or background noise.
+    /// </summary>
+    private static bool IsWhisperHallucination(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return true;
+
+        // Exact-match hallucinations (case-insensitive)
+        ReadOnlySpan<string> exactPatterns =
+        [
+            "[BLANK_AUDIO]",
+            "(BLANK_AUDIO)",
+            "[silence]",
+            "(silence)",
+            "Thank you.",
+            "Thanks for watching.",
+            "Thanks for watching!",
+            "Thank you for watching.",
+            "Thank you for watching!",
+            "Please subscribe.",
+            "Subscribe to my channel.",
+            "Subtitles by the Amara.org community",
+            "MoroseTec",
+            "ご視聴ありがとうございました",
+        ];
+
+        foreach (var pattern in exactPatterns)
+        {
+            if (text.Equals(pattern, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        // Bracket-wrapped artifacts: [anything], (anything) as sole content
+        if ((text.StartsWith('[') && text.EndsWith(']')) ||
+            (text.StartsWith('(') && text.EndsWith(')')))
+            return true;
+
+        // Repeated single character/word (e.g., "you you you you")
+        var trimmedWords = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (trimmedWords.Length >= 3 && trimmedWords.Distinct(StringComparer.OrdinalIgnoreCase).Count() == 1)
+            return true;
+
+        // Musical note artifacts from background music
+        if (text.All(c => c == '♪' || c == '♫' || c == ' ' || c == '.' || c == ','))
+            return true;
+
+        return false;
+    }
+
     private void LogDiagnosticsPeriodically()
     {
         if (DateTime.UtcNow - _lastDiagnosticLog < TimeSpan.FromSeconds(60)) return;
         _lastDiagnosticLog = DateTime.UtcNow;
         AnsiConsole.MarkupLine(OuroborosTheme.Dim($"  [room] Audio stats: {_totalChunks} chunks, " +
-            $"{_vadDiscards} VAD discards, {_sttFailures} STT fails, " +
+            $"{_vadDiscards} VAD discards, {_fftEchoDiscards} FFT echo, {_sttFailures} STT fails, " +
             $"{_recordFailures} mic fails, {_wordFilterDiscards} word-filter drops"));
     }
 

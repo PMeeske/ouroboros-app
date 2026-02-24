@@ -279,6 +279,10 @@ public sealed partial class RoomMode
             preferLocal: localTts,
             log: msg => AnsiConsole.MarkupLine(OuroborosTheme.Ok($"  [OK] {msg}")));
 
+        // ─── 10b. Wire FFT voice detector — feed TTS audio for self-echo suppression ──
+        if (ttsService is Ouroboros.Providers.TextToSpeech.AzureNeuralTtsService azureTtsForFft)
+            azureTtsForFft.OnAudioSynthesized += wavData => listener.RegisterTtsAudio(wavData);
+
         // ─── 11. Rolling room transcript ─────────────────────────────────────
         var transcript = new List<(string SpeakerLabel, string Text, DateTime When)>();
         const int DisplayLines = 12;
