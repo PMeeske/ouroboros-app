@@ -170,14 +170,8 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
 
     private async Task SendConnectHandshakeAsync(string? token, CancellationToken ct)
     {
-        var buffer = new byte[8192];
-
-        // Step 1: Wait for the connect.challenge event from the gateway
-        var challengeResult = await _ws.ReceiveAsync(buffer, ct);
-        if (challengeResult.MessageType == WebSocketMessageType.Close)
-            throw new WebSocketException("Gateway closed before challenge");
-
-        var challengeJson = Encoding.UTF8.GetString(buffer, 0, challengeResult.Count);
+        // Step 1: Read the full connect.challenge message (handles fragmented frames)
+        var challengeJson = await ReadFullMessageAsync(ct);
         _logger.LogWarning("[OpenClaw] Challenge frame: {Challenge}", challengeJson);
 
         string? nonce = ExtractNonce(challengeJson);
@@ -223,13 +217,12 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
             }
             else
             {
-                // No nonce in challenge — send identity without signature
-                _logger.LogWarning("[OpenClaw] No nonce in challenge; sending device identity without signature");
-                connectParams["device"] = new
-                {
-                    id = _deviceIdentity.DeviceId,
-                    publicKey = _deviceIdentity.PublicKeyBase64,
-                };
+                // Nonce extraction failed — throw so the challenge text surfaces in
+                // the [!] OpenClaw: ... startup error rather than silently sending
+                // an incomplete device object that the gateway will reject anyway.
+                throw new OpenClawException(
+                    $"Could not extract nonce from connect.challenge; " +
+                    $"challenge frame was: {challengeJson}");
             }
         }
 
@@ -254,12 +247,8 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
             _sendLock.Release();
         }
 
-        // Step 3: Read the hello-ok response
-        var helloResult = await _ws.ReceiveAsync(buffer, ct);
-        if (helloResult.MessageType == WebSocketMessageType.Close)
-            throw new WebSocketException("Gateway rejected connection");
-
-        var responseJson = Encoding.UTF8.GetString(buffer, 0, helloResult.Count);
+        // Step 3: Read the full hello-ok response (handles fragmented frames)
+        var responseJson = await ReadFullMessageAsync(ct);
         _logger.LogDebug("[OpenClaw] Handshake response: {Response}", responseJson);
 
         // Verify hello-ok
@@ -281,6 +270,26 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
             && dtEl.GetString() is { Length: > 0 } newDeviceToken)
         {
             _ = Task.Run(() => _deviceIdentity.SaveDeviceTokenAsync(newDeviceToken, CancellationToken.None));
+        }
+    }
+
+    // Read a complete WebSocket message, reassembling fragmented frames.
+    private async Task<string> ReadFullMessageAsync(CancellationToken ct)
+    {
+        byte[] buffer = new byte[8192];
+        StringBuilder accumulated = new();
+
+        while (true)
+        {
+            var result = await _ws.ReceiveAsync(buffer, ct);
+
+            if (result.MessageType == WebSocketMessageType.Close)
+                throw new WebSocketException("Gateway closed connection during handshake");
+
+            accumulated.Append(Encoding.UTF8.GetString(buffer, 0, result.Count));
+
+            if (result.EndOfMessage)
+                return accumulated.ToString();
         }
     }
 
