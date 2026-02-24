@@ -556,6 +556,7 @@ All state transitions produce structured log output:
 - `[OpenClaw] Circuit CLOSED — Gateway connection restored`
 
 ---
+
 ## Key Design Decisions
 
 1. **WebSocket over HTTP**: Matches OpenClaw's native protocol; enables bidirectional streaming and future event subscription
