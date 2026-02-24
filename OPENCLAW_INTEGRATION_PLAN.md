@@ -239,14 +239,17 @@ if (Regex.IsMatch(inputLower,
 | `src/Ouroboros.Application/OpenClaw/OpenClawSecurityPolicy.cs` | **Created** | ~310 |
 | `src/Ouroboros.Application/OpenClaw/OpenClawSecurityConfig.cs` | **Created** | ~120 |
 | `src/Ouroboros.Application/OpenClaw/OpenClawAuditLog.cs` | **Created** | ~180 |
+| `src/Ouroboros.Application/OpenClaw/OpenClawResiliencePipeline.cs` | **Created** | ~280 |
+| `src/Ouroboros.Application/OpenClaw/OpenClawResilienceConfig.cs` | **Created** | ~175 |
 | `src/Ouroboros.Application/Tools/OpenClawTools.cs` | **New** | ~250 |
 | `src/Ouroboros.CLI/Commands/Ouroboros/OuroborosConfig.cs` | Edit | +3 lines |
 | `src/Ouroboros.CLI/Subsystems/ToolSubsystem.cs` | Edit | +30 lines |
+| `src/Ouroboros.Application/Ouroboros.Application.csproj` | Edit | +1 line |
 | `appsettings.json` | Edit | +4 lines |
 | `tests/Ouroboros.Application.Tests/Tools/OpenClawToolsTests.cs` | **New** | ~100 |
 
-**Total**: ~1160 lines of new code across 6 new files + 3 small edits to existing files.
-Security layer accounts for ~610 lines (3 files, already implemented).
+**Total**: ~1600 lines of new code across 8 new files + 4 edits to existing files.
+Security layer: ~610 lines (3 files, implemented). Resilience layer: ~455 lines (2 files, implemented).
 
 ---
 
@@ -419,6 +422,141 @@ The security layer stacks on top of the existing Ouroboros permission system:
 
 ---
 
+## Resilience Layer (IMPLEMENTED)
+
+Polly v8 (`Microsoft.Extensions.Resilience`) resilience pipelines for the OpenClaw Gateway WebSocket connection. Three composable pipelines, each tuned for its specific failure domain.
+
+### Resilience Architecture
+
+```
+   Tool InvokeAsync()
+         │
+         ▼
+   ┌─────────────────────────────────────────────────────────┐
+   │  RPC Pipeline                                           │
+   │  ┌──────────┐  ┌──────────────────┐  ┌──────────────┐  │
+   │  │ Timeout  │→ │ Retry            │→ │ Circuit      │  │
+   │  │ 15s      │  │ 3x exponential   │  │ Breaker      │  │
+   │  │ per-call │  │ backoff + jitter  │  │ 50% / 30s    │  │
+   │  └──────────┘  └──────────────────┘  └──────────────┘  │
+   └────────────────────────┬────────────────────────────────┘
+                            ▼
+   ┌─────────────────────────────────────────────────────────┐
+   │  Connection Pipeline (initial connect)                  │
+   │  ┌──────────┐  ┌──────────────────┐                    │
+   │  │ Timeout  │→ │ Retry            │                    │
+   │  │ 10s      │  │ 5x exponential   │                    │
+   │  │          │  │ (gateway startup) │                    │
+   │  └──────────┘  └──────────────────┘                    │
+   └────────────────────────┬────────────────────────────────┘
+                            ▼
+   ┌─────────────────────────────────────────────────────────┐
+   │  Reconnection Pipeline (auto-reconnect)                 │
+   │  ┌──────────────────┐  ┌──────────────┐               │
+   │  │ Retry            │→ │ Circuit      │               │
+   │  │ 10x exponential  │  │ Breaker      │               │
+   │  │ capped @ 120s    │  │ 80% / 60s    │               │
+   │  └──────────────────┘  └──────────────┘               │
+   └─────────────────────────────────────────────────────────┘
+```
+
+### Files (already created)
+
+| File | Lines | Description |
+|------|-------|-------------|
+| `src/Ouroboros.Application/OpenClaw/OpenClawResiliencePipeline.cs` | ~280 | Three Polly v8 pipelines: RPC, connect, reconnect with circuit breaker state monitoring |
+| `src/Ouroboros.Application/OpenClaw/OpenClawResilienceConfig.cs` | ~175 | Tunable config for all strategies with factory presets |
+| `Ouroboros.Application.csproj` | Edit | +1 line: `Microsoft.Extensions.Resilience` v9.6.0 |
+
+### Pipeline Details
+
+#### 1. RPC Pipeline (per-call)
+Wraps every `SendRequestAsync()` call to the Gateway:
+
+| Strategy | Config | Purpose |
+|----------|--------|---------|
+| **Timeout** | 15s per-call | Prevents hanging on unresponsive gateway |
+| **Retry** | 3x, exponential + jitter (~1s, ~2s, ~4s) | Handles transient WebSocket/network failures |
+| **Circuit Breaker** | 50% failure / 5 min throughput / 30s sampling → 30s break | Stops hammering a dead gateway |
+
+Handled exceptions: `WebSocketException`, `TimeoutRejectedException`, `IOException`, non-user `OperationCanceledException`.
+
+#### 2. Connection Pipeline (initial connect)
+Wraps the initial `ConnectAsync()` WebSocket handshake:
+
+| Strategy | Config | Purpose |
+|----------|--------|---------|
+| **Timeout** | 10s per attempt | Bounded connection attempt |
+| **Retry** | 5x, exponential + jitter (~2s, ~4s, ~8s, ~16s, ~32s) | Gateway may be starting up |
+
+Also handles `HttpRequestException` (WebSocket upgrade failures).
+
+#### 3. Reconnection Pipeline (auto-reconnect)
+Wraps reconnection attempts after an unexpected disconnect:
+
+| Strategy | Config | Purpose |
+|----------|--------|---------|
+| **Retry** | 10x, exponential capped at 120s | Covers gateway restarts, network blips (~17 min total) |
+| **Circuit Breaker** | 80% failure / 3 min throughput / 60s sampling → 120s break | Backs off entirely if gateway is persistently unavailable |
+
+The reconnection circuit breaker is more tolerant (80% vs 50%) since transient failures are expected during reconnection.
+
+### Config Presets
+
+```csharp
+// Production (default) — balanced timeouts and retries
+var config = OpenClawResilienceConfig.CreateProduction();
+
+// Development — short timeouts, fewer retries, fast circuit breaker
+var config = OpenClawResilienceConfig.CreateDevelopment();
+
+// Always-on — autonomous mode, monitoring: unlimited reconnect retries,
+//              5-minute cap, very tolerant circuit breaker (95%)
+var config = OpenClawResilienceConfig.CreateAlwaysOn();
+```
+
+### Usage in OpenClawGatewayClient
+
+```csharp
+// Initial connection
+await _resilience.ExecuteConnectAsync(async ct =>
+{
+    await _ws.ConnectAsync(gatewayUri, ct);
+    await SendConnectHandshake(token, ct);
+}, cancellationToken);
+
+// RPC calls
+var result = await _resilience.ExecuteRpcAsync(async ct =>
+{
+    return await SendRequestCoreAsync(method, @params, ct);
+}, cancellationToken);
+
+// Auto-reconnect on disconnect
+await _resilience.ExecuteReconnectAsync(async ct =>
+{
+    _ws.Dispose();
+    _ws = new ClientWebSocket();
+    await _ws.ConnectAsync(_gatewayUri, ct);
+    await SendConnectHandshake(_token, ct);
+}, cancellationToken);
+```
+
+### Circuit Breaker State Monitoring
+
+```csharp
+// Queryable from tools or status display
+_resilience.RpcCircuitState       // Closed | Open | HalfOpen | Isolated
+_resilience.ReconnectCircuitState // Closed | Open | HalfOpen | Isolated
+_resilience.GetStatusSummary()    // "RPC circuit: Closed, Reconnect circuit: Closed"
+```
+
+All state transitions produce structured log output:
+- `[OpenClaw] Circuit OPEN — Gateway unreachable, breaking for 30s`
+- `[OpenClaw] Circuit HALF-OPEN — probing Gateway availability`
+- `[OpenClaw] Circuit CLOSED — Gateway connection restored`
+
+---
+
 ## Key Design Decisions
 
 1. **WebSocket over HTTP**: Matches OpenClaw's native protocol; enables bidirectional streaming and future event subscription
@@ -427,8 +565,9 @@ The security layer stacks on top of the existing Ouroboros permission system:
 4. **Immutable ToolRegistry**: All registration via `WithOpenClawTools()` extension method — no mutation
 5. **Permission-gated**: `openclaw_send_message` and `openclaw_node_invoke` added to sensitive tools for user approval before execution
 6. **No changes to tool system itself**: Pure additive integration — no existing code needs modification beyond config and registration
-7. **No new NuGet dependencies**: Uses built-in `System.Net.WebSockets.ClientWebSocket` and `System.Text.Json`
+7. **Minimal new dependencies**: `Microsoft.Extensions.Resilience` (Polly v8) for resilience; `System.Net.WebSockets.ClientWebSocket` and `System.Text.Json` are built-in
 8. **Operator role**: Connects as `role: "operator"` for full control plane access (send messages, invoke nodes, manage sessions)
+9. **Defense in depth**: Three independent layers — interactive permission (ToolPermissionBroker), programmatic policy (SecurityPolicy), resilience (Polly pipelines) — any layer can independently protect the system
 
 ---
 

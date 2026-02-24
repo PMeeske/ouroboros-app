@@ -45,6 +45,9 @@
 
     <!-- For cross-platform System.Drawing support -->
     <PackageReference Include="System.Drawing.Common" Version="10.0.3" />
+
+    <!-- Polly v8 resilience (retry, circuit breaker, timeout, hedging) -->
+    <PackageReference Include="Microsoft.Extensions.Resilience" Version="9.6.0" />
   </ItemGroup>
 
   <ItemGroup>
