@@ -284,8 +284,10 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
         }
     }
 
-    // Extract the challenge nonce, trying common field locations
-    private static string? ExtractNonce(string challengeJson)
+    // Extract the challenge nonce, trying common field locations.
+    // Logs a warning with the raw JSON if extraction fails so the correct
+    // field name can be identified without redeploying.
+    private string? ExtractNonce(string challengeJson)
     {
         try
         {
@@ -295,6 +297,13 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
             // Flat: { "nonce": "..." }
             if (root.TryGetProperty("nonce", out var n))
                 return n.GetString();
+
+            // RPC envelope: { "params": { "nonce": "..." } }  ← most common
+            if (root.TryGetProperty("params", out var prms))
+            {
+                if (prms.TryGetProperty("nonce", out var pn))
+                    return pn.GetString();
+            }
 
             // Nested: { "data": { "nonce": "..." } }
             if (root.TryGetProperty("data", out var data))
@@ -314,9 +323,11 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
         }
         catch
         {
-            // Ignore — non-JSON challenges are treated as having no nonce
+            // Non-JSON challenge — log and fall through
         }
 
+        _logger.LogWarning("[OpenClaw] Could not extract nonce from challenge; raw: {Raw}",
+            challengeJson.Length > 500 ? challengeJson[..500] + "…" : challengeJson);
         return null;
     }
 
