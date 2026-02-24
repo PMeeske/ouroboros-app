@@ -236,13 +236,17 @@ if (Regex.IsMatch(inputLower,
 | File | Action | Est. Lines |
 |------|--------|-----------|
 | `src/Ouroboros.Application/OpenClaw/OpenClawGatewayClient.cs` | **New** | ~200 |
+| `src/Ouroboros.Application/OpenClaw/OpenClawSecurityPolicy.cs` | **Created** | ~310 |
+| `src/Ouroboros.Application/OpenClaw/OpenClawSecurityConfig.cs` | **Created** | ~120 |
+| `src/Ouroboros.Application/OpenClaw/OpenClawAuditLog.cs` | **Created** | ~180 |
 | `src/Ouroboros.Application/Tools/OpenClawTools.cs` | **New** | ~250 |
 | `src/Ouroboros.CLI/Commands/Ouroboros/OuroborosConfig.cs` | Edit | +3 lines |
 | `src/Ouroboros.CLI/Subsystems/ToolSubsystem.cs` | Edit | +30 lines |
 | `appsettings.json` | Edit | +4 lines |
 | `tests/Ouroboros.Application.Tests/Tools/OpenClawToolsTests.cs` | **New** | ~100 |
 
-**Total**: ~550 lines of new code across 3 new files + 3 small edits to existing files.
+**Total**: ~1160 lines of new code across 6 new files + 3 small edits to existing files.
+Security layer accounts for ~610 lines (3 files, already implemented).
 
 ---
 
@@ -289,6 +293,129 @@ if (Regex.IsMatch(inputLower,
 │  └─ Headless   → system.run, system.which         │
 └──────────────────────────────────────────────────┘
 ```
+
+---
+
+## Security Layer (IMPLEMENTED)
+
+The security layer is modeled after the existing Ouroboros patterns:
+- **`ToolPermissionBroker`** — interactive Allow/Deny/Session-Allow UI (Crush-style)
+- **`EthicsEnforcedGitHubMcpClient`** — decorator with audit logging
+- **`EthicsMessageFilter`** — fail-closed message filtering
+- **`AllowedAutonomousTools`** — config-driven allowlist
+
+### Security Architecture
+
+```
+   LLM Tool Call (openclaw_send_message / openclaw_node_invoke)
+            │
+            ▼
+   ┌────────────────────────────────────────┐
+   │  Layer 1: ToolPermissionBroker         │  ← Interactive user approval
+   │  (SensitiveTools HashSet gate)         │     [a] Allow [s] Session [d] Deny
+   └────────────────┬───────────────────────┘
+                    ▼
+   ┌────────────────────────────────────────┐
+   │  Layer 2: OpenClawSecurityPolicy       │  ← Programmatic policy enforcement
+   │  ├─ Channel allowlist                  │     (fail-closed, deny by default)
+   │  ├─ Recipient allowlist (per-channel)  │
+   │  ├─ Node command allowlist (w/ prefix) │
+   │  ├─ Sensitive data scan (regex)        │
+   │  ├─ Rate limiting (global + channel)   │
+   │  └─ Content length limits              │
+   └────────────────┬───────────────────────┘
+                    ▼
+   ┌────────────────────────────────────────┐
+   │  Layer 3: OpenClawAuditLog             │  ← Immutable audit trail
+   │  (every allowed + denied operation)    │     Thread-safe, bounded, masked PII
+   └────────────────┬───────────────────────┘
+                    ▼
+        OpenClawGatewayClient → ws://gateway
+```
+
+### Files (already created)
+
+| File | Lines | Description |
+|------|-------|-------------|
+| `src/Ouroboros.Application/OpenClaw/OpenClawSecurityPolicy.cs` | ~310 | Policy engine: allowlists, rate limiting, sensitive data detection, SMS validation |
+| `src/Ouroboros.Application/OpenClaw/OpenClawSecurityConfig.cs` | ~120 | Config record: allowlists, rate limits, content limits, factory methods |
+| `src/Ouroboros.Application/OpenClaw/OpenClawAuditLog.cs` | ~180 | Bounded, thread-safe audit trail with PII masking |
+
+### Security Controls Detail
+
+#### 1. Channel Allowlist (fail-closed)
+```csharp
+// Default: empty = nothing allowed
+AllowedChannels = { }  // must be explicitly configured
+
+// Example production config:
+AllowedChannels = { "telegram", "slack" }
+```
+Only channels in this set can receive messages. Empty set = all denied.
+
+#### 2. Recipient Allowlist (per-channel, optional)
+```csharp
+// Per-channel recipient restrictions
+AllowedRecipients = {
+    ["whatsapp"] = { "+15551234567", "+15559876543" },
+    ["sms"]      = { "+15551234567" },
+}
+// Channels with no entry allow any recipient (if channel itself is allowed)
+```
+
+#### 3. Node Command Allowlist (prefix wildcards)
+```csharp
+// Default: empty = no commands allowed
+AllowedNodeCommands = { }
+
+// Example: allow camera + location, deny system.run
+AllowedNodeCommands = { "camera.*", "location.get", "canvas.*" }
+```
+- `system.run` is **always blocked** (classified as dangerous) regardless of allowlist
+- Wildcard prefix matching: `camera.*` allows `camera.snap`, `camera.clip`
+
+#### 4. Sensitive Data Redaction
+Compiled regex patterns detect and block outbound messages containing:
+- API keys/tokens (generic, AWS `AKIA*`, Bearer tokens)
+- Private keys (`-----BEGIN PRIVATE KEY-----`)
+- Connection strings with embedded passwords
+- JWT tokens (`eyJ...`)
+- Credit card numbers (Luhn-eligible patterns)
+- SSN patterns (US format: `XXX-XX-XXXX`)
+- Passwords in config format (`password=...`)
+
+#### 5. Rate Limiting
+- **Global**: 20 messages per 60s window (configurable)
+- **Per-channel**: 10 messages per 60s window (configurable)
+- Sliding window implementation with queue-based timestamp tracking
+- Thread-safe via `lock`
+
+#### 6. Audit Log
+- Every operation (allowed + denied) is recorded
+- Bounded to 1000 entries (FIFO eviction)
+- PII masked: phone numbers → `+155****4567`, emails → `j***@example.com`
+- Thread-safe via `ConcurrentQueue`
+- `GetSummary()` for agent status display
+- Lifetime counters: `TotalAllowed`, `TotalDenied`
+
+### Security Config Presets
+
+```csharp
+// Production default: everything locked down
+var policy = OpenClawSecurityConfig.CreateDefault();
+
+// Development: common channels + safe node commands, scanning still active
+var policy = OpenClawSecurityConfig.CreateDevelopment();
+```
+
+### Integration with Existing Security
+
+The security layer stacks on top of the existing Ouroboros permission system:
+
+1. **`SensitiveTools` HashSet** already gates `openclaw_send_message` and `openclaw_node_invoke` through the `ToolPermissionBroker` — user must press `[a]` Allow before the tool executes
+2. **`OpenClawSecurityPolicy`** enforces programmatic rules *after* user approval — even if the user allows the tool, the policy still blocks if the channel/recipient/content violates rules
+3. **`AutonomousConfig.AllowedAutonomousTools`** controls whether the autonomous mind can call OpenClaw tools without user interaction — OpenClaw tools are **not in the default allowlist**, so autonomous execution is blocked unless explicitly configured
+4. **`OpenClawAuditLog`** provides post-hoc review independent of the other layers
 
 ---
 
