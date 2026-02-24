@@ -436,53 +436,53 @@
                 transform 1.5s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* Idle: perfectly centered, tiny breathing sway */
+  /* Idle: perfectly centered, gentle breathing sway */
   body.expr-idle #portrait-frame {
     --expr-x: 0px; --expr-y: 0px; --expr-scale: 1; --expr-rotate: 0deg;
   }
 
-  /* Listening: slight tilt toward speaker, attentive lean */
+  /* Listening: noticeable tilt toward speaker, attentive lean */
   body.expr-listening #portrait-frame {
-    --expr-x: -1px; --expr-y: -1px; --expr-scale: 1.005; --expr-rotate: -0.4deg;
+    --expr-x: -3px; --expr-y: -2px; --expr-scale: 1.012; --expr-rotate: -1.2deg;
   }
   body.expr-listening #portrait-frame .avatar-layer.active {
-    animation: listen-sway 4s ease-in-out infinite;
+    animation: listen-sway 3.5s ease-in-out infinite;
   }
   @keyframes listen-sway {
-    0%, 100% { transform: translate(-1px, -1px) scale(1.005) rotate(-0.4deg); }
-    50%      { transform: translate(1px, 0px) scale(1.005) rotate(0.3deg); }
+    0%, 100% { transform: translate(-3px, -2px) scale(1.012) rotate(-1.2deg); }
+    50%      { transform: translate(2px, 0px) scale(1.012) rotate(0.8deg); }
   }
 
-  /* Thinking: subtle furrow, slight zoom on face */
+  /* Thinking: clear furrow, zoom on face, slow drift */
   body.expr-thinking #portrait-frame {
-    --expr-x: 0px; --expr-y: -2px; --expr-scale: 1.015; --expr-rotate: 0deg;
+    --expr-x: -1px; --expr-y: -4px; --expr-scale: 1.03; --expr-rotate: -0.5deg;
   }
   body.expr-thinking #portrait-frame .avatar-layer.active {
-    animation: think-drift 6s ease-in-out infinite;
+    animation: think-drift 5s ease-in-out infinite;
   }
   @keyframes think-drift {
-    0%, 100% { transform: translate(0, -2px) scale(1.015) rotate(0deg); }
-    30%      { transform: translate(-1px, -2px) scale(1.018) rotate(-0.2deg); }
-    70%      { transform: translate(1px, -1px) scale(1.012) rotate(0.2deg); }
+    0%, 100% { transform: translate(-1px, -4px) scale(1.03) rotate(-0.5deg); }
+    30%      { transform: translate(-3px, -3px) scale(1.035) rotate(-1deg); }
+    70%      { transform: translate(2px, -4px) scale(1.025) rotate(0.5deg); }
   }
 
-  /* Speaking: animated jaw micro-movement, direct engagement */
+  /* Speaking: animated jaw movement, direct engagement, forward lean */
   body.expr-speaking #portrait-frame {
-    --expr-x: 0px; --expr-y: 0px; --expr-scale: 1.008; --expr-rotate: 0deg;
+    --expr-x: 0px; --expr-y: -1px; --expr-scale: 1.018; --expr-rotate: 0deg;
   }
   body.expr-speaking #portrait-frame .avatar-layer.active {
-    animation: speak-micro 0.9s ease-in-out infinite;
+    animation: speak-micro 0.8s ease-in-out infinite;
   }
   @keyframes speak-micro {
-    0%, 100% { transform: translate(0, 0) scale(1.008) rotate(0deg); }
-    25%      { transform: translate(0, 0.3px) scale(1.008) rotate(0.1deg); }
-    50%      { transform: translate(0, -0.3px) scale(1.01) rotate(0deg); }
-    75%      { transform: translate(0, 0.2px) scale(1.008) rotate(-0.1deg); }
+    0%, 100% { transform: translate(0, -1px) scale(1.018) rotate(0deg); }
+    25%      { transform: translate(0.5px, 0px) scale(1.018) rotate(0.3deg); }
+    50%      { transform: translate(0, -2px) scale(1.022) rotate(0deg); }
+    75%      { transform: translate(-0.5px, -0.5px) scale(1.018) rotate(-0.3deg); }
   }
 
   /* Encouraging: warm lean forward, gentle warmth overlay */
   body.expr-encouraging #portrait-frame {
-    --expr-x: 0px; --expr-y: -1px; --expr-scale: 1.01; --expr-rotate: 0.3deg;
+    --expr-x: 1px; --expr-y: -3px; --expr-scale: 1.025; --expr-rotate: 0.8deg;
   }
 
   /* Warmth glow for encouraging state */
@@ -491,7 +491,7 @@
     inset: 0;
     background: radial-gradient(
       ellipse 70% 50% at 50% 45%,
-      rgba(212, 168, 67, 0.06) 0%,
+      rgba(212, 168, 67, 0.12) 0%,
       transparent 70%);
     opacity: 0;
     pointer-events: none;
@@ -500,10 +500,10 @@
   }
   body.expr-encouraging #warmth-overlay {
     opacity: 1;
-    animation: warmth-pulse 3s ease-in-out infinite;
+    animation: warmth-pulse 2.5s ease-in-out infinite;
   }
   @keyframes warmth-pulse {
-    0%, 100% { opacity: 0.6; }
+    0%, 100% { opacity: 0.5; }
     50% { opacity: 1; }
   }
 
@@ -530,8 +530,8 @@
     background: linear-gradient(
       to bottom,
       transparent 0%,
-      rgba(30, 10, 50, 0.12) 40%,
-      rgba(30, 10, 50, 0.12) 60%,
+      rgba(30, 10, 50, 0.22) 40%,
+      rgba(30, 10, 50, 0.22) 60%,
       transparent 100%);
     animation: brow-furrow 5s ease-in-out infinite;
   }
@@ -1563,11 +1563,20 @@ function applySnapshot(snap) {
   const energy = Math.max(0, Math.min(1, snap.Energy || 0.5));
   currentEnergy = energy;   // feed into lip sync phoneme rate
 
-  const auraAlpha = 0.2 + energy * 0.5;
+  const auraAlpha = 0.25 + energy * 0.6;
   document.documentElement.style.setProperty(
     '--aura-color', `rgba(147, 51, 234, ${auraAlpha})`);
   document.documentElement.style.setProperty(
-    '--aura-color-strong', `rgba(147, 51, 234, ${auraAlpha + 0.15})`);
+    '--aura-color-strong', `rgba(147, 51, 234, ${Math.min(1, auraAlpha + 0.2)})`);
+
+  // Scale breathing and animation speed by energy
+  const breathDur = Math.max(2.0, 4.5 - energy * 2.0);
+  document.documentElement.style.setProperty('--breath-duration', breathDur + 's');
+
+  // Scale warmth overlay intensity by positivity
+  const warmthIntensity = 0.06 + positivity * 0.12;
+  document.documentElement.style.setProperty(
+    '--warmth-alpha', warmthIntensity.toFixed(3));
 
   // Server-driven lip sync amplitude (optional — 0..1 from real TTS audio energy)
   if (typeof snap.Amplitude === 'number') {
@@ -1804,22 +1813,25 @@ function presenceLoop() {
   // Like a real person on a webcam: tiny, slow, organic.
   // Layered sine waves at different frequencies = non-repeating.
   if (!serverDriving) {
-    // Slow idle sway (period ~10-15s, ±2px)
-    const swayX = Math.sin(lifeTime * 0.42) * 1.2
-                + Math.sin(lifeTime * 0.67 + 1.3) * 0.8;
-    const swayY = Math.sin(lifeTime * 0.31 + 0.7) * 0.7
-                + Math.sin(lifeTime * 0.53 + 2.1) * 0.5;
+    // Energy-scaled amplitude: more movement when aroused
+    const amp = 1.0 + (currentEnergy || 0.5) * 1.5;
 
-    // Head tilt (very subtle, ±0.4deg)
-    const tilt  = Math.sin(lifeTime * 0.23) * 0.25
-                + Math.sin(lifeTime * 0.41 + 1.8) * 0.15;
+    // Slow idle sway (period ~10-15s, amplitude scales with energy)
+    const swayX = (Math.sin(lifeTime * 0.42) * 1.2
+                + Math.sin(lifeTime * 0.67 + 1.3) * 0.8) * amp;
+    const swayY = (Math.sin(lifeTime * 0.31 + 0.7) * 0.7
+                + Math.sin(lifeTime * 0.53 + 2.1) * 0.5) * amp;
 
-    // Breathing scale (tiny, ±0.2%)
-    const breathScale = 1 + Math.sin(lifeTime * 1.4) * 0.002;
+    // Head tilt (scales with energy — ±0.4 to ±1.5 deg)
+    const tilt  = (Math.sin(lifeTime * 0.23) * 0.25
+                + Math.sin(lifeTime * 0.41 + 1.8) * 0.15) * amp;
 
-    // Mouse-follow gaze — very gentle, like glancing at something
-    const gazeX = (smoothX - 0.5) * 3;   // max ±1.5px
-    const gazeY = (smoothY - 0.5) * 2;   // max ±1px
+    // Breathing scale (scales with energy — ±0.2% to ±0.7%)
+    const breathScale = 1 + Math.sin(lifeTime * 1.4) * (0.002 + (currentEnergy || 0.5) * 0.005);
+
+    // Mouse-follow gaze — gentle, like glancing at something
+    const gazeX = (smoothX - 0.5) * 4;   // max ±2px
+    const gazeY = (smoothY - 0.5) * 3;   // max ±1.5px
 
     const totalX = swayX + gazeX;
     const totalY = swayY + gazeY;
@@ -1864,9 +1876,11 @@ function pickImpulse() {
 }
 
 function scheduleImpulse() {
+  // Higher energy → shorter delay between impulses (more expressive)
+  const energyFactor = Math.max(0.3, 1.0 - (currentEnergy || 0.5) * 0.6);
   const delay = serverDriving
     ? (12000 + Math.random() * 15000)
-    : (3000 + Math.random() * 5000);
+    : ((2000 + Math.random() * 4000) * energyFactor);
   setTimeout(() => {
     if (!serverDriving && !isFullbody) {
       const imp = pickImpulse();
