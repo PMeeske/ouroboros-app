@@ -294,14 +294,3 @@ public sealed class OpenClawResiliencePipeline
     }
 }
 
-/// <summary>
-/// Monitors the circuit breaker state externally without breaking encapsulation.
-/// Passed into <see cref="CircuitBreakerStrategyOptions.StateProvider"/>.
-/// </summary>
-public sealed class CircuitBreakerStateProvider
-{
-    /// <summary>
-    /// Current circuit state. Updated by Polly's circuit breaker strategy.
-    /// </summary>
-    public CircuitState CircuitState { get; internal set; } = CircuitState.Closed;
-}
