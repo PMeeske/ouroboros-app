@@ -28,4 +28,9 @@ public sealed class ImmersiveCommandVoiceOptions : IVoiceOptions
     public string  TtsVoice          { get; set; } = "en-US-AvaMultilingualNeural";
     public string? AzureSpeechKey    { get; set; }
     public string  AzureSpeechRegion { get; set; } = "eastus";
+
+    // OpenClaw Gateway
+    public bool    EnableOpenClaw    { get; set; } = true;
+    public string? OpenClawGateway   { get; set; }
+    public string? OpenClawToken     { get; set; }
 }

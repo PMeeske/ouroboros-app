@@ -42,6 +42,9 @@ public sealed class ImmersiveModeService : IImmersiveModeService
             Avatar         = config.Avatar,
             AvatarPort     = config.AvatarPort,
             RoomMode       = config.RoomMode,
+            EnableOpenClaw = config.EnableOpenClaw,
+            OpenClawGateway = config.OpenClawGateway,
+            OpenClawToken  = config.OpenClawToken,
         };
 
         await ImmersiveMode.RunImmersiveAsync(opts, cancellationToken);

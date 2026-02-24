@@ -109,6 +109,23 @@ public sealed class ImmersiveCommandOptions
         DefaultValueFactory = _ => false,
     };
 
+    // ── OpenClaw Gateway ────────────────────────────────────────────────────
+    public Option<bool> EnableOpenClawOption { get; } = new("--enable-openclaw")
+    {
+        Description = "Connect to the OpenClaw Gateway for messaging and device node integration",
+        DefaultValueFactory = _ => true,
+    };
+
+    public Option<string?> OpenClawGatewayOption { get; } = new("--openclaw-gateway")
+    {
+        Description = "OpenClaw Gateway WebSocket URL (default: ws://127.0.0.1:18789)",
+    };
+
+    public Option<string?> OpenClawTokenOption { get; } = new("--openclaw-token")
+    {
+        Description = "OpenClaw Gateway auth token (or set OPENCLAW_TOKEN env var / user-secrets)",
+    };
+
     /// <summary>Registers all options on <paramref name="command"/>.</summary>
     public void AddToCommand(Command command)
     {
@@ -128,6 +145,9 @@ public sealed class ImmersiveCommandOptions
         command.Add(AvatarCloudOption);
         command.Add(AvatarPortOption);
         command.Add(RoomModeOption);
+        command.Add(EnableOpenClawOption);
+        command.Add(OpenClawGatewayOption);
+        command.Add(OpenClawTokenOption);
     }
 
     /// <summary>
@@ -161,6 +181,10 @@ public sealed class ImmersiveCommandOptions
             Avatar:            parseResult.GetValue(AvatarOption),
             AvatarCloud:       parseResult.GetValue(AvatarCloudOption),
             AvatarPort:        parseResult.GetValue(AvatarPortOption),
-            RoomMode:          parseResult.GetValue(RoomModeOption));
+            RoomMode:          parseResult.GetValue(RoomModeOption),
+            EnableOpenClaw:    parseResult.GetValue(EnableOpenClawOption),
+            OpenClawGateway:   parseResult.GetValue(OpenClawGatewayOption),
+            OpenClawToken:     parseResult.GetValue(OpenClawTokenOption)
+                               ?? Environment.GetEnvironmentVariable("OPENCLAW_TOKEN"));
     }
 }
