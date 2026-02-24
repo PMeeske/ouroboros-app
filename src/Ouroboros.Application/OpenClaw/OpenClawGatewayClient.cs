@@ -311,7 +311,14 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
             if (root.TryGetProperty("nonce", out var n))
                 return n.GetString();
 
-            // RPC envelope: { "params": { "nonce": "..." } }  ← most common
+            // OpenClaw envelope: { "payload": { "nonce": "..." } }
+            if (root.TryGetProperty("payload", out var payload))
+            {
+                if (payload.TryGetProperty("nonce", out var pln))
+                    return pln.GetString();
+            }
+
+            // RPC envelope: { "params": { "nonce": "..." } }
             if (root.TryGetProperty("params", out var prms))
             {
                 if (prms.TryGetProperty("nonce", out var pn))
