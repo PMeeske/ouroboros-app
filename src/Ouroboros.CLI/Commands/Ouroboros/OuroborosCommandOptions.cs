@@ -540,6 +540,25 @@ public class OuroborosCommandOptions
         DefaultValueFactory = _ => false
     };
 
+    // ── OpenClaw Gateway ──────────────────────────────────────────────────────
+
+    public System.CommandLine.Option<bool> EnableOpenClawOption { get; } = new("--enable-openclaw")
+    {
+        Description = "Connect to the OpenClaw Gateway for messaging and device node integration",
+        DefaultValueFactory = _ => true
+    };
+
+    public System.CommandLine.Option<string?> OpenClawGatewayOption { get; } = new("--openclaw-gateway")
+    {
+        Description = "OpenClaw Gateway WebSocket URL (default: ws://127.0.0.1:18789)",
+        DefaultValueFactory = _ => "ws://127.0.0.1:18789"
+    };
+
+    public System.CommandLine.Option<string?> OpenClawTokenOption { get; } = new("--openclaw-token")
+    {
+        Description = "OpenClaw Gateway auth token (or set OPENCLAW_TOKEN env var)",
+    };
+
     /// <summary>
     /// Adds all ouroboros command options to the given command.
     /// </summary>
@@ -657,6 +676,11 @@ public class OuroborosCommandOptions
 
         // Room Presence
         command.Add(RoomModeOption);
+
+        // OpenClaw Gateway
+        command.Add(EnableOpenClawOption);
+        command.Add(OpenClawGatewayOption);
+        command.Add(OpenClawTokenOption);
     }
 
     /// <summary>
@@ -783,6 +807,12 @@ public class OuroborosCommandOptions
         // Room Presence
         var roomMode      = parseResult.GetValue(RoomModeOption);
 
+        // OpenClaw Gateway
+        var enableOpenClaw = parseResult.GetValue(EnableOpenClawOption);
+        var openClawGateway = parseResult.GetValue(OpenClawGatewayOption);
+        var openClawToken  = parseResult.GetValue(OpenClawTokenOption)
+                             ?? Environment.GetEnvironmentVariable("OPENCLAW_TOKEN");
+
         // Derive Azure TTS
         var azureKey = azureSpeechKey ?? Environment.GetEnvironmentVariable("AZURE_SPEECH_KEY");
         var useAzureTts = localTts ? false : (azureTts && !string.IsNullOrEmpty(azureKey));
@@ -859,7 +889,10 @@ public class OuroborosCommandOptions
             AvatarPort: avatarPort,
             SdEndpoint: sdEndpoint,
             SdModel: sdModel,
-            RoomMode: roomMode
+            RoomMode: roomMode,
+            OpenClawGateway: enableOpenClaw ? openClawGateway : null,
+            OpenClawToken: openClawToken,
+            EnableOpenClaw: enableOpenClaw
         );
     }
 }
