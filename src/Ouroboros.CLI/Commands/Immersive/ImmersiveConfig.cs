@@ -21,4 +21,8 @@ public sealed record ImmersiveConfig(
     bool Avatar = true,
     bool AvatarCloud = false,
     int AvatarPort = 9471,
-    bool RoomMode = false);
+    bool RoomMode = false,
+    // OpenClaw Gateway
+    bool EnableOpenClaw = true,
+    string? OpenClawGateway = null,
+    string? OpenClawToken = null);

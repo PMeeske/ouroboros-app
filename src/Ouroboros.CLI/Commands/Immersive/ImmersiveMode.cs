@@ -1027,12 +1027,16 @@ User: goodbye
             }
             AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"[DEBUG] After perception tools: {_dynamicTools.Count} tools")}");
 
-            // OpenClaw Gateway integration (env vars: OPENCLAW_GATEWAY, OPENCLAW_TOKEN)
-            if (Environment.GetEnvironmentVariable("OPENCLAW_DISABLE") == null)
+            // OpenClaw Gateway integration (CLI options → env vars → defaults)
+            var openClawOpts = options as ImmersiveCommandVoiceOptions;
+            bool enableOpenClaw = openClawOpts?.EnableOpenClaw ?? Environment.GetEnvironmentVariable("OPENCLAW_DISABLE") == null;
+            if (enableOpenClaw)
             {
                 try
                 {
-                    var gw = await OpenClawTools.ConnectGatewayAsync();
+                    var gw = await OpenClawTools.ConnectGatewayAsync(
+                        openClawOpts?.OpenClawGateway,
+                        openClawOpts?.OpenClawToken);
                     _dynamicTools = _dynamicTools.WithOpenClawTools();
                     AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok($"[OK] OpenClaw gateway {gw} (5 tools)")}");
                 }
