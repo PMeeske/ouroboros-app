@@ -13,11 +13,45 @@ namespace Ouroboros.Application.Tools;
 /// </summary>
 public static class OpenClawTools
 {
-    /// <summary>Shared gateway client, set during ToolSubsystem init.</summary>
+    private const string DefaultGateway = "ws://127.0.0.1:18789";
+
+    /// <summary>Shared gateway client, set during init.</summary>
     public static OpenClawGatewayClient? SharedClient { get; set; }
 
     /// <summary>Shared security policy for message/node validation.</summary>
     public static OpenClawSecurityPolicy? SharedPolicy { get; set; }
+
+    /// <summary>
+    /// Connects to the OpenClaw Gateway, sets up security, and populates
+    /// <see cref="SharedClient"/> / <see cref="SharedPolicy"/>.
+    /// CLI option values take precedence; env vars are used as fallback.
+    /// </summary>
+    /// <param name="gatewayUrl">Explicit gateway URL (from --openclaw-gateway), or null for env/default.</param>
+    /// <param name="token">Explicit token (from --openclaw-token), or null for env.</param>
+    /// <returns>The resolved gateway URL on success, or null if connection failed.</returns>
+    public static async Task<string?> ConnectGatewayAsync(
+        string? gatewayUrl = null,
+        string? token = null)
+    {
+        string resolvedGateway = gatewayUrl
+            ?? Environment.GetEnvironmentVariable("OPENCLAW_GATEWAY")
+            ?? DefaultGateway;
+        string? resolvedToken = token
+            ?? Environment.GetEnvironmentVariable("OPENCLAW_TOKEN");
+
+        var client = new OpenClawGatewayClient();
+        await client.ConnectAsync(
+            new Uri(resolvedGateway),
+            resolvedToken,
+            CancellationToken.None);
+        SharedClient = client;
+
+        var auditLog = new OpenClawAuditLog();
+        var securityConfig = OpenClawSecurityConfig.CreateDevelopment();
+        SharedPolicy = new OpenClawSecurityPolicy(securityConfig, auditLog);
+
+        return resolvedGateway;
+    }
 
     /// <summary>Gets all OpenClaw tools.</summary>
     public static IEnumerable<ITool> GetAllTools()
