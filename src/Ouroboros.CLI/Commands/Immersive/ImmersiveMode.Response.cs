@@ -521,7 +521,7 @@ public sealed partial class ImmersiveMode
             if (_immersiveResponseCount % 5 == 0 && traceResult.IsSuccess)
             {
                 var reflection = _metacognition.ReflectOn(traceResult.Value);
-                var metaMsg = $"  ✧ [metacognition] Q={reflection.QualityScore:F2} " +
+                var metaMsg = $"  ✧ \\[metacognition] Q={reflection.QualityScore:F2} " +
                     $"| {(reflection.HasIssues ? Markup.Escape(reflection.Improvements.FirstOrDefault() ?? "–") : "Clean")}";
                 AnsiConsole.MarkupLine($"\n[rgb(128,0,180)]{metaMsg}[/]");
             }
