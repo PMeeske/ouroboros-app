@@ -178,7 +178,7 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
             throw new WebSocketException("Gateway closed before challenge");
 
         var challengeJson = Encoding.UTF8.GetString(buffer, 0, challengeResult.Count);
-        _logger.LogDebug("[OpenClaw] Challenge: {Challenge}", challengeJson);
+        _logger.LogWarning("[OpenClaw] Challenge frame: {Challenge}", challengeJson);
 
         string? nonce = ExtractNonce(challengeJson);
 
@@ -293,6 +293,10 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
         {
             using var doc = JsonDocument.Parse(challengeJson);
             var root = doc.RootElement;
+
+            // Bare string: the nonce IS the value  e.g. "abc123"
+            if (root.ValueKind == JsonValueKind.String)
+                return root.GetString();
 
             // Flat: { "nonce": "..." }
             if (root.TryGetProperty("nonce", out var n))
