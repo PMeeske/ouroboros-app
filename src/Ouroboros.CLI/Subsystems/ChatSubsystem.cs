@@ -276,10 +276,22 @@ Use this actual code information to answer the user's question accurately.
             catch { }
         }
 
+        // ── Personality conversation memory (recalled past conversations from Qdrant) ──
+        string conversationMemoryContext = "";
+        if (_memorySub.PersonalityEngine != null && _memorySub.PersonalityEngine.HasMemory)
+        {
+            try
+            {
+                conversationMemoryContext = await _memorySub.PersonalityEngine.GetMemoryContextAsync(
+                    input, _voiceService.ActivePersona.Name, 3).ConfigureAwait(false);
+            }
+            catch { }
+        }
+
         _lastUserInput = input;
         _lastInteractionStart = DateTime.UtcNow;
 
-        string prompt = $"{languageDirective}{costAwarenessPrompt}{toolAvailabilityStatement}{personalityPrompt}{persistentThoughtContext}{qdrantReflectiveContext}{episodicContext}{hybridContext}{causalContext}{toolInstruction}{injectedContext}\n\nRecent conversation:\n{context}\n\nUser: {input}\n\n{_voiceService.ActivePersona.Name}:";
+        string prompt = $"{languageDirective}{costAwarenessPrompt}{toolAvailabilityStatement}{personalityPrompt}{persistentThoughtContext}{qdrantReflectiveContext}{conversationMemoryContext}{episodicContext}{hybridContext}{causalContext}{toolInstruction}{injectedContext}\n\nRecent conversation:\n{context}\n\nUser: {input}\n\n{_voiceService.ActivePersona.Name}:";
 
         try
         {
