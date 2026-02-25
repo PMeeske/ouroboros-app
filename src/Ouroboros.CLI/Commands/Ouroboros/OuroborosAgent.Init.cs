@@ -658,23 +658,31 @@ public sealed partial class OuroborosAgent
         // ── ThinkFunction: use the same orchestrated model as autonomous mind ──
         _actionEngine.ThinkFunction = async (prompt, ct) =>
         {
-            // Prepend language directive if non-English culture
             var actualPrompt = prompt;
             if (!string.IsNullOrEmpty(_config.Culture) && _config.Culture != "en-US")
             {
                 var lang = GetLanguageName(_config.Culture);
                 actualPrompt = $"LANGUAGE: Respond ONLY in {lang}. No English.\n\n{prompt}";
             }
-
             return await GenerateWithOrchestrationAsync(actualPrompt, ct);
         };
+
+        // ── ExecuteFunc: full agent pipeline — pipe DSL, tool calls, everything ──
+        _actionEngine.ExecuteFunc = async (command, ct) =>
+        {
+            try { return await ProcessInputWithPipingAsync(command); }
+            catch (Exception ex) { return $"[Pipeline error: {ex.Message}]"; }
+        };
+
+        // ── GetAvailableToolsFunc: expose registered tool names ──
+        _actionEngine.GetAvailableToolsFunc = () =>
+            _tools.All.Select(t => t.Name).ToList();
 
         // ── GetContextFunc: rich self-awareness snapshot ──
         _actionEngine.GetContextFunc = () =>
         {
             var lines = new List<string>();
 
-            // Persona identity
             var persona = _voice.ActivePersona;
             if (persona is not null)
             {
@@ -683,54 +691,56 @@ public sealed partial class OuroborosAgent
                     lines.Add($"[Persona] Current mood: {mood}");
             }
 
-            // Personality traits (top 3, ordered by effective intensity)
             if (_personality?.Traits is { Count: > 0 })
             {
                 var top = _personality.GetActiveTraits(3).Select(t => t.Name);
                 lines.Add($"[Personality] Active traits: {string.Join(", ", top)}");
             }
 
-            // Valence / emotional state
             if (_valenceMonitor is not null)
                 lines.Add($"[Affect] Valence: {_valenceMonitor.GetCurrentState().Valence:F2}");
 
-            // Last autonomous thought
             if (!string.IsNullOrWhiteSpace(_lastThoughtContent))
                 lines.Add($"[Last thought] {_lastThoughtContent}");
 
-            // Recent conversation (last 6 lines, trimmed)
             foreach (var line in _conversationHistory.TakeLast(6))
                 lines.Add(line);
 
             return lines;
         };
 
-        // ── OnAction: display as [Autonomous] 💬 and persist ──
-        _actionEngine.OnAction += async msg =>
+        // ── OnAction: display as [Autonomous] 💬 with action + result, then persist ──
+        _actionEngine.OnAction += async (reason, result) =>
         {
-            if (string.IsNullOrWhiteSpace(msg)) return;
+            if (string.IsNullOrWhiteSpace(reason)) return;
 
             if (_config.Verbosity != OutputVerbosity.Quiet)
             {
                 AnsiConsole.MarkupLine(
-                    $"\n  [bold][rgb(0,200,160)][Autonomous][/][/] 💬 {Markup.Escape(msg)}");
+                    $"\n  [bold][rgb(0,200,160)][Autonomous][/][/] 💬 {Markup.Escape(reason)}");
+
+                if (!string.IsNullOrWhiteSpace(result))
+                {
+                    // Truncate long results for display
+                    var display = result.Length > 400 ? result[..400] + "…" : result;
+                    AnsiConsole.MarkupLine(
+                        $"  [dim][rgb(0,200,160)]↳ {Markup.Escape(display)}[/][/]");
+                }
             }
 
-            // Push as avatar status text
             if (_avatarService is { } svc)
                 svc.NotifyMoodChange(svc.CurrentState.Mood, svc.CurrentState.Energy,
-                    svc.CurrentState.Positivity, statusText: msg);
+                    svc.CurrentState.Positivity, statusText: reason);
 
-            // Persist as an autonomous thought
-            var thought = InnerThought.CreateAutonomous(
-                InnerThoughtType.Intention, msg, confidence: 0.8);
+            var content = string.IsNullOrWhiteSpace(result) ? reason : $"{reason}\n\nResult: {result}";
+            var thought = InnerThought.CreateAutonomous(InnerThoughtType.Intention, content, confidence: 0.8);
             await PersistThoughtAsync(thought, "autonomous_action");
         };
 
         // ── Start the loop ──
         _actionEngine.Start();
         _output.RecordInit("Autonomous Action Engine", true,
-            $"started — interval: {_actionEngine.Interval.TotalMinutes:F0} min");
+            $"started — interval: {_actionEngine.Interval.TotalMinutes:F0} min, full DSL access");
     }
 
     /// <summary>
