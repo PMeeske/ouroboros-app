@@ -1,6 +1,7 @@
 using System.CommandLine;
 using System.Reflection;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -29,6 +30,12 @@ for (int i = 0; i < args.Length; i++)
 // Create the host builder — unified bootstrapping via AddCliHost() which
 // calls AddOuroborosEngine() (shared with WebApi) then layers CLI-specific services.
 var hostBuilder = Host.CreateDefaultBuilder(args)
+    .ConfigureAppConfiguration((_, config) =>
+    {
+        // Load user secrets unconditionally so local dev keys (OpenClaw token, API keys,
+        // etc.) are available regardless of DOTNET_ENVIRONMENT.
+        config.AddUserSecrets(System.Reflection.Assembly.GetEntryAssembly()!, optional: true);
+    })
     .ConfigureServices((context, services) =>
     {
         // Engine + foundational deps (cognitive physics, self-model, health checks,
