@@ -51,3 +51,16 @@ logs/
 
 # Docker
 .dockerignore
+
+# Security - prevent accidental credential commits
+.env.*
+*.env
+appsettings.Local.json
+credentials.json
+secrets.json
+launchSettings.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
