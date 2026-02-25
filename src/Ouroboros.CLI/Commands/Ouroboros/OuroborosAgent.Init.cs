@@ -203,6 +203,9 @@ public sealed partial class OuroborosAgent
         _chatSub.PersistThoughtResultFunc = (id, type, content, success, confidence) =>
             PersistThoughtResultAsync(id, type, content, success, confidence);
         _chatSub.GetLanguageNameFunc = _localizationSub.GetLanguageName;
+
+        // ── Cognitive Thought Streams (Rx — bridges all event sources) ──
+        WireCognitiveStream();
     }
 
     /// <summary>
@@ -717,7 +720,7 @@ public sealed partial class OuroborosAgent
             if (_config.Verbosity != OutputVerbosity.Quiet)
             {
                 AnsiConsole.MarkupLine(
-                    $"\n  [bold][rgb(0,200,160)][Autonomous][/][/] 💬 {Markup.Escape(reason)}");
+                    $"\n  [bold rgb(0,200,160)][[Autonomous]][/] 💬 {Markup.Escape(reason)}");
 
                 if (!string.IsNullOrWhiteSpace(result))
                 {
@@ -741,6 +744,55 @@ public sealed partial class OuroborosAgent
         _actionEngine.Start();
         _output.RecordInit("Autonomous Action Engine", true,
             $"started — interval: {_actionEngine.Interval.TotalMinutes:F0} min, full DSL access");
+    }
+
+    /// <summary>
+    /// Creates the <see cref="Ouroboros.Application.Streams.CognitiveStreamEngine"/> and bridges
+    /// all cognitive event sources into it as Rx streams. Adds interval-based pulse generators for
+    /// valence (30 s) and personality (60 s). Wires the context block into ChatSubsystem and starts
+    /// the throttled console display. No existing loops are modified.
+    /// </summary>
+    private void WireCognitiveStream()
+    {
+        _cognitiveStream = new Ouroboros.Application.Streams.CognitiveStreamEngine();
+
+        // ── Bridge AutonomousMind events ──────────────────────────────────
+        if (_autonomousMind != null)
+        {
+            _autonomousMind.OnThought         += t     => _cognitiveStream.EmitThought(t);
+            _autonomousMind.OnDiscovery       += (q,f) => _cognitiveStream.EmitDiscovery(q, f);
+            _autonomousMind.OnEmotionalChange += s     => _cognitiveStream.EmitEmotionalChange(s);
+            _autonomousMind.OnAction          += a     => _cognitiveStream.EmitAutonomousAction(a);
+        }
+
+        // ── Bridge AutonomousActionEngine ─────────────────────────────────
+        if (_actionEngine != null)
+            _actionEngine.OnAction += (r, res) => _cognitiveStream.EmitActionEngine(r, res);
+
+        // ── Bridge ImmersivePersona ───────────────────────────────────────
+        if (_immersivePersona != null)
+        {
+            _immersivePersona.AutonomousThought  += (_, e) => _cognitiveStream.EmitInnerDialog(e.Thought);
+            _immersivePersona.ConsciousnessShift += (_, e) => _cognitiveStream.EmitConsciousnessShift(e.NewEmotion, e.ArousalChange);
+        }
+
+        // ── Bridge AutonomousCoordinator ──────────────────────────────────
+        if (_autonomousCoordinator != null)
+            _autonomousCoordinator.OnProactiveMessage += msg => _cognitiveStream.EmitCoordinatorMessage(msg);
+
+        // ── Interval pulse generators ─────────────────────────────────────
+        if (_valenceMonitor != null)
+            _cognitiveStream.StartValencePulse(_valenceMonitor);
+        _cognitiveStream.StartPersonalityPulse(() => _personality);
+
+        // ── Wire context block into ChatSubsystem ─────────────────────────
+        _chatSub.CognitiveStreamEngine = _cognitiveStream;
+
+        // ── Start throttled console display ───────────────────────────────
+        _cognitiveStream.StartConsoleDisplay(_config.Verbosity == OutputVerbosity.Quiet);
+
+        _output.RecordInit("Cognitive Stream", true,
+            "Rx thought streams active — all cognitive domains bridged");
     }
 
     /// <summary>

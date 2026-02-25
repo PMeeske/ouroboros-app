@@ -82,6 +82,9 @@ public sealed partial class OuroborosAgent
             var input = await GetInputWithVoiceAsync("\n  You: ");
             if (string.IsNullOrWhiteSpace(input)) continue;
 
+            // Notify cognitive stream — interleaves user interaction with running streams
+            _cognitiveStream?.EmitUserInteraction(input);
+
             // Track conversation
             _conversationHistory.Add($"User: {input}");
             interactionsSinceSnapshot++;

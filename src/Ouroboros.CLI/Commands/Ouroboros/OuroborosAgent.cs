@@ -184,6 +184,9 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     private bool _isInConversationLoop;
     private ToolPermissionBroker? _permissionBroker;
 
+    // ── Cognitive Thought Streams (Rx, permanently running) ──
+    private Ouroboros.Application.Streams.CognitiveStreamEngine? _cognitiveStream;
+
     // State
     private bool _isInitialized;
     private bool _disposed;
@@ -423,6 +426,9 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
 
         // Clear sub-agents (not owned by a subsystem since the dict is readonly here)
         _subAgents.Clear();
+
+        // Dispose cognitive stream engine
+        _cognitiveStream?.Dispose();
     }
 
 

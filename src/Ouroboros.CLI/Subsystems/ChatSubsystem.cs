@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
 using Ouroboros.Application.Personality;
 using Ouroboros.Application.Services;
+using Ouroboros.Application.Streams;
 using Ouroboros.Application.Tools;
 using Ouroboros.CLI.Commands;
 using Ouroboros.CLI.Infrastructure;
@@ -54,6 +55,7 @@ public sealed class ChatSubsystem : IChatSubsystem
         (_, _, _, _, _) => Task.CompletedTask;
     internal Func<string, string> GetLanguageNameFunc { get; set; } =
         culture => culture;
+    internal CognitiveStreamEngine? CognitiveStreamEngine { get; set; }
 
     public Task InitializeAsync(SubsystemInitContext ctx)
     {
@@ -200,6 +202,7 @@ Use this actual code information to answer the user's question accurately.
             $"Available skills: {_memorySub.Skills?.GetAllSkills().Count() ?? 0}\nAvailable tools: {_toolsSub.Tools.Count}{embodimentContext}");
 
         string persistentThoughtContext = BuildPersistentThoughtContext();
+        string cognitiveStreamContext = CognitiveStreamEngine?.BuildContextBlock() ?? string.Empty;
 
         string toolInstruction = BuildToolInstruction(input);
 
@@ -291,7 +294,7 @@ Use this actual code information to answer the user's question accurately.
         _lastUserInput = input;
         _lastInteractionStart = DateTime.UtcNow;
 
-        string prompt = $"{languageDirective}{costAwarenessPrompt}{toolAvailabilityStatement}{personalityPrompt}{persistentThoughtContext}{qdrantReflectiveContext}{conversationMemoryContext}{episodicContext}{hybridContext}{causalContext}{toolInstruction}{injectedContext}\n\nRecent conversation:\n{context}\n\nUser: {input}\n\n{_voiceService.ActivePersona.Name}:";
+        string prompt = $"{languageDirective}{costAwarenessPrompt}{toolAvailabilityStatement}{personalityPrompt}{persistentThoughtContext}{cognitiveStreamContext}{qdrantReflectiveContext}{conversationMemoryContext}{episodicContext}{hybridContext}{causalContext}{toolInstruction}{injectedContext}\n\nRecent conversation:\n{context}\n\nUser: {input}\n\n{_voiceService.ActivePersona.Name}:";
 
         try
         {
