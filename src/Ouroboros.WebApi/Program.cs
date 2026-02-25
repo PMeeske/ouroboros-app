@@ -2,9 +2,13 @@
 // Copyright (c) PlaceholderCompany. All rights reserved.
 // </copyright>
 
+using Microsoft.Extensions.Configuration;
 using Ouroboros.ApiHost.Extensions;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+// Load user secrets so API keys and other sensitive config are never in appsettings.json.
+builder.Configuration.AddUserSecrets(System.Reflection.Assembly.GetEntryAssembly()!, optional: true);
 
 // Register all Ouroboros Web API services via the shared ApiHost extension.
 // The same extension is used when co-hosting inside the CLI (--serve) or Android.

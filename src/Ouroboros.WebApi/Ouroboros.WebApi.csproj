@@ -6,6 +6,7 @@
     <AssemblyName>Ouroboros.WebApi</AssemblyName>
     <Product>Ouroboros Web API</Product>
     <Description>ASP.NET Core Web API for Ouroboros - Kubernetes-friendly remoting layer</Description>
+    <UserSecretsId>49b81524-d310-4809-8e7f-abdcbb49329e</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,6 +18,8 @@
     <!-- Override vulnerable transitive dependencies from project references -->
     <PackageReference Include="Microsoft.Build.Tasks.Core" Version="18.3.3" />
     <PackageReference Include="Microsoft.Build.Utilities.Core" Version="18.3.3" />
+
+    <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="10.0.3" />
 
     <PackageReference Include="SonarAnalyzer.CSharp" Version="10.19.0.132793" PrivateAssets="all" />
   </ItemGroup>

@@ -65,6 +65,9 @@ public static class WebApiServiceCollectionExtensions
         // Pipeline service (Web API flavour — accepts AskRequest / PipelineRequest DTOs)
         services.TryAddSingleton<IPipelineService, PipelineService>();
 
+        // Qdrant Cloud sync management service
+        services.TryAddSingleton<IQdrantSyncService, QdrantSyncService>();
+
         // Rate limiting — per-IP sliding window: 60 requests per minute
         services.AddRateLimiter(options =>
         {
