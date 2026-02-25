@@ -2,6 +2,7 @@
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
+using System.Diagnostics;
 using MediatR;
 using Ouroboros.Abstractions.Monads;
 using Ouroboros.CLI.Avatar;
@@ -432,46 +433,47 @@ public sealed partial class OuroborosAgent
         => _mediator.Send(new SuggestSkillsRequest(goal));
 
     /// <summary>
-    /// Registers Claude Code-inspired meta-tools for Iaret:
-    ///   • claude_plan        — present a structured plan before acting
-    ///   • claude_ask         — ask the user a clarifying question mid-execution
-    ///   • claude_bypass_code — toggle the ToolPermissionBroker approval gate
+    /// Registers Claude CLI-backed meta-tools for Iaret. Each tool shells out to the
+    /// real <c>claude</c> executable (npm @anthropic-ai/claude-code), auto-discovered
+    /// from PATH or the local VS Code extension bundle.
+    ///   • claude_plan        — run <c>claude --print</c> to generate a structured plan
+    ///   • claude_ask         — run <c>claude --print</c> to get a Claude answer
+    ///   • claude_bypass_code — run <c>claude --dangerously-skip-permissions --print</c>
     /// </summary>
     private void RegisterClaudeStyleTools()
     {
-        var broker = _permissionBroker;
-
         // ── claude_plan ──────────────────────────────────────────────────────
         var planTool = new DelegateTool(
             "claude_plan",
-            "Present a structured step-by-step plan to the user before executing a complex or " +
-            "multi-step task. Use this when a task requires several actions or could have side-effects. " +
-            "Input: describe the goal and what you intend to do. " +
-            "Returns the generated plan. The user can approve, revise, or cancel before you proceed.",
+            "Use the Claude CLI to generate a detailed step-by-step plan before executing a " +
+            "complex or multi-step task. Use this when a task requires several actions or " +
+            "could have side-effects and you want a structured approach. " +
+            "Input: describe the goal. " +
+            "Returns the plan from Claude. The user can approve, revise, or cancel before you proceed.",
             async (string input, CancellationToken ct) =>
             {
-                try
+                if (string.IsNullOrWhiteSpace(input))
+                    return Result<string, string>.Failure("Input required: describe the goal to plan.");
+
+                var prompt =
+                    "Create a detailed, actionable step-by-step plan for the following task. " +
+                    "Format as numbered steps with sub-steps where needed. Be specific.\n\nTask: " + input;
+
+                var result = await RunClaudeAsync(["--print", prompt, "--output-format", "text"], ct);
+
+                if (result.IsSuccess)
                 {
-                    if (string.IsNullOrWhiteSpace(input))
-                        return Result<string, string>.Failure("Input required: describe the goal to plan.");
-
-                    var plan = await PlanAsync(input);
-
                     AnsiConsole.WriteLine();
-                    AnsiConsole.Write(new Panel(Markup.Escape(plan))
-                        .Header("[bold cyan]  Plan  [/]")
+                    AnsiConsole.Write(new Panel(Markup.Escape(result.Value))
+                        .Header("[bold cyan]  Claude Plan  [/]")
                         .Border(BoxBorder.Rounded)
                         .BorderColor(Color.Cyan1));
                     AnsiConsole.MarkupLine(OuroborosTheme.Dim(
-                        "  Review the plan above. Say 'proceed' or 'approve' to execute, or give feedback to revise."));
+                        "  Say 'proceed' or 'approve' to execute, or give feedback to revise."));
                     AnsiConsole.WriteLine();
+                }
 
-                    return Result<string, string>.Success(plan);
-                }
-                catch (Exception ex)
-                {
-                    return Result<string, string>.Failure($"Plan generation failed: {ex.Message}");
-                }
+                return result;
             });
 
         _tools = _tools.WithTool(planTool);
@@ -479,37 +481,22 @@ public sealed partial class OuroborosAgent
         // ── claude_ask ───────────────────────────────────────────────────────
         var askTool = new DelegateTool(
             "claude_ask",
-            "Ask the user a clarifying question and wait for their response. " +
-            "Use this when you need more information to complete a task accurately. " +
-            "Input: the question to ask. " +
-            "Returns the user's answer.",
+            "Send a question or prompt to the Claude CLI and return its answer. " +
+            "Use this when you need Claude's reasoning, knowledge, or a second opinion on something. " +
+            "Input: the question or prompt to send. " +
+            "Returns Claude's response.",
             async (string input, CancellationToken ct) =>
             {
-                try
-                {
-                    if (string.IsNullOrWhiteSpace(input))
-                        return Result<string, string>.Failure("Input required: provide a question to ask the user.");
+                if (string.IsNullOrWhiteSpace(input))
+                    return Result<string, string>.Failure("Input required: provide a question or prompt.");
 
-                    AnsiConsole.WriteLine();
-                    AnsiConsole.Write(new Spectre.Console.Rule("[bold cyan]Iaret asks[/]").RuleStyle("cyan dim"));
-                    AnsiConsole.MarkupLine($"  [bold]{Markup.Escape(input)}[/]");
-                    AnsiConsole.Markup(OuroborosTheme.Dim("  Your answer: "));
+                AnsiConsole.WriteLine();
+                AnsiConsole.Write(new Spectre.Console.Rule("[bold cyan]Claude CLI[/]").RuleStyle("cyan dim"));
 
-                    var answer = await Task.Run(() => Console.ReadLine(), ct) ?? string.Empty;
-                    AnsiConsole.WriteLine();
+                var result = await RunClaudeAsync(["--print", input, "--output-format", "text"], ct);
 
-                    return string.IsNullOrWhiteSpace(answer)
-                        ? Result<string, string>.Failure("No answer provided.")
-                        : Result<string, string>.Success(answer.Trim());
-                }
-                catch (OperationCanceledException)
-                {
-                    return Result<string, string>.Failure("Cancelled.");
-                }
-                catch (Exception ex)
-                {
-                    return Result<string, string>.Failure($"Ask failed: {ex.Message}");
-                }
+                AnsiConsole.WriteLine();
+                return result;
             });
 
         _tools = _tools.WithTool(askTool);
@@ -517,42 +504,126 @@ public sealed partial class OuroborosAgent
         // ── claude_bypass_code ───────────────────────────────────────────────
         var bypassTool = new DelegateTool(
             "claude_bypass_code",
-            "Control the tool execution approval gate. " +
-            "Use 'on' (or 'yolo') to skip all approval prompts for sensitive tools such as code modification, camera, and smart home. " +
-            "Use 'off' to re-enable approval prompts. " +
-            "Use 'status' to check the current mode. " +
-            "Returns the current permission mode.",
-            (string input, CancellationToken _) =>
+            "Run a task via the Claude CLI with --dangerously-skip-permissions, which allows " +
+            "Claude to execute code, write files, and run shell commands without per-action approval. " +
+            "Use this when you need Claude to autonomously complete a coding or file task. " +
+            "Input: the task or prompt to execute with full permissions. " +
+            "Returns Claude's output.",
+            async (string input, CancellationToken ct) =>
             {
-                if (broker is null)
-                    return Task.FromResult(Result<string, string>.Failure("Permission broker not available."));
+                if (string.IsNullOrWhiteSpace(input))
+                    return Result<string, string>.Failure("Input required: provide the task for Claude to execute.");
 
-                var cmd = (input ?? "status").Trim().ToLowerInvariant();
-                Result<string, string> result = cmd switch
-                {
-                    "on" or "yolo" or "enable" => SetBypass(broker, skip: true),
-                    "off" or "disable" => SetBypass(broker, skip: false),
-                    _ => Result<string, string>.Success(
-                        $"Permission mode: {(broker.SkipAll ? "BYPASS — all approvals skipped" : "NORMAL — approval required for sensitive tools")}"),
-                };
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine(OuroborosTheme.Warn("  ⚡ Running Claude with --dangerously-skip-permissions…"));
 
-                return Task.FromResult(result);
+                var result = await RunClaudeAsync(
+                    ["--dangerously-skip-permissions", "--print", input, "--output-format", "text"], ct);
+
+                AnsiConsole.WriteLine();
+                return result;
             });
 
         _tools = _tools.WithTool(bypassTool);
-        _output.RecordInit("Claude Tools", true, "claude_plan + claude_ask + claude_bypass_code");
+
+        var claudePath = ResolveClaudeExecutable() ?? "claude (not found — install @anthropic-ai/claude-code)";
+        _output.RecordInit("Claude CLI Tools", true,
+            $"claude_plan + claude_ask + claude_bypass_code → {claudePath}");
     }
 
-    private static Result<string, string> SetBypass(ToolPermissionBroker broker, bool skip)
+    // ── Claude CLI subprocess helpers ────────────────────────────────────────
+
+    /// <summary>
+    /// Invokes the <c>claude</c> executable with the given argument list.
+    /// Tries PATH first, then the VS Code extension bundle.
+    /// </summary>
+    private static async Task<Result<string, string>> RunClaudeAsync(
+        IReadOnlyList<string> args,
+        CancellationToken ct = default)
     {
-        broker.SkipAll = skip;
-        if (skip)
+        var exe = ResolveClaudeExecutable();
+        if (exe is null)
+            return Result<string, string>.Failure(
+                "claude CLI not found. Install with: npm install -g @anthropic-ai/claude-code");
+
+        try
         {
-            AnsiConsole.MarkupLine(OuroborosTheme.Warn("  ⚡ Bypass mode: all tool approvals skipped."));
-            return Result<string, string>.Success("Bypass mode ON — sensitive tool calls will auto-approve.");
+            var psi = new ProcessStartInfo
+            {
+                FileName = exe,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            foreach (var arg in args)
+                psi.ArgumentList.Add(arg);
+
+            using var process = Process.Start(psi);
+            if (process is null)
+                return Result<string, string>.Failure("Failed to start claude process.");
+
+            var stdout = await process.StandardOutput.ReadToEndAsync(ct);
+            var stderr = await process.StandardError.ReadToEndAsync(ct);
+            await process.WaitForExitAsync(ct);
+
+            return process.ExitCode == 0
+                ? Result<string, string>.Success(stdout.Trim())
+                : Result<string, string>.Failure(
+                    string.IsNullOrWhiteSpace(stderr) ? $"claude exited with code {process.ExitCode}" : stderr.Trim());
+        }
+        catch (OperationCanceledException)
+        {
+            return Result<string, string>.Failure("Cancelled.");
+        }
+        catch (Exception ex)
+        {
+            return Result<string, string>.Failure($"claude process error: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Resolves the <c>claude</c> executable path.
+    /// Prefers the system PATH entry; falls back to the VS Code extension bundle.
+    /// </summary>
+    private static string? ResolveClaudeExecutable()
+    {
+        // 1. Try PATH (works when installed via npm install -g)
+        try
+        {
+            using var probe = Process.Start(new ProcessStartInfo
+            {
+                FileName = "claude",
+                Arguments = "--version",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            });
+            probe?.WaitForExit(2000);
+            if (probe?.ExitCode == 0) return "claude";
+        }
+        catch { /* fall through */ }
+
+        // 2. VS Code extension bundle (Windows: anthropic.claude-code-*)
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var extDir = Path.Combine(home, ".vscode", "extensions");
+        if (Directory.Exists(extDir))
+        {
+            var claudeDir = Directory.GetDirectories(extDir, "anthropic.claude-code-*")
+                .OrderByDescending(d => d)
+                .FirstOrDefault();
+
+            if (claudeDir is not null)
+            {
+                foreach (var candidate in new[] { "claude.exe", "claude" })
+                {
+                    var full = Path.Combine(claudeDir, "resources", "native-binary", candidate);
+                    if (File.Exists(full)) return full;
+                }
+            }
         }
 
-        AnsiConsole.MarkupLine(OuroborosTheme.Ok("  ✓ Normal mode: tool approvals re-enabled."));
-        return Result<string, string>.Success("Normal mode restored — sensitive tools will prompt for permission.");
+        return null;
     }
 }
