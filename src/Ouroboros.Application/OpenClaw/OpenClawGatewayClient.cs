@@ -206,14 +206,19 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
             if (nonce != null)
             {
                 // v2 payload: v2|deviceId|clientId|clientMode|role|scopesCsv|signedAtMs|tokenOrEmpty|nonce
-                var scopesCsv = string.Join(",", (string[])connectParams["scopes"]);
+                // Gateway uses: auth?.token ?? auth?.deviceToken ?? "" in the verified payload.
+                var sortedScopes = ((string[])connectParams["scopes"]).OrderBy(s => s, StringComparer.Ordinal);
+                var scopesCsv = string.Join(",", sortedScopes);
+                var tokenOrEmpty = token
+                    ?? (_deviceIdentity.DeviceToken is { Length: > 0 } devTok ? devTok : null)
+                    ?? "";
                 var (sig, signedAt, nonceVal) = _deviceIdentity.SignHandshake(
                     nonce,
                     clientId: "gateway-client",
                     clientMode: "backend",
                     role: "operator",
                     scopesCsv: scopesCsv,
-                    tokenOrEmpty: token ?? "");
+                    tokenOrEmpty: tokenOrEmpty);
                 connectParams["device"] = new
                 {
                     id = _deviceIdentity.DeviceId,
