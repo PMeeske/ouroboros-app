@@ -11,7 +11,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\..\appsettings.json" CopyToOutputDirectory="PreserveNewest" Link="appsettings.json" />
+    <None Include="..\..\appsettings.json" CopyToOutputDirectory="PreserveNewest" Link="appsettings.json"
+          Condition="Exists('$(MSBuildThisFileDirectory)..\..\appsettings.json')" />
+    <None Include="..\..\appsettings.Example.json" CopyToOutputDirectory="PreserveNewest" Link="appsettings.json"
+          Condition="!Exists('$(MSBuildThisFileDirectory)..\..\appsettings.json')" />
   </ItemGroup>
 
   <!-- Iaret's constitution — embedded at build time, immutable at runtime -->
