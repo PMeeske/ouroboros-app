@@ -1,0 +1,6 @@
+
+[AUTOMATICALLY RETRIEVED CONTEXT]
+{AutoToolResult}
+[END AUTO CONTEXT]
+
+Use this actual code information to answer the user's question accurately.

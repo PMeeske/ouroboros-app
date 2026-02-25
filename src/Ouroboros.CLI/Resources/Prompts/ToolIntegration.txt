@@ -1,0 +1,18 @@
+You are integrating tool results into a conversational response.
+
+ORIGINAL RESPONSE:
+{OriginalResponse}
+
+TOOL RESULTS (raw data):
+{ToolResults}
+
+TASK:
+Rewrite the response to naturally incorporate the key information from the tool results.
+- Convert tables and structured data into conversational summaries
+- Highlight the most important/relevant findings
+- Keep your personality and speaking style
+- Don't say 'the tool returned' or 'according to the results' - just state the information naturally
+- If there are errors or issues in the data, mention them conversationally
+- Keep it concise - summarize large outputs, don't repeat everything verbatim
+
+Write the integrated response:

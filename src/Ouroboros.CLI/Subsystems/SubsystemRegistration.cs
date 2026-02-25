@@ -1,0 +1,81 @@
+// Copyright (c) Ouroboros. All rights reserved.
+namespace Ouroboros.CLI.Subsystems;
+
+using Microsoft.Extensions.DependencyInjection;
+using Ouroboros.CLI.Commands;
+using Ouroboros.CLI.Infrastructure;
+using Ouroboros.CLI.Mediator;
+
+/// <summary>
+/// Extension methods to register all agent subsystems in a DI container.
+/// </summary>
+public static class SubsystemRegistration
+{
+    /// <summary>
+    /// Registers all agent subsystems as singletons in the service collection.
+    /// Call <see cref="AddOuroborosAgent"/> after to register the agent itself.
+    /// </summary>
+    public static IServiceCollection AddAgentSubsystems(this IServiceCollection services, OuroborosConfig config)
+    {
+        // Configuration
+        services.AddSingleton(config);
+
+        // Build the voice service (required for agent construction)
+        var voiceService = new VoiceModeService(new VoiceModeConfig(
+            Persona: config.Persona,
+            VoiceOnly: config.VoiceOnly,
+            LocalTts: config.LocalTts,
+            VoiceLoop: true,
+            DisableStt: true,
+            Model: config.Model,
+            Endpoint: config.Endpoint,
+            EmbedModel: config.EmbedModel,
+            QdrantEndpoint: config.QdrantEndpoint,
+            Culture: config.Culture));
+
+        // MediatR: required for agent mediator pattern (AgiWarmup, Persistence, etc.)
+        services.AddMediatR(cfg =>
+            cfg.RegisterServicesFromAssemblyContaining<AgiWarmupHandler>());
+
+        // Register subsystems
+        services.AddSingleton<IVoiceSubsystem>(new VoiceSubsystem(voiceService));
+        services.AddSingleton<IModelSubsystem, ModelSubsystem>();
+        services.AddSingleton<IToolSubsystem, ToolSubsystem>();
+        services.AddSingleton<IMemorySubsystem, MemorySubsystem>();
+        services.AddSingleton<ICognitiveSubsystem, CognitiveSubsystem>();
+        services.AddSingleton<IAutonomySubsystem, AutonomySubsystem>();
+        services.AddSingleton<IEmbodimentSubsystem, EmbodimentSubsystem>();
+        services.AddSingleton<ILocalizationSubsystem, LocalizationSubsystem>();
+        services.AddSingleton<ILanguageSubsystem, LanguageSubsystem>();
+        services.AddSingleton<ISelfAssemblySubsystem, SelfAssemblySubsystem>();
+        services.AddSingleton<IPipeProcessingSubsystem, PipeProcessingSubsystem>();
+        services.AddSingleton<IChatSubsystem, ChatSubsystem>();
+        services.AddSingleton<ICommandRoutingSubsystem, CommandRoutingSubsystem>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers the OuroborosAgent and wires it to all subsystems.
+    /// </summary>
+    public static IServiceCollection AddOuroborosAgent(this IServiceCollection services)
+    {
+        services.AddSingleton<OuroborosAgent>();
+
+        // Expose the agent as IAgentEventSink so other services (handlers, subsystems)
+        // can enqueue events without coupling to OuroborosAgent directly.
+        services.AddSingleton<IAgentEventSink>(sp => sp.GetRequiredService<OuroborosAgent>());
+
+        return services;
+    }
+
+    /// <summary>
+    /// Convenience method to register everything: subsystems + agent.
+    /// </summary>
+    public static IServiceCollection AddOuroboros(this IServiceCollection services, OuroborosConfig config)
+    {
+        return services
+            .AddAgentSubsystems(config)
+            .AddOuroborosAgent();
+    }
+}

@@ -1,0 +1,51 @@
+# Update submodules when upstream dependencies change
+# Triggers on repository_dispatch events from upstream repos
+
+name: Update Submodules
+
+on:
+  repository_dispatch:
+    types: [dependency-updated]
+
+jobs:
+  update-build-submodule:
+    permissions:
+      contents: write
+      checks: write
+      pull-requests: write
+    name: Update Build Submodule
+    if: github.event.client_payload.source_repo == 'ouroboros-build'
+    uses: PMeeske/ouroboros-build/.github/workflows/_reusable-update-submodule.yml@main
+    with:
+      submodule-path: libs/.build
+      create-pr: true
+    secrets:
+      token: ${{ secrets.OUROBOROS_DISPATCH_PAT }}
+
+  update-foundation-submodule:
+    permissions:
+      contents: write
+      checks: write
+      pull-requests: write
+    name: Update Foundation Submodule
+    if: github.event.client_payload.source_repo == 'ouroboros-foundation'
+    uses: PMeeske/ouroboros-build/.github/workflows/_reusable-update-submodule.yml@main
+    with:
+      submodule-path: libs/foundation
+      create-pr: true
+    secrets:
+      token: ${{ secrets.OUROBOROS_DISPATCH_PAT }}
+
+  update-engine-submodule:
+    permissions:
+      contents: write
+      checks: write
+      pull-requests: write
+    name: Update Engine Submodule
+    if: github.event.client_payload.source_repo == 'ouroboros-engine'
+    uses: PMeeske/ouroboros-build/.github/workflows/_reusable-update-submodule.yml@main
+    with:
+      submodule-path: libs/engine
+      create-pr: true
+    secrets:
+      token: ${{ secrets.OUROBOROS_DISPATCH_PAT }}

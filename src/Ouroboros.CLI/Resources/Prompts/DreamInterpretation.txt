@@ -1,0 +1,2 @@
+Briefly interpret this dream (1-2 sentences): {DreamContent}
+What emergent meaning or connection does it reveal?

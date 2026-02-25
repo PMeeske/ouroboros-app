@@ -1,0 +1,119 @@
+# CI pipeline for ouroboros-app
+# Triggers on push to main and pull requests
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  repository_dispatch:
+    types: [dependency-updated]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.event_name == 'repository_dispatch' && format('dispatch-{0}', github.event.client_payload.source_repo) || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build
+    uses: PMeeske/ouroboros-build/.github/workflows/_reusable-dotnet-build.yml@main
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    with:
+      projects: >-
+        src/Ouroboros.Application/Ouroboros.Application.csproj
+        src/Ouroboros.CLI/Ouroboros.CLI.csproj
+        src/Ouroboros.WebApi/Ouroboros.WebApi.csproj
+        src/Ouroboros.Easy/Ouroboros.Easy.csproj
+      include-maui: true
+
+  build-android:
+    name: Build Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+        with:
+          submodules: recursive
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@4d6c8fcf3c8f7a60068d26b594648e99df24cee3
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install MAUI workloads
+        run: dotnet workload install maui-android --skip-sign-check
+
+      - name: Restore solution dependencies
+        run: dotnet restore
+
+      - name: Restore Android project
+        run: dotnet restore src/Ouroboros.Android/Ouroboros.Android.csproj
+
+      - name: Build Android project
+        run: dotnet build src/Ouroboros.Android/Ouroboros.Android.csproj --configuration Release --no-restore
+
+  test:
+    name: Test
+    needs: build
+    uses: PMeeske/ouroboros-build/.github/workflows/_reusable-dotnet-test.yml@main
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    with:
+      job-identifier: "test"
+      test-projects: >-
+        tests/Ouroboros.CLI.Tests/Ouroboros.CLI.Tests.csproj
+        tests/Ouroboros.WebApi.Tests/Ouroboros.WebApi.Tests.csproj
+        tests/Ouroboros.Application.Tests/Ouroboros.Application.Tests.csproj
+      build-projects: >-
+        src/Ouroboros.Application/Ouroboros.Application.csproj
+        src/Ouroboros.CLI/Ouroboros.CLI.csproj
+        src/Ouroboros.WebApi/Ouroboros.WebApi.csproj
+      coverage-threshold: 60
+
+  integration-test:
+    name: Integration Tests
+    needs: build
+    uses: PMeeske/ouroboros-build/.github/workflows/_reusable-dotnet-test.yml@main
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    with:
+      job-identifier: "integration-test"
+      test-projects: tests/Ouroboros.Integration.Tests/Ouroboros.Integration.Tests.csproj
+      build-projects: >-
+        src/Ouroboros.Application/Ouroboros.Application.csproj
+        src/Ouroboros.CLI/Ouroboros.CLI.csproj
+        src/Ouroboros.WebApi/Ouroboros.WebApi.csproj
+      test-filter: 'Category!=RequiresApiKey'
+      coverage-threshold: 0
+
+  bdd:
+    name: BDD Tests
+    needs: build
+    uses: PMeeske/ouroboros-build/.github/workflows/_reusable-dotnet-test.yml@main
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    with:
+      job-identifier: "bdd"
+      test-projects: tests/Ouroboros.App.BDD/Ouroboros.App.BDD.csproj
+      build-projects: >-
+        src/Ouroboros.Application/Ouroboros.Application.csproj
+        src/Ouroboros.CLI/Ouroboros.CLI.csproj
+      coverage-threshold: 0

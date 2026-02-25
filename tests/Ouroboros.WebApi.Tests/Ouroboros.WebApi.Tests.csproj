@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Ouroboros.Tests</RootNamespace>
+    <AssemblyName>Ouroboros.WebApi.Tests</AssemblyName>
+    <IsTestProject>true</IsTestProject>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591;SA0001</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(OuroborosBuild)\test-infra\Ouroboros.TestKit\Ouroboros.TestKit.csproj" />
+    <ProjectReference Include="$(Ouroboros)\Ouroboros.WebApi\Ouroboros.WebApi.csproj" />
+    <!-- ApiHost owns services, models, and middleware (formerly in WebApi) -->
+    <ProjectReference Include="$(Ouroboros)\Ouroboros.ApiHost\Ouroboros.ApiHost.csproj" />
+    <ProjectReference Include="$(Ouroboros)\Ouroboros.Application\Ouroboros.Application.csproj" />
+    <ProjectReference Include="$(OuroborosEngine)\Ouroboros.Agent\Ouroboros.Agent.csproj" />
+    <ProjectReference Include="$(OuroborosEngine)\Ouroboros.Pipeline\Ouroboros.Pipeline.csproj" />
+    <ProjectReference Include="$(OuroborosFoundation)\Ouroboros.Core\Ouroboros.Core.csproj" />
+    <ProjectReference Include="$(OuroborosFoundation)\Ouroboros.Domain\Ouroboros.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="8.0.0" PrivateAssets="all">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.3" />
+    <PackageReference Include="Bogus" Version="35.6.5" />
+    <PackageReference Include="Moq" Version="4.20.72" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" PrivateAssets="all">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="FluentAssertions" Version="8.8.0" />
+  </ItemGroup>
+
+</Project>

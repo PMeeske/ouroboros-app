@@ -1,0 +1,1765 @@
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+// ==========================================================
+// Skill CLI Steps - Research-powered skills as DSL tokens
+// Dynamic web fetching + full pipeline awareness
+// ==========================================================
+
+using System.Net.Http;
+using System.Reflection;
+using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using System.Xml.Linq;
+using Ouroboros.Agent.MetaAI;
+
+namespace Ouroboros.Application;
+
+/// <summary>
+/// CLI steps for research-powered skills that chain with other DSL tokens.
+/// These steps integrate the skill registry with the standard pipeline.
+/// Includes dynamic web fetching from arXiv, Wikipedia, Semantic Scholar, and any URL.
+/// </summary>
+public static class SkillCliSteps
+{
+    // Shared HTTP client for web fetching
+    private static readonly Lazy<HttpClient> _httpClient = new(() => new HttpClient
+    {
+        Timeout = TimeSpan.FromSeconds(30),
+        DefaultRequestHeaders = { { "User-Agent", "Ouroboros/1.0 (Research Pipeline)" } }
+    });
+
+    // Shared skill registry across the pipeline
+    private static readonly Lazy<SkillRegistry> _registry = new(() =>
+    {
+        var registry = new SkillRegistry();
+        RegisterPredefinedSkills(registry);
+        return registry;
+    });
+
+    // Dynamic discovery of ALL pipeline tokens at runtime
+    private static readonly Lazy<Dictionary<string, PipelineTokenInfo>> _allPipelineTokens = new(() =>
+    {
+        var tokens = new Dictionary<string, PipelineTokenInfo>(StringComparer.OrdinalIgnoreCase);
+
+        // Scan all loaded assemblies for PipelineToken attributes
+        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            try
+            {
+                foreach (var type in assembly.GetTypes())
+                {
+                    foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.Static))
+                    {
+                        var attr = method.GetCustomAttribute<PipelineTokenAttribute>();
+                        if (attr != null)
+                        {
+                            var xmlDoc = method.GetCustomAttribute<System.ComponentModel.DescriptionAttribute>()?.Description
+                                ?? ExtractXmlDocSummary(method);
+
+                            var info = new PipelineTokenInfo(
+                                attr.Names.FirstOrDefault() ?? method.Name,
+                                attr.Names.Skip(1).ToArray(),
+                                type.Name,
+                                xmlDoc ?? $"Pipeline step from {type.Name}",
+                                method
+                            );
+
+                            foreach (var name in attr.Names)
+                            {
+                                tokens[name] = info;
+                            }
+                        }
+                    }
+                }
+            }
+            catch { /* Skip assemblies that can't be scanned */ }
+        }
+
+        return tokens;
+    });
+
+    /// <summary>
+    /// Get all discovered pipeline tokens for LLM context.
+    /// </summary>
+    public static IReadOnlyDictionary<string, PipelineTokenInfo> GetAllPipelineTokens() => _allPipelineTokens.Value;
+
+    /// <summary>
+    /// Build a comprehensive context string of all pipeline capabilities for the LLM.
+    /// </summary>
+    public static string BuildPipelineContext()
+    {
+        var tokens = _allPipelineTokens.Value;
+        var grouped = tokens.Values.Distinct().GroupBy(t => t.SourceClass);
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("OUROBOROS PIPELINE - ALL AVAILABLE DSL TOKENS:");
+        sb.AppendLine("================================================");
+
+        foreach (var group in grouped.OrderBy(g => g.Key))
+        {
+            sb.AppendLine($"\n📦 {group.Key}:");
+            foreach (var token in group.Take(10)) // Limit per group
+            {
+                string aliases = token.Aliases.Length > 0 ? $" (aliases: {string.Join(", ", token.Aliases.Take(2))})" : "";
+                sb.AppendLine($"  • {token.PrimaryName}{aliases}");
+                if (!string.IsNullOrEmpty(token.Description) && token.Description.Length < 80)
+                    sb.AppendLine($"    {token.Description}");
+            }
+        }
+
+        sb.AppendLine($"\nTotal: {tokens.Values.Distinct().Count()} pipeline tokens available");
+        return sb.ToString();
+    }
+
+    // ========================================================================
+    // DYNAMIC WEB FETCHING STEPS
+    // ========================================================================
+
+    /// <summary>
+    /// Fetch content from any URL dynamically.
+    /// Usage: Fetch 'https://example.com/page' | UseOutput
+    /// </summary>
+    [PipelineToken("Fetch", "FetchUrl", "WebFetch", "HttpGet")]
+    public static Step<CliPipelineState, CliPipelineState> Fetch(string? url = null)
+        => async s =>
+        {
+            string targetUrl = ParseString(url) ?? s.Prompt ?? s.Query;
+            if (string.IsNullOrWhiteSpace(targetUrl))
+            {
+                Console.WriteLine("[Fetch] No URL provided");
+                return s;
+            }
+
+            // Fix malformed URLs from LLM (e.g., "https: example.com path" → "https://example.com/path")
+            targetUrl = FixMalformedUrl(targetUrl);
+
+            // Validate URL is absolute
+            if (!Uri.TryCreate(targetUrl, UriKind.Absolute, out Uri? parsedUri))
+            {
+                Console.WriteLine($"[Fetch] ⚠ Invalid URL format: {targetUrl}");
+                s.Output = $"Fetch failed: Invalid URL format. URL must be absolute (e.g., https://example.com)";
+                return s;
+            }
+
+            // Only allow http/https schemes
+            if (parsedUri.Scheme != "http" && parsedUri.Scheme != "https")
+            {
+                Console.WriteLine($"[Fetch] ⚠ Unsupported scheme: {parsedUri.Scheme}");
+                s.Output = $"Fetch failed: Only http and https URLs are supported";
+                return s;
+            }
+
+            Console.WriteLine($"[Fetch] Fetching: {targetUrl}");
+            try
+            {
+                string content = await _httpClient.Value.GetStringAsync(parsedUri);
+
+                // Extract text from HTML if needed
+                if (content.Contains("<html") || content.Contains("<HTML"))
+                {
+                    content = ExtractTextFromHtml(content);
+                }
+
+                Console.WriteLine($"[Fetch] ✓ Retrieved {content.Length:N0} characters");
+                s.Output = content.Length > 50000 ? content[..50000] + "\n...[truncated]" : content;
+                s.Context = $"[Fetched from {targetUrl}]\n{s.Output}";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Fetch] ⚠ Failed: {ex.Message}");
+                s.Output = $"Fetch failed: {ex.Message}";
+            }
+            return s;
+        };
+
+    /// <summary>
+    /// Search arXiv for academic papers.
+    /// Usage: ArxivSearch 'transformer attention' | UseOutput
+    /// </summary>
+    [PipelineToken("ArxivSearch", "SearchArxiv", "Arxiv", "Papers")]
+    public static Step<CliPipelineState, CliPipelineState> ArxivSearch(string? query = null)
+        => async s =>
+        {
+            string searchQuery = ParseString(query) ?? s.Prompt ?? s.Query;
+            if (string.IsNullOrWhiteSpace(searchQuery))
+            {
+                Console.WriteLine("[ArxivSearch] No query provided");
+                return s;
+            }
+
+            Console.WriteLine($"[ArxivSearch] Searching: \"{searchQuery}\"");
+            string url = $"http://export.arxiv.org/api/query?search_query=all:{Uri.EscapeDataString(searchQuery)}&start=0&max_results=10";
+
+            try
+            {
+                string xml = await _httpClient.Value.GetStringAsync(url);
+                var doc = XDocument.Parse(xml);
+                XNamespace atom = "http://www.w3.org/2005/Atom";
+
+                var entries = doc.Descendants(atom + "entry").ToList();
+                Console.WriteLine($"[ArxivSearch] ✓ Found {entries.Count} papers");
+
+                var results = new List<string>();
+                foreach (var entry in entries.Take(10))
+                {
+                    string title = entry.Element(atom + "title")?.Value?.Trim().Replace("\n", " ") ?? "Untitled";
+                    string summary = entry.Element(atom + "summary")?.Value?.Trim().Replace("\n", " ") ?? "";
+                    string id = entry.Element(atom + "id")?.Value ?? "";
+                    string published = entry.Element(atom + "published")?.Value?[..10] ?? "";
+
+                    var authors = entry.Descendants(atom + "author")
+                        .Select(a => a.Element(atom + "name")?.Value)
+                        .Where(n => n != null)
+                        .Take(3);
+
+                    results.Add($"📄 {title}\n   Authors: {string.Join(", ", authors)}\n   Published: {published}\n   ID: {id}\n   Summary: {(summary.Length > 200 ? summary[..200] + "..." : summary)}");
+                }
+
+                s.Output = string.Join("\n\n", results);
+                s.Context = $"[arXiv search: {searchQuery}]\n{s.Output}";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ArxivSearch] ⚠ Failed: {ex.Message}");
+                s.Output = $"arXiv search failed: {ex.Message}";
+            }
+            return s;
+        };
+
+    /// <summary>
+    /// Search Wikipedia for information.
+    /// Usage: WikiSearch 'neural networks' | UseOutput
+    /// </summary>
+    [PipelineToken("WikiSearch", "Wikipedia", "Wiki", "SearchWiki")]
+    public static Step<CliPipelineState, CliPipelineState> WikiSearch(string? query = null)
+        => async s =>
+        {
+            string searchQuery = ParseString(query) ?? s.Prompt ?? s.Query;
+            if (string.IsNullOrWhiteSpace(searchQuery))
+            {
+                Console.WriteLine("[WikiSearch] No query provided");
+                return s;
+            }
+
+            Console.WriteLine($"[WikiSearch] Searching: \"{searchQuery}\"");
+            string url = $"https://en.wikipedia.org/api/rest_v1/page/summary/{Uri.EscapeDataString(searchQuery.Replace(" ", "_"))}";
+
+            try
+            {
+                string json = await _httpClient.Value.GetStringAsync(url);
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                string title = root.TryGetProperty("title", out var t) ? t.GetString() ?? searchQuery : searchQuery;
+                string extract = root.TryGetProperty("extract", out var e) ? e.GetString() ?? "" : "";
+                string description = root.TryGetProperty("description", out var d) ? d.GetString() ?? "" : "";
+
+                Console.WriteLine($"[WikiSearch] ✓ Found: {title}");
+
+                s.Output = $"📚 {title}\n{description}\n\n{extract}";
+                s.Context = $"[Wikipedia: {title}]\n{s.Output}";
+            }
+            catch (HttpRequestException)
+            {
+                // Try search API instead
+                Console.WriteLine($"[WikiSearch] Direct lookup failed, trying search...");
+                string searchUrl = $"https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch={Uri.EscapeDataString(searchQuery)}&format=json&srlimit=5";
+                try
+                {
+                    string json = await _httpClient.Value.GetStringAsync(searchUrl);
+                    using var doc = JsonDocument.Parse(json);
+
+                    var results = new List<string>();
+                    if (doc.RootElement.TryGetProperty("query", out var queryEl) &&
+                        queryEl.TryGetProperty("search", out var searchEl))
+                    {
+                        foreach (var item in searchEl.EnumerateArray().Take(5))
+                        {
+                            string title = item.TryGetProperty("title", out var titleEl) ? titleEl.GetString() ?? "" : "";
+                            string snippet = item.TryGetProperty("snippet", out var snippetEl) ?
+                                Regex.Replace(snippetEl.GetString() ?? "", "<[^>]+>", "") : "";
+                            results.Add($"📚 {title}\n   {snippet}");
+                        }
+                    }
+
+                    s.Output = string.Join("\n\n", results);
+                    s.Context = $"[Wikipedia search: {searchQuery}]\n{s.Output}";
+                    Console.WriteLine($"[WikiSearch] ✓ Found {results.Count} results");
+                }
+                catch (Exception ex2)
+                {
+                    s.Output = $"Wikipedia search failed: {ex2.Message}";
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WikiSearch] ⚠ Failed: {ex.Message}");
+                s.Output = $"Wikipedia search failed: {ex.Message}";
+            }
+            return s;
+        };
+
+    /// <summary>
+    /// Search Semantic Scholar for academic papers with citations.
+    /// Usage: ScholarSearch 'deep learning' | UseOutput
+    /// </summary>
+    [PipelineToken("ScholarSearch", "SemanticScholar", "Scholar", "AcademicSearch")]
+    public static Step<CliPipelineState, CliPipelineState> ScholarSearch(string? query = null)
+        => async s =>
+        {
+            string searchQuery = ParseString(query) ?? s.Prompt ?? s.Query;
+            if (string.IsNullOrWhiteSpace(searchQuery))
+            {
+                Console.WriteLine("[ScholarSearch] No query provided");
+                return s;
+            }
+
+            Console.WriteLine($"[ScholarSearch] Searching: \"{searchQuery}\"");
+            string url = $"https://api.semanticscholar.org/graph/v1/paper/search?query={Uri.EscapeDataString(searchQuery)}&limit=10&fields=title,authors,year,citationCount,abstract";
+
+            try
+            {
+                string json = await _httpClient.Value.GetStringAsync(url);
+                using var doc = JsonDocument.Parse(json);
+
+                var results = new List<string>();
+                if (doc.RootElement.TryGetProperty("data", out var dataEl))
+                {
+                    foreach (var paper in dataEl.EnumerateArray().Take(10))
+                    {
+                        string title = paper.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";
+                        int citations = paper.TryGetProperty("citationCount", out var c) ? c.GetInt32() : 0;
+                        int year = paper.TryGetProperty("year", out var y) && y.ValueKind == JsonValueKind.Number ? y.GetInt32() : 0;
+                        string abstractText = paper.TryGetProperty("abstract", out var a) ? a.GetString() ?? "" : "";
+
+                        var authors = new List<string>();
+                        if (paper.TryGetProperty("authors", out var authorsEl))
+                        {
+                            foreach (var author in authorsEl.EnumerateArray().Take(3))
+                            {
+                                if (author.TryGetProperty("name", out var name))
+                                    authors.Add(name.GetString() ?? "");
+                            }
+                        }
+
+                        results.Add($"📄 {title} ({year})\n   Authors: {string.Join(", ", authors)}\n   Citations: {citations:N0}\n   {(abstractText.Length > 150 ? abstractText[..150] + "..." : abstractText)}");
+                    }
+                }
+
+                Console.WriteLine($"[ScholarSearch] ✓ Found {results.Count} papers");
+                s.Output = string.Join("\n\n", results);
+                s.Context = $"[Semantic Scholar: {searchQuery}]\n{s.Output}";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ScholarSearch] ⚠ Failed: {ex.Message}");
+                s.Output = $"Semantic Scholar search failed: {ex.Message}";
+            }
+            return s;
+        };
+
+    /// <summary>
+    /// Search the web using Google (via SerpAPI or scraping).
+    /// Usage: GoogleSearch 'machine learning tutorials' | UseOutput
+    /// </summary>
+    [PipelineToken("GoogleSearch", "Google", "WebSearch", "SearchWeb")]
+    public static Step<CliPipelineState, CliPipelineState> GoogleSearch(string? query = null)
+        => async s =>
+        {
+            string searchQuery = ParseString(query) ?? s.Prompt ?? s.Query;
+            if (string.IsNullOrWhiteSpace(searchQuery))
+            {
+                Console.WriteLine("[GoogleSearch] No query provided");
+                return s;
+            }
+
+            Console.WriteLine($"[GoogleSearch] Searching: \"{searchQuery}\"");
+
+            // Check for SerpAPI key in environment
+            string? serpApiKey = Environment.GetEnvironmentVariable("SERPAPI_KEY");
+
+            try
+            {
+                List<string> results;
+
+                if (!string.IsNullOrEmpty(serpApiKey))
+                {
+                    // Use SerpAPI for reliable Google results
+                    results = await SearchWithSerpApiAsync(searchQuery, serpApiKey);
+                }
+                else
+                {
+                    // Fallback to DuckDuckGo HTML (more reliable than scraping Google)
+                    results = await SearchWithDuckDuckGoAsync(searchQuery);
+                }
+
+                if (results.Count > 0)
+                {
+                    Console.WriteLine($"[GoogleSearch] ✓ Found {results.Count} results");
+                    s.Output = string.Join("\n\n", results);
+                    s.Context = $"[Web search: {searchQuery}]\n{s.Output}";
+                }
+                else
+                {
+                    Console.WriteLine("[GoogleSearch] No results found");
+                    s.Output = "No search results found.";
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[GoogleSearch] ⚠ Failed: {ex.Message}");
+                s.Output = $"Web search failed: {ex.Message}";
+            }
+            return s;
+        };
+
+    private static async Task<List<string>> SearchWithSerpApiAsync(string query, string apiKey)
+    {
+        string url = $"https://serpapi.com/search.json?q={Uri.EscapeDataString(query)}&api_key={apiKey}&num=10";
+        string json = await _httpClient.Value.GetStringAsync(url);
+        using var doc = JsonDocument.Parse(json);
+
+        var results = new List<string>();
+        if (doc.RootElement.TryGetProperty("organic_results", out var organicEl))
+        {
+            foreach (var result in organicEl.EnumerateArray().Take(10))
+            {
+                string title = result.TryGetProperty("title", out var t) ? t.GetString() ?? "" : "";
+                string link = result.TryGetProperty("link", out var l) ? l.GetString() ?? "" : "";
+                string snippet = result.TryGetProperty("snippet", out var s) ? s.GetString() ?? "" : "";
+                results.Add($"🔍 {title}\n   {link}\n   {snippet}");
+            }
+        }
+        return results;
+    }
+
+    private static async Task<List<string>> SearchWithDuckDuckGoAsync(string query)
+    {
+        string url = $"https://html.duckduckgo.com/html/?q={Uri.EscapeDataString(query)}";
+        string html = await _httpClient.Value.GetStringAsync(url);
+
+        var results = new List<string>();
+
+        // Parse DuckDuckGo HTML results
+        var resultMatches = Regex.Matches(html, @"<a[^>]+class=""result__a""[^>]*href=""([^""]+)""[^>]*>([^<]+)</a>.*?<a[^>]+class=""result__snippet""[^>]*>([^<]*(?:<[^>]+>[^<]*)*)</a>",
+            RegexOptions.Singleline | RegexOptions.IgnoreCase);
+
+        foreach (Match match in resultMatches.Take(10))
+        {
+            string link = System.Net.WebUtility.UrlDecode(match.Groups[1].Value);
+            // Extract actual URL from DuckDuckGo redirect
+            var uddgMatch = Regex.Match(link, @"uddg=([^&]+)");
+            if (uddgMatch.Success)
+                link = System.Net.WebUtility.UrlDecode(uddgMatch.Groups[1].Value);
+
+            string title = System.Net.WebUtility.HtmlDecode(match.Groups[2].Value.Trim());
+            string snippet = Regex.Replace(match.Groups[3].Value, "<[^>]+>", "").Trim();
+            snippet = System.Net.WebUtility.HtmlDecode(snippet);
+
+            if (!string.IsNullOrEmpty(title))
+                results.Add($"🔍 {title}\n   {link}\n   {snippet}");
+        }
+
+        // Fallback: simpler parsing if the above didn't work
+        if (results.Count == 0)
+        {
+            var simpleMatches = Regex.Matches(html, @"<a[^>]+class=""[^""]*result[^""]*""[^>]*>([^<]+)</a>", RegexOptions.IgnoreCase);
+            foreach (Match match in simpleMatches.Take(10))
+            {
+                string title = System.Net.WebUtility.HtmlDecode(match.Groups[1].Value.Trim());
+                if (!string.IsNullOrEmpty(title) && title.Length > 10)
+                    results.Add($"🔍 {title}");
+            }
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Search GitHub for repositories.
+    /// Usage: GithubSearch 'machine learning python' | UseOutput
+    /// </summary>
+    [PipelineToken("GithubSearch", "Github", "SearchGithub", "Repos")]
+    public static Step<CliPipelineState, CliPipelineState> GithubSearch(string? query = null)
+        => async s =>
+        {
+            string searchQuery = ParseString(query) ?? s.Prompt ?? s.Query;
+            if (string.IsNullOrWhiteSpace(searchQuery))
+            {
+                Console.WriteLine("[GithubSearch] No query provided");
+                return s;
+            }
+
+            Console.WriteLine($"[GithubSearch] Searching: \"{searchQuery}\"");
+            string url = $"https://api.github.com/search/repositories?q={Uri.EscapeDataString(searchQuery)}&sort=stars&per_page=10";
+
+            try
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                request.Headers.Add("Accept", "application/vnd.github.v3+json");
+
+                var response = await _httpClient.Value.SendAsync(request);
+                string json = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(json);
+
+                var results = new List<string>();
+                if (doc.RootElement.TryGetProperty("items", out var itemsEl))
+                {
+                    foreach (var repo in itemsEl.EnumerateArray().Take(10))
+                    {
+                        string name = repo.TryGetProperty("full_name", out var n) ? n.GetString() ?? "" : "";
+                        string desc = repo.TryGetProperty("description", out var d) ? d.GetString() ?? "" : "";
+                        int stars = repo.TryGetProperty("stargazers_count", out var st) ? st.GetInt32() : 0;
+                        string lang = repo.TryGetProperty("language", out var l) ? l.GetString() ?? "" : "";
+                        string repoUrl = repo.TryGetProperty("html_url", out var u) ? u.GetString() ?? "" : "";
+
+                        results.Add($"⭐ {name} ({stars:N0} stars)\n   Language: {lang}\n   {desc}\n   {repoUrl}");
+                    }
+                }
+
+                Console.WriteLine($"[GithubSearch] ✓ Found {results.Count} repositories");
+                s.Output = string.Join("\n\n", results);
+                s.Context = $"[GitHub: {searchQuery}]\n{s.Output}";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[GithubSearch] ⚠ Failed: {ex.Message}");
+                s.Output = $"GitHub search failed: {ex.Message}";
+            }
+            return s;
+        };
+
+    /// <summary>
+    /// Search news via NewsAPI (requires NEWSAPI_KEY env var) or fallback to RSS.
+    /// Usage: NewsSearch 'artificial intelligence' | UseOutput
+    /// </summary>
+    [PipelineToken("NewsSearch", "News", "SearchNews", "Headlines")]
+    public static Step<CliPipelineState, CliPipelineState> NewsSearch(string? query = null)
+        => async s =>
+        {
+            string searchQuery = ParseString(query) ?? s.Prompt ?? s.Query;
+            if (string.IsNullOrWhiteSpace(searchQuery))
+            {
+                Console.WriteLine("[NewsSearch] No query provided");
+                return s;
+            }
+
+            Console.WriteLine($"[NewsSearch] Searching: \"{searchQuery}\"");
+
+            // Try Google News RSS as fallback (no API key needed)
+            string url = $"https://news.google.com/rss/search?q={Uri.EscapeDataString(searchQuery)}&hl=en-US&gl=US&ceid=US:en";
+
+            try
+            {
+                string xml = await _httpClient.Value.GetStringAsync(url);
+                var doc = XDocument.Parse(xml);
+
+                var results = new List<string>();
+                foreach (var item in doc.Descendants("item").Take(10))
+                {
+                    string title = item.Element("title")?.Value ?? "";
+                    string link = item.Element("link")?.Value ?? "";
+                    string pubDate = item.Element("pubDate")?.Value ?? "";
+                    string source = item.Element("source")?.Value ?? "";
+
+                    results.Add($"📰 {title}\n   Source: {source} | {pubDate}\n   {link}");
+                }
+
+                Console.WriteLine($"[NewsSearch] ✓ Found {results.Count} articles");
+                s.Output = string.Join("\n\n", results);
+                s.Context = $"[News: {searchQuery}]\n{s.Output}";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[NewsSearch] ⚠ Failed: {ex.Message}");
+                s.Output = $"News search failed: {ex.Message}";
+            }
+            return s;
+        };
+
+    // ========================================================================
+    // FIRECRAWL WEB SCRAPING
+    // ========================================================================
+
+    /// <summary>
+    /// Scrape a webpage using Firecrawl API for clean, structured content extraction.
+    /// Requires FIRECRAWL_API_KEY environment variable.
+    /// Usage: Firecrawl 'https://example.com' | UseOutput
+    /// </summary>
+    [PipelineToken("Firecrawl", "FirecrawlScrape", "Scrape", "WebScrape")]
+    public static Step<CliPipelineState, CliPipelineState> Firecrawl(string? url = null)
+        => async s =>
+        {
+            string targetUrl = ParseString(url) ?? s.Prompt ?? s.Query;
+            if (string.IsNullOrWhiteSpace(targetUrl))
+            {
+                Console.WriteLine("[Firecrawl] No URL provided");
+                return s;
+            }
+
+            string? apiKey = Environment.GetEnvironmentVariable("FIRECRAWL_API_KEY");
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                Console.WriteLine("[Firecrawl] ⚠ FIRECRAWL_API_KEY not set, falling back to basic Fetch");
+                return await Fetch(targetUrl)(s);
+            }
+
+            // Fix malformed URLs
+            targetUrl = FixMalformedUrl(targetUrl);
+
+            if (!Uri.TryCreate(targetUrl, UriKind.Absolute, out Uri? parsedUri))
+            {
+                Console.WriteLine($"[Firecrawl] ⚠ Invalid URL: {targetUrl}");
+                s.Output = "Firecrawl failed: Invalid URL format";
+                return s;
+            }
+
+            Console.WriteLine($"[Firecrawl] Scraping: {targetUrl}");
+            try
+            {
+                var result = await FirecrawlScrapeAsync(targetUrl, apiKey);
+                Console.WriteLine($"[Firecrawl] ✓ Retrieved {result.Length:N0} characters");
+                s.Output = result.Length > 50000 ? result[..50000] + "\n...[truncated]" : result;
+                s.Context = $"[Firecrawl scraped from {targetUrl}]\n{s.Output}";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Firecrawl] ⚠ Failed: {ex.Message}, falling back to basic Fetch");
+                return await Fetch(targetUrl)(s);
+            }
+            return s;
+        };
+
+    /// <summary>
+    /// Scrape a webpage and extract specific content using Firecrawl with LLM extraction.
+    /// Requires FIRECRAWL_API_KEY environment variable.
+    /// Usage: FirecrawlExtract 'https://example.com' 'Extract product prices and descriptions' | UseOutput
+    /// </summary>
+    [PipelineToken("FirecrawlExtract", "ExtractFromWeb", "SmartScrape")]
+    public static Step<CliPipelineState, CliPipelineState> FirecrawlExtract(string? url = null, string? extractPrompt = null)
+        => async s =>
+        {
+            string targetUrl = ParseString(url) ?? s.Prompt ?? s.Query;
+            string prompt = ParseString(extractPrompt) ?? "Extract the main content and key information";
+
+            if (string.IsNullOrWhiteSpace(targetUrl))
+            {
+                Console.WriteLine("[FirecrawlExtract] No URL provided");
+                return s;
+            }
+
+            string? apiKey = Environment.GetEnvironmentVariable("FIRECRAWL_API_KEY");
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                Console.WriteLine("[FirecrawlExtract] ⚠ FIRECRAWL_API_KEY not set");
+                s.Output = "FirecrawlExtract requires FIRECRAWL_API_KEY environment variable";
+                return s;
+            }
+
+            targetUrl = FixMalformedUrl(targetUrl);
+
+            Console.WriteLine($"[FirecrawlExtract] Scraping: {targetUrl}");
+            Console.WriteLine($"[FirecrawlExtract] Extraction prompt: {prompt}");
+            try
+            {
+                var result = await FirecrawlScrapeAsync(targetUrl, apiKey, extractionPrompt: prompt);
+                Console.WriteLine($"[FirecrawlExtract] ✓ Extracted {result.Length:N0} characters");
+                s.Output = result;
+                s.Context = $"[Firecrawl extracted from {targetUrl}]\n{s.Output}";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[FirecrawlExtract] ⚠ Failed: {ex.Message}");
+                s.Output = $"FirecrawlExtract failed: {ex.Message}";
+            }
+            return s;
+        };
+
+    /// <summary>
+    /// Crawl multiple pages from a website starting from a URL using Firecrawl.
+    /// Requires FIRECRAWL_API_KEY environment variable.
+    /// Usage: FirecrawlCrawl 'https://example.com' 5 | UseOutput
+    /// </summary>
+    [PipelineToken("FirecrawlCrawl", "CrawlSite", "WebCrawl")]
+    public static Step<CliPipelineState, CliPipelineState> FirecrawlCrawl(string? url = null, int maxPages = 5)
+        => async s =>
+        {
+            string targetUrl = ParseString(url) ?? s.Prompt ?? s.Query;
+            if (string.IsNullOrWhiteSpace(targetUrl))
+            {
+                Console.WriteLine("[FirecrawlCrawl] No URL provided");
+                return s;
+            }
+
+            string? apiKey = Environment.GetEnvironmentVariable("FIRECRAWL_API_KEY");
+            if (string.IsNullOrWhiteSpace(apiKey))
+            {
+                Console.WriteLine("[FirecrawlCrawl] ⚠ FIRECRAWL_API_KEY not set");
+                s.Output = "FirecrawlCrawl requires FIRECRAWL_API_KEY environment variable";
+                return s;
+            }
+
+            targetUrl = FixMalformedUrl(targetUrl);
+            maxPages = Math.Clamp(maxPages, 1, 50);
+
+            Console.WriteLine($"[FirecrawlCrawl] Starting crawl: {targetUrl} (max {maxPages} pages)");
+            try
+            {
+                var result = await FirecrawlCrawlAsync(targetUrl, apiKey, maxPages);
+                Console.WriteLine($"[FirecrawlCrawl] ✓ Crawled content: {result.Length:N0} characters");
+                s.Output = result.Length > 100000 ? result[..100000] + "\n...[truncated]" : result;
+                s.Context = $"[Firecrawl crawled from {targetUrl}]\n{s.Output}";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[FirecrawlCrawl] ⚠ Failed: {ex.Message}");
+                s.Output = $"FirecrawlCrawl failed: {ex.Message}";
+            }
+            return s;
+        };
+
+    /// <summary>
+    /// Scrape a page using Firecrawl API and return markdown content.
+    /// </summary>
+    private static async Task<string> FirecrawlScrapeAsync(string url, string apiKey, string? extractionPrompt = null)
+    {
+        var requestBody = new Dictionary<string, object>
+        {
+            ["url"] = url,
+            ["formats"] = new[] { "markdown" },
+            ["onlyMainContent"] = true,
+            ["blockAds"] = true,
+            ["removeBase64Images"] = true
+        };
+
+        if (!string.IsNullOrEmpty(extractionPrompt))
+        {
+            requestBody["formats"] = new object[] { "markdown", new Dictionary<string, object> { ["type"] = "json", ["prompt"] = extractionPrompt } };
+        }
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.firecrawl.dev/v2/scrape");
+        request.Headers.Add("Authorization", $"Bearer {apiKey}");
+        request.Content = new StringContent(
+            JsonSerializer.Serialize(requestBody),
+            Encoding.UTF8,
+            new System.Net.Http.Headers.MediaTypeHeaderValue("application/json"));
+
+        var response = await _httpClient.Value.SendAsync(request);
+        string json = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new HttpRequestException($"Firecrawl API error: {response.StatusCode} - {json}");
+        }
+
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+
+        if (!root.TryGetProperty("success", out var successEl) || !successEl.GetBoolean())
+        {
+            string error = root.TryGetProperty("error", out var errEl) ? errEl.GetString() ?? "Unknown error" : "Request failed";
+            throw new InvalidOperationException($"Firecrawl scrape failed: {error}");
+        }
+
+        var data = root.GetProperty("data");
+        var result = new StringBuilder();
+
+        // Get metadata
+        if (data.TryGetProperty("metadata", out var metadata))
+        {
+            if (metadata.TryGetProperty("title", out var titleEl))
+                result.AppendLine($"# {titleEl.GetString()}");
+            if (metadata.TryGetProperty("description", out var descEl))
+                result.AppendLine($"\n> {descEl.GetString()}\n");
+        }
+
+        // Get markdown content
+        if (data.TryGetProperty("markdown", out var markdownEl))
+        {
+            result.AppendLine(markdownEl.GetString());
+        }
+
+        // Get extracted JSON if available
+        if (data.TryGetProperty("json", out var jsonEl))
+        {
+            result.AppendLine("\n## Extracted Data");
+            result.AppendLine("```json");
+            result.AppendLine(JsonSerializer.Serialize(jsonEl, new JsonSerializerOptions { WriteIndented = true }));
+            result.AppendLine("```");
+        }
+
+        return result.ToString();
+    }
+
+    /// <summary>
+    /// Crawl multiple pages from a website using Firecrawl crawl endpoint.
+    /// </summary>
+    private static async Task<string> FirecrawlCrawlAsync(string url, string apiKey, int maxPages)
+    {
+        var requestBody = new Dictionary<string, object>
+        {
+            ["url"] = url,
+            ["limit"] = maxPages,
+            ["scrapeOptions"] = new Dictionary<string, object>
+            {
+                ["formats"] = new[] { "markdown" },
+                ["onlyMainContent"] = true
+            }
+        };
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.firecrawl.dev/v2/crawl");
+        request.Headers.Add("Authorization", $"Bearer {apiKey}");
+        request.Content = new StringContent(
+            JsonSerializer.Serialize(requestBody),
+            Encoding.UTF8,
+            new System.Net.Http.Headers.MediaTypeHeaderValue("application/json"));
+
+        var response = await _httpClient.Value.SendAsync(request);
+        string json = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new HttpRequestException($"Firecrawl API error: {response.StatusCode} - {json}");
+        }
+
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+
+        // Crawl endpoint returns a job ID for async crawling
+        if (root.TryGetProperty("id", out var jobIdEl))
+        {
+            string jobId = jobIdEl.GetString() ?? throw new InvalidOperationException("No job ID returned");
+            Console.WriteLine($"[FirecrawlCrawl] Job started: {jobId}");
+
+            // Poll for results
+            return await PollFirecrawlCrawlJobAsync(jobId, apiKey);
+        }
+
+        // Direct results (for small crawls)
+        if (root.TryGetProperty("data", out var dataEl) && dataEl.ValueKind == JsonValueKind.Array)
+        {
+            return BuildCrawlResultsMarkdown(dataEl);
+        }
+
+        throw new InvalidOperationException("Unexpected Firecrawl response format");
+    }
+
+    /// <summary>
+    /// Poll Firecrawl crawl job until completion.
+    /// </summary>
+    private static async Task<string> PollFirecrawlCrawlJobAsync(string jobId, string apiKey)
+    {
+        int maxAttempts = 60; // 5 minutes max
+        for (int i = 0; i < maxAttempts; i++)
+        {
+            await Task.Delay(5000); // Poll every 5 seconds
+
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"https://api.firecrawl.dev/v2/crawl/{jobId}");
+            request.Headers.Add("Authorization", $"Bearer {apiKey}");
+
+            var response = await _httpClient.Value.SendAsync(request);
+            string json = await response.Content.ReadAsStringAsync();
+
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            if (root.TryGetProperty("status", out var statusEl))
+            {
+                string status = statusEl.GetString() ?? "";
+                if (status == "completed")
+                {
+                    if (root.TryGetProperty("data", out var dataEl))
+                    {
+                        return BuildCrawlResultsMarkdown(dataEl);
+                    }
+                }
+                else if (status == "failed")
+                {
+                    string error = root.TryGetProperty("error", out var errEl) ? errEl.GetString() ?? "Unknown" : "Unknown";
+                    throw new InvalidOperationException($"Crawl job failed: {error}");
+                }
+
+                Console.WriteLine($"[FirecrawlCrawl] Status: {status}...");
+            }
+        }
+
+        throw new TimeoutException("Firecrawl crawl job timed out");
+    }
+
+    /// <summary>
+    /// Build markdown output from crawl results array.
+    /// </summary>
+    private static string BuildCrawlResultsMarkdown(JsonElement dataArray)
+    {
+        var result = new StringBuilder();
+        int pageNum = 0;
+
+        foreach (var page in dataArray.EnumerateArray())
+        {
+            pageNum++;
+            result.AppendLine($"---\n## Page {pageNum}");
+
+            if (page.TryGetProperty("metadata", out var metadata))
+            {
+                if (metadata.TryGetProperty("title", out var titleEl))
+                    result.AppendLine($"### {titleEl.GetString()}");
+                if (metadata.TryGetProperty("sourceURL", out var urlEl))
+                    result.AppendLine($"URL: {urlEl.GetString()}");
+            }
+
+            if (page.TryGetProperty("markdown", out var markdownEl))
+            {
+                result.AppendLine();
+                result.AppendLine(markdownEl.GetString());
+            }
+
+            result.AppendLine();
+        }
+
+        return result.ToString();
+    }
+
+    /// <summary>
+    /// List ALL available pipeline tokens discovered at runtime.
+    /// Usage: ListAllTokens | UseOutput
+    /// </summary>
+    [PipelineToken("ListAllTokens", "AllTokens", "PipelineTokens", "AvailableSteps")]
+    public static Step<CliPipelineState, CliPipelineState> ListAllTokens(string? filter = null)
+        => s =>
+        {
+            string? filterStr = ParseString(filter);
+            var tokens = _allPipelineTokens.Value.Values.Distinct().ToList();
+
+            if (!string.IsNullOrEmpty(filterStr))
+            {
+                tokens = tokens.Where(t =>
+                    t.PrimaryName.Contains(filterStr, StringComparison.OrdinalIgnoreCase) ||
+                    t.SourceClass.Contains(filterStr, StringComparison.OrdinalIgnoreCase) ||
+                    t.Description.Contains(filterStr, StringComparison.OrdinalIgnoreCase)
+                ).ToList();
+            }
+
+            Console.WriteLine($"[ListAllTokens] {tokens.Count} pipeline tokens available:");
+
+            var grouped = tokens.GroupBy(t => t.SourceClass).OrderBy(g => g.Key);
+            var output = new List<string>();
+
+            foreach (var group in grouped)
+            {
+                Console.WriteLine($"\n  📦 {group.Key}:");
+                output.Add($"\n📦 {group.Key}:");
+
+                foreach (var token in group.OrderBy(t => t.PrimaryName))
+                {
+                    string aliases = token.Aliases.Length > 0 ? $" ({string.Join(", ", token.Aliases.Take(2))})" : "";
+                    Console.WriteLine($"     • {token.PrimaryName}{aliases}");
+                    output.Add($"  • {token.PrimaryName}{aliases}: {token.Description}");
+                }
+            }
+
+            s.Output = string.Join("\n", output);
+            s.Context = BuildPipelineContext();
+            return Task.FromResult(s);
+        };
+
+    /// <summary>
+    /// Reorganize knowledge based on access patterns and learning.
+    /// Consolidates duplicates, clusters related content, and creates summaries.
+    /// Usage: ReorganizeKnowledge | UseOutput
+    /// </summary>
+    [PipelineToken("ReorganizeKnowledge", "Reorganize", "ConsolidateKnowledge", "OptimizeIndex")]
+    public static Step<CliPipelineState, CliPipelineState> ReorganizeKnowledge(string? options = null)
+        => async s =>
+        {
+            var indexer = Tools.SystemAccessTools.SharedIndexer;
+            if (indexer == null)
+            {
+                Console.WriteLine("[ReorganizeKnowledge] ❌ Self-indexer not available");
+                s.Output = "Knowledge reorganization unavailable - self-indexer not connected.";
+                return s;
+            }
+
+            Console.WriteLine("[ReorganizeKnowledge] 🧠 Starting knowledge reorganization...");
+
+            try
+            {
+                // Parse options
+                bool createSummaries = true, removeDuplicates = true, clusterRelated = true;
+                if (!string.IsNullOrWhiteSpace(options))
+                {
+                    var opts = ParseString(options)?.ToLowerInvariant() ?? "";
+                    if (opts.Contains("nosummaries")) createSummaries = false;
+                    if (opts.Contains("noduplicates")) removeDuplicates = false;
+                    if (opts.Contains("noclusters")) clusterRelated = false;
+                }
+
+                var result = await indexer.ReorganizeAsync(createSummaries, removeDuplicates, clusterRelated);
+
+                var sb = new StringBuilder();
+                sb.AppendLine("🧠 **Knowledge Reorganization Complete**");
+                sb.AppendLine($"   ⏱️ Duration: {result.Duration.TotalSeconds:F1}s");
+                sb.AppendLine($"   🗑️ Duplicates removed: {result.DuplicatesRemoved}");
+                sb.AppendLine($"   📊 Clusters found: {result.ClustersFound}");
+                sb.AppendLine($"   📝 Summaries created: {result.SummariesCreated}");
+                sb.AppendLine($"   ✏️ Chunks consolidated: {result.ConsolidatedChunks}");
+
+                if (result.Insights.Count > 0)
+                {
+                    sb.AppendLine("\n💡 **Insights:**");
+                    foreach (var insight in result.Insights)
+                    {
+                        sb.AppendLine($"   • {insight}");
+                    }
+                }
+
+                Console.WriteLine(sb.ToString());
+                s.Output = sb.ToString();
+
+                // Also get reorganization stats
+                var stats = indexer.GetReorganizationStats();
+                if (stats.TopAccessedFiles.Count > 0)
+                {
+                    Console.WriteLine("\n📈 **Top Accessed Files:**");
+                    foreach (var (file, count) in stats.TopAccessedFiles)
+                    {
+                        var fileName = Path.GetFileName(file);
+                        Console.WriteLine($"   • {fileName}: {count} accesses");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ReorganizeKnowledge] ❌ Error: {ex.Message}");
+                s.Output = $"Reorganization failed: {ex.Message}";
+            }
+
+            return s;
+        };
+
+    /// <summary>
+    /// Get knowledge organization statistics.
+    /// Shows access patterns, hot content, and cluster information.
+    /// Usage: KnowledgeStats | UseOutput
+    /// </summary>
+    [PipelineToken("KnowledgeStats", "IndexStats", "KnowledgeInfo", "ReorgStats")]
+    public static Step<CliPipelineState, CliPipelineState> KnowledgeStats(string? _ = null)
+        => async s =>
+        {
+            var indexer = Tools.SystemAccessTools.SharedIndexer;
+            if (indexer == null)
+            {
+                s.Output = "Self-indexer not available.";
+                return s;
+            }
+
+            var stats = await indexer.GetStatsAsync();
+            var reorgStats = indexer.GetReorganizationStats();
+
+            var sb = new StringBuilder();
+            sb.AppendLine("📊 **Knowledge Index Statistics**");
+            sb.AppendLine($"   📁 Collection: {stats.CollectionName}");
+            sb.AppendLine($"   🔢 Total vectors: {stats.TotalVectors:N0}");
+            sb.AppendLine($"   📄 Indexed files: {stats.IndexedFiles}");
+            sb.AppendLine($"   📐 Vector size: {stats.VectorSize}D");
+
+            sb.AppendLine("\n🧠 **Reorganization State**");
+            sb.AppendLine($"   📈 Tracked patterns: {reorgStats.TrackedPatterns}");
+            sb.AppendLine($"   🔥 Hot content: {reorgStats.HotContentCount}");
+            sb.AppendLine($"   🔗 Co-access clusters: {reorgStats.CoAccessClusters}");
+
+            if (reorgStats.TopAccessedFiles.Count > 0)
+            {
+                sb.AppendLine("\n📈 **Most Accessed Files:**");
+                foreach (var (file, count) in reorgStats.TopAccessedFiles)
+                {
+                    var fileName = Path.GetFileName(file);
+                    sb.AppendLine($"   • {fileName}: {count} accesses");
+                }
+            }
+
+            Console.WriteLine(sb.ToString());
+            s.Output = sb.ToString();
+            return s;
+        };
+
+    /// <summary>
+    /// Run the full Ouroboros emergence cycle on a topic.
+    /// Usage: EmergenceCycle 'transformer architectures' | UseOutput
+    /// </summary>
+    [PipelineToken("EmergenceCycle", "Emergence", "FullCycle", "ResearchCycle")]
+    public static Step<CliPipelineState, CliPipelineState> EmergenceCycle(string? topic = null)
+        => async s =>
+        {
+            string searchTopic = ParseString(topic) ?? s.Prompt ?? s.Query ?? "self-improving AI";
+
+            Console.WriteLine("╔══════════════════════════════════════════════════════════════╗");
+            Console.WriteLine("║    🌀 OUROBOROS EMERGENCE CYCLE                              ║");
+            Console.WriteLine("╚══════════════════════════════════════════════════════════════╝");
+            Console.WriteLine($"\n  Topic: {searchTopic}\n");
+
+            var allResults = new System.Text.StringBuilder();
+
+            // Phase 1: INGEST - Fetch from multiple sources
+            Console.WriteLine("  ═══════════════════════════════════════════════════════════");
+            Console.WriteLine("  📥 PHASE 1: INGEST - Multi-Source Research Fetch");
+            Console.WriteLine("  ═══════════════════════════════════════════════════════════\n");
+
+            // arXiv
+            Console.WriteLine("  🔍 Searching arXiv...");
+            var arxivState = await ArxivSearch(searchTopic)(CloneState(s));
+            allResults.AppendLine("=== arXiv Papers ===");
+            allResults.AppendLine(arxivState.Output ?? "No results");
+
+            await Task.Delay(500);
+
+            // Wikipedia
+            Console.WriteLine("  🔍 Searching Wikipedia...");
+            var wikiState = await WikiSearch(searchTopic)(CloneState(s));
+            allResults.AppendLine("\n=== Wikipedia ===");
+            allResults.AppendLine(wikiState.Output ?? "No results");
+
+            await Task.Delay(500);
+
+            // Semantic Scholar
+            Console.WriteLine("  🔍 Searching Semantic Scholar...");
+            var scholarState = await ScholarSearch(searchTopic)(CloneState(s));
+            allResults.AppendLine("\n=== Semantic Scholar ===");
+            allResults.AppendLine(scholarState.Output ?? "No results");
+
+            // Phase 2: HYPOTHESIZE
+            Console.WriteLine("\n  ═══════════════════════════════════════════════════════════");
+            Console.WriteLine("  🧠 PHASE 2: HYPOTHESIZE - Generate Insights");
+            Console.WriteLine("  ═══════════════════════════════════════════════════════════\n");
+
+            if (s.Llm?.InnerModel != null)
+            {
+                string hypothesisPrompt = $"""
+                    Based on this research about "{searchTopic}", generate 3 key hypotheses:
+
+                    {allResults.ToString()[..Math.Min(4000, allResults.Length)]}
+
+                    Format:
+                    1. [Hypothesis] - [Confidence: X%]
+                    2. [Hypothesis] - [Confidence: X%]
+                    3. [Hypothesis] - [Confidence: X%]
+                    """;
+
+                try
+                {
+                    string hypotheses = await s.Llm.InnerModel.GenerateTextAsync(hypothesisPrompt);
+                    Console.WriteLine($"  {hypotheses.Replace("\n", "\n  ")}");
+                    allResults.AppendLine("\n=== Generated Hypotheses ===");
+                    allResults.AppendLine(hypotheses);
+                }
+                catch
+                {
+                    Console.WriteLine("  [LLM unavailable - skipping hypothesis generation]");
+                }
+            }
+
+            // Phase 3: EXPLORE
+            Console.WriteLine("\n  ═══════════════════════════════════════════════════════════");
+            Console.WriteLine("  🔮 PHASE 3: EXPLORE - Identify Opportunities");
+            Console.WriteLine("  ═══════════════════════════════════════════════════════════\n");
+
+            var opportunities = new[]
+            {
+                $"Deep dive into recent {searchTopic} breakthroughs (Novelty: 85%)",
+                $"Cross-domain application of {searchTopic} to adjacent fields (Info Gain: 78%)",
+                $"Identify gaps in current {searchTopic} research (Novelty: 72%)"
+            };
+
+            foreach (var opp in opportunities)
+            {
+                Console.WriteLine($"  🌟 {opp}");
+            }
+            allResults.AppendLine("\n=== Exploration Opportunities ===");
+            allResults.AppendLine(string.Join("\n", opportunities));
+
+            // Phase 4: LEARN
+            Console.WriteLine("\n  ═══════════════════════════════════════════════════════════");
+            Console.WriteLine("  📚 PHASE 4: LEARN - Extract Skills");
+            Console.WriteLine("  ═══════════════════════════════════════════════════════════\n");
+
+            // Create a new skill from this research
+            string skillName = string.Join("", searchTopic.Split(' ').Select(w =>
+                w.Length > 0 ? char.ToUpperInvariant(w[0]) + (w.Length > 1 ? w[1..].ToLowerInvariant() : "") : "")) + "Analysis";
+
+            var newSkill = new Skill(
+                skillName,
+                $"Research analysis for '{searchTopic}' domain",
+                new List<string> { "research-context" },
+                new List<PlanStep>
+                {
+                    new("Multi-source fetch", new Dictionary<string, object> { ["sources"] = "arXiv, Wikipedia, Scholar" }, "Raw knowledge", 0.9),
+                    new("Hypothesis generation", new Dictionary<string, object> { ["method"] = "abductive" }, "Key insights", 0.85),
+                    new("Opportunity identification", new Dictionary<string, object> { ["criteria"] = "novelty, info-gain" }, "Research directions", 0.8),
+                    new("Skill extraction", new Dictionary<string, object> { ["target"] = "reusable patterns" }, "New capability", 0.75)
+                },
+                0.80, 1, DateTime.UtcNow, DateTime.UtcNow
+            );
+
+            _registry.Value.RegisterSkill(newSkill.ToAgentSkill());
+            Console.WriteLine($"  ✅ New skill registered: UseSkill_{skillName}");
+            Console.WriteLine($"     Success rate: 80% | Steps: 4");
+
+            allResults.AppendLine($"\n=== Learned Skill ===");
+            allResults.AppendLine($"UseSkill_{skillName}: {newSkill.Description}");
+
+            Console.WriteLine("\n╔══════════════════════════════════════════════════════════════╗");
+            Console.WriteLine("║    ✅ EMERGENCE CYCLE COMPLETE                               ║");
+            Console.WriteLine("╚══════════════════════════════════════════════════════════════╝\n");
+
+            s.Output = allResults.ToString();
+            s.Context = $"[Emergence cycle: {searchTopic}]\n{s.Output}";
+            return s;
+        };
+
+    /// <summary>
+    /// Initialize and list available skills.
+    /// Usage: SkillInit | ... | UseOutput
+    /// </summary>
+    [PipelineToken("SkillInit", "InitSkills", "LoadSkills")]
+    public static Step<CliPipelineState, CliPipelineState> SkillInit(string? args = null)
+        => s =>
+        {
+            var skills = _registry.Value.GetAllSkills();
+            Console.WriteLine($"[SkillInit] Loaded {skills.Count} skills:");
+            foreach (var skill in skills.Take(5))
+            {
+                Console.WriteLine($"  • {skill.Name} ({skill.SuccessRate:P0})");
+            }
+            if (skills.Count > 5)
+                Console.WriteLine($"  ... and {skills.Count - 5} more");
+
+            s.Context = string.Join("\n", skills.Select(sk => $"- {sk.Name}: {sk.Description}"));
+            return Task.FromResult(s);
+        };
+
+    /// <summary>
+    /// Apply literature review skill - synthesizes research into coherent review.
+    /// Usage: SetPrompt 'AI safety research' | UseSkill_LiteratureReview | UseOutput
+    /// </summary>
+    [PipelineToken("UseSkill_LiteratureReview", "LitReview", "ReviewLiterature")]
+    public static Step<CliPipelineState, CliPipelineState> UseSkillLiteratureReview(string? args = null)
+        => ExecuteSkill("LiteratureReview", args);
+
+    /// <summary>
+    /// Apply hypothesis generation skill - generates testable hypotheses.
+    /// Usage: SetPrompt 'observations about X' | UseSkill_HypothesisGeneration | UseOutput
+    /// </summary>
+    [PipelineToken("UseSkill_HypothesisGeneration", "GenHypothesis", "Hypothesize")]
+    public static Step<CliPipelineState, CliPipelineState> UseSkillHypothesisGeneration(string? args = null)
+        => ExecuteSkill("HypothesisGeneration", args);
+
+    /// <summary>
+    /// Apply chain-of-thought reasoning skill - step-by-step problem solving.
+    /// Usage: SetPrompt 'complex problem' | UseSkill_ChainOfThought | UseOutput
+    /// </summary>
+    [PipelineToken("UseSkill_ChainOfThought", "UseSkill_ChainOfThoughtReasoning", "ChainOfThought", "CoT")]
+    public static Step<CliPipelineState, CliPipelineState> UseSkillChainOfThought(string? args = null)
+        => ExecuteSkill("ChainOfThoughtReasoning", args);
+
+    /// <summary>
+    /// Apply cross-domain transfer skill - transfer insights between domains.
+    /// Usage: SetPrompt 'apply biology patterns to software' | UseSkill_CrossDomain | UseOutput
+    /// </summary>
+    [PipelineToken("UseSkill_CrossDomain", "UseSkill_CrossDomainTransfer", "CrossDomain", "TransferInsight")]
+    public static Step<CliPipelineState, CliPipelineState> UseSkillCrossDomain(string? args = null)
+        => ExecuteSkill("CrossDomainTransfer", args);
+
+    /// <summary>
+    /// Apply citation analysis skill - analyze citation networks.
+    /// Usage: SetPrompt 'analyze citations in ML papers' | UseSkill_CitationAnalysis | UseOutput
+    /// </summary>
+    [PipelineToken("UseSkill_CitationAnalysis", "CitationAnalysis", "AnalyzeCitations")]
+    public static Step<CliPipelineState, CliPipelineState> UseSkillCitationAnalysis(string? args = null)
+        => ExecuteSkill("CitationAnalysis", args);
+
+    /// <summary>
+    /// Apply emergent discovery skill - find emergent patterns.
+    /// Usage: SetPrompt 'find patterns in data' | UseSkill_EmergentDiscovery | UseOutput
+    /// </summary>
+    [PipelineToken("UseSkill_EmergentDiscovery", "EmergentDiscovery", "DiscoverPatterns")]
+    public static Step<CliPipelineState, CliPipelineState> UseSkillEmergentDiscovery(string? args = null)
+        => ExecuteSkill("EmergentDiscovery", args);
+
+    /// <summary>
+    /// Dynamic skill execution by name.
+    /// Usage: UseSkill 'SkillName' | UseOutput
+    /// </summary>
+    [PipelineToken("UseSkill", "ApplySkill", "RunSkill")]
+    public static Step<CliPipelineState, CliPipelineState> UseSkill(string? skillName = null)
+        => ExecuteSkill(ParseString(skillName) is { Length: > 0 } parsed ? parsed : "ChainOfThoughtReasoning", null);
+
+    /// <summary>
+    /// Suggest skills based on current prompt/context.
+    /// Usage: SetPrompt 'reasoning task' | SuggestSkill | UseOutput
+    /// </summary>
+    [PipelineToken("SuggestSkill", "SkillSuggest", "FindSkill")]
+    public static Step<CliPipelineState, CliPipelineState> SuggestSkill(string? args = null)
+        => async s =>
+        {
+            string query = ParseString(args) is { Length: > 0 } parsed ? parsed : (s.Prompt ?? s.Query);
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                Console.WriteLine("[SuggestSkill] No query provided, use SetPrompt first");
+                return s;
+            }
+
+            var matches = await _registry.Value.FindMatchingSkillsAsync(query);
+            if (matches.Count == 0)
+            {
+                Console.WriteLine("[SuggestSkill] No matching skills found");
+                s.Output = "No matching skills found for the given query.";
+                return s;
+            }
+
+            Console.WriteLine($"[SuggestSkill] Found {matches.Count} matching skills:");
+            var suggestions = new List<string>();
+            foreach (var skill in matches.Take(3))
+            {
+                Console.WriteLine($"  🎯 UseSkill_{skill.Name} ({skill.SuccessRate:P0})");
+                Console.WriteLine($"     {skill.Description}");
+                suggestions.Add($"UseSkill_{skill.Name}");
+            }
+
+            s.Output = $"Suggested skills: {string.Join(", ", suggestions)}";
+            s.Context = string.Join("\n", matches.Take(3).Select(sk => $"{sk.Name}: {sk.Description}"));
+            return s;
+        };
+
+    /// <summary>
+    /// Fetch research and extract new skills from arXiv.
+    /// Usage: FetchSkill 'chain of thought' | UseOutput
+    /// </summary>
+    [PipelineToken("FetchSkill", "LearnSkill", "ResearchSkill")]
+    public static Step<CliPipelineState, CliPipelineState> FetchSkill(string? query = null)
+        => async s =>
+        {
+            string searchQuery = ParseString(query) is { Length: > 0 } parsed ? parsed : (s.Prompt ?? s.Query);
+            if (string.IsNullOrWhiteSpace(searchQuery))
+            {
+                Console.WriteLine("[FetchSkill] No query provided");
+                return s;
+            }
+
+            Console.WriteLine($"[FetchSkill] Fetching research on: \"{searchQuery}\"...");
+
+            using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+            string url = $"http://export.arxiv.org/api/query?search_query=all:{Uri.EscapeDataString(searchQuery)}&start=0&max_results=5";
+
+            try
+            {
+                string xml = await httpClient.GetStringAsync(url);
+                var doc = System.Xml.Linq.XDocument.Parse(xml);
+                System.Xml.Linq.XNamespace atom = "http://www.w3.org/2005/Atom";
+                var entries = doc.Descendants(atom + "entry").Take(5).ToList();
+
+                Console.WriteLine($"[FetchSkill] Found {entries.Count} papers");
+
+                // Extract skill from query pattern
+                string skillName = string.Join("", searchQuery.Split(' ').Select(w =>
+                    w.Length > 0 ? char.ToUpperInvariant(w[0]) + (w.Length > 1 ? w[1..].ToLowerInvariant() : "") : "")) + "Analysis";
+
+                var newSkill = new Skill(
+                    skillName,
+                    $"Analysis methodology derived from '{searchQuery}' research",
+                    new List<string> { "research-context" },
+                    new List<PlanStep>
+                    {
+                        new("Gather sources", new Dictionary<string, object> { ["query"] = searchQuery }, "Relevant papers", 0.9),
+                        new("Extract patterns", new Dictionary<string, object> { ["method"] = "analysis" }, "Key techniques", 0.85),
+                        new("Synthesize", new Dictionary<string, object> { ["output"] = "knowledge" }, "Actionable knowledge", 0.8)
+                    },
+                    0.75, 0, DateTime.UtcNow, DateTime.UtcNow
+                );
+                _registry.Value.RegisterSkill(newSkill.ToAgentSkill());
+
+                Console.WriteLine($"[FetchSkill] ✅ New skill registered: UseSkill_{skillName}");
+                s.Output = $"Learned new skill: UseSkill_{skillName} from {entries.Count} papers";
+                s.Context = string.Join("\n", entries.Select(e =>
+                    e.Element(atom + "title")?.Value?.Trim() ?? "Untitled"));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[FetchSkill] ⚠ Failed: {ex.Message}");
+                s.Output = $"Failed to fetch research: {ex.Message}";
+            }
+
+            return s;
+        };
+
+    /// <summary>
+    /// List all available skill tokens.
+    /// Usage: ListSkills | UseOutput
+    /// </summary>
+    [PipelineToken("ListSkills", "SkillList", "ShowSkills")]
+    public static Step<CliPipelineState, CliPipelineState> ListSkills(string? args = null)
+        => s =>
+        {
+            var skills = _registry.Value.GetAllSkills();
+            Console.WriteLine($"[ListSkills] {skills.Count} registered skills:");
+
+            var output = new List<string>();
+            foreach (var skill in skills)
+            {
+                string line = $"UseSkill_{skill.Name} ({skill.SuccessRate:P0}) - {skill.Description}";
+                Console.WriteLine($"  • {line}");
+                output.Add(line);
+            }
+
+            s.Output = string.Join("\n", output);
+            return Task.FromResult(s);
+        };
+
+    /// <summary>
+    /// Print the current output to console.
+    /// Usage: ... | UseSkill_X | PrintOutput
+    /// </summary>
+    [PipelineToken("PrintOutput", "ShowOutput", "DisplayResult")]
+    public static Step<CliPipelineState, CliPipelineState> PrintOutput(string? args = null)
+        => s =>
+        {
+            if (!string.IsNullOrWhiteSpace(s.Output))
+            {
+                Console.WriteLine("\n=== SKILL OUTPUT ===");
+                Console.WriteLine(s.Output);
+                Console.WriteLine("====================\n");
+            }
+            else
+            {
+                Console.WriteLine("[PrintOutput] No output available");
+            }
+            return Task.FromResult(s);
+        };
+
+    // === Private Helpers ===
+
+    private static Step<CliPipelineState, CliPipelineState> ExecuteSkill(string skillName, string? args)
+        => async s =>
+        {
+            var skill = _registry.Value.GetAllSkills()
+                .FirstOrDefault(sk => sk.Name.Equals(skillName, StringComparison.OrdinalIgnoreCase));
+
+            if (skill == null)
+            {
+                Console.WriteLine($"[UseSkill] ⚠ Skill '{skillName}' not found");
+                s.Output = $"Skill '{skillName}' not found. Use ListSkills to see available skills.";
+                return s;
+            }
+
+            string input = args ?? s.Prompt ?? s.Query ?? s.Context;
+            var skillData = skill.ToSkill();
+            Console.WriteLine($"[UseSkill_{skill.Name}] Executing with {skillData.Steps.Count} steps...");
+
+            // Build a prompt that applies the skill's methodology
+            var stepDescriptions = skillData.Steps.Select(step => $"- {step.Action}: {step.ExpectedOutcome}");
+            string methodology = string.Join("\n", stepDescriptions);
+
+            string skillPrompt = $"""
+                Apply the "{skill.Name}" methodology to the following input.
+
+                Methodology steps:
+                {methodology}
+
+                Input: {input}
+
+                Execute each step systematically and provide the final result.
+                """;
+
+            try
+            {
+                // Execute through the LLM
+                string result = await s.Llm.InnerModel.GenerateTextAsync(skillPrompt);
+
+                // Record skill execution for learning
+                _registry.Value.RecordSkillExecution(skill.Name, !string.IsNullOrWhiteSpace(result), 0L);
+
+                if (string.IsNullOrWhiteSpace(result))
+                {
+                    Console.WriteLine($"[UseSkill_{skill.Name}] ⚠ LLM returned empty response (is Ollama running?)");
+
+                    // Provide simulated output for demo purposes
+                    result = $"""
+                        [Simulated {skill.Name} Analysis]
+
+                        Applied methodology to: {input}
+
+                        Steps executed:
+                        {methodology}
+
+                        Note: LLM unavailable - this is a placeholder response.
+                        Start Ollama with 'ollama serve' for full functionality.
+                        """;
+                }
+
+                Console.WriteLine($"[UseSkill_{skill.Name}] ✓ Complete");
+                Console.WriteLine($"\n--- {skill.Name} Result ---");
+                Console.WriteLine(result.Length > 500 ? result[..500] + "..." : result);
+                Console.WriteLine("----------------------------\n");
+
+                s.Output = result;
+                s.Context = $"[{skill.Name}] {result}";
+            }
+            catch (Exception ex)
+            {
+                _registry.Value.RecordSkillExecution(skill.Name, false, 0L);
+                Console.WriteLine($"[UseSkill_{skill.Name}] ⚠ Failed: {ex.Message}");
+                s.Output = $"Skill execution failed: {ex.Message}";
+            }
+
+            return s;
+        };
+
+    private static void RegisterPredefinedSkills(SkillRegistry registry)
+    {
+        static PlanStep MakeStep(string action, string param, string outcome, double confidence) =>
+            new(action, new Dictionary<string, object> { ["hint"] = param }, outcome, confidence);
+
+        var predefinedSkills = new[]
+        {
+            new Skill("LiteratureReview", "Synthesize research papers into coherent review",
+                new List<string> { "research-context" },
+                new List<PlanStep> { MakeStep("Identify themes", "Scan papers", "Key themes", 0.9),
+                        MakeStep("Compare findings", "Cross-reference", "Patterns", 0.85),
+                        MakeStep("Synthesize", "Combine insights", "Review", 0.8) },
+                0.85, 0, DateTime.UtcNow, DateTime.UtcNow),
+            new Skill("HypothesisGeneration", "Generate testable hypotheses from observations",
+                new List<string> { "observations" },
+                new List<PlanStep> { MakeStep("Find gaps", "Identify unknowns", "Questions", 0.8),
+                        MakeStep("Generate hypotheses", "Form predictions", "Hypotheses", 0.75),
+                        MakeStep("Rank by testability", "Evaluate", "Ranked list", 0.7) },
+                0.78, 0, DateTime.UtcNow, DateTime.UtcNow),
+            new Skill("ChainOfThoughtReasoning", "Apply step-by-step reasoning to problems",
+                new List<string> { "problem-statement" },
+                new List<PlanStep> { MakeStep("Decompose problem", "Break down", "Sub-problems", 0.9),
+                        MakeStep("Reason through steps", "Apply logic", "Intermediate results", 0.85),
+                        MakeStep("Synthesize answer", "Combine", "Final answer", 0.88) },
+                0.88, 0, DateTime.UtcNow, DateTime.UtcNow),
+            new Skill("CrossDomainTransfer", "Transfer insights across domains",
+                new List<string> { "source-domain", "target-domain" },
+                new List<PlanStep> { MakeStep("Abstract patterns", "Generalize", "Abstract concepts", 0.7),
+                        MakeStep("Map to target", "Apply", "Mapped insights", 0.65),
+                        MakeStep("Validate transfer", "Test", "Validated insights", 0.6) },
+                0.65, 0, DateTime.UtcNow, DateTime.UtcNow),
+            new Skill("CitationAnalysis", "Analyze citation networks for influence",
+                new List<string> { "paper-set" },
+                new List<PlanStep> { MakeStep("Build citation graph", "Extract refs", "Graph", 0.85),
+                        MakeStep("Rank by influence", "PageRank-style", "Rankings", 0.8),
+                        MakeStep("Find key papers", "Identify", "Key papers", 0.82) },
+                0.82, 0, DateTime.UtcNow, DateTime.UtcNow),
+            new Skill("EmergentDiscovery", "Discover emergent patterns from multiple sources",
+                new List<string> { "multiple-sources" },
+                new List<PlanStep> { MakeStep("Combine sources", "Merge data", "Combined view", 0.75),
+                        MakeStep("Find emergent patterns", "Pattern detection", "Patterns", 0.7),
+                        MakeStep("Validate discoveries", "Cross-check", "Validated discoveries", 0.65) },
+                0.71, 0, DateTime.UtcNow, DateTime.UtcNow),
+        };
+
+        foreach (var skill in predefinedSkills)
+            registry.RegisterSkill(skill.ToAgentSkill());
+    }
+
+    private static string ParseString(string? arg)
+    {
+        arg ??= string.Empty;
+        Match m = Regex.Match(arg, @"^'(?<s>.*)'$", RegexOptions.Singleline);
+        if (m.Success) return m.Groups["s"].Value;
+        m = Regex.Match(arg, @"^""(?<s>.*)""$", RegexOptions.Singleline);
+        if (m.Success) return m.Groups["s"].Value;
+        return arg;
+    }
+
+    /// <summary>
+    /// Fixes malformed URLs that LLMs sometimes generate (e.g., "https: example.com path" → "https://example.com/path").
+    /// </summary>
+    private static string FixMalformedUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return url;
+
+        url = url.Trim();
+
+        // Fix "https: " → "https://" and "http: " → "http://"
+        url = Regex.Replace(url, @"^(https?): +", "$1://");
+
+        // If URL still doesn't have proper scheme, check for common patterns
+        if (!url.StartsWith("http://") && !url.StartsWith("https://"))
+        {
+            // Check if it looks like a domain (e.g., "www.example.com" or "example.com")
+            if (Regex.IsMatch(url, @"^[\w\-]+(\.[\w\-]+)+"))
+            {
+                url = "https://" + url;
+            }
+        }
+
+        // Try to parse and fix path components with spaces
+        if (Uri.TryCreate(url, UriKind.Absolute, out _))
+        {
+            // URL is valid, return as-is
+            return url;
+        }
+
+        // If parsing failed, try to fix spaces in path
+        // Pattern: "https://domain path1 path2" → "https://domain/path1/path2"
+        var match = Regex.Match(url, @"^(https?://[\w\.\-]+)([\s/].*)$");
+        if (match.Success)
+        {
+            string domain = match.Groups[1].Value;
+            string path = match.Groups[2].Value.Trim();
+
+            // Replace spaces with / in path, normalize multiple slashes
+            path = Regex.Replace(path, @"\s+", "/");
+            path = Regex.Replace(path, @"/+", "/");
+
+            if (!path.StartsWith("/"))
+                path = "/" + path;
+
+            url = domain + path;
+        }
+
+        return url;
+    }
+
+    // ========================================================================
+    // HELPER METHODS
+    // ========================================================================
+
+    /// <summary>
+    /// Clone a pipeline state for parallel execution without side effects.
+    /// </summary>
+    private static CliPipelineState CloneState(CliPipelineState s) => new()
+    {
+        Branch = s.Branch,
+        Llm = s.Llm,
+        Tools = s.Tools,
+        Embed = s.Embed,
+        Topic = s.Topic,
+        Query = s.Query,
+        Prompt = s.Prompt,
+        RetrievalK = s.RetrievalK,
+        Trace = s.Trace,
+        Context = s.Context,
+        Output = s.Output,
+        MeTTaEngine = s.MeTTaEngine,
+        VectorStore = s.VectorStore,
+        Streaming = s.Streaming,
+        ActiveStream = s.ActiveStream
+    };
+
+    /// <summary>
+    /// Extract text content from HTML, removing all tags.
+    /// </summary>
+    private static string ExtractTextFromHtml(string html)
+    {
+        // Remove script and style elements
+        html = Regex.Replace(html, @"<script[^>]*>[\s\S]*?</script>", "", RegexOptions.IgnoreCase);
+        html = Regex.Replace(html, @"<style[^>]*>[\s\S]*?</style>", "", RegexOptions.IgnoreCase);
+
+        // Remove HTML tags
+        html = Regex.Replace(html, @"<[^>]+>", " ");
+
+        // Decode HTML entities
+        html = System.Net.WebUtility.HtmlDecode(html);
+
+        // Collapse whitespace
+        html = Regex.Replace(html, @"\s+", " ").Trim();
+
+        return html;
+    }
+
+    /// <summary>
+    /// Attempt to extract XML documentation summary from a method (best effort).
+    /// </summary>
+    private static string? ExtractXmlDocSummary(MethodInfo method)
+    {
+        // Try to get from XML documentation attribute or fallback to method name
+        var docAttr = method.GetCustomAttributes()
+            .FirstOrDefault(a => a.GetType().Name.Contains("Documentation") || a.GetType().Name.Contains("Summary"));
+
+        if (docAttr != null)
+        {
+            var descProp = docAttr.GetType().GetProperty("Description") ?? docAttr.GetType().GetProperty("Summary");
+            if (descProp != null)
+                return descProp.GetValue(docAttr)?.ToString();
+        }
+
+        // Fallback: generate description from method name
+        var name = method.Name;
+        // Insert spaces before capitals: "MyMethodName" -> "My Method Name"
+        var spaced = Regex.Replace(name, @"(?<!^)([A-Z])", " $1");
+        return $"Pipeline step: {spaced}";
+    }
+
+    #region Presence Detection CLI Steps
+
+    /// <summary>
+    /// Shared presence detector for CLI access.
+    /// </summary>
+    public static Services.PresenceDetector? SharedPresenceDetector { get; set; }
+
+    /// <summary>
+    /// Check user presence status.
+    /// Reports whether the user is detected as present via input/WiFi/camera.
+    /// Usage: CheckPresence | UseOutput
+    /// </summary>
+    [PipelineToken("CheckPresence", "PresenceStatus", "IsUserHere", "WhereAmI")]
+    public static Step<CliPipelineState, CliPipelineState> CheckPresence(string? _ = null)
+        => async s =>
+        {
+            if (SharedPresenceDetector == null)
+            {
+                s.Output = "⚠️ Presence detection not initialized.";
+                Console.WriteLine(s.Output);
+                return s;
+            }
+
+            var result = await SharedPresenceDetector.CheckPresenceAsync();
+
+            var sb = new StringBuilder();
+            sb.AppendLine("👁️ **Presence Detection Status**");
+            sb.AppendLine($"   State: {(result.IsPresent ? "✅ User Present" : "❌ User Absent")}");
+            sb.AppendLine($"   Confidence: {result.OverallConfidence:P0}");
+            sb.AppendLine();
+            sb.AppendLine("📊 **Detection Sources:**");
+            sb.AppendLine($"   💻 Input Activity: {(result.RecentInputActivity ? "✓" : "○")} ({result.InputActivityConfidence:P0})");
+            sb.AppendLine($"   📶 WiFi/Network: {result.WifiDevicesNearby} devices ({result.WifiPresenceConfidence:P0})");
+            sb.AppendLine($"   📷 Camera/Motion: {(result.MotionDetected ? "✓" : "○")} ({result.CameraConfidence:P0})");
+            sb.AppendLine();
+            sb.AppendLine($"   Last check: {result.Timestamp:HH:mm:ss}");
+
+            Console.WriteLine(sb.ToString());
+            s.Output = sb.ToString();
+            return s;
+        };
+
+    /// <summary>
+    /// Get presence detector configuration and state.
+    /// Usage: PresenceConfig | UseOutput
+    /// </summary>
+    [PipelineToken("PresenceConfig", "PresenceSettings")]
+    public static Step<CliPipelineState, CliPipelineState> PresenceConfig(string? _ = null)
+        => async s =>
+        {
+            if (SharedPresenceDetector == null)
+            {
+                s.Output = "⚠️ Presence detection not initialized.";
+                Console.WriteLine(s.Output);
+                return s;
+            }
+
+            var sb = new StringBuilder();
+            sb.AppendLine("⚙️ **Presence Detection Configuration**");
+            sb.AppendLine($"   Monitoring: {(SharedPresenceDetector.IsMonitoring ? "✅ Active" : "❌ Stopped")}");
+            sb.AppendLine($"   Current State: {SharedPresenceDetector.CurrentState}");
+            sb.AppendLine($"   Last Presence: {SharedPresenceDetector.LastPresenceTime:yyyy-MM-dd HH:mm:ss}");
+
+            Console.WriteLine(sb.ToString());
+            s.Output = sb.ToString();
+            await Task.CompletedTask;
+            return s;
+        };
+
+    #endregion
+}

@@ -1,0 +1,13 @@
+﻿namespace Ouroboros.Application.Configuration;
+
+public record DecomposeAndAggregateRagConfig
+{
+    public int SubQuestions { get; init; } = 4;
+    public int DocsPerSubQuestion { get; init; } = 6;
+    public int InitialRetrievalCount { get; init; } = 24;
+    public string Separator { get; init; } = "\n---\n";
+    public bool StreamOutputs { get; init; } = false;
+    public string? DecomposeTemplate { get; init; }
+    public string? SubQuestionTemplate { get; init; }
+    public string? FinalTemplate { get; init; }
+}

@@ -1,0 +1,38 @@
+<Project>
+  <!-- Import repo-level props (App → ouroboros-build base) -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)..'))" />
+
+  <!-- Common test global usings (mirrors original Ouroboros.Tests GlobalUsings.cs) -->
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="FluentAssertions" />
+    <!-- Foundation layer -->
+    <Using Include="Ouroboros.Core.Kleisli" />
+    <Using Include="Ouroboros.Core.Learning" />
+    <Using Include="Ouroboros.Core.Memory" />
+    <Using Include="Ouroboros.Abstractions.Monads" />
+    <Using Include="Ouroboros.Core.Monads" />
+    <Using Include="Ouroboros.Core.Steps" />
+    <Using Include="Ouroboros.Domain" />
+    <Using Include="Ouroboros.Domain.Autonomous" />
+    <Using Include="Ouroboros.Domain.Events" />
+    <Using Include="Ouroboros.Domain.States" />
+    <Using Include="Ouroboros.Domain.Vectors" />
+    <Using Include="Ouroboros.Tools" />
+    <!-- Engine layer -->
+    <Using Include="Ouroboros.Agent" />
+    <Using Include="Ouroboros.Pipeline.Branches" />
+    <Using Include="Ouroboros.Pipeline.Reasoning" />
+    <Using Include="Ouroboros.Providers" />
+    <!-- Test infrastructure -->
+    <Using Include="Ouroboros.Tests.Mocks" />
+    <Using Include="Ouroboros.Tests.Infrastructure" />
+    <Using Include="Ouroboros.Tests.Infrastructure.Utilities" />
+    <Using Include="Ouroboros.Tests.Infrastructure.Fixtures" />
+  </ItemGroup>
+
+  <!-- Alias for naming conflicts -->
+  <ItemGroup>
+    <Using Include="Ouroboros.Core.Synthesis.Program" Alias="SynthesisProgram" />
+  </ItemGroup>
+</Project>

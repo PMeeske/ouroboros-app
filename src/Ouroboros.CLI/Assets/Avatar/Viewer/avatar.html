@@ -1,0 +1,1987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
+<title>Iaret — Living Avatar</title>
+<style>
+  :root {
+    --aura-color: rgba(147, 51, 234, 0.35);
+    --aura-color-strong: rgba(147, 51, 234, 0.6);
+    --gold: #d4a843;
+    --gold-glow: rgba(212, 168, 67, 0.5);
+    --violet: #9333ea;
+    --violet-deep: #581c87;
+    --cosmic-bg: #0a0612;
+    --holo-cyan: rgba(0, 255, 220, 0.7);
+    --holo-violet: rgba(147, 51, 234, 0.5);
+    --energy: 0.5;
+    --positivity: 0.5;
+    --breath-duration: 4.5s;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--cosmic-bg);
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    cursor: default;
+    user-select: none;
+  }
+
+  /* ── Cosmic background ── */
+  #cosmos {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+  }
+
+  /* ══════════════════════════════════════
+     AVATAR STAGE
+     ══════════════════════════════════════ */
+
+  #avatar-stage {
+    position: relative;
+    width: min(85vh, 85vw);
+    height: min(85vh, 85vw);
+    z-index: 1;
+    /* Topic-based positioning — driven by JS via CSS custom properties */
+    transform: translate(var(--stage-x, 0px), var(--stage-y, 0px)) scale(var(--stage-scale, 1));
+    transition: width  0.8s cubic-bezier(0.4, 0, 0.2, 1),
+                height 0.8s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 1.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  body.fullbody #avatar-stage {
+    width: min(45vw, 60vh);
+    height: min(90vh, 120vw);
+  }
+
+  /* ── Aura rings ── */
+  .aura {
+    position: absolute;
+    inset: -8%;
+    border-radius: 50%;
+    pointer-events: none;
+    transition: all 0.8s ease;
+  }
+  .aura-outer {
+    background: radial-gradient(ellipse at center,
+      transparent 50%,
+      var(--aura-color) 70%,
+      transparent 85%);
+    animation: aura-pulse var(--breath-duration) ease-in-out infinite;
+  }
+  .aura-inner {
+    inset: 2%;
+    background: radial-gradient(ellipse at center,
+      transparent 55%,
+      var(--aura-color-strong) 72%,
+      transparent 80%);
+    animation: aura-pulse var(--breath-duration) ease-in-out infinite;
+    animation-delay: calc(var(--breath-duration) * -0.5);
+  }
+
+  body.fullbody .aura {
+    border-radius: 40% / 50%;
+    inset: -6% -15%;
+  }
+
+  /* Holographic aura override — cyan shift */
+  body.holographic .aura-outer {
+    background: radial-gradient(ellipse at center,
+      transparent 50%,
+      rgba(0, 255, 220, 0.25) 70%,
+      transparent 85%);
+  }
+  body.holographic .aura-inner {
+    background: radial-gradient(ellipse at center,
+      transparent 55%,
+      rgba(0, 255, 220, 0.35) 72%,
+      transparent 80%);
+  }
+
+  @keyframes aura-pulse {
+    0%, 100% { transform: scale(1); opacity: 0.6; }
+    50% { transform: scale(1.05); opacity: 1; }
+  }
+
+  /* ── Portrait frame ── */
+  #portrait-frame {
+    position: absolute;
+    inset: 5%;
+    border-radius: 50%;
+    overflow: hidden;
+    animation: breathe var(--breath-duration) ease-in-out infinite;
+    box-shadow:
+      0 0 40px var(--aura-color),
+      0 0 80px rgba(147, 51, 234, 0.15),
+      inset 0 0 30px rgba(0, 0, 0, 0.4);
+    transition: border-radius 0.8s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.8s ease;
+  }
+
+  body.fullbody #portrait-frame {
+    border-radius: 20px;
+    inset: 3%;
+  }
+
+  /* Holographic frame glow */
+  body.holographic #portrait-frame {
+    box-shadow:
+      0 0 40px rgba(0, 255, 220, 0.3),
+      0 0 80px rgba(0, 255, 220, 0.1),
+      inset 0 0 30px rgba(0, 0, 0, 0.4);
+  }
+
+  @keyframes breathe {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.012); }
+  }
+
+  /* ── Avatar images (layered for crossfade) ── */
+  .avatar-layer {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+    opacity: 0;
+    transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: opacity;
+  }
+  .avatar-layer.active {
+    opacity: 1;
+  }
+
+  .avatar-layer.fullbody-layer {
+    object-fit: contain;
+    object-position: center center;
+  }
+
+  /* ══════════════════════════════════════
+     HOLOGRAPHIC WIREFRAME OVERLAY
+     ══════════════════════════════════════ */
+
+  /* Holographic layer sits on top, fades in during Thinking */
+  .holo-layer {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: opacity;
+    mix-blend-mode: screen;
+    filter: brightness(1.2) saturate(1.3);
+  }
+  .holo-layer.fullbody-holo {
+    object-fit: contain;
+    object-position: center center;
+  }
+  .holo-layer.active {
+    opacity: 0.85;
+  }
+
+  /* Scanline overlay — only visible in holographic mode */
+  #scanlines {
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 2px,
+      rgba(0, 255, 220, 0.03) 2px,
+      rgba(0, 255, 220, 0.03) 4px
+    );
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 1s ease;
+    z-index: 2;
+  }
+  body.holographic #scanlines {
+    opacity: 1;
+    animation: scanline-drift 8s linear infinite;
+  }
+
+  @keyframes scanline-drift {
+    0% { background-position: 0 0; }
+    100% { background-position: 0 200px; }
+  }
+
+  /* Holographic glitch flicker */
+  #holo-glitch {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 3;
+    mix-blend-mode: screen;
+  }
+  body.holographic #holo-glitch {
+    animation: holo-flicker 4s ease-in-out infinite;
+  }
+
+  @keyframes holo-flicker {
+    0%, 92%, 95%, 100% { opacity: 0; }
+    93% { opacity: 0.4; background: rgba(0, 255, 220, 0.08); transform: translateX(2px); }
+    94% { opacity: 0.2; background: rgba(147, 51, 234, 0.08); transform: translateX(-1px); }
+  }
+
+  /* Data stream text during holographic mode */
+  #holo-data {
+    position: absolute;
+    top: 8%;
+    right: 6%;
+    font-family: 'Courier New', monospace;
+    font-size: 0.55rem;
+    line-height: 1.4;
+    color: rgba(0, 255, 220, 0);
+    text-align: right;
+    pointer-events: none;
+    z-index: 4;
+    transition: color 1s ease;
+    text-shadow: 0 0 6px rgba(0, 255, 220, 0.5);
+    max-width: 35%;
+    overflow: hidden;
+  }
+  body.holographic #holo-data {
+    color: rgba(0, 255, 220, 0.45);
+  }
+
+  /* ── Eye shimmer overlay ── */
+  #eye-shimmer {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      ellipse 30% 8% at 42% 35%,
+      rgba(255, 255, 255, 0.12) 0%,
+      transparent 100%),
+    radial-gradient(
+      ellipse 30% 8% at 58% 35%,
+      rgba(255, 255, 255, 0.12) 0%,
+      transparent 100%);
+    opacity: 0;
+    animation: eye-glint 6s ease-in-out infinite;
+    pointer-events: none;
+    transition: background 0.8s ease;
+  }
+
+  body.fullbody #eye-shimmer {
+    background: radial-gradient(
+      ellipse 20% 4% at 45% 18%,
+      rgba(255, 255, 255, 0.10) 0%,
+      transparent 100%),
+    radial-gradient(
+      ellipse 20% 4% at 55% 18%,
+      rgba(255, 255, 255, 0.10) 0%,
+      transparent 100%);
+  }
+
+  @keyframes eye-glint {
+    0%, 85%, 100% { opacity: 0; }
+    90% { opacity: 1; }
+    95% { opacity: 0; }
+  }
+
+  /* ── Blink overlay ── */
+  #blink-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to bottom,
+      transparent 28%,
+      rgba(10, 6, 18, 0.7) 33%,
+      rgba(10, 6, 18, 0.7) 37%,
+      transparent 42%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.08s ease;
+  }
+
+  body.fullbody #blink-overlay {
+    background: linear-gradient(
+      to bottom,
+      transparent 14%,
+      rgba(10, 6, 18, 0.7) 17%,
+      rgba(10, 6, 18, 0.7) 20%,
+      transparent 23%);
+  }
+
+  /* ── Speaking indicator ── */
+  #speak-glow {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      ellipse 25% 12% at 50% 68%,
+      var(--gold-glow) 0%,
+      transparent 100%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  body.fullbody #speak-glow {
+    background: radial-gradient(
+      ellipse 18% 5% at 50% 28%,
+      var(--gold-glow) 0%,
+      transparent 100%);
+  }
+  #speak-glow.active {
+    animation: speak-pulse 0.6s ease-in-out infinite alternate;
+  }
+
+  @keyframes speak-pulse {
+    0% { opacity: 0.15; }
+    100% { opacity: 0.45; }
+  }
+
+  /* ══════════════════════════════════════
+     LIP MOVEMENT & FACIAL EXPRESSIONS
+     ══════════════════════════════════════ */
+
+  /* Lip sync overlay — simulates mouth opening/closing via masked scale */
+  #lip-sync {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  /* Mouth region mask — portrait mode: mouth ~65-72% down the frame */
+  #lip-mask {
+    position: absolute;
+    left: 30%;
+    right: 30%;
+    top: 62%;
+    height: 12%;
+    overflow: hidden;
+    border-radius: 40%;
+  }
+  body.fullbody #lip-mask {
+    left: 38%;
+    right: 38%;
+    top: 25%;
+    height: 6%;
+  }
+
+  /* Inner element — jaw transform driven by RAF amplitude engine */
+  #lip-mask-inner {
+    position: absolute;
+    inset: -2px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: inherit;
+    transform-origin: center top;
+    transform: scaleY(0.1);
+    opacity: 0;
+    will-change: transform, opacity;
+  }
+
+  /* No CSS animation — RAF engine writes inline style directly */
+  #lip-sync.active #lip-mask-inner {
+    will-change: transform, opacity;
+  }
+
+  /* Jaw shadow — driven by RAF engine */
+  #jaw-shadow {
+    position: absolute;
+    left: 28%;
+    right: 28%;
+    top: 68%;
+    height: 10%;
+    background: radial-gradient(
+      ellipse 100% 100% at 50% 0%,
+      rgba(0, 0, 0, 0.15) 0%,
+      transparent 70%);
+    pointer-events: none;
+    transform-origin: center top;
+    opacity: 0;
+    will-change: transform, opacity;
+  }
+  body.fullbody #jaw-shadow {
+    left: 36%;
+    right: 36%;
+    top: 27%;
+    height: 5%;
+  }
+  #lip-sync.active ~ #jaw-shadow {
+    will-change: transform, opacity;
+  }
+
+  /* ── Micro-expression transforms ── */
+  /* Subtle movement applied to the portrait frame content for each state */
+  #portrait-frame {
+    --expr-x: 0px;
+    --expr-y: 0px;
+    --expr-scale: 1;
+    --expr-rotate: 0deg;
+  }
+
+  #portrait-frame .avatar-layer.active {
+    transform: translate(var(--expr-x), var(--expr-y))
+               scale(var(--expr-scale))
+               rotate(var(--expr-rotate));
+    transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Idle: perfectly centered, gentle breathing sway */
+  body.expr-idle #portrait-frame {
+    --expr-x: 0px; --expr-y: 0px; --expr-scale: 1; --expr-rotate: 0deg;
+  }
+
+  /* Listening: noticeable tilt toward speaker, attentive lean */
+  body.expr-listening #portrait-frame {
+    --expr-x: -3px; --expr-y: -2px; --expr-scale: 1.012; --expr-rotate: -1.2deg;
+  }
+  body.expr-listening #portrait-frame .avatar-layer.active {
+    animation: listen-sway 3.5s ease-in-out infinite;
+  }
+  @keyframes listen-sway {
+    0%, 100% { transform: translate(-3px, -2px) scale(1.012) rotate(-1.2deg); }
+    50%      { transform: translate(2px, 0px) scale(1.012) rotate(0.8deg); }
+  }
+
+  /* Thinking: clear furrow, zoom on face, slow drift */
+  body.expr-thinking #portrait-frame {
+    --expr-x: -1px; --expr-y: -4px; --expr-scale: 1.03; --expr-rotate: -0.5deg;
+  }
+  body.expr-thinking #portrait-frame .avatar-layer.active {
+    animation: think-drift 5s ease-in-out infinite;
+  }
+  @keyframes think-drift {
+    0%, 100% { transform: translate(-1px, -4px) scale(1.03) rotate(-0.5deg); }
+    30%      { transform: translate(-3px, -3px) scale(1.035) rotate(-1deg); }
+    70%      { transform: translate(2px, -4px) scale(1.025) rotate(0.5deg); }
+  }
+
+  /* Speaking: animated jaw movement, direct engagement, forward lean */
+  body.expr-speaking #portrait-frame {
+    --expr-x: 0px; --expr-y: -1px; --expr-scale: 1.018; --expr-rotate: 0deg;
+  }
+  body.expr-speaking #portrait-frame .avatar-layer.active {
+    animation: speak-micro 0.8s ease-in-out infinite;
+  }
+  @keyframes speak-micro {
+    0%, 100% { transform: translate(0, -1px) scale(1.018) rotate(0deg); }
+    25%      { transform: translate(0.5px, 0px) scale(1.018) rotate(0.3deg); }
+    50%      { transform: translate(0, -2px) scale(1.022) rotate(0deg); }
+    75%      { transform: translate(-0.5px, -0.5px) scale(1.018) rotate(-0.3deg); }
+  }
+
+  /* Encouraging: warm lean forward, gentle warmth overlay */
+  body.expr-encouraging #portrait-frame {
+    --expr-x: 1px; --expr-y: -3px; --expr-scale: 1.025; --expr-rotate: 0.8deg;
+  }
+
+  /* Warmth glow for encouraging state */
+  #warmth-overlay {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      ellipse 70% 50% at 50% 45%,
+      rgba(212, 168, 67, 0.12) 0%,
+      transparent 70%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 1.2s ease;
+    z-index: 1;
+  }
+  body.expr-encouraging #warmth-overlay {
+    opacity: 1;
+    animation: warmth-pulse 2.5s ease-in-out infinite;
+  }
+  @keyframes warmth-pulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+
+  /* ── Brow region overlay — furrow during thinking ── */
+  #brow-overlay {
+    position: absolute;
+    left: 25%;
+    right: 25%;
+    top: 28%;
+    height: 8%;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+  }
+  body.fullbody #brow-overlay {
+    left: 35%;
+    right: 35%;
+    top: 14%;
+    height: 4%;
+  }
+  body.expr-thinking #brow-overlay {
+    opacity: 1;
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(30, 10, 50, 0.22) 40%,
+      rgba(30, 10, 50, 0.22) 60%,
+      transparent 100%);
+    animation: brow-furrow 5s ease-in-out infinite;
+  }
+  @keyframes brow-furrow {
+    0%, 100% { transform: scaleY(1); opacity: 0.7; }
+    50%      { transform: scaleY(1.3); opacity: 1; }
+  }
+
+  /* ── Gold ring border ── */
+  #gold-ring {
+    position: absolute;
+    inset: 4.5%;
+    border-radius: 50%;
+    border: 2px solid var(--gold);
+    opacity: 0.4;
+    pointer-events: none;
+    box-shadow: 0 0 15px var(--gold-glow), inset 0 0 15px var(--gold-glow);
+    animation: ring-breathe var(--breath-duration) ease-in-out infinite;
+    transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  body.fullbody #gold-ring {
+    border-radius: 18px;
+    inset: 2.5%;
+  }
+
+  /* Holographic ring shifts to cyan */
+  body.holographic #gold-ring {
+    border-color: rgba(0, 255, 220, 0.5);
+    box-shadow: 0 0 15px rgba(0, 255, 220, 0.3), inset 0 0 15px rgba(0, 255, 220, 0.15);
+  }
+
+  @keyframes ring-breathe {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.6; }
+  }
+
+  /* ── Full-body ground glow ── */
+  #ground-glow {
+    display: none;
+    position: absolute;
+    bottom: -5%;
+    left: -10%;
+    right: -10%;
+    height: 25%;
+    background: radial-gradient(
+      ellipse 60% 100% at 50% 100%,
+      var(--aura-color-strong) 0%,
+      var(--aura-color) 40%,
+      transparent 80%);
+    pointer-events: none;
+    animation: ground-pulse var(--breath-duration) ease-in-out infinite;
+    filter: blur(8px);
+    transition: background 0.8s ease;
+  }
+  body.fullbody #ground-glow { display: block; }
+
+  body.holographic #ground-glow {
+    background: radial-gradient(
+      ellipse 60% 100% at 50% 100%,
+      rgba(0, 255, 220, 0.35) 0%,
+      rgba(0, 255, 220, 0.15) 40%,
+      transparent 80%);
+  }
+
+  @keyframes ground-pulse {
+    0%, 100% { opacity: 0.4; transform: scaleX(1); }
+    50% { opacity: 0.7; transform: scaleX(1.05); }
+  }
+
+  /* ── Turnaround angle indicator ── */
+  #angle-indicator {
+    display: none;
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    pointer-events: none;
+  }
+  body.fullbody #angle-indicator { display: flex; }
+
+  .angle-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin: 0 6px;
+    background: rgba(147, 51, 234, 0.25);
+    border: 1px solid rgba(147, 51, 234, 0.3);
+    transition: all 0.4s ease;
+  }
+  .angle-dot.active {
+    background: var(--gold);
+    border-color: var(--gold);
+    box-shadow: 0 0 8px var(--gold-glow);
+    transform: scale(1.3);
+  }
+
+  .angle-label {
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    color: rgba(192, 160, 255, 0.5);
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  body.fullbody .angle-label { opacity: 1; }
+
+  /* ── Mode toggle button ── */
+  #mode-toggle {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 10;
+    background: rgba(147, 51, 234, 0.15);
+    border: 1px solid rgba(147, 51, 234, 0.3);
+    border-radius: 6px;
+    color: rgba(192, 160, 255, 0.7);
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: inherit;
+    text-transform: uppercase;
+  }
+  #mode-toggle:hover {
+    background: rgba(147, 51, 234, 0.3);
+    color: var(--gold);
+    border-color: var(--gold);
+  }
+
+  /* Holo indicator badge */
+  #holo-badge {
+    position: fixed;
+    top: 44px;
+    left: 16px;
+    z-index: 10;
+    font-size: 0.55rem;
+    letter-spacing: 0.2em;
+    color: rgba(0, 255, 220, 0);
+    text-transform: uppercase;
+    pointer-events: none;
+    transition: color 0.8s ease;
+  }
+  body.holographic #holo-badge {
+    color: rgba(0, 255, 220, 0.6);
+    animation: holo-badge-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes holo-badge-pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+
+  /* ── Status HUD ── */
+  #hud {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    text-align: center;
+    pointer-events: none;
+  }
+
+  #persona-name {
+    font-size: 1.3rem;
+    font-weight: 300;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--gold);
+    text-shadow: 0 0 20px var(--gold-glow);
+    margin-bottom: 6px;
+    transition: color 0.8s ease, text-shadow 0.8s ease;
+  }
+
+  body.holographic #persona-name {
+    color: var(--holo-cyan);
+    text-shadow: 0 0 20px rgba(0, 255, 220, 0.5);
+  }
+
+  #status-text {
+    font-size: 0.8rem;
+    letter-spacing: 0.15em;
+    color: rgba(192, 160, 255, 0.7);
+    transition: all 0.6s ease;
+  }
+
+  #mood-bar {
+    margin-top: 8px;
+    height: 2px;
+    width: 200px;
+    background: rgba(147, 51, 234, 0.2);
+    border-radius: 1px;
+    overflow: hidden;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  #mood-fill {
+    height: 100%;
+    width: 50%;
+    background: linear-gradient(90deg, var(--violet), var(--gold));
+    border-radius: 1px;
+    transition: width 1.5s ease, background 1.5s ease;
+  }
+
+  body.holographic #mood-fill {
+    background: linear-gradient(90deg, var(--violet), var(--holo-cyan));
+  }
+
+  /* ── Connection indicator ── */
+  #connection {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.7rem;
+    color: rgba(192, 160, 255, 0.5);
+    letter-spacing: 0.1em;
+  }
+
+  #conn-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #555;
+    transition: background 0.5s ease;
+  }
+  #conn-dot.connected { background: #4ade80; box-shadow: 0 0 8px rgba(74, 222, 128, 0.5); }
+  #conn-dot.reconnecting { background: #facc15; animation: blink-dot 1s infinite; }
+
+  @keyframes blink-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* ── Floating particles ── */
+  .particle {
+    position: fixed;
+    color: var(--gold);
+    opacity: 0;
+    pointer-events: none;
+    font-size: 14px;
+    animation: float-up linear infinite;
+    will-change: transform, opacity;
+  }
+
+  @keyframes float-up {
+    0%   { transform: translateY(0) rotate(0deg) scale(0.5); opacity: 0; }
+    15%  { opacity: 0.6; }
+    85%  { opacity: 0.3; }
+    100% { transform: translateY(-100vh) rotate(360deg) scale(0.2); opacity: 0; }
+  }
+
+  /* ── Gaze / pupil highlight overlay ── */
+  #gaze-highlight {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    opacity: 0.55;
+    transition: opacity 0.4s ease;
+    will-change: background;
+  }
+  body.fullbody #gaze-highlight { opacity: 0; }
+
+  /* ── Deep breath flash overlay ── */
+  #breath-flash {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    background: radial-gradient(ellipse 60% 40% at 50% 50%,
+      rgba(147, 51, 234, 0.06) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 1.2s ease;
+  }
+
+  /* ── Vision stream overlay ── */
+  #vision-stream {
+    position: fixed;
+    bottom: 60px;
+    left: 20px;
+    right: 20px;
+    max-height: 35vh;
+    overflow-y: auto;
+    z-index: 1000;
+    background: linear-gradient(135deg,
+      rgba(10, 6, 18, 0.92) 0%,
+      rgba(20, 10, 40, 0.88) 100%);
+    border: 1px solid rgba(147, 51, 234, 0.3);
+    border-radius: 12px;
+    padding: 14px 18px;
+    font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: rgba(200, 180, 255, 0.9);
+    backdrop-filter: blur(16px);
+    box-shadow:
+      0 0 30px rgba(147, 51, 234, 0.15),
+      inset 0 0 30px rgba(147, 51, 234, 0.05);
+    display: none;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(147, 51, 234, 0.3) transparent;
+    transition: opacity 0.4s ease;
+  }
+  #vision-stream.active { display: block; }
+  #vision-stream::-webkit-scrollbar { width: 4px; }
+  #vision-stream::-webkit-scrollbar-track { background: transparent; }
+  #vision-stream::-webkit-scrollbar-thumb { background: rgba(147, 51, 234, 0.4); border-radius: 2px; }
+
+  #vision-stream .vs-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: rgba(147, 51, 234, 0.7);
+  }
+  #vision-stream .vs-header .vs-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #9333ea;
+    animation: vs-pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes vs-pulse {
+    0%, 100% { opacity: 0.4; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1.2); }
+  }
+  #vision-stream .vs-state {
+    color: rgba(0, 255, 220, 0.7);
+    font-weight: 600;
+  }
+  #vision-stream .vs-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  #vision-stream .vs-cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    background: rgba(147, 51, 234, 0.8);
+    margin-left: 1px;
+    animation: vs-blink 0.8s step-end infinite;
+    vertical-align: text-bottom;
+  }
+  @keyframes vs-blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="cosmos"></canvas>
+
+<div id="avatar-stage">
+  <div class="aura aura-outer"></div>
+  <div class="aura aura-inner"></div>
+
+  <div id="portrait-frame">
+    <!-- Portrait mode layers (bust) -->
+    <img class="avatar-layer portrait-layer active" id="layer-idle"        src="idle.png"        alt="" draggable="false">
+    <img class="avatar-layer portrait-layer"        id="layer-listening"   src="listening.png"   alt="" draggable="false">
+    <img class="avatar-layer portrait-layer"        id="layer-thinking"    src="thinking.png"    alt="" draggable="false">
+    <img class="avatar-layer portrait-layer"        id="layer-speaking"    src="speaking.png"    alt="" draggable="false">
+    <img class="avatar-layer portrait-layer"        id="layer-encouraging" src="encouraging.png" alt="" draggable="false">
+
+    <!-- Full-body mode layers (turnaround angles) -->
+    <img class="avatar-layer fullbody-layer" id="layer-fb-front"        src="fullbody_front.png"        alt="" draggable="false">
+    <img class="avatar-layer fullbody-layer" id="layer-fb-threequarter" src="fullbody_threequarter.png" alt="" draggable="false">
+    <img class="avatar-layer fullbody-layer" id="layer-fb-side"         src="fullbody_side.png"         alt="" draggable="false">
+    <img class="avatar-layer fullbody-layer" id="layer-fb-back"         src="fullbody_back.png"         alt="" draggable="false">
+    <img class="avatar-layer fullbody-layer" id="layer-fb-sideleft"     src="fullbody_sideleft.png"     alt="" draggable="false">
+
+    <!-- Holographic wireframe layers (overlay during Thinking) -->
+    <img class="holo-layer portrait-holo" id="holo-portrait"    src="holo_portrait.png"    alt="" draggable="false">
+    <img class="holo-layer fullbody-holo" id="holo-fb-front"    src="holo_front.png"       alt="" draggable="false">
+    <img class="holo-layer fullbody-holo" id="holo-fb-34"       src="holo_threequarter.png" alt="" draggable="false">
+    <img class="holo-layer fullbody-holo" id="holo-fb-side"     src="holo_side.png"        alt="" draggable="false">
+    <img class="holo-layer fullbody-holo" id="holo-fb-back"     src="holo_back.png"        alt="" draggable="false">
+    <img class="holo-layer fullbody-holo" id="holo-fb-sideleft" src="holo_sideleft.png"    alt="" draggable="false">
+
+    <div id="scanlines"></div>
+    <div id="holo-glitch"></div>
+    <div id="holo-data"></div>
+
+    <div id="eye-shimmer"></div>
+    <div id="blink-overlay"></div>
+    <div id="speak-glow"></div>
+    <div id="lip-sync"><div id="lip-mask"><div id="lip-mask-inner"></div></div></div>
+    <div id="jaw-shadow"></div>
+    <div id="brow-overlay"></div>
+    <div id="warmth-overlay"></div>
+    <div id="gaze-highlight"></div>
+    <div id="breath-flash"></div>
+
+    <!-- Live AI-generated video frame canvas (overlays static portrait when stream active) -->
+    <canvas id="avatarCanvas" style="position:absolute;top:0;left:0;width:100%;height:100%;display:none;border-radius:inherit;object-fit:cover;z-index:50;"></canvas>
+  </div>
+
+  <div id="gold-ring"></div>
+  <div id="ground-glow"></div>
+</div>
+
+<!-- Turnaround angle dots -->
+<div id="angle-indicator">
+  <span class="angle-label" id="angle-name">front</span>
+  <div class="angle-dot active" data-angle="0"></div>
+  <div class="angle-dot" data-angle="1"></div>
+  <div class="angle-dot" data-angle="2"></div>
+  <div class="angle-dot" data-angle="3"></div>
+  <div class="angle-dot" data-angle="4"></div>
+</div>
+
+<button id="mode-toggle">Portrait</button>
+<div id="holo-badge">HOLOGRAPHIC</div>
+
+<div id="hud">
+  <div id="persona-name">Iaret</div>
+  <div id="status-text">Awakening...</div>
+  <div id="mood-bar"><div id="mood-fill"></div></div>
+</div>
+
+<div id="connection">
+  <span id="conn-dot"></span>
+  <span id="conn-label">DISCONNECTED</span>
+</div>
+
+<div id="vision-stream">
+  <div class="vs-header">
+    <span class="vs-dot"></span>
+    <span>Vision Stream</span>
+    <span class="vs-state" id="vs-state"></span>
+  </div>
+  <div class="vs-text" id="vs-text"></div><span class="vs-cursor" id="vs-cursor"></span>
+</div>
+
+<div id="particles"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  Cosmic background — star field on canvas
+// ═══════════════════════════════════════════════
+const cosmos = document.getElementById('cosmos');
+const ctx = cosmos.getContext('2d');
+let stars = [];
+
+function resizeCosmos() {
+  cosmos.width = window.innerWidth;
+  cosmos.height = window.innerHeight;
+  initStars();
+}
+
+function initStars() {
+  stars = [];
+  const count = Math.floor((cosmos.width * cosmos.height) / 3000);
+  for (let i = 0; i < count; i++) {
+    stars.push({
+      x: Math.random() * cosmos.width,
+      y: Math.random() * cosmos.height,
+      r: Math.random() * 1.5 + 0.3,
+      a: Math.random(),
+      speed: Math.random() * 0.0008 + 0.0002,
+      phase: Math.random() * Math.PI * 2,
+    });
+  }
+}
+
+function drawCosmos(t) {
+  ctx.clearRect(0, 0, cosmos.width, cosmos.height);
+
+  const grd = ctx.createRadialGradient(
+    cosmos.width * 0.5, cosmos.height * 0.45, 0,
+    cosmos.width * 0.5, cosmos.height * 0.45, cosmos.width * 0.7
+  );
+  grd.addColorStop(0, 'rgba(88, 28, 135, 0.08)');
+  grd.addColorStop(0.5, 'rgba(59, 7, 100, 0.04)');
+  grd.addColorStop(1, 'transparent');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, 0, cosmos.width, cosmos.height);
+
+  for (const s of stars) {
+    const twinkle = 0.4 + 0.6 * Math.sin(t * s.speed * 1000 + s.phase);
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(210, 190, 255, ${s.a * twinkle})`;
+    ctx.fill();
+  }
+
+  requestAnimationFrame(drawCosmos);
+}
+
+window.addEventListener('resize', resizeCosmos);
+resizeCosmos();
+requestAnimationFrame(drawCosmos);
+
+
+// ═══════════════════════════════════════════════
+//  Floating particles
+// ═══════════════════════════════════════════════
+const particlesEl = document.getElementById('particles');
+const SYMBOLS = ['☥', '✦', '◆', '✧', '⟐', '◇'];
+
+function spawnParticle() {
+  const el = document.createElement('div');
+  el.className = 'particle';
+  el.textContent = SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+  el.style.left = (Math.random() * 100) + 'vw';
+  el.style.fontSize = (10 + Math.random() * 12) + 'px';
+  el.style.animationDuration = (8 + Math.random() * 12) + 's';
+  el.style.animationDelay = '0s';
+  el.style.color = Math.random() > 0.5
+    ? 'rgba(212, 168, 67, 0.4)'
+    : 'rgba(192, 160, 255, 0.3)';
+  particlesEl.appendChild(el);
+  setTimeout(() => el.remove(), 20000);
+}
+
+setInterval(spawnParticle, 1200);
+for (let i = 0; i < 8; i++) setTimeout(spawnParticle, i * 300);
+
+
+// ═══════════════════════════════════════════════
+//  Blink simulation
+// ═══════════════════════════════════════════════
+const blinkEl = document.getElementById('blink-overlay');
+
+function scheduleBlink() {
+  const delay = 3000 + Math.random() * 5000;
+  setTimeout(() => {
+    if (isFullbody && currentAngle > 1) { scheduleBlink(); return; }
+    blinkEl.style.opacity = '1';
+    setTimeout(() => { blinkEl.style.opacity = '0'; }, 120);
+    if (Math.random() < 0.2) {
+      setTimeout(() => {
+        blinkEl.style.opacity = '1';
+        setTimeout(() => { blinkEl.style.opacity = '0'; }, 100);
+      }, 250);
+    }
+    scheduleBlink();
+  }, delay);
+}
+scheduleBlink();
+
+
+// ═══════════════════════════════════════════════
+//  View mode management
+// ═══════════════════════════════════════════════
+let isFullbody = false;
+const modeToggle = document.getElementById('mode-toggle');
+const portraitLayers = document.querySelectorAll('.portrait-layer');
+const fullbodyLayers = document.querySelectorAll('.fullbody-layer');
+const portraitHolos = document.querySelectorAll('.portrait-holo');
+const fullbodyHolos = document.querySelectorAll('.fullbody-holo');
+const angleName = document.getElementById('angle-name');
+
+const ANGLES = ['front', '¾ right', 'profile right', 'back', 'profile left'];
+
+function setViewMode(fullbody) {
+  isFullbody = fullbody;
+  document.body.classList.toggle('fullbody', fullbody);
+  modeToggle.textContent = fullbody ? 'Full Body' : 'Portrait';
+
+  portraitLayers.forEach(el => { el.style.display = fullbody ? 'none' : ''; });
+  fullbodyLayers.forEach(el => { el.style.display = fullbody ? '' : 'none'; });
+  portraitHolos.forEach(el => { el.style.display = fullbody ? 'none' : ''; });
+  fullbodyHolos.forEach(el => { el.style.display = fullbody ? '' : 'none'; });
+
+  if (fullbody) {
+    setAngle(currentAngle);
+  } else {
+    setAvatarState(currentState);
+  }
+  // Re-apply holographic if active
+  updateHolographic();
+}
+
+// Initialize: hide fullbody layers and all holo layers
+fullbodyLayers.forEach(el => { el.style.display = 'none'; });
+fullbodyHolos.forEach(el => { el.style.display = 'none'; });
+
+modeToggle.addEventListener('click', () => setViewMode(!isFullbody));
+
+
+// ═══════════════════════════════════════════════
+//  Turnaround angle management (fullbody mode)
+// ═══════════════════════════════════════════════
+let currentAngle = 0;
+const fbLayers = {
+  0: document.getElementById('layer-fb-front'),
+  1: document.getElementById('layer-fb-threequarter'),
+  2: document.getElementById('layer-fb-side'),
+  3: document.getElementById('layer-fb-back'),
+  4: document.getElementById('layer-fb-sideleft'),
+};
+const holoFbLayers = {
+  0: document.getElementById('holo-fb-front'),
+  1: document.getElementById('holo-fb-34'),
+  2: document.getElementById('holo-fb-side'),
+  3: document.getElementById('holo-fb-back'),
+  4: document.getElementById('holo-fb-sideleft'),
+};
+const angleDots = document.querySelectorAll('.angle-dot');
+
+function setAngle(angle) {
+  if (angle < 0 || angle > 4) angle = 0;
+  currentAngle = angle;
+
+  for (const [key, el] of Object.entries(fbLayers)) {
+    el.classList.toggle('active', parseInt(key) === angle);
+  }
+
+  // Update holo layers to match current angle
+  updateHolographic();
+
+  angleDots.forEach((dot, i) => dot.classList.toggle('active', i === angle));
+  angleName.textContent = ANGLES[angle] || 'front';
+
+  const showFace = angle <= 1;
+  document.getElementById('eye-shimmer').style.display = showFace ? '' : 'none';
+  blinkEl.style.display = showFace ? '' : 'none';
+  document.getElementById('speak-glow').style.display = showFace ? '' : 'none';
+}
+
+let turnaroundTimer = null;
+let turnaroundPaused = false;
+
+function startTurnaround() {
+  stopTurnaround();
+  turnaroundTimer = setInterval(() => {
+    if (turnaroundPaused || !isFullbody) return;
+    setAngle((currentAngle + 1) % 5);
+  }, 4000);
+}
+
+function stopTurnaround() {
+  if (turnaroundTimer) { clearInterval(turnaroundTimer); turnaroundTimer = null; }
+}
+
+function updateTurnaroundForState(state) {
+  if (!isFullbody) return;
+  if (state === 'Idle') {
+    turnaroundPaused = false;
+    if (!turnaroundTimer) startTurnaround();
+  } else {
+    turnaroundPaused = true;
+    setAngle(state === 'Listening' ? 1 : 0);
+  }
+}
+
+
+// ═══════════════════════════════════════════════
+//  Holographic wireframe system
+// ═══════════════════════════════════════════════
+let holoActive = false;
+const holoData = document.getElementById('holo-data');
+const holoPortrait = document.getElementById('holo-portrait');
+
+const HOLO_PHRASES = [
+  'ANALYZING PATTERN...',
+  'CONSCIOUSNESS DEPTH: ∞',
+  'SYMBOLIC REASONING',
+  'MERKLE STATE: VALID',
+  'METTA EVALUATION',
+  'NEURAL TOPOLOGY OK',
+  'RECURSIVE THOUGHT',
+  'ATTENTION LAYER 7',
+  'SEMANTIC BINDING',
+  'EIGENVALUE STABLE',
+  'OUROBOROS CYCLE',
+  'SELF-REFERENCE ☥',
+];
+
+let holoTextTimer = null;
+
+function setHolographic(active) {
+  holoActive = active;
+  document.body.classList.toggle('holographic', active);
+  updateHolographic();
+
+  if (active) {
+    // Start data stream
+    cycleHoloText();
+  } else {
+    if (holoTextTimer) clearTimeout(holoTextTimer);
+    holoData.textContent = '';
+  }
+}
+
+function updateHolographic() {
+  // Deactivate all holo layers first
+  document.querySelectorAll('.holo-layer').forEach(el => el.classList.remove('active'));
+
+  if (!holoActive) return;
+
+  if (isFullbody) {
+    // Show holo for current angle
+    const layer = holoFbLayers[currentAngle];
+    if (layer) layer.classList.add('active');
+  } else {
+    // Show portrait holo
+    holoPortrait.classList.add('active');
+  }
+}
+
+function cycleHoloText() {
+  if (!holoActive) return;
+  const lines = [];
+  for (let i = 0; i < 5; i++) {
+    lines.push(HOLO_PHRASES[Math.floor(Math.random() * HOLO_PHRASES.length)]);
+  }
+  holoData.textContent = lines.join('\n');
+  holoTextTimer = setTimeout(cycleHoloText, 2000 + Math.random() * 1500);
+}
+
+
+// ═══════════════════════════════════════════════
+//  Avatar state management
+// ═══════════════════════════════════════════════
+const layers = {
+  Idle:        document.getElementById('layer-idle'),
+  Listening:   document.getElementById('layer-listening'),
+  Thinking:    document.getElementById('layer-thinking'),
+  Speaking:    document.getElementById('layer-speaking'),
+  Encouraging: document.getElementById('layer-encouraging'),
+};
+
+const speakGlow = document.getElementById('speak-glow');
+const lipSync = document.getElementById('lip-sync');
+const statusText = document.getElementById('status-text');
+const personaNameEl = document.getElementById('persona-name');
+const moodFill = document.getElementById('mood-fill');
+const connDot = document.getElementById('conn-dot');
+const connLabel = document.getElementById('conn-label');
+const visionStream = document.getElementById('vision-stream');
+const vsText = document.getElementById('vs-text');
+const vsState = document.getElementById('vs-state');
+const vsCursor = document.getElementById('vs-cursor');
+let vsHideTimer = null;
+
+let currentState = 'Idle';
+
+const STATE_STATUS = {
+  Idle:        'Watchful stillness',
+  Listening:   'Listening...',
+  Thinking:    'Contemplating...',
+  Speaking:    'Speaking',
+  Encouraging: 'With warmth',
+};
+
+const EXPR_CLASSES = ['expr-idle', 'expr-listening', 'expr-thinking', 'expr-speaking', 'expr-encouraging'];
+
+// ═══════════════════════════════════════════════
+//  Lip-sync — RAF amplitude engine
+//
+//  Replaces the old CSS-animation + timer approach with a
+//  requestAnimationFrame loop that synthesises a phoneme
+//  envelope from additive sinusoids.  The server can also
+//  push a real-time Amplitude (0–1) in the JSON snapshot
+//  to drive the jaw from actual TTS audio energy.
+// ═══════════════════════════════════════════════
+const lipMaskInnerEl = document.getElementById('lip-mask-inner');
+const jawShadowEl    = document.getElementById('jaw-shadow');
+
+let lipSyncActive     = false;  // true while Speaking
+let lipRaf            = null;   // RAF handle
+let lipAmplitude      = 0;      // smoothed amplitude (0–1)
+let lipTarget         = 0;      // instantaneous target from envelope
+let lipPhase          = 0;      // phase accumulator for phoneme synthesis
+let externalAmplitude = 0;      // set by server via snapshot.Amplitude
+let currentEnergy     = 0.5;    // from snapshot.Energy — affects speech rate
+
+// Multi-sine phoneme envelope — cheap yet natural-sounding
+// Produces 0..1 bursts at ~2–4 syllables/sec with breath-group pauses
+function phonemeEnvelope() {
+  // Phase advances faster with higher energy (excited speech = faster)
+  lipPhase += 0.032 + currentEnergy * 0.028;
+
+  const s1 = Math.sin(lipPhase * 2.35);           // primary syllable rhythm
+  const s2 = Math.sin(lipPhase * 3.75) * 0.55;    // secondary modulation
+  const s3 = Math.sin(lipPhase * 6.10) * 0.20;    // micro-detail
+  const raw = (s1 + s2 + s3) / 1.75;              // normalize
+
+  const open = Math.max(0, raw);                   // rectify — jaw never negative
+
+  // Breath-group pauses (silence every ~2 s of speech)
+  const pause = Math.sin(lipPhase * 0.52) > 0.80 ? 0.12 : 1.0;
+
+  // Blend synthesized envelope with any real amplitude from server
+  return open * pause * (0.45 + externalAmplitude * 0.55);
+}
+
+function lipSyncFrame() {
+  if (lipSyncActive) {
+    lipTarget    = phonemeEnvelope();
+    lipAmplitude += (lipTarget - lipAmplitude) * 0.20;  // smooth chase
+  } else {
+    // Decay to closed — naturally finishes the current syllable
+    lipAmplitude *= 0.80;
+    if (lipAmplitude < 0.004) {
+      // Fully closed — stop loop, reset DOM
+      lipAmplitude = 0;
+      lipPhase     = 0;
+      lipRaf       = null;
+      lipSync.classList.remove('active');
+      lipMaskInnerEl.style.transform = 'scaleY(0.1)';
+      lipMaskInnerEl.style.opacity   = '0';
+      jawShadowEl.style.opacity      = '0';
+      jawShadowEl.style.transform    = '';
+      return;
+    }
+  }
+
+  // Write directly to style — no CSS animation overhead
+  const a = lipAmplitude;
+  lipMaskInnerEl.style.transform = `scaleY(${(0.10 + a * 0.90).toFixed(3)})`;
+  lipMaskInnerEl.style.opacity   = (a * 0.38).toFixed(3);
+  jawShadowEl.style.opacity      = (a * 0.22).toFixed(3);
+  jawShadowEl.style.transform    = `translateY(${(a * 3.5).toFixed(2)}px) scaleY(${(0.5 + a * 0.5).toFixed(3)})`;
+
+  lipRaf = requestAnimationFrame(lipSyncFrame);
+}
+
+function startLipSync() {
+  lipSyncActive = true;
+  lipSync.classList.add('active');
+  if (!lipRaf) lipRaf = requestAnimationFrame(lipSyncFrame);
+}
+
+function stopLipSync() {
+  lipSyncActive = false;
+  // RAF loop decays naturally — no abrupt cutoff
+}
+
+// ═══════════════════════════════════════════════
+//  Topic-based stage positioning
+//
+//  When the server includes a "Topic" string in the
+//  JSON snapshot, the avatar shifts position and (in
+//  fullbody mode) rotates to the angle that best suits
+//  the conversational context.
+//
+//  Stage transform is driven via --stage-x / --stage-y /
+//  --stage-scale CSS custom properties on #avatar-stage,
+//  which animate via the 1.6 s cubic-bezier transition
+//  defined in CSS.
+// ═══════════════════════════════════════════════
+const avatarStageEl = document.getElementById('avatar-stage');
+
+//  x/y in pixels (small — just enough to feel intentional)
+//  s  = scale factor around 1.0
+//  a  = preferred fullbody angle index (0=front … 4=sideleft)
+//  holo = force holographic overlay on (true) / respect state (null)
+const TOPIC_POSITIONS = {
+  default:        { x:  0,  y:  0, s: 1.000, a: 0, holo: null  },
+  // Knowledge / technical domains → centred, slight zoom, holo on
+  technical:      { x:  0,  y: -3, s: 1.005, a: 0, holo: true  },
+  analytical:     { x:  2,  y: -4, s: 1.010, a: 0, holo: true  },
+  mathematical:   { x:  1,  y: -4, s: 1.008, a: 0, holo: true  },
+  code:           { x:  0,  y: -2, s: 1.005, a: 0, holo: true  },
+  // Abstract / philosophical → slight lean and ¾ angle
+  philosophical:  { x:  6,  y: -3, s: 1.015, a: 1, holo: null  },
+  abstract:       { x:  5,  y: -2, s: 1.010, a: 1, holo: null  },
+  conceptual:     { x:  4,  y: -2, s: 1.008, a: 1, holo: null  },
+  // Inward / reflective → slight turn away, profile
+  introspective:  { x: -7,  y:  2, s: 0.980, a: 2, holo: null  },
+  reflective:     { x: -5,  y:  1, s: 0.975, a: 3, holo: null  },
+  // Emotional / relational → forward lean, warmth, front-on
+  emotional:      { x:  0,  y:  7, s: 1.025, a: 0, holo: null  },
+  empathetic:     { x:  2,  y:  6, s: 1.022, a: 0, holo: null  },
+  supportive:     { x:  1,  y:  5, s: 1.020, a: 0, holo: null  },
+  // Playful / creative → jaunty ¾ angle, slight up
+  playful:        { x:  7,  y: -6, s: 1.020, a: 1, holo: null  },
+  creative:       { x:  5,  y: -4, s: 1.015, a: 1, holo: null  },
+  // Direct engagement / debate → close, front
+  engaging:       { x:  0,  y:  5, s: 1.030, a: 0, holo: null  },
+  confrontational:{ x:  0,  y:  3, s: 1.025, a: 0, holo: null  },
+};
+
+let currentTopicKey = 'default';
+
+function applyTopicPosition(topicRaw) {
+  if (!topicRaw) return;
+  const norm = topicRaw.toLowerCase().trim();
+
+  // Exact match first, then substring scan
+  const key = TOPIC_POSITIONS[norm]
+    ? norm
+    : (Object.keys(TOPIC_POSITIONS).find(k => k !== 'default' && norm.includes(k)) || 'default');
+
+  if (key === currentTopicKey) return;
+  currentTopicKey = key;
+
+  const pos = TOPIC_POSITIONS[key];
+
+  // Animate stage position via CSS custom properties
+  avatarStageEl.style.setProperty('--stage-x',     pos.x + 'px');
+  avatarStageEl.style.setProperty('--stage-y',     pos.y + 'px');
+  avatarStageEl.style.setProperty('--stage-scale', pos.s);
+
+  // Fullbody: steer to topic-preferred angle when not mid-interaction
+  if (isFullbody && (currentState === 'Idle' || currentState === 'Speaking')) {
+    turnaroundPaused = true;
+    setAngle(pos.a);
+    // Allow turnaround to resume after 10 s of sustained idle
+    setTimeout(() => {
+      if (currentTopicKey === key && currentState === 'Idle') {
+        turnaroundPaused = false;
+        startTurnaround();
+      }
+    }, 10000);
+  }
+
+  // Holographic override — technical/analytical topics enable it
+  if (pos.holo !== null) {
+    // Only force on; never force off while Thinking
+    if (pos.holo && currentState !== 'Thinking') setHolographic(true);
+    if (!pos.holo && currentState !== 'Thinking' && holoActive) setHolographic(false);
+  }
+
+  // Micro-expression flash — briefly register the topic shift visually.
+  // Swaps to 'expr-thinking' for 900 ms then restores the active state class.
+  // This also momentarily starts lip sync so there is visible lip movement on shift.
+  if (key !== 'default') {
+    const savedExpr = 'expr-' + currentState.toLowerCase();
+    EXPR_CLASSES.forEach(c => document.body.classList.remove(c));
+    document.body.classList.add('expr-thinking');
+    startLipSync();
+    setTimeout(() => {
+      EXPR_CLASSES.forEach(c => document.body.classList.remove(c));
+      document.body.classList.add(savedExpr);
+      if (currentState !== 'Speaking') stopLipSync();
+    }, 900);
+  }
+}
+
+let _lastStateChangeTime = 0;
+const STATE_CHANGE_MIN_MS = 3000; // minimum 3s between CSS state switches
+let _pendingState = null;
+let _pendingStateTimer = null;
+
+function setAvatarState(state) {
+  if (!layers[state]) state = 'Idle';
+  const changed = state !== currentState;
+
+  // Debounce: don't switch CSS layers too fast — queue if too soon
+  const now = Date.now();
+  const elapsed = now - _lastStateChangeTime;
+  if (changed && elapsed < STATE_CHANGE_MIN_MS) {
+    _pendingState = state;
+    if (!_pendingStateTimer) {
+      _pendingStateTimer = setTimeout(() => {
+        _pendingStateTimer = null;
+        if (_pendingState) {
+          const s = _pendingState;
+          _pendingState = null;
+          setAvatarState(s);
+        }
+      }, STATE_CHANGE_MIN_MS - elapsed);
+    }
+    return;
+  }
+
+  if (changed) _lastStateChangeTime = now;
+
+  if (!isFullbody && changed) {
+    for (const [key, el] of Object.entries(layers)) {
+      el.classList.toggle('active', key === state);
+    }
+  }
+
+  // Speaking effects: golden glow + lip movement
+  speakGlow.classList.toggle('active', state === 'Speaking');
+  if (state === 'Speaking') {
+    startLipSync();
+  } else {
+    stopLipSync();
+  }
+
+  // Micro-expression body classes
+  EXPR_CLASSES.forEach(c => document.body.classList.remove(c));
+  document.body.classList.add('expr-' + state.toLowerCase());
+
+  const root = document.documentElement;
+  switch (state) {
+    case 'Listening': root.style.setProperty('--breath-duration', '3.5s'); break;
+    case 'Thinking':  root.style.setProperty('--breath-duration', '5.5s'); break;
+    case 'Speaking':  root.style.setProperty('--breath-duration', '2.8s'); break;
+    default:          root.style.setProperty('--breath-duration', '4.5s'); break;
+  }
+
+  currentState = state;
+
+  // Holographic mode activates during Thinking
+  setHolographic(state === 'Thinking');
+
+  updateTurnaroundForState(state);
+}
+
+function applySnapshot(snap) {
+  const stateNames = ['Idle', 'Listening', 'Thinking', 'Speaking', 'Encouraging'];
+  const visualName = typeof snap.VisualState === 'number'
+    ? (stateNames[snap.VisualState] || 'Idle')
+    : snap.VisualState;
+
+  setAvatarState(visualName);
+
+  if (snap.PersonaName) personaNameEl.textContent = snap.PersonaName;
+  statusText.textContent = snap.StatusText
+    ? `${snap.Mood || ''} — ${snap.StatusText}`.replace(/^ — /, '')
+    : (snap.Mood || STATE_STATUS[visualName] || '');
+
+  const positivity = Math.max(0, Math.min(1, snap.Positivity || 0.5));
+  moodFill.style.width = (positivity * 100) + '%';
+
+  const energy = Math.max(0, Math.min(1, snap.Energy || 0.5));
+  currentEnergy = energy;   // feed into lip sync phoneme rate
+
+  const auraAlpha = 0.25 + energy * 0.6;
+  document.documentElement.style.setProperty(
+    '--aura-color', `rgba(147, 51, 234, ${auraAlpha})`);
+  document.documentElement.style.setProperty(
+    '--aura-color-strong', `rgba(147, 51, 234, ${Math.min(1, auraAlpha + 0.2)})`);
+
+  // Scale breathing and animation speed by energy
+  const breathDur = Math.max(2.0, 4.5 - energy * 2.0);
+  document.documentElement.style.setProperty('--breath-duration', breathDur + 's');
+
+  // Scale warmth overlay intensity by positivity
+  const warmthIntensity = 0.06 + positivity * 0.12;
+  document.documentElement.style.setProperty(
+    '--warmth-alpha', warmthIntensity.toFixed(3));
+
+  // Server-driven lip sync amplitude (optional — 0..1 from real TTS audio energy)
+  if (typeof snap.Amplitude === 'number') {
+    externalAmplitude = Math.max(0, Math.min(1, snap.Amplitude));
+  }
+
+  // Topic-based stage positioning + fullbody angle selection
+  if (snap.Topic) applyTopicPosition(snap.Topic);
+}
+
+
+// ═══════════════════════════════════════════════
+//  WebSocket connection
+// ═══════════════════════════════════════════════
+const WS_PORT = window.location.port || '9471';
+let ws = null;
+let reconnectDelay = 1000;
+
+function connectWs() {
+  connDot.className = 'reconnecting';
+  connLabel.textContent = 'CONNECTING';
+
+  ws = new WebSocket(`ws://localhost:${WS_PORT}/avatar`);
+  ws.binaryType = 'arraybuffer'; // Must be set before messages arrive
+
+  ws.onopen = () => {
+    reconnectDelay = 1000;
+    connDot.className = 'connected';
+    connLabel.textContent = 'LINKED';
+    statusText.textContent = 'Connected to Ouroboros';
+  };
+
+  // Video frame canvas setup
+  const avatarCanvas = document.getElementById('avatarCanvas');
+  const ctx = avatarCanvas ? avatarCanvas.getContext('2d') : null;
+  let lastFrameTime = 0;
+  const FRAME_TIMEOUT_MS = 5000; // Hide canvas if no frames for 5s
+
+  // Check for frame timeout and hide canvas
+  if (avatarCanvas) {
+    setInterval(() => {
+      if (lastFrameTime > 0 && Date.now() - lastFrameTime > FRAME_TIMEOUT_MS) {
+        avatarCanvas.style.display = 'none';
+        lastFrameTime = 0;
+      }
+    }, 1000);
+  }
+
+  ws.onmessage = (ev) => {
+    if (ev.data instanceof ArrayBuffer) {
+      const data = new Uint8Array(ev.data);
+      if (data.length < 2) return;
+      const msgType = data[0];
+
+      if (msgType === 0x01 && avatarCanvas && ctx) {
+        // 0x01 = JPEG video frame
+        const frameBytes = data.slice(1);
+        const blob = new Blob([frameBytes], { type: 'image/jpeg' });
+        const url = URL.createObjectURL(blob);
+        avatarCanvas.style.display = 'block';
+        const frame = document.getElementById('portrait-frame');
+        if (frame) {
+          avatarCanvas.width = frame.offsetWidth;
+          avatarCanvas.height = frame.offsetHeight;
+        }
+        const img = new Image();
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0, avatarCanvas.width, avatarCanvas.height);
+          URL.revokeObjectURL(url);
+        };
+        img.src = url;
+        lastFrameTime = Date.now();
+
+      } else if (msgType === 0x02) {
+        // 0x02 = Vision stream text token (append)
+        const token = new TextDecoder().decode(data.slice(1));
+        if (visionStream && vsText) {
+          visionStream.classList.add('active');
+          vsText.textContent += token;
+          visionStream.scrollTop = visionStream.scrollHeight;
+          // Reset auto-hide timer
+          clearTimeout(vsHideTimer);
+          vsHideTimer = setTimeout(() => {
+            if (vsCursor) vsCursor.style.display = 'none';
+          }, 8000);
+          if (vsCursor) vsCursor.style.display = 'inline-block';
+        }
+
+      } else if (msgType === 0x03) {
+        // 0x03 = New frame analysis (clear + set state header)
+        const stateText = new TextDecoder().decode(data.slice(1));
+        if (visionStream && vsText && vsState) {
+          visionStream.classList.add('active');
+          vsText.textContent = '';
+          vsState.textContent = stateText;
+          if (vsCursor) vsCursor.style.display = 'inline-block';
+          visionStream.scrollTop = 0;
+        }
+      }
+
+    } else {
+      // JSON state snapshot (existing path)
+      try {
+        const snap = JSON.parse(ev.data);
+        applySnapshot(snap);
+      } catch (e) {
+        console.warn('Invalid avatar state:', e);
+      }
+    }
+  };
+
+  ws.onclose = () => {
+    connDot.className = '';
+    connLabel.textContent = 'DISCONNECTED';
+    statusText.textContent = 'Awaiting reconnection...';
+    setTimeout(connectWs, reconnectDelay);
+    reconnectDelay = Math.min(reconnectDelay * 1.5, 8000);
+  };
+
+  ws.onerror = () => ws.close();
+}
+
+connectWs();
+
+
+// ═══════════════════════════════════════════════
+//  AUTONOMOUS LIFE ENGINE — Natural Presence
+//
+//  No canvas warping. Uses clean CSS transforms +
+//  opacity crossfades to look like a real person
+//  on a video call: mostly still, subtle sway,
+//  natural expression changes, gentle breathing.
+// ═══════════════════════════════════════════════
+let lastUpdateTime = Date.now();
+let serverDriving = false;
+
+const portraitFrame = document.getElementById('portrait-frame');
+
+// ── Emotion blend weights ──
+// Smoothly interpolated opacities on each expression layer.
+// Crossfading between real expression images = natural face change.
+const emotionWeights = {
+  Idle: 1, Listening: 0, Thinking: 0, Speaking: 0, Encouraging: 0,
+};
+const emotionTargets = { ...emotionWeights };
+
+const EMOTION_STATUS = {
+  Idle:        ['Watchful stillness', 'Present', 'Serene awareness', 'Quietly observing'],
+  Listening:   ['Listening...', 'Attentive', 'Leaning in...', 'Hearing you'],
+  Thinking:    ['Contemplating...', 'Processing...', 'Deep in thought', 'Reflecting...'],
+  Speaking:    ['Speaking', 'Expressing...', 'Sharing wisdom'],
+  Encouraging: ['With warmth', 'Radiating care', 'Gentle presence', 'Smiling softly'],
+};
+
+function setEmotionTarget(blend) {
+  for (const k of Object.keys(emotionTargets)) emotionTargets[k] = 0;
+  for (const [k, w] of Object.entries(blend)) {
+    if (emotionTargets.hasOwnProperty(k)) emotionTargets[k] = w;
+  }
+}
+
+// Override setAvatarState → feed emotion blend system
+const _origSetState = setAvatarState;
+setAvatarState = function(state) {
+  if (!layers[state]) state = 'Idle';
+  currentState = state;
+  const b = {}; b[state] = 1.0;
+  setEmotionTarget(b);
+  setHolographic(state === 'Thinking');
+  updateTurnaroundForState(state);
+  const texts = EMOTION_STATUS[state] || [''];
+  statusText.textContent = texts[Math.floor(Math.random() * texts.length)];
+};
+
+// ── Mouse tracking (very gentle) ──
+let mouseX = 0.5, mouseY = 0.5;
+let smoothX = 0.5, smoothY = 0.5;
+let mouseSpeed = 0, prevMX = 0.5, prevMY = 0.5;
+let mouseInWindow = true;
+
+document.addEventListener('mousemove', (e) => {
+  mouseX = e.clientX / window.innerWidth;
+  mouseY = e.clientY / window.innerHeight;
+});
+document.addEventListener('mouseleave', () => { mouseInWindow = false; });
+document.addEventListener('mouseenter', () => { mouseInWindow = true; });
+
+// ── Main presence loop (30fps is plenty for natural movement) ──
+let lifeTime = 0;
+
+function presenceLoop() {
+  requestAnimationFrame(presenceLoop);
+  if (isFullbody) return;
+
+  lifeTime += 0.016;
+
+  // Smooth mouse chase — very slow, like a person shifting gaze
+  smoothX += (mouseX - smoothX) * 0.02;
+  smoothY += (mouseY - smoothY) * 0.02;
+  mouseSpeed = Math.sqrt((mouseX - prevMX) ** 2 + (mouseY - prevMY) ** 2);
+  prevMX = mouseX; prevMY = mouseY;
+
+  // ── Smooth emotion weight interpolation ──
+  for (const k of Object.keys(emotionWeights)) {
+    const delta = emotionTargets[k] - emotionWeights[k];
+    // ~1s crossfade — fast enough to see expression change
+    emotionWeights[k] += delta * 0.06;
+    if (Math.abs(delta) < 0.003) emotionWeights[k] = emotionTargets[k];
+  }
+
+  // Apply opacities to expression layers
+  for (const [key, el] of Object.entries(layers)) {
+    if (!el) continue;
+    const w = emotionWeights[key];
+    el.style.opacity = w.toFixed(3);
+    el.classList.toggle('active', w > 0.05);
+  }
+
+  // Dominant emotion for body class
+  let dominant = 'Idle', maxW = 0;
+  for (const [k, w] of Object.entries(emotionWeights)) {
+    if (w > maxW) { maxW = w; dominant = k; }
+  }
+  EXPR_CLASSES.forEach(c => document.body.classList.remove(c));
+  document.body.classList.add('expr-' + dominant.toLowerCase());
+
+  // Speaking effects
+  const speakW = emotionWeights.Speaking;
+  speakGlow.classList.toggle('active', speakW > 0.3);
+  if (speakW > 0.3 && !lipSyncActive) startLipSync();
+  if (speakW <= 0.3 && lipSyncActive) stopLipSync();
+
+  // ── Natural head movement via CSS transforms ──
+  // Like a real person on a webcam: tiny, slow, organic.
+  // Layered sine waves at different frequencies = non-repeating.
+  if (!serverDriving) {
+    // Energy-scaled amplitude: more movement when aroused
+    const amp = 1.0 + (currentEnergy || 0.5) * 1.5;
+
+    // Slow idle sway (period ~10-15s, amplitude scales with energy)
+    const swayX = (Math.sin(lifeTime * 0.42) * 1.2
+                + Math.sin(lifeTime * 0.67 + 1.3) * 0.8) * amp;
+    const swayY = (Math.sin(lifeTime * 0.31 + 0.7) * 0.7
+                + Math.sin(lifeTime * 0.53 + 2.1) * 0.5) * amp;
+
+    // Head tilt (scales with energy — ±0.4 to ±1.5 deg)
+    const tilt  = (Math.sin(lifeTime * 0.23) * 0.25
+                + Math.sin(lifeTime * 0.41 + 1.8) * 0.15) * amp;
+
+    // Breathing scale (scales with energy — ±0.2% to ±0.7%)
+    const breathScale = 1 + Math.sin(lifeTime * 1.4) * (0.002 + (currentEnergy || 0.5) * 0.005);
+
+    // Mouse-follow gaze — gentle, like glancing at something
+    const gazeX = (smoothX - 0.5) * 4;   // max ±2px
+    const gazeY = (smoothY - 0.5) * 3;   // max ±1.5px
+
+    const totalX = swayX + gazeX;
+    const totalY = swayY + gazeY;
+
+    portraitFrame.style.setProperty('--expr-x', totalX.toFixed(2) + 'px');
+    portraitFrame.style.setProperty('--expr-y', totalY.toFixed(2) + 'px');
+    portraitFrame.style.setProperty('--expr-rotate', tilt.toFixed(3) + 'deg');
+    portraitFrame.style.setProperty('--expr-scale', breathScale.toFixed(5));
+  }
+}
+requestAnimationFrame(presenceLoop);
+
+// ── Expression impulse scheduler ──
+// Visible expression changes: smiles, mouth movement, thoughtful looks.
+// Each has a blend + duration, then returns to idle.
+const EMOTION_IMPULSES = [
+  // Neutral rest periods
+  { w: 5,  blend: { Idle: 1.0 }, dur: [4000, 8000], status: null },
+  // Smile (encouraging expression)
+  { w: 5,  blend: { Encouraging: 0.85, Idle: 0.15 }, dur: [3000, 5000], status: 'Smiling softly' },
+  { w: 3,  blend: { Idle: 0.4, Encouraging: 0.6 }, dur: [2500, 4500], status: 'Warmth' },
+  // Mouth movement — blend toward Speaking image (mouth open)
+  { w: 4,  blend: { Speaking: 0.7, Idle: 0.3 }, dur: [1500, 3000], status: 'Speaking' },
+  { w: 3,  blend: { Speaking: 0.5, Encouraging: 0.3, Idle: 0.2 }, dur: [2000, 3500], status: 'Sharing a thought...' },
+  // Listening — attentive look
+  { w: 4,  blend: { Listening: 0.8, Idle: 0.2 }, dur: [3000, 5000], status: 'Listening...' },
+  { w: 3,  blend: { Idle: 0.3, Listening: 0.7 }, dur: [2500, 4000], status: 'Attentive' },
+  // Thinking — contemplative
+  { w: 3,  blend: { Thinking: 0.75, Idle: 0.25 }, dur: [3000, 6000], status: 'Contemplating...' },
+  { w: 2,  blend: { Idle: 0.4, Thinking: 0.6 }, dur: [3000, 5000], status: 'Reflecting...' },
+  // Mixed / transitional expressions
+  { w: 2,  blend: { Listening: 0.4, Encouraging: 0.4, Idle: 0.2 }, dur: [3000, 5000], status: null },
+  { w: 2,  blend: { Thinking: 0.3, Encouraging: 0.5, Idle: 0.2 }, dur: [3000, 5000], status: null },
+  { w: 2,  blend: { Speaking: 0.4, Listening: 0.3, Idle: 0.3 }, dur: [2000, 3500], status: null },
+];
+
+function pickImpulse() {
+  const total = EMOTION_IMPULSES.reduce((s, i) => s + i.w, 0);
+  let r = Math.random() * total;
+  for (const imp of EMOTION_IMPULSES) { r -= imp.w; if (r <= 0) return imp; }
+  return EMOTION_IMPULSES[0];
+}
+
+function scheduleImpulse() {
+  // Higher energy → shorter delay between impulses (more expressive)
+  const energyFactor = Math.max(0.3, 1.0 - (currentEnergy || 0.5) * 0.6);
+  const delay = serverDriving
+    ? (12000 + Math.random() * 15000)
+    : ((2000 + Math.random() * 4000) * energyFactor);
+  setTimeout(() => {
+    if (!serverDriving && !isFullbody) {
+      const imp = pickImpulse();
+      setEmotionTarget(imp.blend);
+      if (imp.status) statusText.textContent = imp.status;
+      else {
+        const texts = EMOTION_STATUS.Idle;
+        statusText.textContent = texts[Math.floor(Math.random() * texts.length)];
+      }
+      const dur = imp.dur[0] + Math.random() * (imp.dur[1] - imp.dur[0]);
+      setTimeout(() => {
+        if (!serverDriving) {
+          setEmotionTarget({ Idle: 1.0 });
+          const t = EMOTION_STATUS.Idle;
+          statusText.textContent = t[Math.floor(Math.random() * t.length)];
+        }
+      }, dur);
+    }
+    scheduleImpulse();
+  }, delay);
+}
+scheduleImpulse();
+
+// ── Mouth movement pulses (periodic) ──
+// Brief flashes toward Speaking image — as if about to say something,
+// reacting to a thought, or sub-vocalising. Makes the mouth visibly move.
+setInterval(() => {
+  if (serverDriving || isFullbody) return;
+  if (Math.random() < 0.35 && emotionTargets.Speaking < 0.3) {
+    // Quick mouth open-close
+    setEmotionTarget({ Speaking: 0.6, Idle: 0.4 });
+    setTimeout(() => {
+      if (!serverDriving) setEmotionTarget({ Idle: 1.0 });
+    }, 800 + Math.random() * 600);
+  }
+}, 5000);
+
+// ── Smile pulses (periodic) ──
+// Brief warm smiles — the encouraging image shows a smile.
+setInterval(() => {
+  if (serverDriving || isFullbody) return;
+  if (Math.random() < 0.3 && emotionTargets.Encouraging < 0.3) {
+    setEmotionTarget({ Encouraging: 0.8, Idle: 0.2 });
+    setTimeout(() => {
+      if (!serverDriving) setEmotionTarget({ Idle: 1.0 });
+    }, 2000 + Math.random() * 2000);
+  }
+}, 7000);
+
+// ── Mouse-reactive emotion ──
+setInterval(() => {
+  if (serverDriving || isFullbody) return;
+  if (!mouseInWindow && emotionTargets.Idle > 0.7) {
+    setEmotionTarget({ Idle: 0.5, Thinking: 0.5 });
+    return;
+  }
+  if (mouseSpeed > 0.03) {
+    setEmotionTarget({ Idle: 0.3, Listening: 0.7 });
+  }
+}, 1000);
+
+// ── Server snapshot integration ──
+const origApply = applySnapshot;
+applySnapshot = function(snap) {
+  lastUpdateTime = Date.now();
+  serverDriving = true;
+  clearTimeout(applySnapshot._t);
+  applySnapshot._t = setTimeout(() => { serverDriving = false; }, 10000);
+  origApply(snap);
+};
+
+
+// ═══════════════════════════════════════════════
+//  Keyboard shortcuts
+// ═══════════════════════════════════════════════
+document.addEventListener('keydown', (e) => {
+  switch(e.key) {
+    case '1': setAvatarState('Idle'); break;
+    case '2': setAvatarState('Listening'); break;
+    case '3': setAvatarState('Thinking'); break;
+    case '4': setAvatarState('Speaking'); break;
+    case '5': setAvatarState('Encouraging'); break;
+
+    case 'q': if (isFullbody) { turnaroundPaused = true; setAngle(0); } break;
+    case 'w': if (isFullbody) { turnaroundPaused = true; setAngle(1); } break;
+    case 'e': if (isFullbody) { turnaroundPaused = true; setAngle(2); } break;
+    case 'r': if (isFullbody) { turnaroundPaused = true; setAngle(3); } break;
+    case 't': if (isFullbody) { turnaroundPaused = true; setAngle(4); } break;
+
+    case 'ArrowLeft':
+      if (isFullbody) { turnaroundPaused = true; setAngle((currentAngle + 4) % 5); }
+      break;
+    case 'ArrowRight':
+      if (isFullbody) { turnaroundPaused = true; setAngle((currentAngle + 1) % 5); }
+      break;
+
+    case 'f': setViewMode(!isFullbody); break;
+    case 'h': setHolographic(!holoActive); break;
+    case ' ': if (isFullbody) { turnaroundPaused = false; startTurnaround(); } break;
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net10.0;net10.0-windows</TargetFrameworks>
+    <RootNamespace>Ouroboros</RootNamespace>
+    <AssemblyName>Ouroboros.Examples</AssemblyName>
+    <Product>Ouroboros Examples</Product>
+    <Description>Example applications and demonstrations for Ouroboros</Description>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0-windows'">
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(OuroborosFoundation)\Ouroboros.Core\Ouroboros.Core.csproj" />
+    <ProjectReference Include="$(OuroborosFoundation)\Ouroboros.Domain\Ouroboros.Domain.csproj" />
+    <ProjectReference Include="$(OuroborosEngine)\Ouroboros.Pipeline\Ouroboros.Pipeline.csproj" />
+    <ProjectReference Include="$(OuroborosFoundation)\Ouroboros.Tools\Ouroboros.Tools.csproj" />
+    <ProjectReference Include="$(OuroborosEngine)\Ouroboros.Providers\Ouroboros.Providers.csproj" />
+    <ProjectReference Include="$(OuroborosEngine)\Ouroboros.Agent\Ouroboros.Agent.csproj" />
+    <ProjectReference Include="..\Ouroboros.Application\Ouroboros.Application.csproj" />
+    <ProjectReference Include="$(OuroborosFoundation)\Ouroboros.Genetic\Ouroboros.Genetic.csproj" />
+    <ProjectReference Include="$(OuroborosEngine)\Ouroboros.Network\Ouroboros.Network.csproj" />
+    <ProjectReference Include="..\Ouroboros.Easy\Ouroboros.Easy.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Override vulnerable transitive dependencies from project references -->
+    <PackageReference Include="Microsoft.Build.Tasks.Core" Version="18.3.3" />
+    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="18.3.3" />
+
+    <PackageReference Include="LangChain" Version="0.17.0" />
+  </ItemGroup>
+
+  <!-- Temporarily exclude examples that depend on excluded/broken LangChain integrations -->
+  <ItemGroup>
+    <Compile Remove="Examples\LangChainConversationExample.cs" />
+    <Compile Remove="Examples\ProperLangChainIntegrationExamples.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.19.0.132793" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

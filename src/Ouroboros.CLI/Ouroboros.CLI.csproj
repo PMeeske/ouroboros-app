@@ -1,0 +1,80 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Ouroboros.CLI</RootNamespace>
+    <AssemblyName>Ouroboros.CLI</AssemblyName>
+    <Product>LangChain Pipeline System</Product>
+    <Description>Command-line interface for Ouroboros</Description>
+    <UserSecretsId>49b81524-d310-4809-8e7f-abdcbb49329e</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\appsettings.json" CopyToOutputDirectory="PreserveNewest" Link="appsettings.json" />
+  </ItemGroup>
+
+  <!-- Iaret's constitution — embedded at build time, immutable at runtime -->
+  <ItemGroup>
+    <EmbeddedResource Include="Constitution\IaretConstitution.md" />
+  </ItemGroup>
+
+  <!-- Avatar assets — copied to output so the web viewer can serve them -->
+  <ItemGroup>
+    <Content Include="Assets\Avatar\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Prompt templates embedded as resources -->
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Prompts\*.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- ASP.NET Core types needed for 'serve' mode (WebApplication, WebApplicationBuilder, etc.) -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- ApiHost provides shared engine bootstrapping (AddOuroborosEngine / AddOuroborosWebApi),
+         and transitively supplies: Core, Domain, Pipeline, Tools, Providers, Agent, Application,
+         Roslynator, and Network — no need to reference those directly. -->
+    <ProjectReference Include="..\Ouroboros.ApiHost\Ouroboros.ApiHost.csproj" />
+    <ProjectReference Include="..\Ouroboros.Examples\Ouroboros.Examples.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Override vulnerable transitive dependencies from Microsoft.CodeAnalysis -->
+    <PackageReference Include="MediatR" Version="12.*" />
+    <PackageReference Include="Microsoft.Build.Tasks.Core" Version="18.3.3" />
+    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="18.3.3" />
+
+    <PackageReference Include="LangChain" Version="0.17.0" />
+    <PackageReference Include="CommandLineParser" Version="2.9.1" />
+    <PackageReference Include="Microsoft.CognitiveServices.Speech" Version="1.48.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.3" />
+    <PackageReference Include="System.Reactive" Version="6.1.0" />
+    <PackageReference Include="System.Reactive.Linq" Version="6.1.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.0.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="5.0.0" />
+    
+    <!-- New packages for modern .NET CLI -->
+    <PackageReference Include="System.CommandLine" Version="2.0.3" />
+    <PackageReference Include="Spectre.Console" Version="0.54.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.3" />
+    <PackageReference Include="Scrutor" Version="5.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.3" />
+
+    <!-- Image processing for avatar asset preparation (character sheet cropping) -->
+    <PackageReference Include="System.Drawing.Common" Version="10.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.19.0.132793" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

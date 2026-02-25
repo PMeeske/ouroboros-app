@@ -1,0 +1,47 @@
+<Project>
+  <!-- Import base build config from ouroboros-build -->
+  <!-- Priority 1: meta-repo parent's .build submodule (when building from Ouroboros-v2) -->
+  <Import Project="$(MSBuildThisFileDirectory)..\.build\build\Directory.Build.props"
+          Condition="'$(TargetFramework)' == ''
+                     AND Exists('$(MSBuildThisFileDirectory)..\.build\build\Directory.Build.props')" />
+  <!-- Priority 2: transitive via libs/engine/libs/foundation/.build (standalone app CI) -->
+  <Import Project="$(MSBuildThisFileDirectory)libs\engine\libs\foundation\.build\build\Directory.Build.props"
+          Condition="'$(TargetFramework)' == ''
+                     AND Exists('$(MSBuildThisFileDirectory)libs\engine\libs\foundation\.build\build\Directory.Build.props')" />
+  <!-- Priority 3: local .build submodule -->
+  <Import Project="$(MSBuildThisFileDirectory).build\build\Directory.Build.props"
+          Condition="'$(TargetFramework)' == ''
+                     AND Exists('$(MSBuildThisFileDirectory).build\build\Directory.Build.props')" />
+  <!-- Priority 4: standalone peer checkout -->
+  <Import Project="$(MSBuildThisFileDirectory)..\ouroboros-build\build\Directory.Build.props"
+          Condition="'$(TargetFramework)' == ''
+                     AND Exists('$(MSBuildThisFileDirectory)..\ouroboros-build\build\Directory.Build.props')" />
+
+  <!-- Fallback: minimal defaults when no build config is available -->
+  <PropertyGroup Condition="'$(TargetFramework)' == ''">
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>14.0</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <OuroborosLayer>App</OuroborosLayer>
+    <!-- Ouroboros app src path for local test project references -->
+    <Ouroboros>$(MSBuildThisFileDirectory)src</Ouroboros>
+    <!-- OuroborosBuild path resolution (meta-repo parent first, then local submodule) -->
+    <OuroborosBuild Condition="'$(OuroborosBuild)' == '' AND Exists('$(MSBuildThisFileDirectory)..\.build')">$(MSBuildThisFileDirectory)..\.build</OuroborosBuild>
+    <OuroborosBuild Condition="'$(OuroborosBuild)' == '' AND Exists('$(MSBuildThisFileDirectory)libs\engine\libs\foundation\.build')">$(MSBuildThisFileDirectory)libs\engine\libs\foundation\.build</OuroborosBuild>
+    <OuroborosBuild Condition="'$(OuroborosBuild)' == '' AND Exists('$(MSBuildThisFileDirectory).build')">$(MSBuildThisFileDirectory).build</OuroborosBuild>
+    <OuroborosBuild Condition="'$(OuroborosBuild)' == '' AND Exists('$(MSBuildThisFileDirectory)..\ouroboros-build')">$(MSBuildThisFileDirectory)..\ouroboros-build</OuroborosBuild>
+    <!-- Cross-layer paths: meta-repo layout (preferred when building from root solution) -->
+    <OuroborosFoundation Condition="Exists('$(MSBuildThisFileDirectory)..\foundation\src')">$(MSBuildThisFileDirectory)..\foundation\src</OuroborosFoundation>
+    <OuroborosEngine Condition="Exists('$(MSBuildThisFileDirectory)..\engine\src')">$(MSBuildThisFileDirectory)..\engine\src</OuroborosEngine>
+    <!-- Cross-layer paths: libs/ submodule layout (standalone app CI) -->
+    <OuroborosFoundation Condition="'$(OuroborosFoundation)' == '' AND Exists('$(MSBuildThisFileDirectory)libs\engine\libs\foundation\src')">$(MSBuildThisFileDirectory)libs\engine\libs\foundation\src</OuroborosFoundation>
+    <OuroborosEngine Condition="'$(OuroborosEngine)' == '' AND Exists('$(MSBuildThisFileDirectory)libs\engine\src')">$(MSBuildThisFileDirectory)libs\engine\src</OuroborosEngine>
+    <!-- Cross-layer paths: standalone layout -->
+    <OuroborosFoundation Condition="'$(OuroborosFoundation)' == '' AND Exists('$(MSBuildThisFileDirectory)..\ouroboros-foundation\src')">$(MSBuildThisFileDirectory)..\ouroboros-foundation\src</OuroborosFoundation>
+    <OuroborosEngine Condition="'$(OuroborosEngine)' == '' AND Exists('$(MSBuildThisFileDirectory)..\ouroboros-engine\src')">$(MSBuildThisFileDirectory)..\ouroboros-engine\src</OuroborosEngine>
+  </PropertyGroup>
+</Project>

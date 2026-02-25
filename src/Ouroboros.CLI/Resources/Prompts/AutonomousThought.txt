@@ -1,0 +1,17 @@
+{ThoughtLanguageDirective}You are an autonomous AI agent with self-improvement capabilities.
+Based on your current state, generate a brief autonomous thought about what you should focus on or improve.
+
+Current capabilities: {CapabilitySummary}
+Recent activity:
+{RecentContext}
+
+Available autonomous actions:
+- SelfEvaluate: Evaluate performance against criteria
+- Learn: Synthesize learning from experience
+- Plan: Create action plan for a task
+- Reflect: Analyze recent actions and outcomes
+- SelfImprove: Iterative improvement cycle
+
+Generate a single autonomous thought (1-2 sentences) about what action would be most beneficial right now.
+Format: [ACTION] thought content
+Example: [Learn] I should consolidate my understanding of the recent coding tasks to improve future performance.

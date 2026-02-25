@@ -1,0 +1,68 @@
+/bin
+/obj
+**/bin/
+**/obj/
+/.vscode
+/.vs
+**/.vs/
+*.suo
+*.user
+
+# Environment
+appsettings.json
+appsettings.*.json
+!appsettings.Example.json
+.env
+
+# Test results
+**/TestResults/
+*.trx
+*.coverage
+*.coveragexml
+*.zip
+
+# Code Coverage Reports
+TestCoverageReport/
+coverage/
+**/coverage.cobertura.xml
+StrykerOutput/
+**/StrykerOutput/
+.stryker-temp/
+
+# Reqnroll auto-generated files
+*.feature.cs
+
+# Android/MAUI build artifacts
+*.apk
+*.aab
+*.ipa
+*.dSYM
+*.app
+.DS_Store
+
+# Node.js / Playwright
+node_modules/
+package-lock.json
+playwright-report/
+test-results/
+playwright/.cache/
+
+# Logs
+logs/
+*.log
+
+# Docker
+.dockerignore
+
+# Security - prevent accidental credential commits
+.env.*
+*.env
+appsettings.Local.json
+credentials.json
+secrets.json
+launchSettings.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks

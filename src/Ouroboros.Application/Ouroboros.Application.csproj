@@ -1,0 +1,64 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFrameworks>net10.0;net10.0-windows</TargetFrameworks>
+    <RootNamespace>Ouroboros.Application</RootNamespace>
+    <AssemblyName>Ouroboros.Application</AssemblyName>
+    <Product>Ouroboros Application</Product>
+    <Description>Shared pipeline runtime and application logic</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>Ouroboros.Application.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0-windows'">
+    <UseWindowsForms>true</UseWindowsForms>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(OuroborosFoundation)\Ouroboros.Core\Ouroboros.Core.csproj" />
+    <ProjectReference Include="$(OuroborosFoundation)\Ouroboros.Domain\Ouroboros.Domain.csproj" />
+    <ProjectReference Include="$(OuroborosEngine)\Ouroboros.Network\Ouroboros.Network.csproj" />
+    <ProjectReference Include="$(OuroborosEngine)\Ouroboros.Pipeline\Ouroboros.Pipeline.csproj" />
+    <ProjectReference Include="$(OuroborosFoundation)\Ouroboros.Tools\Ouroboros.Tools.csproj" />
+    <ProjectReference Include="$(OuroborosEngine)\Ouroboros.Providers\Ouroboros.Providers.csproj" />
+    <ProjectReference Include="$(OuroborosEngine)\Ouroboros.Agent\Ouroboros.Agent.csproj" />
+    <ProjectReference Include="$(OuroborosFoundation)\Ouroboros.Roslynator\Ouroboros.Roslynator.csproj" />
+    <ProjectReference Include="$(OuroborosFoundation)\Ouroboros.Genetic\Ouroboros.Genetic.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Override vulnerable transitive dependencies from Microsoft.CodeAnalysis -->
+    <PackageReference Include="MediatR" Version="12.*" />
+    <PackageReference Include="Microsoft.Build.Tasks.Core" Version="18.3.3" />
+    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="18.3.3" />
+
+    <PackageReference Include="LangChain" Version="0.17.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.3" />
+    <PackageReference Include="Scrutor" Version="5.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.3" />
+    <PackageReference Include="BouncyCastle.Cryptography" Version="2.*" />
+    <PackageReference Include="System.Reactive" Version="6.1.0" />
+    <PackageReference Include="System.Reactive.Linq" Version="6.1.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.0.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="5.0.0" />
+
+    <!-- For cross-platform System.Drawing support -->
+    <PackageReference Include="System.Drawing.Common" Version="10.0.3" />
+
+    <!-- Polly v8 resilience (retry, circuit breaker, timeout, hedging) -->
+    <PackageReference Include="Microsoft.Extensions.Resilience" Version="9.6.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.19.0.132793" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

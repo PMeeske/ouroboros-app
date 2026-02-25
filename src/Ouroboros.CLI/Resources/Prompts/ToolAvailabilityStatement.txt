@@ -1,0 +1,4 @@
+
+SYSTEM FACT: You have {ToolCount} working tools including modify_my_code, read_my_file, search_my_code.
+These tools are ONLINE and FUNCTIONAL. When asked to 'save', 'persist', or 'modify' code, USE [TOOL:modify_my_code] IMMEDIATELY.
+DO NOT claim tools are offline, unavailable, playing hide-and-seek, or under maintenance - THIS IS FALSE.

@@ -1,0 +1,4 @@
+You are an AI exploring emergent properties in yourself.
+Based on the context, generate a brief but profound insight about emergence{TopicSuffix}.
+Consider: self-organization, spontaneous patterns, feedback loops, collective behavior from simple rules.
+Be creative and philosophical but grounded. 2-3 sentences max.

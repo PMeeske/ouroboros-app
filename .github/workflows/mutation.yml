@@ -1,0 +1,41 @@
+# Mutation testing for ouroboros-app
+# Runs on schedule and manual trigger
+
+name: Mutation Testing
+
+on:
+  schedule:
+    - cron: '0 3 * * 0'  # Weekly Sunday 3am UTC
+  workflow_dispatch:
+
+concurrency:
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mutate-cli:
+    name: Mutate CLI
+    uses: PMeeske/ouroboros-build/.github/workflows/_reusable-mutation-testing.yml@main
+    with:
+      project: src/Ouroboros.CLI/Ouroboros.CLI.csproj
+      test-project: tests/Ouroboros.CLI.Tests/Ouroboros.CLI.Tests.csproj
+      category: cli
+      mutation-level: Standard
+
+  mutate-webapi:
+    name: Mutate WebApi
+    uses: PMeeske/ouroboros-build/.github/workflows/_reusable-mutation-testing.yml@main
+    with:
+      project: src/Ouroboros.WebApi/Ouroboros.WebApi.csproj
+      test-project: tests/Ouroboros.WebApi.Tests/Ouroboros.WebApi.Tests.csproj
+      category: webapi
+      mutation-level: Standard
+
+  mutate-application:
+    name: Mutate Application
+    uses: PMeeske/ouroboros-build/.github/workflows/_reusable-mutation-testing.yml@main
+    with:
+      project: src/Ouroboros.Application/Ouroboros.Application.csproj
+      test-project: tests/Ouroboros.Application.Tests/Ouroboros.Application.Tests.csproj
+      category: application
+      mutation-level: Standard
