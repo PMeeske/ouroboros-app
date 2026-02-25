@@ -152,6 +152,9 @@ public sealed partial class OuroborosAgent
         // ── Autonomous Mind delegates ──
         WireAutonomousMindDelegatesAsync().GetAwaiter().GetResult();
 
+        // ── Autonomous Action Engine (on by default, 3-min interval) ──
+        WireAutonomousActionEngine();
+
         // ── Autonomous Coordinator ──
         WireAutonomousCoordinatorAsync().GetAwaiter().GetResult();
 
@@ -636,6 +639,98 @@ public sealed partial class OuroborosAgent
             _agentEventBridge.WireAgentEventBroker(agentEventBus, _eventLoopCts.Token);
 
         _output.RecordInit("Agent Events", true, "MediatR notification pipeline active");
+    }
+
+    /// <summary>
+    /// Wires the <see cref="AutonomousActionEngine"/> with the LLM and full self-awareness context,
+    /// then starts its 3-minute loop. On by default — no config flag required.
+    ///
+    /// Self-awareness context passed on each cycle:
+    ///   • Persona name + current mood/energy
+    ///   • Active personality traits
+    ///   • Recent conversation history (last 6 lines)
+    ///   • Last autonomous thought
+    /// </summary>
+    private void WireAutonomousActionEngine()
+    {
+        if (_actionEngine is null) return;
+
+        // ── ThinkFunction: use the same orchestrated model as autonomous mind ──
+        _actionEngine.ThinkFunction = async (prompt, ct) =>
+        {
+            // Prepend language directive if non-English culture
+            var actualPrompt = prompt;
+            if (!string.IsNullOrEmpty(_config.Culture) && _config.Culture != "en-US")
+            {
+                var lang = GetLanguageName(_config.Culture);
+                actualPrompt = $"LANGUAGE: Respond ONLY in {lang}. No English.\n\n{prompt}";
+            }
+
+            return await GenerateWithOrchestrationAsync(actualPrompt, ct);
+        };
+
+        // ── GetContextFunc: rich self-awareness snapshot ──
+        _actionEngine.GetContextFunc = () =>
+        {
+            var lines = new List<string>();
+
+            // Persona identity
+            var persona = _voice.ActivePersona;
+            if (persona is not null)
+            {
+                lines.Add($"[Persona] Name: {persona.Name}");
+                if (persona.Moods?.FirstOrDefault() is { } mood)
+                    lines.Add($"[Persona] Current mood: {mood}");
+            }
+
+            // Personality traits (top 3, ordered by effective intensity)
+            if (_personality?.Traits is { Count: > 0 })
+            {
+                var top = _personality.GetActiveTraits(3).Select(t => t.Name);
+                lines.Add($"[Personality] Active traits: {string.Join(", ", top)}");
+            }
+
+            // Valence / emotional state
+            if (_valenceMonitor is not null)
+                lines.Add($"[Affect] Valence: {_valenceMonitor.GetCurrentState().Valence:F2}");
+
+            // Last autonomous thought
+            if (!string.IsNullOrWhiteSpace(_lastThoughtContent))
+                lines.Add($"[Last thought] {_lastThoughtContent}");
+
+            // Recent conversation (last 6 lines, trimmed)
+            foreach (var line in _conversationHistory.TakeLast(6))
+                lines.Add(line);
+
+            return lines;
+        };
+
+        // ── OnAction: display as [Autonomous] 💬 and persist ──
+        _actionEngine.OnAction += async msg =>
+        {
+            if (string.IsNullOrWhiteSpace(msg)) return;
+
+            if (_config.Verbosity != OutputVerbosity.Quiet)
+            {
+                AnsiConsole.MarkupLine(
+                    $"\n  [bold][rgb(0,200,160)][Autonomous][/][/] 💬 {Markup.Escape(msg)}");
+            }
+
+            // Push as avatar status text
+            if (_avatarService is { } svc)
+                svc.NotifyMoodChange(svc.CurrentState.Mood, svc.CurrentState.Energy,
+                    svc.CurrentState.Positivity, statusText: msg);
+
+            // Persist as an autonomous thought
+            var thought = InnerThought.CreateAutonomous(
+                InnerThoughtType.Intention, msg, confidence: 0.8);
+            await PersistThoughtAsync(thought, "autonomous_action");
+        };
+
+        // ── Start the loop ──
+        _actionEngine.Start();
+        _output.RecordInit("Autonomous Action Engine", true,
+            $"started — interval: {_actionEngine.Interval.TotalMinutes:F0} min");
     }
 
     /// <summary>

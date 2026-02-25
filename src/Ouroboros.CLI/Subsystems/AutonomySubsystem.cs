@@ -40,6 +40,7 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
 
     // Autonomous Mind
     public AutonomousMind? AutonomousMind { get; set; }
+    public AutonomousActionEngine? ActionEngine { get; set; }
     public AutonomousCoordinator? Coordinator { get; set; }
     public MetaAIPlannerOrchestrator? Orchestrator { get; set; }
 
@@ -122,6 +123,10 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
         {
             ctx.Output.RecordInit("Autonomous Mind", false, "disabled");
         }
+
+        // ── Autonomous Action Engine (on by default; fires every 3 min) ──
+        ActionEngine = new AutonomousActionEngine(TimeSpan.FromMinutes(3));
+        ctx.Output.RecordInit("Autonomous Action Engine", true, "3 min interval (delegates pending)");
 
         // ── Sub-Agent Orchestration ──
         await InitializeSubAgentOrchestrationCoreAsync(ctx);
@@ -2512,8 +2517,9 @@ Examples:
         // Clear sub-agents
         SubAgents.Clear();
 
-        // Dispose autonomous mind
+        // Dispose autonomous mind and action engine
         AutonomousMind?.Dispose();
+        ActionEngine?.Dispose();
 
         // Dispose self-indexer (stops file watchers)
         if (SelfIndexer != null)

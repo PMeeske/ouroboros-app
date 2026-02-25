@@ -118,6 +118,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     // ── Autonomy ──
     private MetaAIPlannerOrchestrator? _orchestrator { get => _autonomySub.Orchestrator; set => _autonomySub.Orchestrator = value; }
     private AutonomousMind? _autonomousMind { get => _autonomySub.AutonomousMind; set => _autonomySub.AutonomousMind = value; }
+    private AutonomousActionEngine? _actionEngine { get => _autonomySub.ActionEngine; set => _autonomySub.ActionEngine = value; }
     private AutonomousCoordinator? _autonomousCoordinator { get => _autonomySub.Coordinator; set => _autonomySub.Coordinator = value; }
     private ConcurrentQueue<AutonomousGoal> _goalQueue => _autonomySub.GoalQueue;
     private Task? _selfExecutionTask { get => _autonomySub.SelfExecutionTask; set => _autonomySub.SelfExecutionTask = value; }
