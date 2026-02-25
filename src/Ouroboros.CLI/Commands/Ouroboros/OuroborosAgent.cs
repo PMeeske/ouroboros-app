@@ -181,6 +181,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     private readonly StringBuilder _currentInputBuffer = new();
     private readonly object _inputLock = new();
     private bool _isInConversationLoop;
+    private ToolPermissionBroker? _permissionBroker;
 
     // State
     private bool _isInitialized;

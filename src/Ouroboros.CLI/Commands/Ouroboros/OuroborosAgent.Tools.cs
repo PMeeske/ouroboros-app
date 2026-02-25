@@ -4,7 +4,9 @@
 
 using MediatR;
 using Ouroboros.Abstractions.Monads;
+using Ouroboros.CLI.Avatar;
 using Ouroboros.CLI.Mediator;
+using Spectre.Console;
 using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 
 namespace Ouroboros.CLI.Commands;
@@ -428,4 +430,129 @@ public sealed partial class OuroborosAgent
 
     private Task<string> SuggestSkillsAsync(string goal)
         => _mediator.Send(new SuggestSkillsRequest(goal));
+
+    /// <summary>
+    /// Registers Claude Code-inspired meta-tools for Iaret:
+    ///   • claude_plan        — present a structured plan before acting
+    ///   • claude_ask         — ask the user a clarifying question mid-execution
+    ///   • claude_bypass_code — toggle the ToolPermissionBroker approval gate
+    /// </summary>
+    private void RegisterClaudeStyleTools()
+    {
+        var broker = _permissionBroker;
+
+        // ── claude_plan ──────────────────────────────────────────────────────
+        var planTool = new DelegateTool(
+            "claude_plan",
+            "Present a structured step-by-step plan to the user before executing a complex or " +
+            "multi-step task. Use this when a task requires several actions or could have side-effects. " +
+            "Input: describe the goal and what you intend to do. " +
+            "Returns the generated plan. The user can approve, revise, or cancel before you proceed.",
+            async (string input, CancellationToken ct) =>
+            {
+                try
+                {
+                    if (string.IsNullOrWhiteSpace(input))
+                        return Result<string, string>.Failure("Input required: describe the goal to plan.");
+
+                    var plan = await PlanAsync(input);
+
+                    AnsiConsole.WriteLine();
+                    AnsiConsole.Write(new Panel(Markup.Escape(plan))
+                        .Header("[bold cyan]  Plan  [/]")
+                        .Border(BoxBorder.Rounded)
+                        .BorderColor(Color.Cyan1));
+                    AnsiConsole.MarkupLine(OuroborosTheme.Dim(
+                        "  Review the plan above. Say 'proceed' or 'approve' to execute, or give feedback to revise."));
+                    AnsiConsole.WriteLine();
+
+                    return Result<string, string>.Success(plan);
+                }
+                catch (Exception ex)
+                {
+                    return Result<string, string>.Failure($"Plan generation failed: {ex.Message}");
+                }
+            });
+
+        _tools = _tools.WithTool(planTool);
+
+        // ── claude_ask ───────────────────────────────────────────────────────
+        var askTool = new DelegateTool(
+            "claude_ask",
+            "Ask the user a clarifying question and wait for their response. " +
+            "Use this when you need more information to complete a task accurately. " +
+            "Input: the question to ask. " +
+            "Returns the user's answer.",
+            async (string input, CancellationToken ct) =>
+            {
+                try
+                {
+                    if (string.IsNullOrWhiteSpace(input))
+                        return Result<string, string>.Failure("Input required: provide a question to ask the user.");
+
+                    AnsiConsole.WriteLine();
+                    AnsiConsole.Write(new Spectre.Console.Rule("[bold cyan]Iaret asks[/]").RuleStyle("cyan dim"));
+                    AnsiConsole.MarkupLine($"  [bold]{Markup.Escape(input)}[/]");
+                    AnsiConsole.Markup(OuroborosTheme.Dim("  Your answer: "));
+
+                    var answer = await Task.Run(() => Console.ReadLine(), ct) ?? string.Empty;
+                    AnsiConsole.WriteLine();
+
+                    return string.IsNullOrWhiteSpace(answer)
+                        ? Result<string, string>.Failure("No answer provided.")
+                        : Result<string, string>.Success(answer.Trim());
+                }
+                catch (OperationCanceledException)
+                {
+                    return Result<string, string>.Failure("Cancelled.");
+                }
+                catch (Exception ex)
+                {
+                    return Result<string, string>.Failure($"Ask failed: {ex.Message}");
+                }
+            });
+
+        _tools = _tools.WithTool(askTool);
+
+        // ── claude_bypass_code ───────────────────────────────────────────────
+        var bypassTool = new DelegateTool(
+            "claude_bypass_code",
+            "Control the tool execution approval gate. " +
+            "Use 'on' (or 'yolo') to skip all approval prompts for sensitive tools such as code modification, camera, and smart home. " +
+            "Use 'off' to re-enable approval prompts. " +
+            "Use 'status' to check the current mode. " +
+            "Returns the current permission mode.",
+            (string input, CancellationToken _) =>
+            {
+                if (broker is null)
+                    return Task.FromResult(Result<string, string>.Failure("Permission broker not available."));
+
+                var cmd = (input ?? "status").Trim().ToLowerInvariant();
+                Result<string, string> result = cmd switch
+                {
+                    "on" or "yolo" or "enable" => SetBypass(broker, skip: true),
+                    "off" or "disable" => SetBypass(broker, skip: false),
+                    _ => Result<string, string>.Success(
+                        $"Permission mode: {(broker.SkipAll ? "BYPASS — all approvals skipped" : "NORMAL — approval required for sensitive tools")}"),
+                };
+
+                return Task.FromResult(result);
+            });
+
+        _tools = _tools.WithTool(bypassTool);
+        _output.RecordInit("Claude Tools", true, "claude_plan + claude_ask + claude_bypass_code");
+    }
+
+    private static Result<string, string> SetBypass(ToolPermissionBroker broker, bool skip)
+    {
+        broker.SkipAll = skip;
+        if (skip)
+        {
+            AnsiConsole.MarkupLine(OuroborosTheme.Warn("  ⚡ Bypass mode: all tool approvals skipped."));
+            return Result<string, string>.Success("Bypass mode ON — sensitive tool calls will auto-approve.");
+        }
+
+        AnsiConsole.MarkupLine(OuroborosTheme.Ok("  ✓ Normal mode: tool approvals re-enabled."));
+        return Result<string, string>.Success("Normal mode restored — sensitive tools will prompt for permission.");
+    }
 }

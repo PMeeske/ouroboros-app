@@ -34,6 +34,7 @@ public sealed partial class OuroborosAgent
         {
             SkipAll = _config.YoloMode,
         };
+        _permissionBroker = permissionBroker;
         var agentEventBus = new CLI.Infrastructure.EventBroker<CLI.Infrastructure.AgentEvent>();
 
         // Create shared initialization context (mediator pattern)
@@ -80,6 +81,9 @@ public sealed partial class OuroborosAgent
 
         // ── Phase 3: Tools (needs Models) ──
         await _toolsSub.InitializeAsync(ctx);
+
+        // ── Phase 3.1: Claude-style meta-tools (plan / ask / bypass) ──
+        RegisterClaudeStyleTools();
 
         // ── Phase 4: Memory (needs Models, uses MeTTa from Tools) ──
         await _memorySub.InitializeAsync(ctx);
