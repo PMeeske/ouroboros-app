@@ -251,18 +251,18 @@ public sealed class QdrantSyncTool : ITool, IDisposable
                 status = "→ cloud only";
                 onlyCloud++;
             }
-            else if (localInfo!.Value.points == cloudInfo!.Value.points)
+            else if (localInfo.points == cloudInfo.points)
             {
                 status = "= synced";
                 synced++;
             }
             else
             {
-                status = $"≠ diverged ({localInfo.Value.points - cloudInfo.Value.points:+#;-#;0})";
+                status = $"≠ diverged ({localInfo.points - cloudInfo.points:+#;-#;0})";
                 diverged++;
             }
 
-            sb.AppendLine($"| {name} | {(hasLocal ? $"{localInfo!.Value.points} pts ({localInfo.Value.dim}D)" : "—")} | {(hasCloud ? $"{cloudInfo!.Value.points} pts ({cloudInfo.Value.dim}D)" : "—")} | {status} |");
+            sb.AppendLine($"| {name} | {(hasLocal ? $"{localInfo.points} pts ({localInfo.dim}D)" : "—")} | {(hasCloud ? $"{cloudInfo.points} pts ({cloudInfo.dim}D)" : "—")} | {status} |");
         }
 
         sb.AppendLine($"\n**Summary:** {synced} synced, {diverged} diverged, {onlyLocal} local-only, {onlyCloud} cloud-only");
