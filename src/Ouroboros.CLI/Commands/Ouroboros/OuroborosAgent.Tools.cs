@@ -526,9 +526,84 @@ public sealed partial class OuroborosAgent
 
         _tools = _tools.WithTool(bypassTool);
 
+        // ── claude_edit ──────────────────────────────────────────────────────
+        var editTool = new DelegateTool(
+            "claude_edit",
+            "Use the Claude CLI to make targeted code edits to local files. " +
+            "Claude is granted Read, Edit, Write, and Bash tool access so it can " +
+            "read the file, apply the change, and verify the result — without full bypass. " +
+            "Input: describe exactly what to change and in which file(s). " +
+            "Returns Claude's edit summary. Call claude_continue afterwards to resume context.",
+            async (string input, CancellationToken ct) =>
+            {
+                if (string.IsNullOrWhiteSpace(input))
+                    return Result<string, string>.Failure("Input required: describe the edit to make.");
+
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim("  ✏  Claude editing…"));
+
+                var result = await RunClaudeAsync(
+                    ["--allowedTools", "Read,Edit,Write,Bash", "--print", input, "--output-format", "text"], ct);
+
+                AnsiConsole.WriteLine();
+                return result;
+            });
+
+        _tools = _tools.WithTool(editTool);
+
+        // ── claude_continue ──────────────────────────────────────────────────
+        var continueTool = new DelegateTool(
+            "claude_continue",
+            "Resume the most recent Claude CLI conversation after local code changes, " +
+            "so you do not have to exit and restart. " +
+            "Use this after claude_edit or any manual file change to hand context back to Claude. " +
+            "Input: optional follow-up message or leave empty to just continue. " +
+            "Optionally prefix with a session ID and a space to resume a specific session: '<id> <message>'. " +
+            "Returns Claude's continued response.",
+            async (string input, CancellationToken ct) =>
+            {
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim("  ↩  Resuming Claude session…"));
+
+                // Allow optional "session-id message" prefix
+                string? sessionId = null;
+                var message = (input ?? string.Empty).Trim();
+                var spaceIdx = message.IndexOf(' ');
+                if (spaceIdx > 0)
+                {
+                    var candidate = message[..spaceIdx];
+                    // Session IDs are long hex/UUID-ish strings — heuristic: no spaces, 8+ chars, no common words
+                    if (candidate.Length >= 8 && !candidate.Contains('.') && !candidate.Contains('/'))
+                    {
+                        sessionId = candidate;
+                        message = message[(spaceIdx + 1)..].Trim();
+                    }
+                }
+
+                List<string> args;
+                if (sessionId is not null)
+                {
+                    args = ["--resume", sessionId, "--print", message, "--output-format", "text"];
+                }
+                else if (string.IsNullOrWhiteSpace(message))
+                {
+                    args = ["--continue", "--print", "Please continue.", "--output-format", "text"];
+                }
+                else
+                {
+                    args = ["--continue", "--print", message, "--output-format", "text"];
+                }
+
+                var result = await RunClaudeAsync(args, ct);
+                AnsiConsole.WriteLine();
+                return result;
+            });
+
+        _tools = _tools.WithTool(continueTool);
+
         var claudePath = ResolveClaudeExecutable() ?? "claude (not found — install @anthropic-ai/claude-code)";
         _output.RecordInit("Claude CLI Tools", true,
-            $"claude_plan + claude_ask + claude_bypass_code → {claudePath}");
+            $"claude_plan + claude_ask + claude_bypass_code + claude_edit + claude_continue → {claudePath}");
     }
 
     // ── Claude CLI subprocess helpers ────────────────────────────────────────
