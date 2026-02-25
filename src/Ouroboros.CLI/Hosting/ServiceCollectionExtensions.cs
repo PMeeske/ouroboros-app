@@ -78,16 +78,18 @@ public static class ServiceCollectionExtensions
         services.AddScoped<CognitivePhysicsCommandHandler>();
         services.AddScoped<QualityCommandHandler>();
         services.AddScoped<MeTTaCommandHandler>();
+        services.AddScoped<ClaudeCheckCommandHandler>();
         return services;
     }
 
     /// <summary>
-    /// Registers infrastructure services (console, voice).
+    /// Registers infrastructure services (console, voice, cloud sync).
     /// </summary>
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services)
     {
         services.TryAddSingleton<ISpectreConsoleService, SpectreConsoleService>();
         services.TryAddScoped<IVoiceIntegrationService, VoiceIntegrationService>();
+        services.TryAddSingleton<Ouroboros.ApiHost.Services.IQdrantSyncService, Ouroboros.ApiHost.Services.QdrantSyncService>();
         return services;
     }
 

@@ -147,6 +147,9 @@ rootCommand.Add(CreateMeTTaCommand(host, voiceOption));
 rootCommand.Add(CreateImmersiveCommand(host, voiceOption));
 rootCommand.Add(CreateRoomCommand(host));
 
+// Claude Code diagnostic tools
+rootCommand.Add(CreateClaudeCommand(host));
+
 // Add a special 'serve' subcommand for running API-only mode
 rootCommand.Add(CreateServeCommand());
 
@@ -344,4 +347,56 @@ static Command CreateRoomCommand(IHost host)
     var command = new Command("room", "Run Iaret as ambient room presence (ambient listening + ethics-gated interjections)");
     options.AddToCommand(command);
     return command.ConfigureRoomCommand(host, options);
+}
+
+/// <summary>
+/// 'claude' subcommand — Claude Code diagnostic tools: memory health, file integrity,
+/// Qdrant state (local + cloud), and submodule sync verification.
+/// </summary>
+static Command CreateClaudeCommand(IHost host)
+{
+    var command = new Command("claude", "Claude Code diagnostic tools — check memory, files, Qdrant, and sync state");
+
+    // ── claude check ──
+    var checkCommand = new Command("check", "Run comprehensive diagnostics on Qdrant, CLAUDE.md, memory, and submodules");
+    checkCommand.SetAction(async (parseResult, cancellationToken) =>
+    {
+        var handler = host.Services.GetRequiredService<ClaudeCheckCommandHandler>();
+        await handler.HandleAsync(cancellationToken);
+    });
+    command.Add(checkCommand);
+
+    // ── claude backup ──
+    var backupOutputOption = new System.CommandLine.Option<string?>("--output", "-o")
+    {
+        Description = "Output directory for backup (default: ~/.claude/backups/<timestamp>)",
+    };
+    var backupCommand = new Command("backup", "Backup CLAUDE.md and MEMORY.md files with integrity manifest");
+    backupCommand.Add(backupOutputOption);
+    backupCommand.SetAction(async (parseResult, cancellationToken) =>
+    {
+        var output = parseResult.GetValue(backupOutputOption);
+        await ClaudeBackupCommand.RunAsync(AnsiConsole.Console, output);
+    });
+    command.Add(backupCommand);
+
+    // ── claude restore ──
+    var restorePathArg = new Argument<string>("backup-path") { Description = "Path to backup directory to restore from" };
+    var restoreCommand = new Command("restore", "Restore CLAUDE.md and MEMORY.md files from a backup");
+    restoreCommand.Add(restorePathArg);
+    restoreCommand.SetAction(async (parseResult, cancellationToken) =>
+    {
+        var path = parseResult.GetValue(restorePathArg);
+        await ClaudeRestoreCommand.RunAsync(AnsiConsole.Console, path);
+    });
+    command.Add(restoreCommand);
+
+    // Default action (no subcommand) = check
+    command.SetAction(async (parseResult, cancellationToken) =>
+    {
+        var handler = host.Services.GetRequiredService<ClaudeCheckCommandHandler>();
+        await handler.HandleAsync(cancellationToken);
+    });
+
+    return command;
 }
