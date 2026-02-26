@@ -7,8 +7,8 @@ namespace Ouroboros.Options;
 /// </summary>
 public abstract class BaseModelOptions
 {
-    [Option("model", Required = false, Default = "ministral-3:latest", HelpText = "Model to use")]
-    public string Model { get; set; } = "ministral-3:latest";
+    [Option("model", Required = false, Default = "llama3:latest", HelpText = "Model to use")]
+    public string Model { get; set; } = "llama3:latest";
 
     [Option("embed", Required = false, Default = "nomic-embed-text", HelpText = "Embedding model")]
     public string Embed { get; set; } = "nomic-embed-text";

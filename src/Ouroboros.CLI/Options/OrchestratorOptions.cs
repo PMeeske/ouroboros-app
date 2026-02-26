@@ -31,8 +31,8 @@ public sealed class OrchestratorOptions : IVoiceOptions
     [Option('c', "culture", Required = false, HelpText = "Target culture for the response.")]
     public string? Culture { get; set; }
 
-    [Option("model", Required = false, HelpText = "Primary LLM model name", Default = "ministral-3:latest")]
-    public string Model { get; set; } = "ministral-3:latest";
+    [Option("model", Required = false, HelpText = "Primary LLM model name", Default = "llama3:latest")]
+    public string Model { get; set; } = "llama3:latest";
 
     [Option("coder-model", Required = false, HelpText = "Model for code/refactor tasks.", Default = "codellama")]
     public string? CoderModel { get; set; }
@@ -46,8 +46,8 @@ public sealed class OrchestratorOptions : IVoiceOptions
     [Option("temperature", Required = false, HelpText = "Sampling temperature", Default = 0.7)]
     public double Temperature { get; set; } = 0.7;
 
-    [Option("max-tokens", Required = false, HelpText = "Max tokens for completion", Default = 512)]
-    public int MaxTokens { get; set; } = 512;
+    [Option("max-tokens", Required = false, HelpText = "Max tokens for completion", Default = 2048)]
+    public int MaxTokens { get; set; } = 2048;
 
     [Option("timeout-seconds", Required = false, HelpText = "HTTP timeout for model", Default = 60)]
     public int TimeoutSeconds { get; set; } = 60;
@@ -71,8 +71,8 @@ public sealed class OrchestratorOptions : IVoiceOptions
     [Option("voice-only", Required = false, HelpText = "Voice-only mode (no text output)", Default = false)]
     public bool VoiceOnly { get; set; }
 
-    [Option("local-tts", Required = false, HelpText = "Prefer local TTS (Windows SAPI) over cloud", Default = true)]
-    public bool LocalTts { get; set; } = true;
+    [Option("local-tts", Required = false, HelpText = "Prefer local TTS (Windows SAPI) over cloud", Default = false)]
+    public bool LocalTts { get; set; } = false;
 
     [Option("voice-loop", Required = false, HelpText = "Continue voice conversation after command", Default = false)]
     public bool VoiceLoop { get; set; }

@@ -1,5 +1,5 @@
-// <copyright file="AgentPromptBuilder.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="AgentPromptBuilder.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 using System.Text;
@@ -14,58 +14,33 @@ namespace Ouroboros.Application.Agent;
 public static class AgentPromptBuilder
 {
     /// <summary>
-    /// Returns a static description block for all agent tools, including
-    /// the JSON schema the LLM must follow when invoking them.
+    /// Returns a description block for all agent tools, auto-generated from
+    /// <see cref="AgentToolFactory.ToolDescriptors"/>. This keeps the prompt
+    /// in sync with the actual tool implementations.
     /// </summary>
     public static string BuildToolDescriptions()
     {
-        return """
-            ## Available Tools
+        var sb = new StringBuilder();
+        sb.AppendLine("## Available Tools");
+        sb.AppendLine();
+        sb.AppendLine("Use tools by responding with JSON in this format:");
+        sb.AppendLine("""{"tool": "tool_name", "args": {"arg1": "value1", ...}}""");
+        sb.AppendLine();
 
-            Use tools by responding with JSON in this format:
-            {"tool": "tool_name", "args": {"arg1": "value1", ...}}
+        foreach (var tool in AgentToolFactory.ToolDescriptors)
+        {
+            sb.AppendLine($"### {tool.Name}");
+            sb.AppendLine(tool.Description);
+            sb.AppendLine($"Args: {tool.ArgsExample}");
+            sb.AppendLine();
+        }
 
-            ### read_file
-            Read the contents of a file.
-            Args: {"path": "path/to/file.cs"}
+        sb.AppendLine("## Completing the Task");
+        sb.AppendLine();
+        sb.AppendLine("When the task is complete, respond with:");
+        sb.AppendLine("""{"complete": true, "summary": "Description of what was accomplished"}""");
 
-            ### write_file
-            Create or overwrite a file with new content.
-            Args: {"path": "path/to/file.cs", "content": "file contents here"}
-
-            ### edit_file
-            Replace specific text in a file. Include enough context to uniquely identify the location.
-            Args: {"path": "path/to/file.cs", "old": "text to replace", "new": "replacement text"}
-
-            ### list_dir
-            List contents of a directory.
-            Args: {"path": "path/to/directory"}
-
-            ### search_files
-            Search for text across files.
-            Args: {"query": "search text", "path": ".", "pattern": "*.cs"}
-
-            ### run_command
-            Execute a PowerShell command.
-            Args: {"command": "dotnet build"}
-
-            ### vector_search
-            Search the vector store for similar documents (requires UseQdrant).
-            Args: {"query": "semantic search query"}
-
-            ### think
-            Record your thoughts/planning (no external action).
-            Args: {"thought": "I need to first..."}
-
-            ### ask_user
-            Ask the user a clarifying question.
-            Args: {"question": "What file should I modify?"}
-
-            ## Completing the Task
-
-            When the task is complete, respond with:
-            {"complete": true, "summary": "Description of what was accomplished"}
-            """;
+        return sb.ToString();
     }
 
     /// <summary>

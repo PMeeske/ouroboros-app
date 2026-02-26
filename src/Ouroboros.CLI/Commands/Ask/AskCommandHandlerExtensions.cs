@@ -21,10 +21,15 @@ public static class AskCommandHandlerExtensions
         {
             var handler = host.Services.GetRequiredService<AskCommandHandler>();
 
+            // Positional argument takes precedence over --question option
+            var question = parseResult.GetValue(options.QuestionArgument)
+                           ?? parseResult.GetValue(options.QuestionOption)
+                           ?? string.Empty;
+
             var request = new AskRequest(
-                Question:       parseResult.GetValue(options.QuestionOption) ?? string.Empty,
+                Question:       question,
                 UseRag:         parseResult.GetValue(options.RagOption),
-                ModelName:      parseResult.GetValue(options.Model.ModelOption) ?? "llama3",
+                ModelName:      parseResult.GetValue(options.Model.ModelOption) ?? "llama3:latest",
                 Endpoint:       parseResult.GetValue(options.Endpoint.EndpointOption),
                 ApiKey:         parseResult.GetValue(options.Endpoint.ApiKeyOption),
                 EndpointType:   parseResult.GetValue(options.Endpoint.EndpointTypeOption),

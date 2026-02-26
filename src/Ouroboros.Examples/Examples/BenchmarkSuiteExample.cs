@@ -1,5 +1,5 @@
-// <copyright file="BenchmarkSuiteExample.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="BenchmarkSuiteExample.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 using Ouroboros.Domain.Benchmarks;

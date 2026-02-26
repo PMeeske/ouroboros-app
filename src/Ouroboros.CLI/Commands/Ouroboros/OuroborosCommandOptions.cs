@@ -17,7 +17,7 @@ public class OuroborosCommandOptions
     public System.CommandLine.Option<bool> VoiceOption { get; } = new("--voice", "-v")
     {
         Description = "Enable voice mode (speak & listen)",
-        DefaultValueFactory = _ => true
+        DefaultValueFactory = _ => false
     };
 
     public System.CommandLine.Option<bool> TextOnlyOption { get; } = new("--text-only")
@@ -110,7 +110,7 @@ public class OuroborosCommandOptions
     public System.CommandLine.Option<string> ModelOption { get; } = new("--model", "-m")
     {
         Description = "LLM model name",
-        DefaultValueFactory = _ => "deepseek-v3.1:671b-cloud"
+        DefaultValueFactory = _ => "llama3:latest"
     };
 
     public System.CommandLine.Option<string?> CultureOption { get; } = new("--culture", "-c")

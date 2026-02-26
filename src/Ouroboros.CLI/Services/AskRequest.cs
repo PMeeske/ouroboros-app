@@ -8,7 +8,7 @@ namespace Ouroboros.CLI.Services;
 public sealed record AskRequest(
     string Question,
     bool UseRag             = false,
-    string ModelName        = "llama3",
+    string ModelName        = "llama3:latest",
     string? Endpoint        = null,
     string? ApiKey          = null,
     string? EndpointType    = null,
@@ -32,5 +32,5 @@ public sealed record AskRequest(
     bool JsonTools          = false,
     string Persona          = "Iaret",
     bool VoiceOnly          = false,
-    bool LocalTts           = true,
+    bool LocalTts           = false,
     bool VoiceLoop          = false);

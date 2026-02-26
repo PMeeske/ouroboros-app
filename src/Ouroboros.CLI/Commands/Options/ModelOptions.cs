@@ -11,7 +11,7 @@ public sealed class ModelOptions : IComposableOptions
     public Option<string> ModelOption { get; } = new("--model", "-m")
     {
         Description = "LLM model name",
-        DefaultValueFactory = _ => "ministral-3:latest"
+        DefaultValueFactory = _ => "llama3:latest"
     };
 
     public Option<double> TemperatureOption { get; } = new("--temperature")

@@ -175,6 +175,7 @@ static Command CreateAskCommand(IHost host, System.CommandLine.Option<bool> glob
 {
     var options = new AskCommandOptions();
     var command = new Command("ask", "Ask the LLM a question");
+    command.Aliases.Add("a");
 
     // Add all options using the helper
     options.AddToCommand(command);
@@ -187,6 +188,7 @@ static Command CreatePipelineCommand(IHost host, System.CommandLine.Option<bool>
 {
     var options = new PipelineCommandOptions();
     var command = new Command("pipeline", "Execute a DSL pipeline");
+    command.Aliases.Add("p");
     options.AddToCommand(command);
     return command.ConfigurePipelineCommand(host, options, globalVoiceOption);
 }
@@ -195,6 +197,7 @@ static Command CreateOuroborosCommand(IHost host, System.CommandLine.Option<bool
 {
     var options = new OuroborosCommandOptions();
     var command = new Command("ouroboros", "Run Ouroboros agent mode");
+    command.Aliases.Add("o");
 
     // Add all options using the helper
     options.AddToCommand(command);

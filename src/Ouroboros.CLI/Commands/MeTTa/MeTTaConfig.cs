@@ -8,9 +8,9 @@ namespace Ouroboros.CLI.Commands;
 public sealed record MeTTaConfig(
     string Goal = "",
     string? Culture = null,
-    string Model = "ministral-3:latest",
+    string Model = "llama3:latest",
     double Temperature = 0.7,
-    int MaxTokens = 512,
+    int MaxTokens = 2048,
     int TimeoutSeconds = 60,
     string? Endpoint = null,
     string? ApiKey = null,
