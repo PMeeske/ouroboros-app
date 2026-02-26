@@ -31,7 +31,7 @@ public sealed partial class OuroborosAgent
         var opts = new Ouroboros.Options.ImmersiveCommandVoiceOptions
         {
             Persona           = _config.Persona ?? "Iaret",
-            Model             = _config.Model   ?? "llama3:latest",
+            Model             = _config.Model   ?? "deepseek-v3.1:671b-cloud",
             Endpoint          = _config.Endpoint ?? "http://localhost:11434",
             EmbedModel        = _config.EmbedModel ?? "nomic-embed-text",
             QdrantEndpoint    = _config.QdrantEndpoint ?? "http://localhost:6334",

@@ -1,8 +1,9 @@
-// <copyright file="AgentToolFactory.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="AgentToolFactory.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 
@@ -14,6 +15,22 @@ namespace Ouroboros.Application.Agent;
 /// </summary>
 public static class AgentToolFactory
 {
+    /// <summary>
+    /// Tool metadata used to auto-generate prompt descriptions.
+    /// </summary>
+    public static readonly IReadOnlyList<AgentToolDescriptor> ToolDescriptors =
+    [
+        new("read_file", "Read the contents of a file.", """{"path": "path/to/file.cs"}"""),
+        new("write_file", "Create or overwrite a file with new content.", """{"path": "path/to/file.cs", "content": "file contents here"}"""),
+        new("edit_file", "Replace specific text in a file. Include enough context to uniquely identify the location.", """{"path": "path/to/file.cs", "old": "text to replace", "new": "replacement text"}"""),
+        new("list_dir", "List contents of a directory.", """{"path": "path/to/directory"}"""),
+        new("search_files", "Search for text across files.", """{"query": "search text", "path": ".", "pattern": "*.cs"}"""),
+        new("run_command", "Execute a shell command.", """{"command": "dotnet build"}"""),
+        new("vector_search", "Search the vector store for similar documents (requires UseQdrant).", """{"query": "semantic search query"}"""),
+        new("think", "Record your thoughts/planning (no external action).", """{"thought": "I need to first..."}"""),
+        new("ask_user", "Ask the user a clarifying question.", """{"question": "What file should I modify?"}"""),
+    ];
+
     /// <summary>
     /// Creates the full set of agent tools wired against the given pipeline state.
     /// </summary>
@@ -177,10 +194,11 @@ public static class AgentToolFactory
 
         try
         {
+            var (shell, shellArgs) = GetShellCommand(command);
             var psi = new ProcessStartInfo
             {
-                FileName = "powershell.exe",
-                Arguments = $"-NoProfile -Command \"{command.Replace("\"", "\\\"")}\"",
+                FileName = shell,
+                Arguments = shellArgs,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
@@ -259,6 +277,18 @@ public static class AgentToolFactory
     }
 
     /// <summary>
+    /// Returns the platform-appropriate shell and argument string for executing a command.
+    /// On Windows: uses <c>cmd.exe /C</c>. On Linux/macOS: uses <c>/bin/sh -c</c>.
+    /// </summary>
+    internal static (string Shell, string Arguments) GetShellCommand(string command)
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            return ("cmd.exe", $"/C {command}");
+
+        return ("/bin/sh", $"-c \"{command.Replace("\"", "\\\"")}\"");
+    }
+
+    /// <summary>
     /// Extracts a named argument from a JSON string.
     /// Returns <c>null</c> when the input is not valid JSON or the property is missing.
     /// </summary>
@@ -282,3 +312,11 @@ public static class AgentToolFactory
         return null;
     }
 }
+
+/// <summary>
+/// Describes an agent tool for prompt generation. Kept in sync with <see cref="AgentToolFactory.Build"/>.
+/// </summary>
+/// <param name="Name">Tool name as used in JSON tool calls.</param>
+/// <param name="Description">Human-readable description for the LLM.</param>
+/// <param name="ArgsExample">JSON example of the expected arguments.</param>
+public sealed record AgentToolDescriptor(string Name, string Description, string ArgsExample);

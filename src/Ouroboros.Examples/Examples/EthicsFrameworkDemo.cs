@@ -1,5 +1,5 @@
-// <copyright file="EthicsFrameworkDemo.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="EthicsFrameworkDemo.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 using Ouroboros.Core.Ethics;

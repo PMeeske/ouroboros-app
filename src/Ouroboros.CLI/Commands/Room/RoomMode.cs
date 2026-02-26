@@ -96,7 +96,7 @@ public sealed partial class RoomMode
     public Task RunAsync(ParseResult parseResult, RoomCommandOptions opts, CancellationToken ct)
     {
         var personaName  = parseResult.GetValue(opts.PersonaOption) ?? "Iaret";
-        var model        = parseResult.GetValue(opts.ModelOption) ?? "llama3:latest";
+        var model        = parseResult.GetValue(opts.ModelOption) ?? "deepseek-v3.1:671b-cloud";
         var endpoint     = parseResult.GetValue(opts.EndpointOption) ?? "http://localhost:11434";
         var embedModel   = parseResult.GetValue(opts.EmbedModelOption) ?? "nomic-embed-text";
         var qdrant       = parseResult.GetValue(opts.QdrantEndpointOption) ?? "http://localhost:6334";
@@ -153,7 +153,7 @@ public sealed partial class RoomMode
 
     public async Task RunAsync(
         string personaName = "Iaret",
-        string model       = "llama3:latest",
+        string model       = "deepseek-v3.1:671b-cloud",
         string endpoint    = "http://localhost:11434",
         string embedModel  = "nomic-embed-text",
         string qdrant      = "http://localhost:6334",

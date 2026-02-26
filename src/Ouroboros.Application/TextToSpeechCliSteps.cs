@@ -1,5 +1,5 @@
-// <copyright file="TextToSpeechCliSteps.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="TextToSpeechCliSteps.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 using Ouroboros.Providers.TextToSpeech;

@@ -1,5 +1,5 @@
-// <copyright file="OuroborosCliIntegration.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="OuroborosCliIntegration.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member

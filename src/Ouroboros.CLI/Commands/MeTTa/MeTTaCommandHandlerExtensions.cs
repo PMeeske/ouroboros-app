@@ -23,7 +23,7 @@ public static class MeTTaCommandHandlerExtensions
             var config = new MeTTaConfig(
                 Goal:           parseResult.GetValue(options.GoalOption) ?? string.Empty,
                 Culture:        parseResult.GetValue(options.CultureOption),
-                Model:          parseResult.GetValue(options.Model.ModelOption) ?? "ministral-3:latest",
+                Model:          parseResult.GetValue(options.Model.ModelOption) ?? "deepseek-v3.1:671b-cloud",
                 Temperature:    parseResult.GetValue(options.Model.TemperatureOption),
                 MaxTokens:      parseResult.GetValue(options.Model.MaxTokensOption),
                 TimeoutSeconds: parseResult.GetValue(options.Model.TimeoutSecondsOption),
