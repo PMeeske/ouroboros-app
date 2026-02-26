@@ -51,6 +51,8 @@ public static class SubsystemRegistration
         services.AddSingleton<IPipeProcessingSubsystem, PipeProcessingSubsystem>();
         services.AddSingleton<IChatSubsystem, ChatSubsystem>();
         services.AddSingleton<ICommandRoutingSubsystem, CommandRoutingSubsystem>();
+        services.AddSingleton<ISwarmSubsystem, SwarmSubsystem>();
+        services.AddSingleton<IAuthSubsystem, AuthSubsystem>();
 
         return services;
     }

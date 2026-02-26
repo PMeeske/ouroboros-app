@@ -347,6 +347,21 @@ Keep it to 1-2 sentences.";
 
             // Self-introspection - search only
             ["search_my_code"] = """{"query":"warmup","maxResults":1}""",
+
+            // OpenClaw tools - read-only gateway queries (warm up the WebSocket RPC path)
+            ["openclaw_status"] = "{}",
+            ["openclaw_health"] = "{}",
+            ["openclaw_list_channels"] = "{}",
+            ["openclaw_node_list"] = "{}",
+            ["openclaw_sessions_list"] = "{}",
+            ["openclaw_cron_list"] = "{}",
+            ["openclaw_devices_list"] = "{}",
+            ["openclaw_pc_capabilities"] = "{}",
+            ["openclaw_approval_list"] = "{}",
+
+            // Qdrant sync tools - read-only status/diagnostics (warm up cloud connection)
+            ["qdrant_sync"] = """{"command":"status"}""",
+            ["qdrant_admin"] = """{"command":"status"}""",
         };
 
         int testedCount = 0;

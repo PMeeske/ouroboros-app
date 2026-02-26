@@ -210,6 +210,8 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     private readonly PipeProcessingSubsystem _pipeSub;
     private readonly ChatSubsystem _chatSub;
     private readonly CommandRoutingSubsystem _commandRoutingSub;
+    private readonly SwarmSubsystem _swarmSub;
+    private readonly AuthSubsystem _authSub;
     private readonly IAgentSubsystem[] _allSubsystems;
 
     /// <summary>
@@ -280,6 +282,8 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     internal ModelSubsystem ModelsSub => _modelsSub;
     internal ToolSubsystem ToolsSub => _toolsSub;
     internal SelfAssemblySubsystem SelfAssemblySub => _selfAssemblySub;
+    internal SwarmSubsystem SwarmSub => _swarmSub;
+    internal AuthSubsystem AuthSub => _authSub;
     internal IMediator Mediator => _mediator;
 
     /// <summary>
@@ -301,6 +305,8 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
         IPipeProcessingSubsystem pipeProcessing,
         IChatSubsystem chat,
         ICommandRoutingSubsystem commandRouting,
+        ISwarmSubsystem swarm,
+        IAuthSubsystem auth,
         IServiceProvider? serviceProvider = null)
     {
         _config = config;
@@ -321,13 +327,16 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
         _pipeSub = (PipeProcessingSubsystem)pipeProcessing;
         _chatSub = (ChatSubsystem)chat;
         _commandRoutingSub = (CommandRoutingSubsystem)commandRouting;
+        _swarmSub = (SwarmSubsystem)swarm;
+        _authSub = (AuthSubsystem)auth;
 
         _voice = _voiceSub.Service;
         _allSubsystems =
         [
-            _voiceSub, _modelsSub, _toolsSub, _memorySub,
+            _authSub, _voiceSub, _modelsSub, _toolsSub, _memorySub,
             _cognitiveSub, _autonomySub, _embodimentSub,
-            _localizationSub, _languageSub, _selfAssemblySub, _pipeSub, _chatSub, _commandRoutingSub
+            _localizationSub, _languageSub, _selfAssemblySub, _pipeSub, _chatSub, _commandRoutingSub,
+            _swarmSub
         ];
 
         // Register process exit handler to kill speech processes on forceful exit
@@ -366,7 +375,9 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
             new SelfAssemblySubsystem(),
             new PipeProcessingSubsystem(),
             new ChatSubsystem(),
-            new CommandRoutingSubsystem())
+            new CommandRoutingSubsystem(),
+            new SwarmSubsystem(),
+            new AuthSubsystem())
     {
     }
 

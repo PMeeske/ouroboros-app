@@ -249,6 +249,7 @@ public sealed class PcNodeSecurityConfig
             PropertyNameCaseInsensitive = true,
             ReadCommentHandling = JsonCommentHandling.Skip,
             AllowTrailingCommas = true,
+            Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
         }) ?? new PcNodeSecurityConfig();
     }
 }

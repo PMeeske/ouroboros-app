@@ -101,6 +101,7 @@ public static class ServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddExistingBusinessLogic(this IServiceCollection services)
     {
+        services.TryAddSingleton(new VoiceModeConfig());
         services.TryAddTransient<VoiceModeService>();
         return services;
     }

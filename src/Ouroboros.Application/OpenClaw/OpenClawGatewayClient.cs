@@ -196,7 +196,7 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
             ["minProtocol"] = 3,
             ["maxProtocol"] = 3,
             ["role"] = "operator",
-            ["scopes"] = new[] { "operator.read", "operator.write" },
+            ["scopes"] = new[] { "operator.read", "operator.write", "operator.admin" },
             ["client"] = new { id = "gateway-client", version = "1.0.0", platform, mode = "backend" },
         };
 

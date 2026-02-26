@@ -347,7 +347,7 @@ public sealed partial class OuroborosAgent
         AutonomousTools.OuroborosMeTTaTool.OllamaFunction = async (prompt, token) =>
             _chatModel != null ? await _chatModel.GenerateTextAsync(prompt, token) : "";
 
-        // Proactive message events — track and whisper only; don't display in console
+        // Proactive message events — track, whisper, and flow into conversation memory
         _autonomousMind.OnProactiveMessage += async (msg) =>
         {
             var thoughtContent = msg.TrimStart();
@@ -355,6 +355,9 @@ public sealed partial class OuroborosAgent
                 thoughtContent.StartsWith("🤔") || thoughtContent.StartsWith("💭"))
                 thoughtContent = thoughtContent[2..].Trim();
             TrackLastThought(thoughtContent);
+
+            // Flow into conversation memory so the LLM sees its own background thoughts
+            _conversationHistory.Add($"[Inner thought] {thoughtContent}");
 
             // Push the proactive thought as Iaret's StatusText — these are the most
             // conversation-contextual LLM-generated thoughts (research findings, feelings).
@@ -386,6 +389,12 @@ public sealed partial class OuroborosAgent
                 Ouroboros.Application.Services.ThoughtType.Curiosity or
                 Ouroboros.Application.Services.ThoughtType.Observation;
             bool isFeeling = thought.Type is Ouroboros.Application.Services.ThoughtType.Reflection;
+
+            // Flow research, feelings, and creative thoughts into conversation memory
+            if (isResearch || isFeeling || thought.Type is Ouroboros.Application.Services.ThoughtType.Creative)
+            {
+                _conversationHistory.Add($"[{thought.Type}] {thought.Content}");
+            }
 
             if (isResearch || isFeeling)
             {
@@ -730,10 +739,16 @@ public sealed partial class OuroborosAgent
             return lines;
         };
 
-        // ── OnAction: display as [Autonomous] 💬 with action + result, then persist ──
+        // ── OnAction: display as [Autonomous] 💬 with action + result, flow into memory, persist ──
         _actionEngine.OnAction += async (reason, result) =>
         {
             if (string.IsNullOrWhiteSpace(reason)) return;
+
+            // Flow autonomous actions into conversation memory so the LLM is aware of what it did
+            var actionSummary = string.IsNullOrWhiteSpace(result)
+                ? $"[Autonomous action] {reason}"
+                : $"[Autonomous action] {reason} → {(result.Length > 200 ? result[..200] + "…" : result)}";
+            _conversationHistory.Add(actionSummary);
 
             if (_config.Verbosity != OutputVerbosity.Quiet)
             {

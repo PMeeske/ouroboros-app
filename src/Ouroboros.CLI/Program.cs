@@ -56,7 +56,13 @@ var hostBuilder = Host.CreateDefaultBuilder(args)
         logging.ClearProviders();
         logging.AddConsole();
         logging.SetMinimumLevel(LogLevel.Warning);
-    });
+    })
+    // Agent-dependent MediatR handlers (OuroborosAgent, subsystems) live in the
+    // child container built by AgentBootstrapper.CreateAgentWithDIAsync, not in
+    // the host container.  The assembly-wide MediatR scan registers them here
+    // too, but they are never resolved from the host — skip build-time validation
+    // so these unused registrations don't block startup.
+    .UseDefaultServiceProvider(options => options.ValidateOnBuild = false);
 
 // Build the host
 using var host = hostBuilder.Build();

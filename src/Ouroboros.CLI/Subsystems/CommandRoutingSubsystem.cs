@@ -353,6 +353,10 @@ public sealed class CommandRoutingSubsystem : ICommandRoutingSubsystem
         if (lower is "/resume" or "resume push" or "start proposing")
             return (ActionType.PushResume, "", null);
 
+        // Swarm orchestration
+        if (lower.StartsWith("swarm ") || lower == "swarm")
+            return (ActionType.Swarm, lower.StartsWith("swarm ") ? input[6..].Trim() : "", null);
+
         // Code improvement/analysis detection
         if ((lower.Contains("improve") || lower.Contains("check") || lower.Contains("analyze") ||
              lower.Contains("refactor") || lower.Contains("fix") || lower.Contains("review")) &&
