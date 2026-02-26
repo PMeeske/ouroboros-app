@@ -35,6 +35,15 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
     /// <summary>Gets a value indicating whether the client is connected.</summary>
     public bool IsConnected => _ws.State == WebSocketState.Open;
 
+    /// <summary>Gets a value indicating whether the client is currently reconnecting.</summary>
+    public bool IsReconnecting { get; private set; }
+
+    /// <summary>Gets the last reconnection error, if any.</summary>
+    public Exception? LastReconnectError { get; private set; }
+
+    /// <summary>Fired when a reconnection attempt fails after all retries.</summary>
+    public event Action<Exception?>? OnReconnectionFailed;
+
     /// <summary>Gets the resilience pipeline for status monitoring.</summary>
     public OpenClawResiliencePipeline Resilience => _resilience;
 
@@ -250,8 +259,7 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
         var json = JsonSerializer.Serialize(handshake);
         var bytes = Encoding.UTF8.GetBytes(json);
 
-        // DEBUG — remove once handshake is stable
-        Console.Error.WriteLine($"[OpenClaw DEBUG] Sending handshake: {json}");
+        _logger.LogDebug("[OpenClaw] Sending handshake: {Json}", json);
 
         await _sendLock.WaitAsync(ct);
         try
@@ -265,8 +273,7 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
 
         // Step 3: Read the full hello-ok response (handles fragmented frames)
         var responseJson = await ReadFullMessageAsync(ct);
-        // DEBUG — remove once handshake is stable
-        Console.Error.WriteLine($"[OpenClaw DEBUG] Handshake response: {responseJson}");
+        _logger.LogDebug("[OpenClaw] Handshake response: {Json}", responseJson);
 
         // Verify hello-ok
         using var doc = JsonDocument.Parse(responseJson);
@@ -371,7 +378,7 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
     private async Task ReceiveLoopAsync(CancellationToken ct)
     {
         var buffer = new byte[65536];
-        var messageBuffer = new List<byte>();
+        using var messageBuffer = new MemoryStream();
 
         while (!ct.IsCancellationRequested && _ws.State == WebSocketState.Open)
         {
@@ -386,12 +393,13 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
                     break;
                 }
 
-                messageBuffer.AddRange(buffer.AsSpan(0, result.Count).ToArray());
+                messageBuffer.Write(buffer, 0, result.Count);
 
                 if (result.EndOfMessage)
                 {
-                    var json = Encoding.UTF8.GetString(messageBuffer.ToArray());
-                    messageBuffer.Clear();
+                    var json = Encoding.UTF8.GetString(
+                        messageBuffer.GetBuffer(), 0, (int)messageBuffer.Length);
+                    messageBuffer.SetLength(0);
                     ProcessMessage(json);
                 }
             }
@@ -455,6 +463,7 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
     {
         if (_gatewayUri == null) return;
 
+        IsReconnecting = true;
         try
         {
             await _resilience.ExecuteReconnectAsync(async ct =>
@@ -466,6 +475,7 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
             }, CancellationToken.None);
 
             _logger.LogInformation("[OpenClaw] Reconnected to gateway");
+            LastReconnectError = null;
 
             // Restart receive loop
             _receiveCts?.Cancel();
@@ -476,6 +486,12 @@ public sealed class OpenClawGatewayClient : IAsyncDisposable
         catch (Exception ex)
         {
             _logger.LogError("[OpenClaw] Reconnection failed: {Message}", ex.Message);
+            LastReconnectError = ex;
+            OnReconnectionFailed?.Invoke(ex);
+        }
+        finally
+        {
+            IsReconnecting = false;
         }
     }
 }

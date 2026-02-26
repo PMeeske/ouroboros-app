@@ -6,17 +6,18 @@ namespace Ouroboros.Application.Services;
 
 using System.Diagnostics;
 using System.Net.NetworkInformation;
+using System.Text.Json;
 
 /// <summary>
-/// Detects user presence via camera (face/motion detection) and WiFi (device proximity).
-/// Enables proactive interaction when the user is nearby.
+/// Detects user presence via camera (face/motion detection), WiFi (device proximity),
+/// and input activity. Implements <see cref="IDetectionModule"/> for use with
+/// <see cref="MicroDetectionWorker"/>.
+///
+/// State machine: Unknown → Present → Absent (requires consecutive confirmation frames).
 /// </summary>
-public class PresenceDetector : IDisposable
+public class PresenceDetector : IDetectionModule
 {
     private readonly PresenceConfig _config;
-    private readonly CancellationTokenSource _cts = new();
-    private Task? _monitoringTask;
-    private bool _isActive;
     private DateTime _lastPresenceDetected = DateTime.MinValue;
     private DateTime _lastAbsenceDetected = DateTime.MinValue;
     private int _consecutivePresenceFrames;
@@ -24,37 +25,22 @@ public class PresenceDetector : IDisposable
     private PresenceState _currentState = PresenceState.Unknown;
     private readonly HashSet<string> _knownDevices = [];
     private int _lastWifiDeviceCount;
+    private long _lastNetworkBytes;
+    private bool _firstNetworkCheck = true;
+    private DateTime _lastDetection = DateTime.MinValue;
     private bool _disposed;
 
-    /// <summary>
-    /// Event fired when user presence is detected.
-    /// </summary>
-    public event Action<PresenceEvent>? OnPresenceDetected;
-
-    /// <summary>
-    /// Event fired when user absence is detected.
-    /// </summary>
-    public event Action<PresenceEvent>? OnAbsenceDetected;
-
-    /// <summary>
-    /// Event fired when presence state changes.
-    /// </summary>
-    public event Action<PresenceState, PresenceState>? OnStateChanged;
-
-    /// <summary>
-    /// Gets the current presence state.
-    /// </summary>
+    /// <summary>Gets the current presence state.</summary>
     public PresenceState CurrentState => _currentState;
 
-    /// <summary>
-    /// Gets whether monitoring is active.
-    /// </summary>
-    public bool IsMonitoring => _isActive;
-
-    /// <summary>
-    /// Gets the last time presence was detected.
-    /// </summary>
+    /// <summary>Gets the last time presence was detected.</summary>
     public DateTime LastPresenceTime => _lastPresenceDetected;
+
+    /// <inheritdoc />
+    public string Name => "presence";
+
+    /// <inheritdoc />
+    public TimeSpan Interval => TimeSpan.FromSeconds(_config.CheckIntervalSeconds);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PresenceDetector"/> class.
@@ -64,37 +50,27 @@ public class PresenceDetector : IDisposable
         _config = config ?? new PresenceConfig();
     }
 
-    /// <summary>
-    /// Starts presence monitoring.
-    /// </summary>
-    public void Start()
+    /// <inheritdoc />
+    public bool IsReady()
     {
-        if (_isActive) return;
-        _isActive = true;
+        return DateTime.UtcNow - _lastDetection >= Interval;
+    }
 
-        _monitoringTask = Task.Run(MonitoringLoopAsync);
+    /// <inheritdoc />
+    public async Task<DetectionEvent?> DetectAsync(CancellationToken ct)
+    {
+        _lastDetection = DateTime.UtcNow;
+
+        var check = await CheckPresenceAsync(ct);
+        return ProcessPresenceCheck(check);
     }
 
     /// <summary>
-    /// Stops presence monitoring.
+    /// Adds a known device MAC/IP to track for presence.
     /// </summary>
-    public async Task StopAsync()
+    public void AddKnownDevice(string deviceIdentifier)
     {
-        if (!_isActive) return;
-        _isActive = false;
-        _cts.Cancel();
-
-        if (_monitoringTask != null)
-        {
-            try
-            {
-                await _monitoringTask.ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                // Expected
-            }
-        }
+        _knownDevices.Add(deviceIdentifier.ToUpperInvariant());
     }
 
     /// <summary>
@@ -134,37 +110,7 @@ public class PresenceDetector : IDisposable
         return result;
     }
 
-    /// <summary>
-    /// Adds a known device MAC/IP to track for presence.
-    /// </summary>
-    public void AddKnownDevice(string deviceIdentifier)
-    {
-        _knownDevices.Add(deviceIdentifier.ToUpperInvariant());
-    }
-
-    private async Task MonitoringLoopAsync()
-    {
-        while (_isActive && !_cts.Token.IsCancellationRequested)
-        {
-            try
-            {
-                await Task.Delay(TimeSpan.FromSeconds(_config.CheckIntervalSeconds), _cts.Token);
-
-                var check = await CheckPresenceAsync(_cts.Token);
-                ProcessPresenceCheck(check);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[PresenceDetector] Error: {ex.Message}");
-            }
-        }
-    }
-
-    private void ProcessPresenceCheck(PresenceCheckResult check)
+    private DetectionEvent? ProcessPresenceCheck(PresenceCheckResult check)
     {
         var previousState = _currentState;
 
@@ -173,7 +119,6 @@ public class PresenceDetector : IDisposable
             _consecutivePresenceFrames++;
             _consecutiveAbsenceFrames = 0;
 
-            // Require multiple consecutive frames to confirm presence
             if (_consecutivePresenceFrames >= _config.PresenceConfirmationFrames)
             {
                 if (_currentState != PresenceState.Present)
@@ -181,19 +126,18 @@ public class PresenceDetector : IDisposable
                     _currentState = PresenceState.Present;
                     _lastPresenceDetected = DateTime.UtcNow;
 
-                    var evt = new PresenceEvent
-                    {
-                        State = PresenceState.Present,
-                        Timestamp = DateTime.UtcNow,
-                        Confidence = check.OverallConfidence,
-                        Source = DetermineSource(check),
-                        TimeSinceLastState = previousState != PresenceState.Unknown
-                            ? DateTime.UtcNow - _lastAbsenceDetected
-                            : null,
-                    };
-
-                    OnPresenceDetected?.Invoke(evt);
-                    OnStateChanged?.Invoke(previousState, _currentState);
+                    return new DetectionEvent(
+                        Name,
+                        "presence",
+                        check.OverallConfidence,
+                        DateTime.UtcNow,
+                        JsonSerializer.SerializeToElement(new
+                        {
+                            source = DetermineSource(check),
+                            previousState = previousState.ToString(),
+                            wifiDevices = check.WifiDevicesNearby,
+                            motionDetected = check.MotionDetected,
+                        }));
                 }
             }
         }
@@ -202,7 +146,6 @@ public class PresenceDetector : IDisposable
             _consecutiveAbsenceFrames++;
             _consecutivePresenceFrames = 0;
 
-            // Require more frames to confirm absence (avoid false negatives)
             if (_consecutiveAbsenceFrames >= _config.AbsenceConfirmationFrames)
             {
                 if (_currentState != PresenceState.Absent)
@@ -210,22 +153,21 @@ public class PresenceDetector : IDisposable
                     _currentState = PresenceState.Absent;
                     _lastAbsenceDetected = DateTime.UtcNow;
 
-                    var evt = new PresenceEvent
-                    {
-                        State = PresenceState.Absent,
-                        Timestamp = DateTime.UtcNow,
-                        Confidence = 1.0 - check.OverallConfidence,
-                        Source = "timeout",
-                        TimeSinceLastState = previousState != PresenceState.Unknown
-                            ? DateTime.UtcNow - _lastPresenceDetected
-                            : null,
-                    };
-
-                    OnAbsenceDetected?.Invoke(evt);
-                    OnStateChanged?.Invoke(previousState, _currentState);
+                    return new DetectionEvent(
+                        Name,
+                        "absence",
+                        1.0 - check.OverallConfidence,
+                        DateTime.UtcNow,
+                        JsonSerializer.SerializeToElement(new
+                        {
+                            source = "timeout",
+                            previousState = previousState.ToString(),
+                        }));
                 }
             }
         }
+
+        return null;
     }
 
     private string DetermineSource(PresenceCheckResult check)
@@ -243,35 +185,28 @@ public class PresenceDetector : IDisposable
     {
         try
         {
-            // Method 1: Check ARP table for devices on local network
             var arpDevices = await GetArpDevicesAsync(ct);
             var deviceCount = arpDevices.Count;
-
-            // Check if known devices are present
             var knownDevicesFound = arpDevices.Count(d => _knownDevices.Contains(d.ToUpperInvariant()));
 
-            // Method 2: Check network interface activity
-            var interfaceActivity = GetNetworkInterfaceActivity();
+            // Bug 17 fix: use differential network activity instead of cumulative
+            var activityDelta = GetNetworkActivityDelta();
 
-            // Calculate confidence based on:
-            // - Change in device count (more devices = likely user nearby)
-            // - Known devices present
-            // - Network activity
-            double confidence = 0.3; // Base confidence
+            double confidence = 0.3;
 
             if (deviceCount > _lastWifiDeviceCount)
             {
-                confidence += 0.2; // More devices appeared
+                confidence += 0.2;
             }
 
             if (knownDevicesFound > 0)
             {
-                confidence += 0.3; // Known device detected
+                confidence += 0.3;
             }
 
-            if (interfaceActivity > 1000) // bytes/sec
+            if (activityDelta > 1000) // bytes since last check (not cumulative)
             {
-                confidence += 0.2; // Active network usage
+                confidence += 0.2;
             }
 
             _lastWifiDeviceCount = deviceCount;
@@ -305,14 +240,12 @@ public class PresenceDetector : IDisposable
                 var output = await process.StandardOutput.ReadToEndAsync(ct);
                 await process.WaitForExitAsync(ct);
 
-                // Parse ARP output for IP addresses and MACs
                 var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries);
                 foreach (var line in lines)
                 {
                     var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                     if (parts.Length >= 2)
                     {
-                        // Add both IP and MAC
                         devices.Add(parts[0]);
                         if (parts.Length > 1) devices.Add(parts[1]);
                     }
@@ -327,7 +260,11 @@ public class PresenceDetector : IDisposable
         return devices;
     }
 
-    private long GetNetworkInterfaceActivity()
+    /// <summary>
+    /// Returns the differential network activity (bytes since last check) instead of
+    /// cumulative totals. Handles counter resets gracefully.
+    /// </summary>
+    private long GetNetworkActivityDelta()
     {
         try
         {
@@ -342,7 +279,18 @@ public class PresenceDetector : IDisposable
                 totalBytes += stats.BytesReceived + stats.BytesSent;
             }
 
-            return totalBytes;
+            if (_firstNetworkCheck)
+            {
+                _firstNetworkCheck = false;
+                _lastNetworkBytes = totalBytes;
+                return 0; // No baseline yet
+            }
+
+            long delta = totalBytes - _lastNetworkBytes;
+            _lastNetworkBytes = totalBytes;
+
+            // Handle counter reset (negative delta means counters wrapped)
+            return delta >= 0 ? delta : 0;
         }
         catch
         {
@@ -352,9 +300,6 @@ public class PresenceDetector : IDisposable
 
     private async Task<(bool MotionDetected, double Confidence)> CheckCameraPresenceAsync(CancellationToken ct)
     {
-        // Camera-based presence detection using frame differencing
-        // This is a lightweight approach that doesn't require ML models
-
         if (!_config.UseCamera)
         {
             return (false, 0.0);
@@ -362,7 +307,6 @@ public class PresenceDetector : IDisposable
 
         try
         {
-            // Check if any camera capture exists recently (from PerceptionTools)
             var captureDir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                 ".ouroboros", "captures");
@@ -378,21 +322,66 @@ public class PresenceDetector : IDisposable
 
                 if (recentCaptures.Count >= 2)
                 {
-                    // Compare file sizes as a simple motion proxy
-                    // (significant change = motion detected)
-                    var sizeDiff = Math.Abs(recentCaptures[0].Length - recentCaptures[1].Length);
-                    var motionThreshold = recentCaptures[0].Length * 0.1; // 10% change
+                    // Bug 16 fix: Use byte-level sampling instead of just file size.
+                    // Sample bytes at multiple offsets for more reliable motion detection.
+                    var motionScore = await CompareFrameBytesAsync(
+                        recentCaptures[0].FullName, recentCaptures[1].FullName, ct);
 
-                    return (sizeDiff > motionThreshold, sizeDiff > motionThreshold ? 0.7 : 0.3);
+                    bool motionDetected = motionScore > 0.05; // 5% byte difference threshold
+                    double confidence = Math.Min(motionScore * 10.0, 1.0); // Scale up
+
+                    return (motionDetected, motionDetected ? Math.Max(confidence, 0.6) : 0.3);
                 }
             }
 
-            await Task.CompletedTask;
             return (false, 0.3);
         }
         catch
         {
             return (false, 0.0);
+        }
+    }
+
+    /// <summary>
+    /// Compares two image files by sampling bytes at multiple offsets.
+    /// Returns the fraction of sampled bytes that differ significantly (0.0-1.0).
+    /// More reliable than simple file-size comparison for motion detection.
+    /// </summary>
+    private static async Task<double> CompareFrameBytesAsync(
+        string path1, string path2, CancellationToken ct)
+    {
+        try
+        {
+            var bytes1 = await File.ReadAllBytesAsync(path1, ct);
+            var bytes2 = await File.ReadAllBytesAsync(path2, ct);
+
+            int minLen = Math.Min(bytes1.Length, bytes2.Length);
+            if (minLen < 100) return 0.0;
+
+            // Sample every 64th byte starting after the JPEG header (first 100 bytes)
+            int sampleCount = 0;
+            int diffCount = 0;
+            const int sampleStride = 64;
+            const int diffThreshold = 10; // Byte difference threshold
+
+            for (int i = 100; i < minLen; i += sampleStride)
+            {
+                sampleCount++;
+                if (Math.Abs(bytes1[i] - bytes2[i]) > diffThreshold)
+                    diffCount++;
+            }
+
+            // Also factor in size difference
+            double sizeRatio = (double)Math.Abs(bytes1.Length - bytes2.Length)
+                / Math.Max(bytes1.Length, bytes2.Length);
+
+            double byteDiffRatio = sampleCount > 0 ? (double)diffCount / sampleCount : 0.0;
+
+            return Math.Max(byteDiffRatio, sizeRatio);
+        }
+        catch
+        {
+            return 0.0;
         }
     }
 
@@ -404,7 +393,6 @@ public class PresenceDetector : IDisposable
             var idleTime = GetIdleTime();
             var idleSeconds = idleTime.TotalSeconds;
 
-            // Recent activity if idle time is less than threshold
             var hasActivity = idleSeconds < _config.InputIdleThresholdSeconds;
             var confidence = hasActivity
                 ? Math.Max(0.9 - (idleSeconds / _config.InputIdleThresholdSeconds * 0.5), 0.5)
@@ -450,8 +438,6 @@ public class PresenceDetector : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
-        try { _cts.Cancel(); } catch (ObjectDisposedException) { }
-        _cts.Dispose();
         GC.SuppressFinalize(this);
     }
 }

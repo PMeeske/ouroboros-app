@@ -91,8 +91,6 @@ public sealed class OpenClawDeviceIdentity
     {
         long signedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         string payload = $"v2|{DeviceId}|{clientId}|{clientMode}|{role}|{scopesCsv}|{signedAt}|{tokenOrEmpty}|{nonce}";
-        // DEBUG — remove once handshake is stable
-        Console.Error.WriteLine($"[OpenClaw DEBUG] Signing payload: {payload}");
         byte[] data = Encoding.UTF8.GetBytes(payload);
         byte[] rawSig = OpenClawEd25519.Sign(data, _seed, _publicKey);
         return (ToBase64Url(rawSig), signedAt, nonce);
