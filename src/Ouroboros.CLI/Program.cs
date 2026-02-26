@@ -17,12 +17,15 @@ using Ouroboros.CLI.Hosting;
 
 // ── Pre-parse --api-url and --serve before building the DI host ───────────────
 // We need these values at host-construction time so we can swap service registrations.
+// Handles: --api-url VALUE, --api-url=VALUE, --serve
 string? apiUrlPreparse = null;
 bool servePreparse = false;
 for (int i = 0; i < args.Length; i++)
 {
     if (args[i] == "--api-url" && i + 1 < args.Length)
         apiUrlPreparse = args[i + 1];
+    else if (args[i].StartsWith("--api-url=", StringComparison.Ordinal))
+        apiUrlPreparse = args[i]["--api-url=".Length..];
     if (args[i] == "--serve")
         servePreparse = true;
 }

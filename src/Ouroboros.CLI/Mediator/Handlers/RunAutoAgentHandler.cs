@@ -52,6 +52,7 @@ public sealed class RunAutoAgentHandler : IRequestHandler<RunAutoAgentRequest, s
             Embed = embedding,
             Query = request.Task,
             Trace = _agent.Config.Debug,
+            CancellationToken = cancellationToken,
         };
 
         // Build agent tools and their description text

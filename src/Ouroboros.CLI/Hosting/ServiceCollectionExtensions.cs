@@ -123,9 +123,10 @@ public static class ServiceCollectionExtensions
         // Register the typed HTTP client that talks to the upstream API
         services.AddOuroborosApiClient(apiBaseUrl);
 
-        // Override the local service implementations with HTTP-backed ones
-        services.AddScoped<IAskService, HttpApiAskService>();
-        services.AddScoped<IPipelineService, HttpApiPipelineService>();
+        // Override the local service implementations with HTTP-backed ones.
+        // Uses Transient to match AddCliServices() — see lifetime rationale there.
+        services.AddTransient<IAskService, HttpApiAskService>();
+        services.AddTransient<IPipelineService, HttpApiPipelineService>();
 
         return services;
     }

@@ -53,7 +53,8 @@ public sealed class ProcessDslHandler : IRequestHandler<ProcessDslRequest, strin
                     Tools = tools,
                     Embed = embedding,
                     Trace = config.Debug,
-                    NetworkTracker = networkTracker  // Enable automatic step reification
+                    NetworkTracker = networkTracker,  // Enable automatic step reification
+                    CancellationToken = cancellationToken,
                 };
 
                 // Initial tracking of the branch

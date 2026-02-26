@@ -16,6 +16,11 @@ namespace Ouroboros.Application.Agent;
 public static class AgentToolFactory
 {
     /// <summary>
+    /// Maximum time a <c>run_command</c> process is allowed to run before being killed.
+    /// </summary>
+    private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(30);
+
+    /// <summary>
     /// Tool metadata used to auto-generate prompt descriptions.
     /// </summary>
     public static readonly IReadOnlyList<AgentToolDescriptor> ToolDescriptors =
@@ -58,10 +63,14 @@ public static class AgentToolFactory
 
         try
         {
-            var content = await File.ReadAllTextAsync(path);
+            var content = await File.ReadAllTextAsync(path, s.CancellationToken);
             if (content.Length > 10000)
                 content = content[..10000] + $"\n\n... [truncated, {content.Length} total chars]";
             return content;
+        }
+        catch (OperationCanceledException)
+        {
+            return "Error: Operation cancelled";
         }
         catch (Exception ex)
         {
@@ -83,8 +92,12 @@ public static class AgentToolFactory
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                 Directory.CreateDirectory(dir);
 
-            await File.WriteAllTextAsync(path, content);
+            await File.WriteAllTextAsync(path, content, s.CancellationToken);
             return $"Successfully wrote {content.Length} chars to {path}";
+        }
+        catch (OperationCanceledException)
+        {
+            return "Error: Operation cancelled";
         }
         catch (Exception ex)
         {
@@ -106,22 +119,17 @@ public static class AgentToolFactory
 
         try
         {
-            var content = await File.ReadAllTextAsync(path);
-            var idx = content.IndexOf(oldText, StringComparison.Ordinal);
-            if (idx < 0)
+            var content = await File.ReadAllTextAsync(path, s.CancellationToken);
+            if (!content.Contains(oldText))
                 return $"Error: Old text not found in file. Make sure to include enough context.";
 
-            // Replace only the first occurrence
-            var newContent = string.Concat(content.AsSpan(0, idx), newText, content.AsSpan(idx + oldText.Length));
-
-            // Warn if there are additional matches
-            var secondIdx = newContent.IndexOf(oldText, idx + newText.Length, StringComparison.Ordinal);
-            var warning = secondIdx >= 0
-                ? " Warning: additional occurrences of the old text exist in the file."
-                : "";
-
-            await File.WriteAllTextAsync(path, newContent);
-            return $"Successfully edited {path} (first occurrence replaced).{warning}";
+            var newContent = content.Replace(oldText, newText);
+            await File.WriteAllTextAsync(path, newContent, s.CancellationToken);
+            return $"Successfully edited {path}";
+        }
+        catch (OperationCanceledException)
+        {
+            return "Error: Operation cancelled";
         }
         catch (Exception ex)
         {
@@ -153,14 +161,14 @@ public static class AgentToolFactory
         }
     }
 
-    private static Task<string> SearchFilesAsync(string args, CliPipelineState s)
+    private static async Task<string> SearchFilesAsync(string args, CliPipelineState s)
     {
         var query = ParseToolArg(args, "query") ?? args.Trim().Trim('"', '\'');
         var path = ParseToolArg(args, "path") ?? ".";
         var pattern = ParseToolArg(args, "pattern") ?? "*.cs";
 
         if (string.IsNullOrEmpty(query))
-            return Task.FromResult("Error: Required arg: query");
+            return "Error: Required arg: query";
 
         try
         {
@@ -170,18 +178,20 @@ public static class AgentToolFactory
             var results = new List<string>();
             foreach (var file in Directory.GetFiles(path, pattern, SearchOption.AllDirectories).Take(200))
             {
+                s.CancellationToken.ThrowIfCancellationRequested();
+
                 // Skip files that are too large
                 var fileInfo = new FileInfo(file);
                 if (fileInfo.Length > maxFileSize) continue;
 
                 // Stream lines instead of reading entire file into memory
-                int lineNumber = 0;
-                foreach (var line in File.ReadLines(file))
+                int lineNum = 0;
+                await foreach (var line in File.ReadLinesAsync(file, s.CancellationToken))
                 {
-                    lineNumber++;
+                    lineNum++;
                     if (line.Contains(query, StringComparison.OrdinalIgnoreCase))
                     {
-                        results.Add($"{file}:{lineNumber}: {line.Trim()}");
+                        results.Add($"{file}:{lineNum}: {line.Trim()}");
                         if (results.Count >= maxResults) break;
                     }
                 }
@@ -189,13 +199,17 @@ public static class AgentToolFactory
                 if (results.Count >= maxResults) break;
             }
 
-            return Task.FromResult(results.Count > 0
+            return results.Count > 0
                 ? string.Join("\n", results)
-                : "No matches found");
+                : "No matches found";
+        }
+        catch (OperationCanceledException)
+        {
+            return "Error: Search cancelled";
         }
         catch (Exception ex)
         {
-            return Task.FromResult($"Error searching: {ex.Message}");
+            return $"Error searching: {ex.Message}";
         }
     }
 
@@ -222,8 +236,9 @@ public static class AgentToolFactory
             using var process = Process.Start(psi);
             if (process == null) return "Error: Failed to start process";
 
-            // 30-second timeout to prevent runaway processes
-            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            // Enforce a timeout so runaway commands don't block the agent loop
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(s.CancellationToken);
+            timeoutCts.CancelAfter(CommandTimeout);
 
             try
             {
@@ -242,8 +257,10 @@ public static class AgentToolFactory
             }
             catch (OperationCanceledException)
             {
-                try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
-                return $"Error: Command timed out after 30 seconds and was killed: {command}";
+                try { process.Kill(entireProcessTree: true); } catch { /* best-effort */ }
+                return s.CancellationToken.IsCancellationRequested
+                    ? "Error: Command cancelled"
+                    : $"Error: Command timed out after {CommandTimeout.TotalSeconds}s and was killed";
             }
         }
         catch (Exception ex)
