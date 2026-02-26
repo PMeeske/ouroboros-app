@@ -18,6 +18,7 @@ public sealed class OpenClawEventBus
     private readonly OpenClawEvent[] _buffer;
     private int _head;
     private int _count;
+    private long _sequence;  // Monotonically increasing, never wraps
     private readonly SemaphoreSlim _newEventSignal = new(0, int.MaxValue);
 
     /// <summary>Maximum events retained in the ring buffer.</summary>
@@ -50,6 +51,7 @@ public sealed class OpenClawEventBus
                 _buffer[index] = evt;
                 _count++;
             }
+            _sequence++;
         }
 
         // Signal waiters (best-effort, don't overflow the semaphore)
@@ -105,6 +107,8 @@ public sealed class OpenClawEventBus
 
     /// <summary>
     /// Waits for new events with a timeout. Returns events that arrive during the wait.
+    /// Uses a monotonically increasing sequence number to avoid race conditions and
+    /// handle ring buffer wrap-around correctly.
     /// </summary>
     public async Task<IReadOnlyList<OpenClawEvent>> PollAsync(
         string? eventType = null,
@@ -113,22 +117,33 @@ public sealed class OpenClawEventBus
     {
         var deadline = timeout ?? TimeSpan.FromSeconds(30);
 
-        // Record current count so we can detect new events
-        int countBefore;
-        lock (_lock) { countBefore = _count; }
+        // Record current sequence to detect new events (monotonically increasing, never wraps)
+        long seqBefore;
+        lock (_lock) { seqBefore = _sequence; }
 
         // Wait for new event signal or timeout
-        await _newEventSignal.WaitAsync(deadline, ct).ConfigureAwait(false);
+        try
+        {
+            await _newEventSignal.WaitAsync(deadline, ct).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch
+        {
+            // Timeout — fall through to check for any events that arrived
+        }
 
         // Return any new events since we started waiting
         lock (_lock)
         {
-            var newCount = _count - countBefore;
+            var newCount = (int)Math.Min(_sequence - seqBefore, _count);
             if (newCount <= 0)
                 return Array.Empty<OpenClawEvent>();
 
             var events = new List<OpenClawEvent>(newCount);
-            for (int i = Math.Max(0, _count - newCount); i < _count; i++)
+            for (int i = _count - newCount; i < _count; i++)
             {
                 var idx = (_head + i) % Capacity;
                 var evt = _buffer[idx];

@@ -110,6 +110,9 @@ public static class OpenClawTools
     private static Result<string, string> NotConnected() =>
         Result<string, string>.Failure("OpenClaw Gateway is not connected. Ensure the gateway is running and --enable-openclaw is set.");
 
+    private static Result<string, string> PolicyNotInitialized() =>
+        Result<string, string>.Failure("OpenClaw security policy not initialized. Write operations are blocked until the policy is configured.");
+
     // ═════════════════════════════════════════════════════════════════════════════
     // openclaw_status
     // ═════════════════════════════════════════════════════════════════════════════
@@ -207,6 +210,8 @@ public static class OpenClawTools
         {
             if (SharedClient == null || !SharedClient.IsConnected)
                 return NotConnected();
+            if (SharedPolicy == null)
+                return PolicyNotInitialized();
 
             try
             {
@@ -217,13 +222,10 @@ public static class OpenClawTools
                 var to = root.GetProperty("to").GetString() ?? "";
                 var message = root.GetProperty("message").GetString() ?? "";
 
-                // Security policy check
-                if (SharedPolicy != null)
-                {
-                    var verdict = SharedPolicy.ValidateSendMessage(channel, to, message);
-                    if (!verdict.IsAllowed)
-                        return Result<string, string>.Failure($"Security policy denied: {verdict.Reason}");
-                }
+                // Security policy check (mandatory)
+                var verdict = SharedPolicy.ValidateSendMessage(channel, to, message);
+                if (!verdict.IsAllowed)
+                    return Result<string, string>.Failure($"Security policy denied: {verdict.Reason}");
 
                 var result = await SharedClient.SendRequestAsync("chat.send", new
                 {
@@ -263,6 +265,8 @@ public static class OpenClawTools
         {
             if (SharedClient == null || !SharedClient.IsConnected)
                 return NotConnected();
+            if (SharedPolicy == null)
+                return PolicyNotInitialized();
 
             try
             {
@@ -273,13 +277,10 @@ public static class OpenClawTools
                 var command = root.GetProperty("command").GetString() ?? "";
                 var paramsJson = root.TryGetProperty("params", out var p) ? p.ToString() : null;
 
-                // Security policy check
-                if (SharedPolicy != null)
-                {
-                    var verdict = SharedPolicy.ValidateNodeInvoke(node, command, paramsJson);
-                    if (!verdict.IsAllowed)
-                        return Result<string, string>.Failure($"Security policy denied: {verdict.Reason}");
-                }
+                // Security policy check (mandatory)
+                var verdict = SharedPolicy.ValidateNodeInvoke(node, command, paramsJson);
+                if (!verdict.IsAllowed)
+                    return Result<string, string>.Failure($"Security policy denied: {verdict.Reason}");
 
                 var result = await SharedClient.SendRequestAsync("node.invoke", new
                 {
@@ -372,12 +373,19 @@ public static class OpenClawTools
         {
             if (SharedClient == null || !SharedClient.IsConnected)
                 return NotConnected();
+            if (SharedPolicy == null)
+                return PolicyNotInitialized();
             try
             {
                 using var doc = JsonDocument.Parse(input);
                 var root = doc.RootElement;
                 var sessionId = root.GetProperty("sessionId").GetString() ?? "";
                 var message = root.GetProperty("message").GetString() ?? "";
+
+                // Scan session messages for sensitive data (same as send_message)
+                var verdict = SharedPolicy.ValidateSendMessage("session", sessionId, message);
+                if (!verdict.IsAllowed)
+                    return Result<string, string>.Failure($"Security policy denied: {verdict.Reason}");
 
                 var result = await SharedClient.SendRequestAsync("sessions.send", new { sessionId, message }, ct);
                 return Result<string, string>.Success($"Message injected into session {sessionId}. Response: {result}");
@@ -403,6 +411,8 @@ public static class OpenClawTools
         {
             if (SharedClient == null || !SharedClient.IsConnected)
                 return NotConnected();
+            if (SharedPolicy == null)
+                return PolicyNotInitialized();
             try
             {
                 using var doc = JsonDocument.Parse(input);
@@ -506,6 +516,8 @@ public static class OpenClawTools
         {
             if (SharedClient == null || !SharedClient.IsConnected)
                 return NotConnected();
+            if (SharedPolicy == null)
+                return PolicyNotInitialized();
             try
             {
                 using var doc = JsonDocument.Parse(input);
@@ -513,12 +525,9 @@ public static class OpenClawTools
                 var node = root.GetProperty("node").GetString() ?? "";
                 var camera = root.TryGetProperty("camera", out var c) ? c.GetString() ?? "back" : "back";
 
-                if (SharedPolicy != null)
-                {
-                    var verdict = SharedPolicy.ValidateNodeInvoke(node, "camera.snap", null);
-                    if (!verdict.IsAllowed)
-                        return Result<string, string>.Failure($"Security policy denied: {verdict.Reason}");
-                }
+                var verdict = SharedPolicy.ValidateNodeInvoke(node, "camera.snap", null);
+                if (!verdict.IsAllowed)
+                    return Result<string, string>.Failure($"Security policy denied: {verdict.Reason}");
 
                 var result = await SharedClient.SendRequestAsync("node.invoke", new
                 {
@@ -549,6 +558,8 @@ public static class OpenClawTools
         {
             if (SharedClient == null || !SharedClient.IsConnected)
                 return NotConnected();
+            if (SharedPolicy == null)
+                return PolicyNotInitialized();
             try
             {
                 using var doc = JsonDocument.Parse(input);
@@ -557,12 +568,9 @@ public static class OpenClawTools
                 var duration = root.TryGetProperty("duration", out var d) ? d.GetInt32() : 5;
                 var camera = root.TryGetProperty("camera", out var c) ? c.GetString() ?? "back" : "back";
 
-                if (SharedPolicy != null)
-                {
-                    var verdict = SharedPolicy.ValidateNodeInvoke(node, "camera.clip", null);
-                    if (!verdict.IsAllowed)
-                        return Result<string, string>.Failure($"Security policy denied: {verdict.Reason}");
-                }
+                var verdict = SharedPolicy.ValidateNodeInvoke(node, "camera.clip", null);
+                if (!verdict.IsAllowed)
+                    return Result<string, string>.Failure($"Security policy denied: {verdict.Reason}");
 
                 var result = await SharedClient.SendRequestAsync("node.invoke", new
                 {
@@ -593,17 +601,16 @@ public static class OpenClawTools
         {
             if (SharedClient == null || !SharedClient.IsConnected)
                 return NotConnected();
+            if (SharedPolicy == null)
+                return PolicyNotInitialized();
             try
             {
                 using var doc = JsonDocument.Parse(input);
                 var node = doc.RootElement.GetProperty("node").GetString() ?? "";
 
-                if (SharedPolicy != null)
-                {
-                    var verdict = SharedPolicy.ValidateNodeInvoke(node, "location.get", null);
-                    if (!verdict.IsAllowed)
-                        return Result<string, string>.Failure($"Security policy denied: {verdict.Reason}");
-                }
+                var verdict = SharedPolicy.ValidateNodeInvoke(node, "location.get", null);
+                if (!verdict.IsAllowed)
+                    return Result<string, string>.Failure($"Security policy denied: {verdict.Reason}");
 
                 var result = await SharedClient.SendRequestAsync("node.invoke", new
                 {
@@ -633,6 +640,8 @@ public static class OpenClawTools
         {
             if (SharedClient == null || !SharedClient.IsConnected)
                 return NotConnected();
+            if (SharedPolicy == null)
+                return PolicyNotInitialized();
             try
             {
                 using var doc = JsonDocument.Parse(input);
@@ -640,12 +649,9 @@ public static class OpenClawTools
                 var node = root.GetProperty("node").GetString() ?? "";
                 var duration = root.TryGetProperty("duration", out var d) ? d.GetInt32() : 10;
 
-                if (SharedPolicy != null)
-                {
-                    var verdict = SharedPolicy.ValidateNodeInvoke(node, "screen.record", null);
-                    if (!verdict.IsAllowed)
-                        return Result<string, string>.Failure($"Security policy denied: {verdict.Reason}");
-                }
+                var verdict = SharedPolicy.ValidateNodeInvoke(node, "screen.record", null);
+                if (!verdict.IsAllowed)
+                    return Result<string, string>.Failure($"Security policy denied: {verdict.Reason}");
 
                 var result = await SharedClient.SendRequestAsync("node.invoke", new
                 {
@@ -702,6 +708,8 @@ public static class OpenClawTools
         {
             if (SharedClient == null || !SharedClient.IsConnected)
                 return NotConnected();
+            if (SharedPolicy == null)
+                return PolicyNotInitialized();
             try
             {
                 using var doc = JsonDocument.Parse(input);
@@ -739,6 +747,8 @@ public static class OpenClawTools
         {
             if (SharedClient == null || !SharedClient.IsConnected)
                 return NotConnected();
+            if (SharedPolicy == null)
+                return PolicyNotInitialized();
             try
             {
                 using var doc = JsonDocument.Parse(input);
@@ -850,6 +860,8 @@ public static class OpenClawTools
         {
             if (SharedClient == null || !SharedClient.IsConnected)
                 return NotConnected();
+            if (SharedPolicy == null)
+                return PolicyNotInitialized();
             try
             {
                 using var doc = JsonDocument.Parse(input);
@@ -879,6 +891,8 @@ public static class OpenClawTools
         {
             if (SharedClient == null || !SharedClient.IsConnected)
                 return NotConnected();
+            if (SharedPolicy == null)
+                return PolicyNotInitialized();
             try
             {
                 using var doc = JsonDocument.Parse(input);

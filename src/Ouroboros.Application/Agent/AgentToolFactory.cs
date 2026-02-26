@@ -107,12 +107,21 @@ public static class AgentToolFactory
         try
         {
             var content = await File.ReadAllTextAsync(path);
-            if (!content.Contains(oldText))
+            var idx = content.IndexOf(oldText, StringComparison.Ordinal);
+            if (idx < 0)
                 return $"Error: Old text not found in file. Make sure to include enough context.";
 
-            var newContent = content.Replace(oldText, newText);
+            // Replace only the first occurrence
+            var newContent = string.Concat(content.AsSpan(0, idx), newText, content.AsSpan(idx + oldText.Length));
+
+            // Warn if there are additional matches
+            var secondIdx = newContent.IndexOf(oldText, idx + newText.Length, StringComparison.Ordinal);
+            var warning = secondIdx >= 0
+                ? " Warning: additional occurrences of the old text exist in the file."
+                : "";
+
             await File.WriteAllTextAsync(path, newContent);
-            return $"Successfully edited {path}";
+            return $"Successfully edited {path} (first occurrence replaced).{warning}";
         }
         catch (Exception ex)
         {
@@ -144,44 +153,49 @@ public static class AgentToolFactory
         }
     }
 
-    private static async Task<string> SearchFilesAsync(string args, CliPipelineState s)
+    private static Task<string> SearchFilesAsync(string args, CliPipelineState s)
     {
         var query = ParseToolArg(args, "query") ?? args.Trim().Trim('"', '\'');
         var path = ParseToolArg(args, "path") ?? ".";
         var pattern = ParseToolArg(args, "pattern") ?? "*.cs";
 
         if (string.IsNullOrEmpty(query))
-            return "Error: Required arg: query";
+            return Task.FromResult("Error: Required arg: query");
 
         try
         {
+            const long maxFileSize = 1024 * 1024; // Skip files > 1 MB
+            const int maxResults = 20;
+
             var results = new List<string>();
-            foreach (var file in Directory.GetFiles(path, pattern, SearchOption.AllDirectories).Take(100))
+            foreach (var file in Directory.GetFiles(path, pattern, SearchOption.AllDirectories).Take(200))
             {
-                var content = await File.ReadAllTextAsync(file);
-                if (content.Contains(query, StringComparison.OrdinalIgnoreCase))
+                // Skip files that are too large
+                var fileInfo = new FileInfo(file);
+                if (fileInfo.Length > maxFileSize) continue;
+
+                // Stream lines instead of reading entire file into memory
+                int lineNumber = 0;
+                foreach (var line in File.ReadLines(file))
                 {
-                    var lines = content.Split('\n');
-                    for (int i = 0; i < lines.Length; i++)
+                    lineNumber++;
+                    if (line.Contains(query, StringComparison.OrdinalIgnoreCase))
                     {
-                        if (lines[i].Contains(query, StringComparison.OrdinalIgnoreCase))
-                        {
-                            results.Add($"{file}:{i + 1}: {lines[i].Trim()}");
-                            if (results.Count >= 20) break;
-                        }
+                        results.Add($"{file}:{lineNumber}: {line.Trim()}");
+                        if (results.Count >= maxResults) break;
                     }
                 }
 
-                if (results.Count >= 20) break;
+                if (results.Count >= maxResults) break;
             }
 
-            return results.Count > 0
+            return Task.FromResult(results.Count > 0
                 ? string.Join("\n", results)
-                : "No matches found";
+                : "No matches found");
         }
         catch (Exception ex)
         {
-            return $"Error searching: {ex.Message}";
+            return Task.FromResult($"Error searching: {ex.Message}");
         }
     }
 
@@ -208,18 +222,29 @@ public static class AgentToolFactory
             using var process = Process.Start(psi);
             if (process == null) return "Error: Failed to start process";
 
-            var output = await process.StandardOutput.ReadToEndAsync();
-            var error = await process.StandardError.ReadToEndAsync();
-            await process.WaitForExitAsync();
+            // 30-second timeout to prevent runaway processes
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 
-            var result = new StringBuilder();
-            if (!string.IsNullOrEmpty(output)) result.AppendLine(output);
-            if (!string.IsNullOrEmpty(error)) result.AppendLine($"STDERR: {error}");
-            result.AppendLine($"Exit code: {process.ExitCode}");
+            try
+            {
+                var output = await process.StandardOutput.ReadToEndAsync(timeoutCts.Token);
+                var error = await process.StandardError.ReadToEndAsync(timeoutCts.Token);
+                await process.WaitForExitAsync(timeoutCts.Token);
 
-            var text = result.ToString();
-            if (text.Length > 5000) text = text[..5000] + "\n... [truncated]";
-            return text;
+                var result = new StringBuilder();
+                if (!string.IsNullOrEmpty(output)) result.AppendLine(output);
+                if (!string.IsNullOrEmpty(error)) result.AppendLine($"STDERR: {error}");
+                result.AppendLine($"Exit code: {process.ExitCode}");
+
+                var text = result.ToString();
+                if (text.Length > 5000) text = text[..5000] + "\n... [truncated]";
+                return text;
+            }
+            catch (OperationCanceledException)
+            {
+                try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
+                return $"Error: Command timed out after 30 seconds and was killed: {command}";
+            }
         }
         catch (Exception ex)
         {
