@@ -1,5 +1,5 @@
-// <copyright file="GlobalUsings.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="GlobalUsings.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 global using Microsoft.AspNetCore.Builder;

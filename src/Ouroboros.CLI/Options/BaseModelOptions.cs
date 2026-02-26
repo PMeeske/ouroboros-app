@@ -7,8 +7,8 @@ namespace Ouroboros.Options;
 /// </summary>
 public abstract class BaseModelOptions
 {
-    [Option("model", Required = false, Default = "ministral-3:latest", HelpText = "Model to use")]
-    public string Model { get; set; } = "ministral-3:latest";
+    [Option("model", Required = false, Default = "deepseek-v3.1:671b-cloud", HelpText = "Model to use")]
+    public string Model { get; set; } = "deepseek-v3.1:671b-cloud";
 
     [Option("embed", Required = false, Default = "nomic-embed-text", HelpText = "Embedding model")]
     public string Embed { get; set; } = "nomic-embed-text";

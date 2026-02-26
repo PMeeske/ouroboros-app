@@ -20,7 +20,7 @@ public sealed class ImmersiveCommandOptions
     public Option<string> ModelOption { get; } = new("--model")
     {
         Description = "LLM model to use",
-        DefaultValueFactory = _ => "llama3:latest",
+        DefaultValueFactory = _ => "deepseek-v3.1:671b-cloud",
     };
 
     public Option<string> EndpointOption { get; } = new("--endpoint")
@@ -167,7 +167,7 @@ public sealed class ImmersiveCommandOptions
 
         return new ImmersiveConfig(
             Persona:           parseResult.GetValue(PersonaOption) ?? "Iaret",
-            Model:             parseResult.GetValue(ModelOption) ?? "llama3:latest",
+            Model:             parseResult.GetValue(ModelOption) ?? "deepseek-v3.1:671b-cloud",
             Endpoint:          parseResult.GetValue(EndpointOption) ?? "http://localhost:11434",
             EmbedModel:        parseResult.GetValue(EmbedModelOption) ?? "nomic-embed-text",
             QdrantEndpoint:    parseResult.GetValue(QdrantEndpointOption) ?? "http://localhost:6334",

@@ -31,7 +31,7 @@ public class OrchestratorService : IOrchestratorService
             VoiceLoop = false,
             LocalTts = false,
             Persona = "Iaret",
-            Model = "llama3",
+            Model = "deepseek-v3.1:671b-cloud",
             Endpoint = "http://localhost:11434",
             Temperature = 0.7f,
             MaxTokens = 2048,

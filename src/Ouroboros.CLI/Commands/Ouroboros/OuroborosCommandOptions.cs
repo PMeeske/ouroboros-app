@@ -17,7 +17,7 @@ public class OuroborosCommandOptions
     public System.CommandLine.Option<bool> VoiceOption { get; } = new("--voice", "-v")
     {
         Description = "Enable voice mode (speak & listen)",
-        DefaultValueFactory = _ => true
+        DefaultValueFactory = _ => false
     };
 
     public System.CommandLine.Option<bool> TextOnlyOption { get; } = new("--text-only")
@@ -710,7 +710,7 @@ public class OuroborosCommandOptions
         var persona       = parseResult.GetValue(PersonaOption) ?? "Iaret";
 
         // LLM & Model
-        var model         = parseResult.GetValue(ModelOption) ?? "llama3:latest";
+        var model         = parseResult.GetValue(ModelOption) ?? "deepseek-v3.1:671b-cloud";
         var culture       = parseResult.GetValue(CultureOption);
         var endpoint      = parseResult.GetValue(EndpointOption) ?? "http://localhost:11434";
         var apiKey        = parseResult.GetValue(ApiKeyOption);

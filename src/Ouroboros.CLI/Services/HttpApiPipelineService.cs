@@ -1,5 +1,5 @@
-// <copyright file="HttpApiPipelineService.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="HttpApiPipelineService.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 using Ouroboros.ApiHost.Client;

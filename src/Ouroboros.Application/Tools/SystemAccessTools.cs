@@ -7,6 +7,7 @@ using System.Net.Http;
 namespace Ouroboros.Application.Tools;
 
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using Ouroboros.Core.Monads;
@@ -640,22 +641,24 @@ public static class SystemAccessTools
     }
 
     /// <summary>
-    /// Execute PowerShell commands.
+    /// Execute shell commands. Uses the platform-appropriate shell:
+    /// <c>/bin/sh</c> on Linux/macOS, <c>cmd.exe</c> on Windows.
     /// </summary>
     public class PowerShellTool : ITool
     {
-        public string Name => "powershell";
-        public string Description => "Execute PowerShell commands. Input: command string";
+        public string Name => "shell";
+        public string Description => "Execute shell commands. Input: command string. Uses /bin/sh on Linux/macOS, cmd.exe on Windows.";
         public string? JsonSchema => null;
 
         public async Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
         {
             try
             {
+                var (shell, shellArgs) = Agent.AgentToolFactory.GetShellCommand(input);
                 var psi = new ProcessStartInfo
                 {
-                    FileName = "powershell.exe",
-                    Arguments = $"-NoProfile -NonInteractive -Command \"{input.Replace("\"", "\\\"")}\"",
+                    FileName = shell,
+                    Arguments = shellArgs,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
@@ -664,7 +667,7 @@ public static class SystemAccessTools
 
                 using var process = Process.Start(psi);
                 if (process == null)
-                    return Result<string, string>.Failure("Failed to start PowerShell");
+                    return Result<string, string>.Failure("Failed to start shell process");
 
                 var output = await process.StandardOutput.ReadToEndAsync(ct);
                 var error = await process.StandardError.ReadToEndAsync(ct);
@@ -707,29 +710,78 @@ public static class SystemAccessTools
 
                 if (action == "set" && !string.IsNullOrEmpty(text))
                 {
-                    // Use PowerShell to set clipboard
-                    var psi = new ProcessStartInfo
+                    ProcessStartInfo psi;
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                     {
-                        FileName = "powershell.exe",
-                        Arguments = $"-NoProfile -Command \"Set-Clipboard -Value '{text.Replace("'", "''")}'\"",
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    };
+                        psi = new ProcessStartInfo
+                        {
+                            FileName = "cmd.exe",
+                            Arguments = $"/C echo {text}| clip",
+                            UseShellExecute = false,
+                            CreateNoWindow = true
+                        };
+                    }
+                    else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                    {
+                        psi = new ProcessStartInfo
+                        {
+                            FileName = "/bin/sh",
+                            Arguments = $"-c \"echo '{text.Replace("'", "'\\''")}' | pbcopy\"",
+                            UseShellExecute = false,
+                            CreateNoWindow = true
+                        };
+                    }
+                    else
+                    {
+                        psi = new ProcessStartInfo
+                        {
+                            FileName = "/bin/sh",
+                            Arguments = $"-c \"echo '{text.Replace("'", "'\\''")}' | xclip -selection clipboard 2>/dev/null || echo '{text.Replace("'", "'\\''")}' | xsel --clipboard 2>/dev/null\"",
+                            UseShellExecute = false,
+                            CreateNoWindow = true
+                        };
+                    }
+
                     using var p = Process.Start(psi);
                     if (p != null) await p.WaitForExitAsync(ct);
                     return Result<string, string>.Success("Clipboard updated");
                 }
                 else
                 {
-                    // Use PowerShell to get clipboard
-                    var psi = new ProcessStartInfo
+                    ProcessStartInfo psi;
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                     {
-                        FileName = "powershell.exe",
-                        Arguments = "-NoProfile -Command \"Get-Clipboard\"",
-                        RedirectStandardOutput = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    };
+                        psi = new ProcessStartInfo
+                        {
+                            FileName = "cmd.exe",
+                            Arguments = "/C powershell -NoProfile -Command Get-Clipboard",
+                            RedirectStandardOutput = true,
+                            UseShellExecute = false,
+                            CreateNoWindow = true
+                        };
+                    }
+                    else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                    {
+                        psi = new ProcessStartInfo
+                        {
+                            FileName = "pbpaste",
+                            RedirectStandardOutput = true,
+                            UseShellExecute = false,
+                            CreateNoWindow = true
+                        };
+                    }
+                    else
+                    {
+                        psi = new ProcessStartInfo
+                        {
+                            FileName = "/bin/sh",
+                            Arguments = "-c \"xclip -selection clipboard -o 2>/dev/null || xsel --clipboard --output 2>/dev/null\"",
+                            RedirectStandardOutput = true,
+                            UseShellExecute = false,
+                            CreateNoWindow = true
+                        };
+                    }
+
                     using var p = Process.Start(psi);
                     if (p == null) return Result<string, string>.Failure("Failed to access clipboard");
                     var result = await p.StandardOutput.ReadToEndAsync(ct);
@@ -756,14 +808,29 @@ public static class SystemAccessTools
         {
             try
             {
-                var psi = new ProcessStartInfo
+                ProcessStartInfo psi;
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
-                    FileName = "powershell.exe",
-                    Arguments = "-NoProfile -Command \"Get-NetIPAddress | Where-Object {$_.AddressFamily -eq 'IPv4'} | Select-Object InterfaceAlias, IPAddress, PrefixLength | Format-Table -AutoSize\"",
-                    RedirectStandardOutput = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
+                    psi = new ProcessStartInfo
+                    {
+                        FileName = "cmd.exe",
+                        Arguments = "/C ipconfig",
+                        RedirectStandardOutput = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+                }
+                else
+                {
+                    psi = new ProcessStartInfo
+                    {
+                        FileName = "/bin/sh",
+                        Arguments = "-c \"ip addr 2>/dev/null || ifconfig 2>/dev/null || echo 'No network tools available'\"",
+                        RedirectStandardOutput = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+                }
 
                 using var process = Process.Start(psi);
                 if (process == null)

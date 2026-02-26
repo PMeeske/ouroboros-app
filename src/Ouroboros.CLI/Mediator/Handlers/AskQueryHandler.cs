@@ -34,12 +34,11 @@ public sealed class AskQueryHandler : IRequestHandler<AskQuery, string>
     {
         var r = query.Request;
 
-        if (r.Router.Equals("auto", StringComparison.OrdinalIgnoreCase))
-            Environment.SetEnvironmentVariable("MONADIC_ROUTER", "auto");
-        if (r.Debug)
-            Environment.SetEnvironmentVariable("MONADIC_DEBUG", "1");
-
-        var settings = new ChatRuntimeSettings(r.Temperature, r.MaxTokens, r.TimeoutSeconds, r.Stream, r.Culture);
+        var settings = new ChatRuntimeSettings(r.Temperature, r.MaxTokens, r.TimeoutSeconds, r.Stream, r.Culture)
+        {
+            UseRouter = r.Router.Equals("auto", StringComparison.OrdinalIgnoreCase),
+            Debug = r.Debug,
+        };
 
         _logger.LogInformation(
             "AskQueryHandler: model={Model} rag={Rag} agent={Agent} router={Router}",
@@ -87,26 +86,6 @@ public sealed class AskQueryHandler : IRequestHandler<AskQuery, string>
             embedModel = ServiceFactory.CreateEmbeddingModel(endpoint, apiKey, endpointType, r.EmbedModel, provider2);
             ragStore = new TrackedVectorStore();
 
-            string[] seedDocs =
-            [
-                "Event sourcing captures all changes as immutable events.",
-                "Circuit breakers prevent cascading failures in distributed systems.",
-                "CQRS separates reads from writes for scalability.",
-            ];
-
-            foreach ((string text, int idx) in seedDocs.Select((d, i) => (d, i)))
-            {
-                try
-                {
-                    float[] emb = await embedModel.CreateEmbeddingsAsync(text);
-                    await ragStore.AddAsync([new Vector { Id = (idx + 1).ToString(), Text = text, Embedding = emb }]);
-                }
-                catch
-                {
-                    await ragStore.AddAsync([new Vector { Id = (idx + 1).ToString(), Text = text, Embedding = new float[8] }]);
-                }
-            }
-
             if (tools.Get("search") is null && embedModel is not null)
                 tools = tools.WithTool(new Ouroboros.Tools.RetrievalTool(ragStore, embedModel));
         }
@@ -153,34 +132,6 @@ public sealed class AskQueryHandler : IRequestHandler<AskQuery, string>
         var tools = new ToolRegistry();
         var llm = new ToolAwareChatModel(chatModel, tools);
         var store = new TrackedVectorStore();
-
-        if (r.UseRag)
-        {
-            string[] docs =
-            [
-                "API versioning best practices with backward compatibility",
-                "Circuit breaker using Polly in .NET",
-                "Event sourcing and CQRS patterns overview"
-            ];
-
-            foreach ((string text, int idx) in docs.Select((d, i) => (d, i)))
-            {
-                try
-                {
-                    Telemetry.RecordEmbeddingInput([text]);
-                    float[] resp = await embed.CreateEmbeddingsAsync(text);
-                    await store.AddAsync([new Vector { Id = (idx + 1).ToString(), Text = text, Embedding = resp }]);
-                    Telemetry.RecordEmbeddingSuccess(resp.Length);
-                    Telemetry.RecordVectors(1);
-                }
-                catch
-                {
-                    await store.AddAsync([new Vector { Id = (idx + 1).ToString(), Text = text, Embedding = new float[8] }]);
-                    Telemetry.RecordEmbeddingFailure();
-                    Telemetry.RecordVectors(1);
-                }
-            }
-        }
 
         sw.Stop();
 
@@ -238,14 +189,14 @@ public sealed class AskQueryHandler : IRequestHandler<AskQuery, string>
             }
             catch (Exception ex) when (!r.StrictModel && ex.Message.Contains("Invalid model", StringComparison.OrdinalIgnoreCase))
             {
-                AnsiConsole.MarkupLine(OuroborosTheme.Warn($"[WARN] Remote model '{Markup.Escape(r.ModelName)}' invalid. Falling back to local 'llama3'. Use --strict-model to disable fallback."));
-                var local = new OllamaChatModel(provider, "llama3");
+                AnsiConsole.MarkupLine(OuroborosTheme.Warn($"[WARN] Remote model '{Markup.Escape(r.ModelName)}' invalid. Falling back to local 'deepseek-v3.1:671b-cloud'. Use --strict-model to disable fallback."));
+                var local = new OllamaChatModel(provider, "deepseek-v3.1:671b-cloud");
                 return new OllamaChatAdapter(local, settings.Culture);
             }
             catch (Exception ex) when (!r.StrictModel)
             {
-                AnsiConsole.MarkupLine(OuroborosTheme.Warn($"[WARN] Remote model '{Markup.Escape(r.ModelName)}' unavailable ({Markup.Escape(ex.GetType().Name)}). Falling back to local 'llama3'. Use --strict-model to disable fallback."));
-                var local = new OllamaChatModel(provider, "llama3");
+                AnsiConsole.MarkupLine(OuroborosTheme.Warn($"[WARN] Remote model '{Markup.Escape(r.ModelName)}' unavailable ({Markup.Escape(ex.GetType().Name)}). Falling back to local 'deepseek-v3.1:671b-cloud'. Use --strict-model to disable fallback."));
+                var local = new OllamaChatModel(provider, "deepseek-v3.1:671b-cloud");
                 return new OllamaChatAdapter(local, settings.Culture);
             }
         }

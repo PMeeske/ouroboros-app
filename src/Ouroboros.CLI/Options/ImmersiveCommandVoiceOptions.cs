@@ -8,7 +8,7 @@ namespace Ouroboros.Options;
 public sealed class ImmersiveCommandVoiceOptions : IVoiceOptions
 {
     public string Persona       { get; set; } = "Iaret";
-    public string Model         { get; set; } = "llama3:latest";
+    public string Model         { get; set; } = "deepseek-v3.1:671b-cloud";
     public string Endpoint      { get; set; } = "http://localhost:11434";
     public string EmbedModel    { get; set; } = "nomic-embed-text";
     public string QdrantEndpoint { get; set; } = "http://localhost:6334";
