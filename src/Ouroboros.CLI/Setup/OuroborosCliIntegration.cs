@@ -28,6 +28,7 @@ public static class OuroborosCliIntegration
     private static IServiceProvider? _serviceProvider;
     private static IOuroborosCore? _ouroborosCore;
     private static OuroborosTelemetry? _telemetry;
+    private static TapoGatewayManager? _tapoGateway;
 
     /// <summary>
     /// Initializes the Ouroboros system for CLI usage.
@@ -64,10 +65,26 @@ public static class OuroborosCliIntegration
             var tapoPassword = config["Tapo:Password"];
             var tapoDevices = config.GetSection("Tapo:Devices").Get<List<TapoDevice>>();
 
+            // Gateway mode: credentials exist but no explicit server address or devices
+            // The gateway will auto-discover devices on the network
+            var hasCredentials = !string.IsNullOrEmpty(tapoUsername) && !string.IsNullOrEmpty(tapoPassword);
+            var useGateway = hasCredentials && string.IsNullOrEmpty(tapoServerAddress) && !(tapoDevices?.Count > 0);
+
+            if (useGateway)
+            {
+                // Find the gateway script relative to the engine tools directory
+                var gatewayPath = FindGatewayScriptPath();
+                if (gatewayPath != null)
+                {
+                    services.AddTapoGateway(gatewayPath);
+                    // REST client will be created after gateway starts (in TryInitializeTapoAsync)
+                }
+            }
+
             // Validate and register Tapo services based on configuration
             // Both RTSP cameras AND REST API can be used simultaneously
             var tapoConfigResult = ValidateTapoConfiguration(tapoServerAddress, tapoUsername, tapoPassword, tapoDevices);
-            if (tapoConfigResult.IsValid)
+            if (tapoConfigResult.IsValid || useGateway)
             {
                 // Register RTSP cameras if configured (for direct camera access)
                 if (tapoConfigResult.UseRtsp)
@@ -135,6 +152,13 @@ public static class OuroborosCliIntegration
     /// </summary>
     private static async Task TryInitializeTapoAsync(IConfiguration config)
     {
+        // Try starting the gateway if registered
+        var gateway = _serviceProvider?.GetService<TapoGatewayManager>();
+        if (gateway != null)
+        {
+            await TryStartGatewayAsync(gateway, config);
+        }
+
         var tapoProvider = _serviceProvider?.GetService<TapoEmbodimentProvider>();
         if (tapoProvider == null)
         {
@@ -175,6 +199,66 @@ public static class OuroborosCliIntegration
             {
                 AnsiConsole.MarkupLine(OuroborosTheme.Dim("[Tapo] Embodiment provider connected successfully"));
             }
+        }
+    }
+
+    /// <summary>
+    /// Starts the Tapo Gateway process with auto-discovery.
+    /// </summary>
+    private static async Task TryStartGatewayAsync(TapoGatewayManager gateway, IConfiguration config)
+    {
+        var username = config["Tapo:Username"];
+        var password = config["Tapo:Password"];
+        var serverPassword = config["Tapo:ServerPassword"] ?? "ouroboros-gateway";
+
+        if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
+            return;
+
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim("[Tapo] Starting Tapo Gateway with auto-discovery..."));
+
+        var started = await gateway.StartAsync(username, password, serverPassword, port: 8123);
+        if (!started)
+        {
+            AnsiConsole.MarkupLine(OuroborosTheme.Warn("[Tapo] Gateway failed to start (Python 3 + tapo + fastapi + uvicorn required)"));
+            return;
+        }
+
+        _tapoGateway = gateway;
+        AnsiConsole.MarkupLine(OuroborosTheme.Dim($"[Tapo] Gateway running on port {gateway.Port}"));
+
+        // Create REST client pointing to the gateway and inject it into the provider
+        var httpClient = new HttpClient
+        {
+            BaseAddress = new Uri(gateway.BaseUrl),
+            Timeout = TimeSpan.FromSeconds(30)
+        };
+        var restClient = new TapoRestClient(httpClient);
+
+        // Authenticate with the gateway
+        var authResult = await restClient.LoginAsync(serverPassword);
+        if (authResult.IsFailure)
+        {
+            AnsiConsole.MarkupLine(OuroborosTheme.Warn($"[Tapo] Gateway auth failed: {Markup.Escape(authResult.Error.ToString())}"));
+            return;
+        }
+
+        // Log discovered devices
+        var devicesResult = await restClient.GetDevicesAsync();
+        if (devicesResult.IsSuccess)
+        {
+            var devices = devicesResult.Value;
+            AnsiConsole.MarkupLine(OuroborosTheme.Dim($"[Tapo] Gateway discovered {devices.Count} device(s):"));
+            foreach (var device in devices)
+            {
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim($"[Tapo]   - {Markup.Escape(device.Name)} ({device.DeviceType}) @ {Markup.Escape(device.IpAddress)}"));
+            }
+        }
+
+        // Wire the REST client into the embodiment provider if registered
+        var tapoProvider = _serviceProvider?.GetService<TapoEmbodimentProvider>();
+        if (tapoProvider != null)
+        {
+            tapoProvider.SetRestClient(restClient);
         }
     }
 
@@ -356,6 +440,34 @@ public static class OuroborosCliIntegration
 
         // No Tapo configuration
         return new TapoConfigValidationResult(false, false, false, null);
+    }
+
+    /// <summary>
+    /// Finds the tapo_gateway.py script by searching known locations.
+    /// </summary>
+    private static string? FindGatewayScriptPath()
+    {
+        // Search relative to the application base directory and common repo layouts
+        var candidates = new[]
+        {
+            // When running from ouroboros-app with libs/engine submodule
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "libs", "engine", "tools", "tapo_gateway.py"),
+            // When running from meta-repo (Ouroboros-v2)
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "engine", "tools", "tapo_gateway.py"),
+            // When running from ouroboros-engine directly
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "tools", "tapo_gateway.py"),
+            // Standalone peer checkout
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "ouroboros-engine", "tools", "tapo_gateway.py"),
+        };
+
+        foreach (var candidate in candidates)
+        {
+            var fullPath = Path.GetFullPath(candidate);
+            if (File.Exists(fullPath))
+                return fullPath;
+        }
+
+        return null;
     }
 
     /// <summary>

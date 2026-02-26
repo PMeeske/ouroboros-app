@@ -107,6 +107,37 @@ public sealed partial class OuroborosAgent
             _tapoRestClient = new Ouroboros.Providers.Tapo.TapoRestClient(httpClient);
         }
 
+        // Fallback: use gateway-discovered devices if no static config and gateway is running
+        if (tapoDevices.Count == 0 && _tapoRestClient == null)
+        {
+            var gateway = _embodimentSub?.TapoRestClient;
+            if (gateway != null)
+            {
+                _tapoRestClient = gateway;
+                // Try to fetch discovered camera devices from the gateway
+                try
+                {
+                    var devicesResult = gateway.GetDevicesAsync().GetAwaiter().GetResult();
+                    if (devicesResult.IsSuccess)
+                    {
+                        var discoveredCameras = devicesResult.Value
+                            .Where(d => IsCameraDeviceType(d.DeviceType))
+                            .ToList();
+                        if (hasCredentials && discoveredCameras.Count > 0)
+                        {
+                            _tapoRtspFactory = new Ouroboros.Providers.Tapo.TapoRtspClientFactory(
+                                discoveredCameras, tapoUsername!, tapoPassword!);
+                            cameraNames = discoveredCameras.Select(d => d.Name).ToList();
+                        }
+                    }
+                }
+                catch
+                {
+                    // Gateway not ready yet - cameras will be unavailable
+                }
+            }
+        }
+
         // Create vision model from config
         var ollamaEndpoint = _staticConfiguration?["Ollama:Endpoint"]
             ?? _config.Endpoint ?? "http://localhost:11434";
