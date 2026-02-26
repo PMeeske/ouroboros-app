@@ -34,11 +34,7 @@ public sealed class AskQueryHandler : IRequestHandler<AskQuery, string>
     {
         var r = query.Request;
 
-        var settings = new ChatRuntimeSettings(r.Temperature, r.MaxTokens, r.TimeoutSeconds, r.Stream, r.Culture)
-        {
-            UseRouter = r.Router.Equals("auto", StringComparison.OrdinalIgnoreCase),
-            Debug = r.Debug,
-        };
+        var settings = new ChatRuntimeSettings(r.Temperature, r.MaxTokens, r.TimeoutSeconds, r.Stream, r.Culture);
 
         _logger.LogInformation(
             "AskQueryHandler: model={Model} rag={Rag} agent={Agent} router={Router}",
