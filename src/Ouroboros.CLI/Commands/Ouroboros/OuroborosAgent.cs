@@ -187,6 +187,9 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     // ── Cognitive Thought Streams (Rx, permanently running) ──
     private Ouroboros.Application.Streams.CognitiveStreamEngine? _cognitiveStream;
 
+    // ── MeTTa shared orchestrator (persists atom state across tool calls) ──
+    private Ouroboros.Application.Services.ParallelMeTTaThoughtStreams? _mettaOrchestrator;
+
     // State
     private bool _isInitialized;
     private bool _disposed;
@@ -429,6 +432,9 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
 
         // Dispose cognitive stream engine
         _cognitiveStream?.Dispose();
+
+        // Dispose shared MeTTa orchestrator
+        await (_mettaOrchestrator?.DisposeAsync() ?? ValueTask.CompletedTask).ConfigureAwait(false);
     }
 
 

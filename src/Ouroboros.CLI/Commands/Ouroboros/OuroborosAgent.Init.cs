@@ -204,6 +204,24 @@ public sealed partial class OuroborosAgent
             PersistThoughtResultAsync(id, type, content, success, confidence);
         _chatSub.GetLanguageNameFunc = _localizationSub.GetLanguageName;
 
+        // ── MeTTa: shared orchestrator — persists atom state across tool calls ──
+        _mettaOrchestrator = new Ouroboros.Application.Services.ParallelMeTTaThoughtStreams(maxParallelism: 5);
+        if (_chatModel != null)
+            _mettaOrchestrator.ConnectOllama(async (p, ct) => await _chatModel.GenerateTextAsync(p, ct));
+        Ouroboros.Application.Tools.AutonomousTools.ParallelMeTTaThinkTool.SharedOrchestrator = _mettaOrchestrator;
+        Ouroboros.Application.Tools.AutonomousTools.OuroborosMeTTaTool.SharedOrchestrator    = _mettaOrchestrator;
+
+        // ── verify_claim: always-on search wiring (fallback when mind is disabled) ──
+        Ouroboros.Application.Tools.AutonomousTools.VerifyClaimTool.SearchFunction ??= async (query, ct) =>
+        {
+            var t = _toolFactory?.CreateWebSearchTool("duckduckgo");
+            if (t == null) return string.Empty;
+            var r = await t.InvokeAsync(query, ct).ConfigureAwait(false);
+            return r.Match(s => s, _ => string.Empty);
+        };
+        Ouroboros.Application.Tools.AutonomousTools.VerifyClaimTool.EvaluateFunction ??= async (p, ct) =>
+            _chatModel != null ? await _chatModel.GenerateTextAsync(p, ct) : string.Empty;
+
         // ── Cognitive Thought Streams (Rx — bridges all event sources) ──
         WireCognitiveStream();
     }
@@ -787,6 +805,10 @@ public sealed partial class OuroborosAgent
 
         // ── Wire context block into ChatSubsystem ─────────────────────────
         _chatSub.CognitiveStreamEngine = _cognitiveStream;
+
+        // ── OuroborosAtom events → cognitive stream ───────────────────────
+        Ouroboros.Application.Tools.AutonomousTools.OuroborosMeTTaTool.CognitiveEmitFunc =
+            _cognitiveStream.EmitRawThought;
 
         // ── Start throttled console display ───────────────────────────────
         _cognitiveStream.StartConsoleDisplay(_config.Verbosity == OutputVerbosity.Quiet);

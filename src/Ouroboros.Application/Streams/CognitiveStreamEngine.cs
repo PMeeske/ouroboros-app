@@ -166,6 +166,23 @@ public sealed class CognitiveStreamEngine : IDisposable
     public void EmitCoordinatorMessage(ProactiveMessageEventArgs msg) =>
         _coordinatorSubject.OnNext(new CoordinatorMessageEvent(msg, DateTime.UtcNow));
 
+    /// <summary>
+    /// Emits a raw thought using <see cref="ThoughtType.Reflection"/> type.
+    /// Used by OuroborosMeTTaTool atom event hooks (OnSelfConsumption, OnFixedPoint).
+    /// </summary>
+    public void EmitRawThought(string content)
+        => EmitThought(new Thought { Type = ThoughtType.Reflection, Content = content, Timestamp = DateTime.UtcNow });
+
+    /// <summary>
+    /// Emits a tool execution result as an <see cref="ActionEngineEvent"/> into the cognitive stream.
+    /// Call after <c>GenerateWithToolsAsync</c> for interesting tool names.
+    /// </summary>
+    public void EmitToolExecution(string toolName, string output)
+    {
+        var truncated = output.Length > 120 ? output[..120] + "…" : output;
+        _actionEngineSubject.OnNext(new ActionEngineEvent($"[{toolName}]", truncated, DateTime.UtcNow));
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // Console display (throttled, color-coded per StreamKind)
     // ═══════════════════════════════════════════════════════════════════════

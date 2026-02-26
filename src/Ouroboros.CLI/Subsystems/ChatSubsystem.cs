@@ -75,6 +75,42 @@ public sealed class ChatSubsystem : IChatSubsystem
         _causalReasoning = ctx.Services?.GetService<Ouroboros.Core.Reasoning.ICausalReasoningEngine>()
             ?? new Ouroboros.Core.Reasoning.CausalReasoningEngine();
 
+        // ── Bridge EpisodicMemoryTool ↔ Qdrant EpisodicMemoryEngine ──────────
+        // The tool uses a session-local list; these delegates route store/recall through the
+        // Qdrant-backed engine so memories persist across sessions.
+        if (_episodicMemory != null)
+        {
+            Ouroboros.Application.Tools.AutonomousTools.EpisodicMemoryTool.ExternalStoreFunc =
+                async (content, emotion, sig, ct) =>
+                {
+                    try
+                    {
+                        var store      = new Ouroboros.Domain.Vectors.TrackedVectorStore();
+                        var dataSource = LangChain.DocumentLoaders.DataSource.FromPath(System.Environment.CurrentDirectory);
+                        var branch     = new Ouroboros.Pipeline.Branches.PipelineBranch("episodic_tool", store, dataSource);
+                        var execCtx    = Ouroboros.Pipeline.Memory.ExecutionContext.WithGoal(content[..Math.Min(80, content.Length)]);
+                        var outcome    = Ouroboros.Pipeline.Memory.Outcome.Successful("episodic_memory tool", TimeSpan.Zero);
+                        var metadata   = System.Collections.Immutable.ImmutableDictionary<string, object>.Empty
+                            .Add("summary",      content[..Math.Min(200, content.Length)])
+                            .Add("emotion",      emotion)
+                            .Add("significance", sig.ToString("F2"));
+                        await _episodicMemory.StoreEpisodeAsync(branch, execCtx, outcome, metadata, ct).ConfigureAwait(false);
+                    }
+                    catch { /* non-fatal */ }
+                };
+
+            Ouroboros.Application.Tools.AutonomousTools.EpisodicMemoryTool.ExternalRecallFunc =
+                async (query, count, ct) =>
+                {
+                    var r = await _episodicMemory.RetrieveSimilarEpisodesAsync(
+                        query, topK: count, minSimilarity: 0.5, ct).ConfigureAwait(false);
+                    if (!r.IsSuccess) return [];
+                    return r.Value
+                        .Select(e => e.Context.GetValueOrDefault("summary")?.ToString() ?? "")
+                        .Where(s => !string.IsNullOrEmpty(s));
+                };
+        }
+
         // ── Neural-symbolic bridge ────────────────────────────────────────────
         if (ctx.Models.ChatModel != null && ctx.Memory.MeTTaEngine != null)
         {
@@ -317,6 +353,19 @@ Use this actual code information to answer the user's question accurately.
             using (var spinner = _output.StartSpinner("Thinking..."))
             {
                 (response, tools) = await activeLlm.GenerateWithToolsAsync(prompt);
+            }
+
+            // === COGNITIVE STREAM: emit interesting tool executions ===
+            if (CognitiveStreamEngine != null && tools.Count > 0)
+            {
+                foreach (var t in tools)
+                {
+                    if (t.ToolName is "verify_claim" or "reasoning_chain" or
+                        "parallel_metta_think" or "ouroboros_metta" or "episodic_memory")
+                    {
+                        CognitiveStreamEngine.EmitToolExecution(t.ToolName, t.Output);
+                    }
+                }
             }
 
             // === POST-PROCESS: Execute tools when LLM talks about using them but doesn't ===

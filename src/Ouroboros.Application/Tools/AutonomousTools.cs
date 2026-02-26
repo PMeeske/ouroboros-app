@@ -1456,10 +1456,22 @@ public static class AutonomousTools
         private static readonly List<EpisodicMemoryEntry> _memories = [];
         private static readonly object _lock = new();
 
+        /// <summary>
+        /// Optional delegate to persist a memory to an external store (e.g. Qdrant EpisodicMemoryEngine).
+        /// Invoked fire-and-forget after local storage; failures are swallowed silently.
+        /// Signature: (content, emotion, significance, cancellationToken) → Task
+        /// </summary>
+        public static Func<string, string, double, CancellationToken, Task>? ExternalStoreFunc { get; set; }
+
+        /// <summary>
+        /// Optional delegate to recall memories from an external persistent store (cross-session).
+        /// Results are prepended to in-session results.
+        /// Signature: (query, count, cancellationToken) → IEnumerable&lt;string&gt;
+        /// </summary>
+        public static Func<string, int, CancellationToken, Task<IEnumerable<string>>>? ExternalRecallFunc { get; set; }
+
         public async Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
         {
-            await Task.CompletedTask;
-
             try
             {
                 using var doc = JsonDocument.Parse(input);
@@ -1468,7 +1480,7 @@ public static class AutonomousTools
                 return action.ToLowerInvariant() switch
                 {
                     "store" => StoreMemory(doc.RootElement),
-                    "recall" => RecallMemories(doc.RootElement),
+                    "recall" => await RecallMemoriesAsync(doc.RootElement, ct).ConfigureAwait(false),
                     "consolidate" => ConsolidateMemories(),
                     _ => Result<string, string>.Failure($"Unknown action: {action}")
                 };
@@ -1511,7 +1523,59 @@ public static class AutonomousTools
                 }
             }
 
+            // Fire-and-forget to external persistent store (non-blocking)
+            if (ExternalStoreFunc != null)
+                _ = ExternalStoreFunc(content, emotion, significance, CancellationToken.None);
+
             return Result<string, string>.Success($"✅ Memory stored (significance: {significance:P0}, emotion: {emotion})");
+        }
+
+        private static async Task<Result<string, string>> RecallMemoriesAsync(JsonElement root, CancellationToken ct)
+        {
+            var query = root.TryGetProperty("content", out var q) ? q.GetString() ?? "" : "";
+            var count = root.TryGetProperty("count",   out var n) ? n.GetInt32()    : 5;
+
+            // Get local in-session results first
+            var localResult = RecallMemories(root);
+
+            // If no external bridge configured, return local only
+            if (ExternalRecallFunc == null)
+                return localResult;
+
+            List<string> persisted;
+            try
+            {
+                persisted = (await ExternalRecallFunc(query, count, ct).ConfigureAwait(false)).ToList();
+            }
+            catch
+            {
+                return localResult; // Graceful degradation
+            }
+
+            if (persisted.Count == 0)
+                return localResult;
+
+            // Combine: persistent section prepended before session section
+            var sb = new StringBuilder();
+            sb.AppendLine("📖 **Episodic Memory Recall**\n");
+            sb.AppendLine("**[Persistent — from prior sessions]**");
+            foreach (var line in persisted.Take(3))
+                sb.AppendLine($"• {line[..Math.Min(150, line.Length)]}");
+            sb.AppendLine();
+
+            if (localResult.IsSuccess)
+            {
+                var localBody = localResult.Value
+                    .Replace("📖 **Episodic Memory Recall**\n\n", "", StringComparison.Ordinal)
+                    .Trim();
+                if (localBody != "_No episodic memories found matching criteria._")
+                {
+                    sb.AppendLine("**[Current session]**");
+                    sb.AppendLine(localBody);
+                }
+            }
+
+            return Result<string, string>.Success(sb.ToString());
         }
 
         private static Result<string, string> RecallMemories(JsonElement root)
@@ -2043,6 +2107,13 @@ If the response seems solid, acknowledge that too.";
         public static Func<string, CancellationToken, Task<string>>? OllamaFunction { get; set; }
 
         /// <summary>
+        /// Optional callback to emit Ouroboros atom events (OnSelfConsumption, OnFixedPoint) to the
+        /// cognitive thought stream. Wire to <c>CognitiveStreamEngine.EmitRawThought</c> in Init.cs.
+        /// Signature: (summary: string) → void
+        /// </summary>
+        public static Action<string>? CognitiveEmitFunc { get; set; }
+
+        /// <summary>
         /// Active Ouroboros atoms for persistent self-reference.
         /// </summary>
         public static List<Services.OuroborosAtom> ActiveAtoms { get; } = [];
@@ -2115,6 +2186,15 @@ If the response seems solid, acknowledge that too.";
         {
             var (atom, node) = orchestrator.CreateOuroborosStream(concept);
             ActiveAtoms.Add(atom);
+
+            // Wire atom events to the cognitive stream (if callback is set)
+            if (CognitiveEmitFunc != null)
+            {
+                atom.OnSelfConsumption += (a, record) =>
+                    CognitiveEmitFunc($"Ouroboros depth={a.SelfReferenceDepth}: {record[..Math.Min(80, record.Length)]}");
+                atom.OnFixedPoint += (a) =>
+                    CognitiveEmitFunc($"Fixed point! emergence={a.EmergenceLevel:F3} after {a.SelfReferenceDepth} cycles");
+            }
 
             sb.AppendLine($"**Mode:** Create Self-Aware Ouroboros");
             sb.AppendLine($"**Seed Concept:** {concept}");
