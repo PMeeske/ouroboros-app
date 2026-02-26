@@ -5,6 +5,8 @@ using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
 using Ouroboros.Application.Mcp;
 using Ouroboros.Application.Services;
+using Ouroboros.Application.OpenClaw;
+using Ouroboros.Application.OpenClaw.PcNode;
 using Ouroboros.Application.Tools;
 using Ouroboros.CLI.Commands;
 using Ouroboros.CLI.Infrastructure;
@@ -181,13 +183,45 @@ public sealed class ToolSubsystem : IToolSubsystem
                             ctx.Config.OpenClawToken);
                         Tools = Tools.WithOpenClawTools();
                         ctx.Output.RecordInit("OpenClaw", true,
-                            $"gateway {gw} (5 tools)");
+                            $"gateway {gw} ({OpenClawTools.GetAllTools().Count()} tools)");
                     }
                     catch (Exception ex)
                     {
                         AnsiConsole.MarkupLine(OuroborosTheme.Warn(
                             $"  [!] OpenClaw: {Markup.Escape(ex.Message)}"));
                         ctx.Output.RecordInit("OpenClaw", false, ex.Message);
+                    }
+
+                    // PC Node (register this machine as a device node)
+                    if (ctx.Config.EnablePcNode)
+                    {
+                        try
+                        {
+                            var pcConfig = !string.IsNullOrEmpty(ctx.Config.PcNodeConfigPath)
+                                ? PcNodeSecurityConfig.CreateFromFile(ctx.Config.PcNodeConfigPath)
+                                : (Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") == "Development"
+                                    ? PcNodeSecurityConfig.CreateDevelopment()
+                                    : PcNodeSecurityConfig.CreateDefault());
+
+                            var deviceIdentity = await OpenClawDeviceIdentity.LoadOrCreateAsync();
+                            await OpenClawPcNodeTools.StartPcNodeAsync(
+                                pcConfig,
+                                ctx.Config.OpenClawGateway,
+                                ctx.Config.OpenClawToken,
+                                deviceIdentity);
+
+                            Tools = Tools.WithPcNodeTools();
+
+                            var enabledCount = pcConfig.EnabledCapabilities.Count;
+                            ctx.Output.RecordInit("PcNode", true,
+                                $"{enabledCount} capabilities enabled ({OpenClawPcNodeTools.GetAllTools().Count()} tools)");
+                        }
+                        catch (Exception ex)
+                        {
+                            AnsiConsole.MarkupLine(OuroborosTheme.Warn(
+                                $"  [!] PC Node: {Markup.Escape(ex.Message)}"));
+                            ctx.Output.RecordInit("PcNode", false, ex.Message);
+                        }
                     }
                 }
                 else
@@ -868,6 +902,9 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
         if (PlaywrightTool != null)
             await PlaywrightTool.DisposeAsync();
 
+        if (OpenClawPcNodeTools.SharedPcNode != null)
+            await OpenClawPcNodeTools.SharedPcNode.DisposeAsync();
+
         if (OpenClawTools.SharedClient != null)
             await OpenClawTools.SharedClient.DisposeAsync();
 
@@ -891,6 +928,20 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
         "smart_home",
         "openclaw_send_message",
         "openclaw_node_invoke",
+        // OpenClaw session/spawn/device tools
+        "openclaw_sessions_send",
+        "openclaw_sessions_spawn",
+        "openclaw_cron_add",
+        "openclaw_cron_toggle",
+        "openclaw_devices_approve",
+        "openclaw_devices_revoke",
+        "openclaw_camera_snap",
+        "openclaw_camera_clip",
+        "openclaw_location_get",
+        "openclaw_screen_record_node",
+        // PC node management
+        "openclaw_pc_toggle_capability",
+        "openclaw_approval_respond",
     };
 
     /// <summary>

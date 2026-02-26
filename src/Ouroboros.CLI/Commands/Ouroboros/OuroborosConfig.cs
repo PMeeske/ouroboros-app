@@ -95,4 +95,7 @@ public sealed record OuroborosConfig(
     // OpenClaw Gateway integration
     string? OpenClawGateway = "ws://127.0.0.1:18789",
     string? OpenClawToken = null,          // gateway auth token
-    bool EnableOpenClaw = true);
+    bool EnableOpenClaw = true,
+    // OpenClaw PC Node
+    bool EnablePcNode = false,             // PC node (receive commands from gateway)
+    string? PcNodeConfigPath = null);      // path to JSON security config file

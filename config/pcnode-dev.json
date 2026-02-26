@@ -1,0 +1,43 @@
+{
+    // PC Node Development Configuration
+    // Safe, read-only capabilities for testing
+    "EnabledCapabilities": [
+        "system.info",
+        "system.notify",
+        "clipboard.read",
+        "clipboard.write",
+        "screen.capture",
+        "process.list",
+        "file.list",
+        "file.read",
+        "browser.open"
+    ],
+
+    // Allow any authenticated caller in dev
+    "AllowedCallerDeviceIds": ["*"],
+
+    // File access restricted to project directory
+    "AllowedFileDirectories": [
+        "D:\\project"
+    ],
+
+    // Clear default blocked paths for dev (keep extensions blocked)
+    "BlockedFilePaths": [],
+
+    // Application whitelist
+    "AllowedApplications": ["notepad", "code", "chrome", "firefox", "edge"],
+
+    // Shell commands disabled in dev too (safety)
+    "EnableShellCommands": false,
+
+    // Relaxed rate limits for dev
+    "GlobalRateLimitPerMinute": 120,
+    "HighRiskRateLimitPerMinute": 20,
+
+    // Approval only for critical
+    "ApprovalThreshold": "Critical",
+    "ApprovalTimeoutSeconds": 120,
+
+    // Scan outbound for safety
+    "ScanOutboundResults": true
+}

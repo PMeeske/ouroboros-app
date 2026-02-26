@@ -559,6 +559,17 @@ public class OuroborosCommandOptions
         Description = "OpenClaw Gateway auth token (or set OPENCLAW_TOKEN env var)",
     };
 
+    public System.CommandLine.Option<bool> EnablePcNodeOption { get; } = new("--enable-pc-node")
+    {
+        Description = "Enable PC node mode (register this machine as an OpenClaw device node)",
+        DefaultValueFactory = _ => false
+    };
+
+    public System.CommandLine.Option<string?> PcNodeConfigOption { get; } = new("--pc-node-config")
+    {
+        Description = "Path to PC node security configuration JSON file",
+    };
+
     /// <summary>
     /// Adds all ouroboros command options to the given command.
     /// </summary>
@@ -681,6 +692,8 @@ public class OuroborosCommandOptions
         command.Add(EnableOpenClawOption);
         command.Add(OpenClawGatewayOption);
         command.Add(OpenClawTokenOption);
+        command.Add(EnablePcNodeOption);
+        command.Add(PcNodeConfigOption);
     }
 
     /// <summary>
@@ -812,6 +825,8 @@ public class OuroborosCommandOptions
         var openClawGateway = parseResult.GetValue(OpenClawGatewayOption);
         var openClawToken  = parseResult.GetValue(OpenClawTokenOption)
                              ?? Environment.GetEnvironmentVariable("OPENCLAW_TOKEN");
+        var enablePcNode   = parseResult.GetValue(EnablePcNodeOption);
+        var pcNodeConfig   = parseResult.GetValue(PcNodeConfigOption);
 
         // Derive Azure TTS
         var azureKey = azureSpeechKey ?? Environment.GetEnvironmentVariable("AZURE_SPEECH_KEY");
@@ -892,7 +907,9 @@ public class OuroborosCommandOptions
             RoomMode: roomMode,
             OpenClawGateway: enableOpenClaw ? openClawGateway : null,
             OpenClawToken: openClawToken,
-            EnableOpenClaw: enableOpenClaw
+            EnableOpenClaw: enableOpenClaw,
+            EnablePcNode: enablePcNode,
+            PcNodeConfigPath: pcNodeConfig
         );
     }
 }
