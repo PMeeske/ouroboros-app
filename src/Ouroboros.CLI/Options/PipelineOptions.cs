@@ -28,8 +28,8 @@ public sealed class PipelineOptions : IVoiceOptions
     [Option('c', "culture", Required = false, HelpText = "Target culture for the response.")]
     public string? Culture { get; set; }
 
-    [Option("model", Required = false, HelpText = "LLM model name", Default = "llama3:latest")]
-    public string Model { get; set; } = "llama3:latest";
+    [Option("model", Required = false, HelpText = "LLM model name", Default = "deepseek-v3.1:671b-cloud")]
+    public string Model { get; set; } = "deepseek-v3.1:671b-cloud";
 
     [Option("embed", Required = false, HelpText = "Ollama embedding model name", Default = "nomic-embed-text")]
     public string Embed { get; set; } = "nomic-embed-text";

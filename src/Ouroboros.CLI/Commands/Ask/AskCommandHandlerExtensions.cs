@@ -29,7 +29,7 @@ public static class AskCommandHandlerExtensions
             var request = new AskRequest(
                 Question:       question,
                 UseRag:         parseResult.GetValue(options.RagOption),
-                ModelName:      parseResult.GetValue(options.Model.ModelOption) ?? "llama3:latest",
+                ModelName:      parseResult.GetValue(options.Model.ModelOption) ?? "deepseek-v3.1:671b-cloud",
                 Endpoint:       parseResult.GetValue(options.Endpoint.EndpointOption),
                 ApiKey:         parseResult.GetValue(options.Endpoint.ApiKeyOption),
                 EndpointType:   parseResult.GetValue(options.Endpoint.EndpointTypeOption),

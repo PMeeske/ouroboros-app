@@ -11,7 +11,7 @@ public sealed class ModelOptions : IComposableOptions
     public Option<string> ModelOption { get; } = new("--model", "-m")
     {
         Description = "LLM model name",
-        DefaultValueFactory = _ => "llama3:latest"
+        DefaultValueFactory = _ => "deepseek-v3.1:671b-cloud"
     };
 
     public Option<double> TemperatureOption { get; } = new("--temperature")

@@ -65,8 +65,8 @@ public sealed class OuroborosOptions : IVoiceOptions
     // LLM & MODEL CONFIGURATION
     // ═══════════════════════════════════════════════════════════════════════════
 
-    [Option('m', "model", Required = false, HelpText = "LLM model name", Default = "llama3:latest")]
-    public string Model { get; set; } = "llama3:latest";
+    [Option('m', "model", Required = false, HelpText = "LLM model name", Default = "deepseek-v3.1:671b-cloud")]
+    public string Model { get; set; } = "deepseek-v3.1:671b-cloud";
 
     [Option('c', "culture", Required = false, HelpText = "Target culture for the response (e.g. en-US, fr-FR, es).")]
     public string? Culture { get; set; }

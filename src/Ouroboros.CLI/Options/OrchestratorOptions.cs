@@ -31,8 +31,8 @@ public sealed class OrchestratorOptions : IVoiceOptions
     [Option('c', "culture", Required = false, HelpText = "Target culture for the response.")]
     public string? Culture { get; set; }
 
-    [Option("model", Required = false, HelpText = "Primary LLM model name", Default = "llama3:latest")]
-    public string Model { get; set; } = "llama3:latest";
+    [Option("model", Required = false, HelpText = "Primary LLM model name", Default = "deepseek-v3.1:671b-cloud")]
+    public string Model { get; set; } = "deepseek-v3.1:671b-cloud";
 
     [Option("coder-model", Required = false, HelpText = "Model for code/refactor tasks.", Default = "codellama")]
     public string? CoderModel { get; set; }

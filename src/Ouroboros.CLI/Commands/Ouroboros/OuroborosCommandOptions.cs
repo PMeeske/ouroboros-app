@@ -110,7 +110,7 @@ public class OuroborosCommandOptions
     public System.CommandLine.Option<string> ModelOption { get; } = new("--model", "-m")
     {
         Description = "LLM model name",
-        DefaultValueFactory = _ => "llama3:latest"
+        DefaultValueFactory = _ => "deepseek-v3.1:671b-cloud"
     };
 
     public System.CommandLine.Option<string?> CultureOption { get; } = new("--culture", "-c")
@@ -710,7 +710,7 @@ public class OuroborosCommandOptions
         var persona       = parseResult.GetValue(PersonaOption) ?? "Iaret";
 
         // LLM & Model
-        var model         = parseResult.GetValue(ModelOption) ?? "llama3:latest";
+        var model         = parseResult.GetValue(ModelOption) ?? "deepseek-v3.1:671b-cloud";
         var culture       = parseResult.GetValue(CultureOption);
         var endpoint      = parseResult.GetValue(EndpointOption) ?? "http://localhost:11434";
         var apiKey        = parseResult.GetValue(ApiKeyOption);

@@ -8,7 +8,7 @@ namespace Ouroboros.CLI.Commands;
 public sealed record MeTTaConfig(
     string Goal = "",
     string? Culture = null,
-    string Model = "llama3:latest",
+    string Model = "deepseek-v3.1:671b-cloud",
     double Temperature = 0.7,
     int MaxTokens = 2048,
     int TimeoutSeconds = 60,

@@ -8,7 +8,7 @@ namespace Ouroboros.CLI.Services;
 public sealed record AskRequest(
     string Question,
     bool UseRag             = false,
-    string ModelName        = "llama3:latest",
+    string ModelName        = "deepseek-v3.1:671b-cloud",
     string? Endpoint        = null,
     string? ApiKey          = null,
     string? EndpointType    = null,

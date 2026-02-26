@@ -10,7 +10,7 @@ namespace Ouroboros.CLI.Commands;
 /// </summary>
 public sealed record RoomConfig(
     string Persona = "Iaret",
-    string Model = "llama3:latest",
+    string Model = "deepseek-v3.1:671b-cloud",
     string Endpoint = "http://localhost:11434",
     string EmbedModel = "nomic-embed-text",
     string QdrantEndpoint = "http://localhost:6334",

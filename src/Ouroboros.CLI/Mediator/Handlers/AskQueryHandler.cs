@@ -189,14 +189,14 @@ public sealed class AskQueryHandler : IRequestHandler<AskQuery, string>
             }
             catch (Exception ex) when (!r.StrictModel && ex.Message.Contains("Invalid model", StringComparison.OrdinalIgnoreCase))
             {
-                AnsiConsole.MarkupLine(OuroborosTheme.Warn($"[WARN] Remote model '{Markup.Escape(r.ModelName)}' invalid. Falling back to local 'llama3:latest'. Use --strict-model to disable fallback."));
-                var local = new OllamaChatModel(provider, "llama3:latest");
+                AnsiConsole.MarkupLine(OuroborosTheme.Warn($"[WARN] Remote model '{Markup.Escape(r.ModelName)}' invalid. Falling back to local 'deepseek-v3.1:671b-cloud'. Use --strict-model to disable fallback."));
+                var local = new OllamaChatModel(provider, "deepseek-v3.1:671b-cloud");
                 return new OllamaChatAdapter(local, settings.Culture);
             }
             catch (Exception ex) when (!r.StrictModel)
             {
-                AnsiConsole.MarkupLine(OuroborosTheme.Warn($"[WARN] Remote model '{Markup.Escape(r.ModelName)}' unavailable ({Markup.Escape(ex.GetType().Name)}). Falling back to local 'llama3:latest'. Use --strict-model to disable fallback."));
-                var local = new OllamaChatModel(provider, "llama3:latest");
+                AnsiConsole.MarkupLine(OuroborosTheme.Warn($"[WARN] Remote model '{Markup.Escape(r.ModelName)}' unavailable ({Markup.Escape(ex.GetType().Name)}). Falling back to local 'deepseek-v3.1:671b-cloud'. Use --strict-model to disable fallback."));
+                var local = new OllamaChatModel(provider, "deepseek-v3.1:671b-cloud");
                 return new OllamaChatAdapter(local, settings.Culture);
             }
         }
