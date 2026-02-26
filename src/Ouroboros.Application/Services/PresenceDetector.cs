@@ -33,6 +33,9 @@ public class PresenceDetector : IDetectionModule
     /// <summary>Gets the current presence state.</summary>
     public PresenceState CurrentState => _currentState;
 
+    /// <summary>Gets whether the detector is actively monitoring.</summary>
+    public bool IsMonitoring => _currentState != PresenceState.Unknown && !_disposed;
+
     /// <summary>Gets the last time presence was detected.</summary>
     public DateTime LastPresenceTime => _lastPresenceDetected;
 
