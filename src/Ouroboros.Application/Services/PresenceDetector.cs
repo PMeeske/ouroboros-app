@@ -29,12 +29,23 @@ public class PresenceDetector : IDetectionModule
     private bool _firstNetworkCheck = true;
     private DateTime _lastDetection = DateTime.MinValue;
     private bool _disposed;
+    private bool _monitoring;
+    private CancellationTokenSource? _monitorCts;
+
+    /// <summary>Raised when user presence is detected.</summary>
+    public event Action<PresenceEvent>? OnPresenceDetected;
+
+    /// <summary>Raised when user absence is detected.</summary>
+    public event Action<PresenceEvent>? OnAbsenceDetected;
+
+    /// <summary>Raised when the presence state changes.</summary>
+    public event Action<PresenceState, PresenceState>? OnStateChanged;
 
     /// <summary>Gets the current presence state.</summary>
     public PresenceState CurrentState => _currentState;
 
     /// <summary>Gets whether the detector is actively monitoring.</summary>
-    public bool IsMonitoring => _currentState != PresenceState.Unknown && !_disposed;
+    public bool IsMonitoring => _monitoring && !_disposed;
 
     /// <summary>Gets the last time presence was detected.</summary>
     public DateTime LastPresenceTime => _lastPresenceDetected;
@@ -51,6 +62,24 @@ public class PresenceDetector : IDetectionModule
     public PresenceDetector(PresenceConfig? config = null)
     {
         _config = config ?? new PresenceConfig();
+    }
+
+    /// <summary>Starts presence monitoring.</summary>
+    public void Start()
+    {
+        if (_disposed) throw new ObjectDisposedException(nameof(PresenceDetector));
+        _monitoring = true;
+        _monitorCts = new CancellationTokenSource();
+    }
+
+    /// <summary>Stops presence monitoring.</summary>
+    public Task StopAsync()
+    {
+        _monitoring = false;
+        _monitorCts?.Cancel();
+        _monitorCts?.Dispose();
+        _monitorCts = null;
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc />
@@ -126,8 +155,18 @@ public class PresenceDetector : IDetectionModule
             {
                 if (_currentState != PresenceState.Present)
                 {
+                    var oldState = _currentState;
                     _currentState = PresenceState.Present;
                     _lastPresenceDetected = DateTime.UtcNow;
+
+                    OnStateChanged?.Invoke(oldState, _currentState);
+                    OnPresenceDetected?.Invoke(new PresenceEvent
+                    {
+                        State = PresenceState.Present,
+                        Timestamp = DateTime.UtcNow,
+                        Confidence = check.OverallConfidence,
+                        Source = DetermineSource(check),
+                    });
 
                     return new DetectionEvent(
                         Name,
@@ -153,8 +192,18 @@ public class PresenceDetector : IDetectionModule
             {
                 if (_currentState != PresenceState.Absent)
                 {
+                    var oldState = _currentState;
                     _currentState = PresenceState.Absent;
                     _lastAbsenceDetected = DateTime.UtcNow;
+
+                    OnStateChanged?.Invoke(oldState, _currentState);
+                    OnAbsenceDetected?.Invoke(new PresenceEvent
+                    {
+                        State = PresenceState.Absent,
+                        Timestamp = DateTime.UtcNow,
+                        Confidence = 1.0 - check.OverallConfidence,
+                        Source = "timeout",
+                    });
 
                     return new DetectionEvent(
                         Name,
