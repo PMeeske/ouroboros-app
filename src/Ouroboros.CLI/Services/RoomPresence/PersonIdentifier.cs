@@ -12,11 +12,12 @@ using Ouroboros.Core.Ethics;
 /// Every store operation is gated through <see cref="IEthicsFramework"/> to ensure
 /// that recording a person's conversation is ethically cleared before persistence.
 /// </summary>
-public sealed class PersonIdentifier
+public sealed partial class PersonIdentifier
 {
-    private static readonly Regex NameIntroRegex = new(
+    [System.Text.RegularExpressions.GeneratedRegex(
         @"\b(?:i'?m|my name is|call me|i am)\s+([A-Z][a-z]{1,30})\b",
-        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        RegexOptions.IgnoreCase)]
+    private static partial Regex NameIntroRegex();
 
     private readonly PersonalityEngine _personality;
     private readonly IEthicsFramework _ethics;
@@ -126,7 +127,7 @@ public sealed class PersonIdentifier
     /// </summary>
     public static string? ExtractIntroductionName(string text)
     {
-        var match = NameIntroRegex.Match(text);
+        var match = NameIntroRegex().Match(text);
         return match.Success ? match.Groups[1].Value : null;
     }
 }
