@@ -6,49 +6,49 @@
 internal record PlaywrightArgs
 {
     /// <summary>
-    /// Gets or sets the action to perform.
+    /// Gets or initializes the action to perform.
     /// </summary>
-    public string Action { get; set; } = "";
+    public string Action { get; init; } = "";
 
     /// <summary>
-    /// Gets or sets the URL for navigation.
+    /// Gets or initializes the URL for navigation.
     /// </summary>
-    public string? Url { get; set; }
+    public string? Url { get; init; }
 
     /// <summary>
-    /// Gets or sets the human-readable element description.
+    /// Gets or initializes the human-readable element description.
     /// </summary>
-    public string? Element { get; set; }
+    public string? Element { get; init; }
 
     /// <summary>
-    /// Gets or sets the element reference from the snapshot (e.g., "e1", "e2").
+    /// Gets or initializes the element reference from the snapshot (e.g., "e1", "e2").
     /// </summary>
-    public string? Ref { get; set; }
+    public string? Ref { get; init; }
 
     /// <summary>
-    /// Gets or sets the text to type.
+    /// Gets or initializes the text to type.
     /// </summary>
-    public string? Text { get; set; }
+    public string? Text { get; init; }
 
     /// <summary>
-    /// Gets or sets the JavaScript code to evaluate.
+    /// Gets or initializes the JavaScript code to evaluate.
     /// </summary>
-    public string? Code { get; set; }
+    public string? Code { get; init; }
 
     /// <summary>
-    /// Gets or sets whether to capture the full scrollable page for screenshots.
+    /// Gets or initializes whether to capture the full scrollable page for screenshots.
     /// </summary>
-    public bool FullPage { get; set; }
+    public bool FullPage { get; init; }
 
     /// <summary>
-    /// Gets or sets the user's goal for action suggestion.
+    /// Gets or initializes the user's goal for action suggestion.
     /// </summary>
-    public string? Goal { get; set; }
+    public string? Goal { get; init; }
 
     /// <summary>
-    /// Gets or sets the expectations to validate against the page state.
+    /// Gets or initializes the expectations to validate against the page state.
     /// </summary>
-    public string[]? Expectations { get; set; }
+    public string[]? Expectations { get; init; }
 
     /// <summary>
     /// Validates that a parameter value is not a placeholder description.

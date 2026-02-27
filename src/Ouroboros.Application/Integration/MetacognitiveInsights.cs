@@ -4,8 +4,8 @@
 /// Represents insights from metacognitive monitoring.
 /// </summary>
 public sealed record MetacognitiveInsights(
-    List<string> DetectedConflicts,
-    List<string> IdentifiedPatterns,
-    List<string> ReflectionOpportunities,
+    IReadOnlyList<string> DetectedConflicts,
+    IReadOnlyList<string> IdentifiedPatterns,
+    IReadOnlyList<string> ReflectionOpportunities,
     double OverallCoherence,
-    Dictionary<string, int> AttentionDistribution);
+    IReadOnlyDictionary<string, int> AttentionDistribution);

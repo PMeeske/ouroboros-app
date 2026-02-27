@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Ouroboros.Agent.MetaAI.Affect;
+using Ouroboros.Application.Json;
 using Ouroboros.CLI.Avatar;
 using Ouroboros.CLI.Infrastructure;
 using Spectre.Console;
@@ -87,7 +88,7 @@ public static class AffectCommands
                 Policy = _homeostasisPolicy!.GetHealthSummary(),
                 Queue = _priorityModulator!.GetStatistics()
             };
-            string json = JsonSerializer.Serialize(output, new JsonSerializerOptions { WriteIndented = true });
+            string json = JsonSerializer.Serialize(output, JsonDefaults.IndentedExact);
             AnsiConsole.WriteLine(json);
 
             if (!string.IsNullOrWhiteSpace(options.OutputPath))
@@ -121,7 +122,7 @@ public static class AffectCommands
 
         if (options.OutputFormat.Equals("json", StringComparison.OrdinalIgnoreCase))
         {
-            string json = JsonSerializer.Serialize(rules, new JsonSerializerOptions { WriteIndented = true });
+            string json = JsonSerializer.Serialize(rules, JsonDefaults.IndentedExact);
             AnsiConsole.WriteLine(json);
         }
         else

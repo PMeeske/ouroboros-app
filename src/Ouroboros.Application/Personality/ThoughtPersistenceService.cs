@@ -79,7 +79,7 @@ public class ThoughtPersistenceService
     [Obsolete("Use the overload accepting QdrantClient + IQdrantCollectionRegistry from DI.")]
     public static async Task<ThoughtPersistenceService> CreateWithQdrantAsync(
         string sessionId,
-        string qdrantEndpoint = "http://localhost:6334",
+        string qdrantEndpoint = Configuration.DefaultEndpoints.QdrantGrpc,
         Func<string, Task<float[]>>? embeddingFunc = null,
         int vectorSize = 768)
     {

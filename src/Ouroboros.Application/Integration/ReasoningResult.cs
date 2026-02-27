@@ -10,6 +10,6 @@ namespace Ouroboros.Application.Integration;
 public sealed record ReasoningResult(
     string Answer,
     Form Certainty,
-    List<Fact> SupportingFacts,
+    IReadOnlyList<Fact> SupportingFacts,
     ProofTrace? Proof,
     CausalGraph? RelevantCauses);

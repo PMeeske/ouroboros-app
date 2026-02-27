@@ -4,6 +4,7 @@
 
 using System.Text.Json;
 using Ouroboros.Application.Tools;
+using Ouroboros.Application.Tools.SystemTools;
 
 namespace Ouroboros.Application.OpenClaw.PcNode.Handlers;
 
@@ -50,7 +51,7 @@ public sealed class FileReadHandler : IPcNodeCapabilityHandler
         if (!verdict.IsAllowed)
             return PcNodeResult.Fail(verdict.Reason!);
 
-        var tool = new SystemAccessTools.FileReadTool();
+        var tool = new FileReadTool();
         var result = await tool.InvokeAsync(parameters.GetRawText(), ct);
         return result.IsSuccess
             ? PcNodeResult.Ok(result.Value)

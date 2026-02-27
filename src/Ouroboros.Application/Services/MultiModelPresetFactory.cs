@@ -54,7 +54,7 @@ public static class MultiModelPresetFactory
         ChatRuntimeSettings settings,
         string? culture)
     {
-        string endpoint = slot.Endpoint ?? "http://localhost:11434";
+        string endpoint = slot.Endpoint ?? DefaultEndpoints.Ollama;
         // Note: OllamaProvider is not disposed here because OllamaChatModel needs it for its lifetime.
         // The model (and transitively the provider) will be disposed when the orchestrator is disposed.
         var provider = new OllamaProvider(endpoint);
@@ -121,7 +121,7 @@ public static class MultiModelPresetFactory
             "fireworks" => "https://api.fireworks.ai/inference/v1",
             "deepseek" => "https://api.deepseek.com/v1",
             "mistral" => "https://api.mistral.ai/v1",
-            _ => "http://localhost:11434",
+            _ => DefaultEndpoints.Ollama,
         };
     }
 

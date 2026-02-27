@@ -994,7 +994,6 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
 
         // List-only / read-only helpers
         "list_my_intentions",
-        "clipboard",
     };
 
     /// <summary>

@@ -67,7 +67,7 @@ public sealed class IntelligentToolLearner : IAsyncDisposable
         IMeTTaEngine mettaEngine,
         IEmbeddingModel embedding,
         ToolAwareChatModel llm,
-        string qdrantUrl = "http://localhost:6334")
+        string qdrantUrl = Configuration.DefaultEndpoints.QdrantGrpc)
     {
         _toolFactory = toolFactory ?? throw new ArgumentNullException(nameof(toolFactory));
         _mettaEngine = mettaEngine ?? throw new ArgumentNullException(nameof(mettaEngine));

@@ -3,6 +3,7 @@
 // </copyright>
 
 using System.Text.Json;
+using Ouroboros.Application.Json;
 
 namespace Ouroboros.Application.SelfAssembly;
 
@@ -261,10 +262,7 @@ Respond in JSON array format:
             }
 
             var json = response[start..(end + 1)];
-            var parsed = JsonSerializer.Deserialize<List<LlmGapResponse>>(json, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true,
-            });
+            var parsed = JsonSerializer.Deserialize<List<LlmGapResponse>>(json, JsonDefaults.Default);
 
             if (parsed == null)
             {
@@ -356,10 +354,7 @@ JSON format:
             }
 
             var json = response[start..(end + 1)];
-            var parsed = JsonSerializer.Deserialize<LlmBlueprintResponse>(json, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true,
-            });
+            var parsed = JsonSerializer.Deserialize<LlmBlueprintResponse>(json, JsonDefaults.Default);
 
             if (parsed == null)
             {

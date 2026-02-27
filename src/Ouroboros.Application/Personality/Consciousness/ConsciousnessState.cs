@@ -5,14 +5,14 @@
 /// This is the emergent property arising from conditioned associations and drive states.
 /// </summary>
 public sealed record ConsciousnessState(
-    string CurrentFocus,                         // What the AI is currently focused on
-    double Arousal,                              // 0-1: general activation level
-    double Valence,                              // -1 to 1: negative to positive affect
-    Dictionary<string, double> ActiveDrives,    // Currently active drive states
-    List<string> ActiveAssociations,            // Currently triggered associations
-    string DominantEmotion,                      // Current dominant emotional state
-    double Awareness,                            // 0-1: self-awareness level
-    string[] AttentionalSpotlight,              // What's in current attention
+    string CurrentFocus,                                  // What the AI is currently focused on
+    double Arousal,                                       // 0-1: general activation level
+    double Valence,                                       // -1 to 1: negative to positive affect
+    IReadOnlyDictionary<string, double> ActiveDrives,    // Currently active drive states
+    IReadOnlyList<string> ActiveAssociations,            // Currently triggered associations
+    string DominantEmotion,                               // Current dominant emotional state
+    double Awareness,                                     // 0-1: self-awareness level
+    string[] AttentionalSpotlight,                       // What's in current attention
     DateTime StateTimestamp)
 {
     /// <summary>Creates a neutral baseline consciousness state.</summary>

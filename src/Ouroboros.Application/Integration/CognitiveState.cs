@@ -8,4 +8,4 @@ public sealed record CognitiveState(
     int CyclesCompleted,
     DateTime LastCycleTime,
     string CurrentPhase,
-    List<string> RecentActions);
+    IReadOnlyList<string> RecentActions);

@@ -6,17 +6,17 @@
 public record McpToolInfo
 {
     /// <summary>
-    /// Gets or sets the tool name.
+    /// Gets or initializes the tool name.
     /// </summary>
-    public required string Name { get; set; }
+    public required string Name { get; init; }
 
     /// <summary>
-    /// Gets or sets the tool description.
+    /// Gets or initializes the tool description.
     /// </summary>
-    public required string Description { get; set; }
+    public required string Description { get; init; }
 
     /// <summary>
-    /// Gets or sets the JSON schema for the tool's input.
+    /// Gets or initializes the JSON schema for the tool's input.
     /// </summary>
-    public required string InputSchema { get; set; }
+    public required string InputSchema { get; init; }
 }

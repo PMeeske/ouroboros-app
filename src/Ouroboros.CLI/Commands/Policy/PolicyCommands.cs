@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Ouroboros.Application.Json;
 using Ouroboros.CLI.Avatar;
 using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Domain.Governance;
@@ -59,7 +60,7 @@ public static class PolicyCommands
 
         if (options.Format.Equals("json", StringComparison.OrdinalIgnoreCase))
         {
-            var json = JsonSerializer.Serialize(policies, new JsonSerializerOptions { WriteIndented = true });
+            var json = JsonSerializer.Serialize(policies, JsonDefaults.IndentedExact);
             AnsiConsole.WriteLine(json);
         }
         else if (options.Format.Equals("table", StringComparison.OrdinalIgnoreCase))
@@ -316,7 +317,7 @@ public static class PolicyCommands
 
         if (options.Format.Equals("json", StringComparison.OrdinalIgnoreCase))
         {
-            var json = JsonSerializer.Serialize(auditTrail, new JsonSerializerOptions { WriteIndented = true });
+            var json = JsonSerializer.Serialize(auditTrail, JsonDefaults.IndentedExact);
             AnsiConsole.WriteLine(json);
 
             if (!string.IsNullOrWhiteSpace(options.OutputPath))

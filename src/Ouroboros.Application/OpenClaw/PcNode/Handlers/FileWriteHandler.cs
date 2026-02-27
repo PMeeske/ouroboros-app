@@ -4,6 +4,7 @@
 
 using System.Text.Json;
 using Ouroboros.Application.Tools;
+using Ouroboros.Application.Tools.SystemTools;
 
 namespace Ouroboros.Application.OpenClaw.PcNode.Handlers;
 
@@ -50,7 +51,7 @@ public sealed class FileWriteHandler : IPcNodeCapabilityHandler
         if (!verdict.IsAllowed)
             return PcNodeResult.Fail(verdict.Reason!);
 
-        var tool = new SystemAccessTools.FileWriteTool();
+        var tool = new FileWriteTool();
         var result = await tool.InvokeAsync(parameters.GetRawText(), ct);
         return result.IsSuccess
             ? PcNodeResult.Ok(result.Value)

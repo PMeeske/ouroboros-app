@@ -1,4 +1,6 @@
-﻿namespace Ouroboros.Application.Services;
+﻿using Ouroboros.Application.Configuration;
+
+namespace Ouroboros.Application.Services;
 
 /// <summary>
 /// Configuration for the Qdrant self-indexer.
@@ -7,7 +9,7 @@ public sealed record QdrantIndexerConfig
 {
     /// <summary>Qdrant gRPC endpoint.</summary>
     [Obsolete("Use QdrantSettings from DI instead. This property is ignored when using the DI constructor.")]
-    public string QdrantEndpoint { get; init; } = "http://localhost:6334";
+    public string QdrantEndpoint { get; init; } = DefaultEndpoints.QdrantGrpc;
 
     /// <summary>Collection name for indexed content.</summary>
     public string CollectionName { get; init; } = "ouroboros_selfindex";

@@ -4,6 +4,7 @@
 
 using System.Text.Json;
 using Ouroboros.Application.Tools;
+using Ouroboros.Application.Tools.SystemTools;
 
 namespace Ouroboros.Application.OpenClaw.PcNode.Handlers;
 
@@ -23,7 +24,7 @@ public sealed class ClipboardReadHandler : IPcNodeCapabilityHandler
     public async Task<PcNodeResult> ExecuteAsync(
         JsonElement parameters, PcNodeExecutionContext context, CancellationToken ct)
     {
-        var tool = new SystemAccessTools.ClipboardTool();
+        var tool = new ClipboardTool();
         var input = JsonSerializer.Serialize(new { action = "get" });
         var result = await tool.InvokeAsync(input, ct);
         return result.IsSuccess

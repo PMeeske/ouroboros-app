@@ -4,6 +4,7 @@
 
 using System.Text.Json;
 using Ouroboros.Application.Tools;
+using Ouroboros.Application.Tools.SystemTools;
 
 namespace Ouroboros.Application.OpenClaw.PcNode.Handlers;
 
@@ -48,7 +49,7 @@ public sealed class ClipboardWriteHandler : IPcNodeCapabilityHandler
             return PcNodeResult.Fail(
                 $"Text length ({text.Length:N0}) exceeds maximum ({_config.MaxClipboardLength:N0} characters)");
 
-        var tool = new SystemAccessTools.ClipboardTool();
+        var tool = new ClipboardTool();
         var input = JsonSerializer.Serialize(new { action = "set", text });
         var result = await tool.InvokeAsync(input, ct);
         return result.IsSuccess

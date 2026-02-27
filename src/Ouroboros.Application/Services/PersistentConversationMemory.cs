@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using System.Text.Json;
+using Ouroboros.Application.Json;
 using Ouroboros.Core.Configuration;
 using Qdrant.Client;
 using Qdrant.Client.Grpc;
@@ -325,10 +326,7 @@ public sealed class PersistentConversationMemory : IAsyncDisposable
             var filename = $"{_currentSession.PersonaName}_{_currentSession.SessionId}.json";
             var filepath = Path.Combine(_config.StorageDirectory, filename);
 
-            var json = JsonSerializer.Serialize(_currentSession, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
+            var json = JsonSerializer.Serialize(_currentSession, JsonDefaults.IndentedExact);
 
             await File.WriteAllTextAsync(filepath, json, ct);
         }

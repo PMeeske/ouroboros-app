@@ -26,7 +26,7 @@ public static class SpeechToTextCliSteps
     /// </summary>
     [PipelineToken("SttInit", "WhisperInit", "InitStt")]
     public static Step<CliPipelineState, CliPipelineState> SttInit(string? args = null)
-        => s =>
+        => async s =>
         {
             SttConfig config = ParseSttConfig(args);
 
@@ -49,7 +49,7 @@ public static class SpeechToTextCliSteps
                 {
                     // Auto-detect: prefer local/offline, fallback to cloud
                     LocalWhisperService localService = new LocalWhisperService(config.WhisperPath, config.ModelPath, config.Model ?? "small");
-                    if (localService.IsAvailableAsync().GetAwaiter().GetResult())
+                    if (await localService.IsAvailableAsync())
                     {
                         currentService = localService;
                         if (s.Trace)
@@ -87,7 +87,7 @@ public static class SpeechToTextCliSteps
                 Console.WriteLine($"[stt] Failed to initialize: {ex.Message}");
             }
 
-            return Task.FromResult(s);
+            return s;
         };
 
     /// <summary>

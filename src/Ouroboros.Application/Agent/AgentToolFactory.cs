@@ -6,6 +6,8 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
+using Ouroboros.Application.Tools.SystemTools;
 
 namespace Ouroboros.Application.Agent;
 
@@ -19,6 +21,44 @@ public static class AgentToolFactory
     /// Maximum time a <c>run_command</c> process is allowed to run before being killed.
     /// </summary>
     private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// Regex patterns that match dangerous shell commands. If any pattern matches
+    /// the command string, execution is blocked before <c>Process.Start</c>.
+    /// Modelled after <see cref="OpenClaw.PcNode.PcNodeSecurityConfig.BlockedShellPatterns"/>.
+    /// </summary>
+    private static readonly Regex[] BlockedCommandPatterns =
+    [
+        new(@"rm\s+-rf\s+/", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"del\s+/[sfq].*\s+[a-zA-Z]:\\", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"format\s+[a-zA-Z]:", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"mkfs\b", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"shutdown\s+", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"reboot\b", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@":\(\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;\s*:", RegexOptions.Compiled),  // fork bomb
+        new(@"dd\s+if=", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@">\s*/dev/sda", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"reg\s+delete", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"net\s+user", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"netsh\s+", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"diskpart", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+        new(@"bcdedit", RegexOptions.IgnoreCase | RegexOptions.Compiled),
+    ];
+
+    /// <summary>
+    /// Checks a command string against <see cref="BlockedCommandPatterns"/> and returns
+    /// an error message if the command is blocked, or <c>null</c> if it is safe.
+    /// </summary>
+    internal static string? CheckCommandSafety(string command)
+    {
+        foreach (var pattern in BlockedCommandPatterns)
+        {
+            if (pattern.IsMatch(command))
+                return $"Error: Command blocked by security policy (matched pattern: {pattern})";
+        }
+
+        return null;
+    }
 
     /// <summary>
     /// Tool metadata used to auto-generate prompt descriptions.
@@ -86,6 +126,16 @@ public static class AgentToolFactory
         if (string.IsNullOrEmpty(path) || content == null)
             return "Error: Required args: path, content";
 
+        // Security gate: sanitize and validate the file path
+        try
+        {
+            path = PathSanitizer.Sanitize(path);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return $"Error: {ex.Message}";
+        }
+
         try
         {
             var dir = Path.GetDirectoryName(path);
@@ -113,6 +163,16 @@ public static class AgentToolFactory
 
         if (string.IsNullOrEmpty(path) || oldText == null || newText == null)
             return "Error: Required args: path, old, new";
+
+        // Security gate: sanitize and validate the file path
+        try
+        {
+            path = PathSanitizer.Sanitize(path);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return $"Error: {ex.Message}";
+        }
 
         if (!File.Exists(path))
             return $"Error: File not found: {path}";
@@ -219,6 +279,11 @@ public static class AgentToolFactory
 
         if (string.IsNullOrEmpty(command))
             return "Error: Required arg: command";
+
+        // Security gate: block dangerous command patterns before execution
+        var blockReason = CheckCommandSafety(command);
+        if (blockReason != null)
+            return blockReason;
 
         try
         {

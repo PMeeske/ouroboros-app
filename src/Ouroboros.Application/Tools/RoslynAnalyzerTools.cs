@@ -5,6 +5,7 @@
 namespace Ouroboros.Application.Tools;
 
 using System.Text.Json;
+using Ouroboros.Application.Json;
 using Ouroboros.Core.Monads;
 using Ouroboros.Tools;
 using CodeGenResult = Ouroboros.Application.CodeGeneration.CodeAnalysisResult;
@@ -70,7 +71,7 @@ public static class RoslynAnalyzerTools
                             usings = success.Usings,
                             analyzerResults = success.AnalyzerResults
                         };
-                        return Result<string, string>.Success(JsonSerializer.Serialize(response, new JsonSerializerOptions { WriteIndented = true }));
+                        return Result<string, string>.Success(JsonSerializer.Serialize(response, JsonDefaults.IndentedExact));
                     },
                     error => Result<string, string>.Failure(error)
                 );
@@ -302,7 +303,7 @@ public static class RoslynAnalyzerTools
                             isValid = success.IsValid,
                             errorCount = success.Diagnostics.Count(d => d.Contains("Error:"))
                         };
-                        return Result<string, string>.Success(JsonSerializer.Serialize(structure, new JsonSerializerOptions { WriteIndented = true }));
+                        return Result<string, string>.Success(JsonSerializer.Serialize(structure, JsonDefaults.IndentedExact));
                     },
                     error => Result<string, string>.Failure(error)
                 );

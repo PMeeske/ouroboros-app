@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Ouroboros.Abstractions.Monads;
+using Ouroboros.Application.Json;
 using Ouroboros.CLI.Avatar;
 using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Domain.Governance;
@@ -273,7 +274,7 @@ public static class MaintenanceCommands
 
         if (options.Format.Equals("json", StringComparison.OrdinalIgnoreCase))
         {
-            var json = JsonSerializer.Serialize(history, new JsonSerializerOptions { WriteIndented = true });
+            var json = JsonSerializer.Serialize(history, JsonDefaults.IndentedExact);
             AnsiConsole.WriteLine(json);
         }
         else
@@ -324,7 +325,7 @@ public static class MaintenanceCommands
 
         if (options.Format.Equals("json", StringComparison.OrdinalIgnoreCase))
         {
-            var json = JsonSerializer.Serialize(alerts, new JsonSerializerOptions { WriteIndented = true });
+            var json = JsonSerializer.Serialize(alerts, JsonDefaults.IndentedExact);
             AnsiConsole.WriteLine(json);
         }
         else

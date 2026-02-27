@@ -8,4 +8,4 @@ public sealed record ConsciousnessStateChangedEvent(
     DateTime Timestamp,
     string Source,
     string NewState,
-    List<string> ActiveItems) : SystemEvent(EventId, Timestamp, Source);
+    IReadOnlyList<string> ActiveItems) : SystemEvent(EventId, Timestamp, Source);

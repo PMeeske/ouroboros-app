@@ -59,6 +59,18 @@ public sealed class RunAutoAgentHandler : IRequestHandler<RunAutoAgentRequest, s
         var agentTools = AgentToolFactory.Build(state);
         var toolDescriptions = AgentPromptBuilder.BuildToolDescriptions();
 
+        // Wire the permission callback so dangerous tool calls prompt the user
+        AgentToolExecutor.RequireConfirmation = true;
+        AgentToolExecutor.OnPermissionRequired = async (toolName, toolArgs) =>
+        {
+            var display = toolArgs.Length > 120 ? toolArgs[..120] + "..." : toolArgs;
+            Console.WriteLine($"\n[AutoAgent] Permission required for '{toolName}': {display}");
+            Console.Write("[AutoAgent] Allow this operation? (y/N): ");
+
+            var response = await Task.Run(() => Console.ReadLine(), cancellationToken);
+            return string.Equals(response?.Trim(), "y", StringComparison.OrdinalIgnoreCase);
+        };
+
         var conversationHistory = new List<AgentMessage>();
         var executedActions = new List<string>();
         var resultBuilder = new System.Text.StringBuilder();

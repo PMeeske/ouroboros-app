@@ -4,6 +4,7 @@
 
 using System.Text.Json;
 using Ouroboros.Application.Tools;
+using Ouroboros.Application.Tools.SystemTools;
 
 namespace Ouroboros.Application.OpenClaw.PcNode.Handlers;
 
@@ -60,7 +61,7 @@ public sealed class ShellCommandHandler : IPcNodeCapabilityHandler
 
         try
         {
-            var tool = new SystemAccessTools.PowerShellTool();
+            var tool = new PowerShellTool();
             var result = await tool.InvokeAsync(command, cts.Token);
 
             if (!result.IsSuccess)

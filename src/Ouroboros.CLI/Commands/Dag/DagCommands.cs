@@ -1,5 +1,6 @@
 using System.Text.Json;
 using LangChain.DocumentLoaders;
+using Ouroboros.Application.Json;
 using Ouroboros.CLI.Avatar;
 using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Options;
@@ -332,7 +333,7 @@ public static class DagCommands
     {
         if (asJson)
         {
-            var json = JsonSerializer.Serialize(epoch, new JsonSerializerOptions { WriteIndented = true });
+            var json = JsonSerializer.Serialize(epoch, JsonDefaults.IndentedExact);
             AnsiConsole.WriteLine(json);
         }
         else
@@ -352,7 +353,7 @@ public static class DagCommands
     {
         if (asJson)
         {
-            var json = JsonSerializer.Serialize(metrics, new JsonSerializerOptions { WriteIndented = true });
+            var json = JsonSerializer.Serialize(metrics, JsonDefaults.IndentedExact);
             AnsiConsole.WriteLine(json);
         }
         else
@@ -371,7 +372,7 @@ public static class DagCommands
 
     private static async Task ExportEpochAsync(EpochSnapshot epoch, string path)
     {
-        var json = JsonSerializer.Serialize(epoch, new JsonSerializerOptions { WriteIndented = true });
+        var json = JsonSerializer.Serialize(epoch, JsonDefaults.IndentedExact);
         await File.WriteAllTextAsync(path, json);
     }
 

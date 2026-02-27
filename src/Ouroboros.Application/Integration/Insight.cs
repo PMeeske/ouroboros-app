@@ -8,4 +8,4 @@ namespace Ouroboros.Application.Integration;
 public sealed record Insight(
     string Description,
     double Confidence,
-    List<Episode> SupportingEpisodes);
+    IReadOnlyList<Episode> SupportingEpisodes);

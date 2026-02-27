@@ -191,16 +191,12 @@ public sealed class EnhancedListeningService : IAsyncDisposable
             ? $"Listening (say \"{_config.WakeWord}\" to activate)"
             : "Listening (always-on)");
 
-        // Keep alive until cancelled
-        ct.Register(() =>
+        // Keep alive until cancelled — fire-and-forget to avoid sync-over-async in callback
+        ct.Register(() => _ = Task.Run(async () =>
         {
-            // Offload to thread pool to avoid deadlock in CancellationToken callback
-            Task.Run(async () =>
-            {
-                try { if (_recognizer != null) await _recognizer.StopContinuousRecognitionAsync(); }
-                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Listening] Stop error: {ex.Message}"); }
-            }).GetAwaiter().GetResult();
-        });
+            try { if (_recognizer != null) await _recognizer.StopContinuousRecognitionAsync(); }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Listening] Stop error: {ex.Message}"); }
+        }));
     }
 
     // ════════════════════════════════════════════════════════════════

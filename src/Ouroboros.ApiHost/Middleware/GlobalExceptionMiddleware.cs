@@ -6,6 +6,7 @@ namespace Ouroboros.ApiHost.Middleware;
 
 using System.Net;
 using System.Text.Json;
+using Ouroboros.Application.Json;
 
 /// <summary>
 /// Catches unhandled exceptions and returns a consistent RFC 7807 Problem Details
@@ -49,7 +50,7 @@ public sealed class GlobalExceptionMiddleware
                 correlationId,
             };
 
-            var json = JsonSerializer.Serialize(problem, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+            var json = JsonSerializer.Serialize(problem, JsonDefaults.Compact);
             await context.Response.WriteAsync(json);
         }
     }

@@ -241,7 +241,7 @@ Use this actual code information to answer the user's question accurately.
         string persistentThoughtContext = BuildPersistentThoughtContext();
         string cognitiveStreamContext = CognitiveStreamEngine?.BuildContextBlock() ?? string.Empty;
 
-        string toolInstruction = BuildToolInstruction(input);
+        string toolInstruction = await BuildToolInstructionAsync(input);
 
         // ── Episodic retrieval ────────────────────────────────────────────────
         string episodicContext = "";
@@ -509,11 +509,11 @@ Use this actual code information to answer the user's question accurately.
         }
     }
 
-    private string BuildToolInstruction(string input)
+    private async Task<string> BuildToolInstructionAsync(string input)
     {
         if (_toolsSub.Tools.Count == 0) return string.Empty;
 
-        var relevantTools = SelectRelevantTools(input);
+        var relevantTools = await SelectRelevantToolsAsync(input);
 
         var simpleTools = relevantTools
             .Where(t => t.Name != "playwright")
@@ -533,7 +533,7 @@ Use this actual code information to answer the user's question accurately.
             primarySearchTool, primarySearchDesc,
             searchExample, string.Join(", ", simpleTools.Take(5)));
 
-        var selectionResult = TrySmartToolSelection(input);
+        var selectionResult = await TrySmartToolSelectionAsync(input);
         if (selectionResult.HasValue && !string.IsNullOrEmpty(selectionResult.Value.reasoning)
             && relevantTools.Count < _toolsSub.Tools.Count)
         {
@@ -547,9 +547,9 @@ Use this actual code information to answer the user's question accurately.
         return toolInstruction + $"\n\n{optimizedSection}";
     }
 
-    private List<ITool> SelectRelevantTools(string input)
+    private async Task<List<ITool>> SelectRelevantToolsAsync(string input)
     {
-        var result = TrySmartToolSelection(input);
+        var result = await TrySmartToolSelectionAsync(input);
         List<ITool> relevantTools = result?.tools ?? [];
 
         if (relevantTools.Count == 0)
@@ -566,7 +566,7 @@ Use this actual code information to answer the user's question accurately.
         return relevantTools;
     }
 
-    private (List<ITool> tools, string reasoning)? TrySmartToolSelection(string input)
+    private async Task<(List<ITool> tools, string reasoning)?> TrySmartToolSelectionAsync(string input)
     {
         if (_toolsSub.SmartToolSelector == null || _toolsSub.ToolCapabilityMatcher == null)
             return null;
@@ -574,7 +574,7 @@ Use this actual code information to answer the user's question accurately.
         try
         {
             var goal = PipelineGoal.Atomic(input, _ => true);
-            var selectionResult = Task.Run(() => _toolsSub.SmartToolSelector.SelectForGoalAsync(goal)).GetAwaiter().GetResult();
+            var selectionResult = await _toolsSub.SmartToolSelector.SelectForGoalAsync(goal);
             if (selectionResult.IsSuccess && selectionResult.Value.HasTools)
             {
                 return (selectionResult.Value.SelectedTools.ToList(), selectionResult.Value.Reasoning);

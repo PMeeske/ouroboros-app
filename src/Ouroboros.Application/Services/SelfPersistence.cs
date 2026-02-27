@@ -11,6 +11,8 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Ouroboros.Application.Configuration;
+using Ouroboros.Application.Json;
 
 /// <summary>
 /// Enables Ouroboros to persist its complete state to Qdrant vector database.
@@ -54,7 +56,7 @@ public class SelfPersistence : IDisposable
 
     [Obsolete("Use the constructor accepting QdrantSettings from DI.")]
     public SelfPersistence(
-        string qdrantEndpoint = "http://localhost:6333",
+        string qdrantEndpoint = DefaultEndpoints.QdrantRest,
         Func<string, Task<float[]>>? embeddingFunc = null)
     {
         _qdrantEndpoint = qdrantEndpoint;
@@ -544,7 +546,7 @@ public class SelfPersistence : IDisposable
         {
             var filename = $"mind_state_{snapshot.PersonaName}_{snapshot.Timestamp:yyyyMMdd_HHmmss}.json";
             var filepath = Path.Combine(_persistenceDir, filename);
-            var json = JsonSerializer.Serialize(snapshot, new JsonSerializerOptions { WriteIndented = true });
+            var json = JsonSerializer.Serialize(snapshot, JsonDefaults.IndentedExact);
             await File.WriteAllTextAsync(filepath, json, ct);
 
             // Also save as "latest"

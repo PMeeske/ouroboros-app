@@ -11,6 +11,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Ouroboros.Agent.MetaAI;
+using Ouroboros.Application.Json;
 
 namespace Ouroboros.Application;
 
@@ -784,7 +785,7 @@ public static class SkillCliSteps
         {
             result.AppendLine("\n## Extracted Data");
             result.AppendLine("```json");
-            result.AppendLine(JsonSerializer.Serialize(jsonEl, new JsonSerializerOptions { WriteIndented = true }));
+            result.AppendLine(JsonSerializer.Serialize(jsonEl, JsonDefaults.IndentedExact));
             result.AppendLine("```");
         }
 

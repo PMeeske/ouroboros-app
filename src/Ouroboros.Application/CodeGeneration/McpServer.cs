@@ -1,6 +1,7 @@
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 using System.Text.Json;
 using Ouroboros.Application.GitHub;
+using Ouroboros.Application.Mcp;
 
 namespace Ouroboros.Application.CodeGeneration;
 
@@ -344,8 +345,8 @@ public class McpServer
                 "github_search_code" => await ExecuteGitHubSearchCodeAsync(parameters),
                 _ => new McpToolResult
                 {
-                    Success = false,
-                    Error = $"Unknown tool: {toolName}"
+                    IsError = true,
+                    Content = $"Unknown tool: {toolName}"
                 }
             };
         }
@@ -353,8 +354,8 @@ public class McpServer
         {
             return new McpToolResult
             {
-                Success = false,
-                Error = $"Tool execution failed: {ex.Message}"
+                IsError = true,
+                Content = $"Tool execution failed: {ex.Message}"
             };
         }
     }
@@ -371,8 +372,8 @@ public class McpServer
         return result.Match(
             success => new McpToolResult
             {
-                Success = true,
-                Data = new
+                IsError = false,
+                Content = JsonSerializer.Serialize(new
                 {
                     isValid = success.IsValid,
                     diagnostics = success.Diagnostics,
@@ -380,9 +381,9 @@ public class McpServer
                     methods = success.Methods,
                     usings = success.Usings,
                     analyzerResults = success.AnalyzerResults
-                }
+                })
             },
-            error => new McpToolResult { Success = false, Error = error });
+            error => new McpToolResult { IsError = true, Content = error });
     }
 
     private McpToolResult ExecuteCreateClass(Dictionary<string, object> parameters)
@@ -403,8 +404,8 @@ public class McpServer
             interfaces: interfaces);
 
         return result.Match(
-            success => new McpToolResult { Success = true, Data = new { code = success } },
-            error => new McpToolResult { Success = false, Error = error });
+            success => new McpToolResult { IsError = false, Content = JsonSerializer.Serialize(new { code = success }) },
+            error => new McpToolResult { IsError = true, Content = error });
     }
 
     private McpToolResult ExecuteAddMethod(Dictionary<string, object> parameters)
@@ -417,8 +418,8 @@ public class McpServer
         Result<string, string> result = _codeTool.AddMethodToClass(code, className, methodSignature, methodBody);
 
         return result.Match(
-            success => new McpToolResult { Success = true, Data = new { code = success } },
-            error => new McpToolResult { Success = false, Error = error });
+            success => new McpToolResult { IsError = false, Content = JsonSerializer.Serialize(new { code = success }) },
+            error => new McpToolResult { IsError = true, Content = error });
     }
 
     private McpToolResult ExecuteRenameSymbol(Dictionary<string, object> parameters)
@@ -430,8 +431,8 @@ public class McpServer
         Result<string, string> result = _codeTool.RenameSymbol(code, oldName, newName);
 
         return result.Match(
-            success => new McpToolResult { Success = true, Data = new { code = success } },
-            error => new McpToolResult { Success = false, Error = error });
+            success => new McpToolResult { IsError = false, Content = JsonSerializer.Serialize(new { code = success }) },
+            error => new McpToolResult { IsError = true, Content = error });
     }
 
     private McpToolResult ExecuteExtractMethod(Dictionary<string, object> parameters)
@@ -444,8 +445,8 @@ public class McpServer
         Result<string, string> result = _codeTool.ExtractMethod(code, startLine, endLine, newMethodName);
 
         return result.Match(
-            success => new McpToolResult { Success = true, Data = new { code = success } },
-            error => new McpToolResult { Success = false, Error = error });
+            success => new McpToolResult { IsError = false, Content = JsonSerializer.Serialize(new { code = success }) },
+            error => new McpToolResult { IsError = true, Content = error });
     }
 
     private async Task<McpToolResult> ExecuteSuggestDslStepAsync(Dictionary<string, object> parameters)
@@ -462,10 +463,10 @@ public class McpServer
         return result.Match(
             success => new McpToolResult
             {
-                Success = true,
-                Data = new { suggestions = success }
+                IsError = false,
+                Content = JsonSerializer.Serialize(new { suggestions = success })
             },
-            error => new McpToolResult { Success = false, Error = error });
+            error => new McpToolResult { IsError = true, Content = error });
     }
 
     private McpToolResult ExecuteCompleteToken(Dictionary<string, object> parameters)
@@ -478,8 +479,8 @@ public class McpServer
         Result<List<string>, string> result = _dslAssistant.CompleteToken(partialToken, maxCompletions);
 
         return result.Match(
-            success => new McpToolResult { Success = true, Data = new { completions = success } },
-            error => new McpToolResult { Success = false, Error = error });
+            success => new McpToolResult { IsError = false, Content = JsonSerializer.Serialize(new { completions = success }) },
+            error => new McpToolResult { IsError = true, Content = error });
     }
 
     private async Task<McpToolResult> ExecuteValidateDslAsync(Dictionary<string, object> parameters)
@@ -491,17 +492,17 @@ public class McpServer
         return result.Match(
             success => new McpToolResult
             {
-                Success = true,
-                Data = new
+                IsError = false,
+                Content = JsonSerializer.Serialize(new
                 {
                     isValid = success.IsValid,
                     errors = success.Errors,
                     warnings = success.Warnings,
                     suggestions = success.Suggestions,
                     fixedDsl = success.FixedDsl
-                }
+                })
             },
-            error => new McpToolResult { Success = false, Error = error });
+            error => new McpToolResult { IsError = true, Content = error });
     }
 
     private async Task<McpToolResult> ExecuteExplainDslAsync(Dictionary<string, object> parameters)
@@ -511,8 +512,8 @@ public class McpServer
         Result<string, string> result = await _dslAssistant.ExplainDslAsync(dsl);
 
         return result.Match(
-            success => new McpToolResult { Success = true, Data = new { explanation = success } },
-            error => new McpToolResult { Success = false, Error = error });
+            success => new McpToolResult { IsError = false, Content = JsonSerializer.Serialize(new { explanation = success }) },
+            error => new McpToolResult { IsError = true, Content = error });
     }
 
     private async Task<McpToolResult> ExecuteBuildDslAsync(Dictionary<string, object> parameters)
@@ -522,8 +523,8 @@ public class McpServer
         Result<string, string> result = await _dslAssistant.BuildDslInteractivelyAsync(goal);
 
         return result.Match(
-            success => new McpToolResult { Success = true, Data = new { dsl = success } },
-            error => new McpToolResult { Success = false, Error = error });
+            success => new McpToolResult { IsError = false, Content = JsonSerializer.Serialize(new { dsl = success }) },
+            error => new McpToolResult { IsError = true, Content = error });
     }
 
     // GitHub tool execution methods
@@ -532,7 +533,7 @@ public class McpServer
     {
         if (_githubClient == null)
         {
-            return new McpToolResult { Success = false, Error = "GitHub client not configured" };
+            return new McpToolResult { IsError = true, Content = "GitHub client not configured" };
         }
 
         string title = parameters["title"].ToString() ?? string.Empty;
@@ -547,23 +548,23 @@ public class McpServer
         return result.Match(
             success => new McpToolResult
             {
-                Success = true,
-                Data = new
+                IsError = false,
+                Content = JsonSerializer.Serialize(new
                 {
                     number = success.Number,
                     url = success.Url,
                     title = success.Title,
                     state = success.State
-                }
+                })
             },
-            error => new McpToolResult { Success = false, Error = error });
+            error => new McpToolResult { IsError = true, Content = error });
     }
 
     private async Task<McpToolResult> ExecuteGitHubPushChangesAsync(Dictionary<string, object> parameters)
     {
         if (_githubClient == null)
         {
-            return new McpToolResult { Success = false, Error = "GitHub client not configured" };
+            return new McpToolResult { IsError = true, Content = "GitHub client not configured" };
         }
 
         string branchName = parameters["branchName"].ToString() ?? string.Empty;
@@ -591,22 +592,22 @@ public class McpServer
         return result.Match(
             success => new McpToolResult
             {
-                Success = true,
-                Data = new
+                IsError = false,
+                Content = JsonSerializer.Serialize(new
                 {
                     sha = success.Sha,
                     message = success.Message,
                     url = success.Url
-                }
+                })
             },
-            error => new McpToolResult { Success = false, Error = error });
+            error => new McpToolResult { IsError = true, Content = error });
     }
 
     private async Task<McpToolResult> ExecuteGitHubCreateIssueAsync(Dictionary<string, object> parameters)
     {
         if (_githubClient == null)
         {
-            return new McpToolResult { Success = false, Error = "GitHub client not configured" };
+            return new McpToolResult { IsError = true, Content = "GitHub client not configured" };
         }
 
         string title = parameters["title"].ToString() ?? string.Empty;
@@ -618,22 +619,22 @@ public class McpServer
         return result.Match(
             success => new McpToolResult
             {
-                Success = true,
-                Data = new
+                IsError = false,
+                Content = JsonSerializer.Serialize(new
                 {
                     number = success.Number,
                     url = success.Url,
                     title = success.Title
-                }
+                })
             },
-            error => new McpToolResult { Success = false, Error = error });
+            error => new McpToolResult { IsError = true, Content = error });
     }
 
     private async Task<McpToolResult> ExecuteGitHubReadFileAsync(Dictionary<string, object> parameters)
     {
         if (_githubClient == null)
         {
-            return new McpToolResult { Success = false, Error = "GitHub client not configured" };
+            return new McpToolResult { IsError = true, Content = "GitHub client not configured" };
         }
 
         string path = parameters["path"].ToString() ?? string.Empty;
@@ -644,22 +645,22 @@ public class McpServer
         return result.Match(
             success => new McpToolResult
             {
-                Success = true,
-                Data = new
+                IsError = false,
+                Content = JsonSerializer.Serialize(new
                 {
                     path = success.Path,
                     content = success.Content,
                     size = success.Size
-                }
+                })
             },
-            error => new McpToolResult { Success = false, Error = error });
+            error => new McpToolResult { IsError = true, Content = error });
     }
 
     private async Task<McpToolResult> ExecuteGitHubListFilesAsync(Dictionary<string, object> parameters)
     {
         if (_githubClient == null)
         {
-            return new McpToolResult { Success = false, Error = "GitHub client not configured" };
+            return new McpToolResult { IsError = true, Content = "GitHub client not configured" };
         }
 
         string path = parameters.ContainsKey("path") ? parameters["path"]?.ToString() ?? string.Empty : string.Empty;
@@ -670,17 +671,17 @@ public class McpServer
         return result.Match(
             success => new McpToolResult
             {
-                Success = true,
-                Data = new { files = success }
+                IsError = false,
+                Content = JsonSerializer.Serialize(new { files = success })
             },
-            error => new McpToolResult { Success = false, Error = error });
+            error => new McpToolResult { IsError = true, Content = error });
     }
 
     private async Task<McpToolResult> ExecuteGitHubCreateBranchAsync(Dictionary<string, object> parameters)
     {
         if (_githubClient == null)
         {
-            return new McpToolResult { Success = false, Error = "GitHub client not configured" };
+            return new McpToolResult { IsError = true, Content = "GitHub client not configured" };
         }
 
         string branchName = parameters["branchName"].ToString() ?? string.Empty;
@@ -693,21 +694,21 @@ public class McpServer
         return result.Match(
             success => new McpToolResult
             {
-                Success = true,
-                Data = new
+                IsError = false,
+                Content = JsonSerializer.Serialize(new
                 {
                     name = success.Name,
                     sha = success.Sha
-                }
+                })
             },
-            error => new McpToolResult { Success = false, Error = error });
+            error => new McpToolResult { IsError = true, Content = error });
     }
 
     private async Task<McpToolResult> ExecuteGitHubSearchCodeAsync(Dictionary<string, object> parameters)
     {
         if (_githubClient == null)
         {
-            return new McpToolResult { Success = false, Error = "GitHub client not configured" };
+            return new McpToolResult { IsError = true, Content = "GitHub client not configured" };
         }
 
         string query = parameters["query"].ToString() ?? string.Empty;
@@ -718,10 +719,10 @@ public class McpServer
         return result.Match(
             success => new McpToolResult
             {
-                Success = true,
-                Data = new { results = success }
+                IsError = false,
+                Content = JsonSerializer.Serialize(new { results = success })
             },
-            error => new McpToolResult { Success = false, Error = error });
+            error => new McpToolResult { IsError = true, Content = error });
     }
 
     // Helper methods

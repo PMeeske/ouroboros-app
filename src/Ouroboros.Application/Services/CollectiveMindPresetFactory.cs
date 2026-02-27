@@ -88,8 +88,8 @@ public static class CollectiveMindPresetFactory
             "fireworks" => "https://api.fireworks.ai/inference/v1",
             "deepseek" => "https://api.deepseek.com/v1",
             "mistral" => "https://api.mistral.ai/v1",
-            "ollama" => "http://localhost:11434",
-            _ => "http://localhost:11434",
+            "ollama" => DefaultEndpoints.Ollama,
+            _ => DefaultEndpoints.Ollama,
         };
     }
 }

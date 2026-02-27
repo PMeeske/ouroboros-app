@@ -140,7 +140,7 @@ public sealed class PersonalityEngine : IAsyncDisposable
     public PersonalityEngine(
         IMeTTaEngine mettaEngine,
         IEmbeddingModel embeddingModel,
-        string qdrantUrl = "http://localhost:6334")
+        string qdrantUrl = Configuration.DefaultEndpoints.QdrantGrpc)
     {
         _mettaEngine = mettaEngine ?? throw new ArgumentNullException(nameof(mettaEngine));
         _embeddingModel = embeddingModel ?? throw new ArgumentNullException(nameof(embeddingModel));

@@ -5,6 +5,7 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
+using Ouroboros.Application.Json;
 using Spectre.Console;
 
 namespace Ouroboros.CLI.Commands;
@@ -107,7 +108,7 @@ public static class ClaudeBackupCommand
 
         // Write manifest
         var manifestPath = Path.Combine(backupDir, "manifest.json");
-        var json = JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true });
+        var json = JsonSerializer.Serialize(manifest, JsonDefaults.IndentedExact);
         await File.WriteAllTextAsync(manifestPath, json);
 
         // Summary

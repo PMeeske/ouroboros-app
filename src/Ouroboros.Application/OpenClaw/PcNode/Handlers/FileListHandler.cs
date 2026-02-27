@@ -4,6 +4,7 @@
 
 using System.Text.Json;
 using Ouroboros.Application.Tools;
+using Ouroboros.Application.Tools.SystemTools;
 
 namespace Ouroboros.Application.OpenClaw.PcNode.Handlers;
 
@@ -48,7 +49,7 @@ public sealed class FileListHandler : IPcNodeCapabilityHandler
         if (!verdict.IsAllowed)
             return PcNodeResult.Fail(verdict.Reason!);
 
-        var tool = new SystemAccessTools.DirectoryListTool();
+        var tool = new DirectoryListTool();
         var result = await tool.InvokeAsync(path, ct);
         return result.IsSuccess
             ? PcNodeResult.Ok(result.Value)

@@ -48,7 +48,7 @@ public sealed class QdrantAdminTool : ITool
     /// </summary>
     [Obsolete("Use the constructor accepting QdrantSettings + IQdrantCollectionRegistry from DI.")]
     public QdrantAdminTool(
-        string qdrantEndpoint = "http://localhost:6333",
+        string qdrantEndpoint = Configuration.DefaultEndpoints.QdrantRest,
         Func<string, CancellationToken, Task<float[]>>? embedFunc = null,
         Func<string, CancellationToken, Task<string>>? llmFunc = null)
     {

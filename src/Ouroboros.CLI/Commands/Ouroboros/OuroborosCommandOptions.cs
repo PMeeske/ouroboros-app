@@ -1,5 +1,6 @@
 using System.CommandLine;
 using System.CommandLine.Parsing;
+using Ouroboros.Application.Configuration;
 
 namespace Ouroboros.CLI.Commands.Options;
 
@@ -121,7 +122,7 @@ public class OuroborosCommandOptions
     public System.CommandLine.Option<string> EndpointOption { get; } = new("--endpoint")
     {
         Description = "LLM endpoint URL",
-        DefaultValueFactory = _ => "http://localhost:11434"
+        DefaultValueFactory = _ => DefaultEndpoints.Ollama
     };
 
     public System.CommandLine.Option<string?> ApiKeyOption { get; } = new("--api-key")
@@ -165,13 +166,13 @@ public class OuroborosCommandOptions
     public System.CommandLine.Option<string> EmbedEndpointOption { get; } = new("--embed-endpoint")
     {
         Description = "Embedding endpoint (defaults to local Ollama)",
-        DefaultValueFactory = _ => "http://localhost:11434"
+        DefaultValueFactory = _ => DefaultEndpoints.Ollama
     };
 
     public System.CommandLine.Option<string> QdrantEndpointOption { get; } = new("--qdrant")
     {
         Description = "Qdrant endpoint for persistent memory",
-        DefaultValueFactory = _ => "http://localhost:6334"
+        DefaultValueFactory = _ => DefaultEndpoints.QdrantGrpc
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -551,7 +552,7 @@ public class OuroborosCommandOptions
     public System.CommandLine.Option<string?> OpenClawGatewayOption { get; } = new("--openclaw-gateway")
     {
         Description = "OpenClaw Gateway WebSocket URL (default: ws://127.0.0.1:18789)",
-        DefaultValueFactory = _ => "ws://127.0.0.1:18789"
+        DefaultValueFactory = _ => DefaultEndpoints.OpenClawGateway
     };
 
     public System.CommandLine.Option<string?> OpenClawTokenOption { get; } = new("--openclaw-token")
@@ -725,7 +726,7 @@ public class OuroborosCommandOptions
         // LLM & Model
         var model         = parseResult.GetValue(ModelOption) ?? "deepseek-v3.1:671b-cloud";
         var culture       = parseResult.GetValue(CultureOption);
-        var endpoint      = parseResult.GetValue(EndpointOption) ?? "http://localhost:11434";
+        var endpoint      = parseResult.GetValue(EndpointOption) ?? DefaultEndpoints.Ollama;
         var apiKey        = parseResult.GetValue(ApiKeyOption);
         var endpointType  = parseResult.GetValue(EndpointTypeOption);
         var temperature   = parseResult.GetValue(TemperatureOption);
@@ -734,8 +735,8 @@ public class OuroborosCommandOptions
 
         // Embeddings & Memory
         var embedModel    = parseResult.GetValue(EmbedModelOption) ?? "nomic-embed-text";
-        var embedEndpoint = parseResult.GetValue(EmbedEndpointOption) ?? "http://localhost:11434";
-        var qdrantEndpoint = parseResult.GetValue(QdrantEndpointOption) ?? "http://localhost:6334";
+        var embedEndpoint = parseResult.GetValue(EmbedEndpointOption) ?? DefaultEndpoints.Ollama;
+        var qdrantEndpoint = parseResult.GetValue(QdrantEndpointOption) ?? DefaultEndpoints.QdrantGrpc;
 
         // Feature Toggles
         var noSkills      = parseResult.GetValue(NoSkillsOption);

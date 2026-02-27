@@ -4,6 +4,7 @@
 
 using System.Text.Json;
 using Ouroboros.Application.Tools;
+using Ouroboros.Application.Tools.SystemTools;
 
 namespace Ouroboros.Application.OpenClaw.PcNode.Handlers;
 
@@ -35,7 +36,7 @@ public sealed class ProcessListHandler : IPcNodeCapabilityHandler
             ? f.GetString() ?? string.Empty
             : string.Empty;
 
-        var tool = new SystemAccessTools.ProcessListTool();
+        var tool = new ProcessListTool();
         var result = await tool.InvokeAsync(filter, ct);
         return result.IsSuccess
             ? PcNodeResult.Ok(result.Value)

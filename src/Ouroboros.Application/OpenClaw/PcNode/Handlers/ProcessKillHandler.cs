@@ -4,6 +4,7 @@
 
 using System.Text.Json;
 using Ouroboros.Application.Tools;
+using Ouroboros.Application.Tools.SystemTools;
 
 namespace Ouroboros.Application.OpenClaw.PcNode.Handlers;
 
@@ -52,7 +53,7 @@ public sealed class ProcessKillHandler : IPcNodeCapabilityHandler
                 return PcNodeResult.Fail(verdict.Reason!);
         }
 
-        var tool = new SystemAccessTools.ProcessKillTool();
+        var tool = new ProcessKillTool();
         var result = await tool.InvokeAsync(target, ct);
         return result.IsSuccess
             ? PcNodeResult.Ok(result.Value)

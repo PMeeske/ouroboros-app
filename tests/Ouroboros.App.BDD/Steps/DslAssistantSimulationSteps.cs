@@ -1,4 +1,5 @@
 using Ouroboros.Application.CodeGeneration;
+using Ouroboros.Application.Mcp;
 using RoslynCodeTool = Ouroboros.Application.CodeGeneration.RoslynCodeTool;
 using CodeAnalysisResult = Ouroboros.Application.CodeGeneration.CodeAnalysisResult;
 using DslAssistant = Ouroboros.Application.DslAssistant;
@@ -764,28 +765,28 @@ public class Example {
     public void ThenExecutionShouldSucceed()
     {
         _mcpToolResult.Should().NotBeNull();
-        _mcpToolResult!.Success.Should().BeTrue();
+        _mcpToolResult!.IsError.Should().BeFalse();
     }
 
     [Then("result should contain suggestions")]
     public void ThenResultShouldContainSuggestions()
     {
         _mcpToolResult.Should().NotBeNull();
-        _mcpToolResult!.Data.Should().NotBeNull();
+        _mcpToolResult!.Content.Should().NotBeNullOrWhiteSpace();
     }
 
     [Then("suggestions should be in proper format")]
     public void ThenSuggestionsShouldBeInProperFormat()
     {
         _mcpToolResult.Should().NotBeNull();
-        _mcpToolResult!.Data.Should().NotBeNull();
+        _mcpToolResult!.Content.Should().NotBeNullOrWhiteSpace();
     }
 
     [Then("result should contain analysis information")]
     public void ThenResultShouldContainAnalysisInformation()
     {
         _mcpToolResult.Should().NotBeNull();
-        _mcpToolResult!.Data.Should().NotBeNull();
+        _mcpToolResult!.Content.Should().NotBeNullOrWhiteSpace();
     }
 
     [Then("result should have isValid field")]
@@ -793,7 +794,7 @@ public class Example {
     public void ThenResultShouldHaveExpectedFields()
     {
         _mcpToolResult.Should().NotBeNull();
-        _mcpToolResult!.Data.Should().NotBeNull();
+        _mcpToolResult!.Content.Should().NotBeNullOrWhiteSpace();
     }
 
     // Interactive mode steps (simplified simulation)

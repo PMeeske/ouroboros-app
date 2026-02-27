@@ -4,6 +4,7 @@
 
 using System.Text.Json;
 using Ouroboros.Application.Tools;
+using Ouroboros.Application.Tools.SystemTools;
 
 namespace Ouroboros.Application.OpenClaw.PcNode.Handlers;
 
@@ -22,7 +23,7 @@ public sealed class SystemInfoHandler : IPcNodeCapabilityHandler
     public async Task<PcNodeResult> ExecuteAsync(
         JsonElement parameters, PcNodeExecutionContext context, CancellationToken ct)
     {
-        var tool = new SystemAccessTools.SystemInfoTool();
+        var tool = new SystemInfoTool();
         var result = await tool.InvokeAsync(string.Empty, ct);
         return result.IsSuccess
             ? PcNodeResult.Ok(result.Value)

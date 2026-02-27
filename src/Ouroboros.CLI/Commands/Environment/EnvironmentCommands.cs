@@ -5,6 +5,7 @@
 using System.Text.Json;
 using Ouroboros.Abstractions;
 using Ouroboros.Abstractions.Monads;
+using Ouroboros.Application.Json;
 using Ouroboros.CLI.Avatar;
 using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Domain.Environment;
@@ -274,12 +275,7 @@ public static class EnvironmentCommands
 
     private static async Task SaveEpisodesToFileAsync(List<Episode> episodes, string filePath)
     {
-        var options = new JsonSerializerOptions
-        {
-            WriteIndented = true,
-        };
-
-        var json = JsonSerializer.Serialize(episodes, options);
+        var json = JsonSerializer.Serialize(episodes, JsonDefaults.IndentedExact);
         await File.WriteAllTextAsync(filePath, json);
     }
 
