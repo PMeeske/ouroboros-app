@@ -49,7 +49,7 @@ public partial class AutonomousMind
                         {
                             resultSummary = await SanitizeOutputFunction(resultSummary, _cts.Token);
                         }
-                        catch (Exception) { /* Use original on error */ }
+                        catch (HttpRequestException) { /* Use original on error */ }
                     }
 
                     OnProactiveMessage?.Invoke(LocalizeWithParam("action", $"{action.Description}: {resultSummary}"));

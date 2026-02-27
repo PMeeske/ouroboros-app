@@ -73,7 +73,7 @@ public static partial class SkillCliSteps
                     }
                 }
             }
-            catch (Exception) { /* Skip assemblies that can't be scanned */ }
+            catch (System.Reflection.ReflectionTypeLoadException) { /* Skip assemblies that can't be scanned */ }
         }
 
         return tokens;

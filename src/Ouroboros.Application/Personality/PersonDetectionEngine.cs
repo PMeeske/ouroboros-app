@@ -226,7 +226,7 @@ public sealed partial class PersonDetectionEngine
 
                     _knownPersons[person.Id] = person;
                 }
-                catch (Exception) { /* Skip malformed entries */ }
+                catch (System.Text.Json.JsonException) { /* Skip malformed entries */ }
             }
 
             if (_knownPersons.Count > 0)
@@ -234,7 +234,7 @@ public sealed partial class PersonDetectionEngine
                 Console.WriteLine($"  [OK] Loaded {_knownPersons.Count} known person(s) from memory");
             }
         }
-        catch (Exception ex)
+        catch (Grpc.Core.RpcException ex)
         {
             Console.WriteLine($"  [!] Failed to load persons: {ex.Message}");
         }
@@ -278,7 +278,7 @@ public sealed partial class PersonDetectionEngine
 
             await _qdrantClient.UpsertAsync(_personCollectionName, new[] { point }, cancellationToken: ct);
         }
-        catch (Exception ex)
+        catch (Grpc.Core.RpcException ex)
         {
             Console.WriteLine($"  [!] Failed to store person: {ex.Message}");
         }

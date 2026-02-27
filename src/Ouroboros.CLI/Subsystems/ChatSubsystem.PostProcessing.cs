@@ -111,7 +111,7 @@ public sealed partial class ChatSubsystem
                             _voiceService.ActivePersona.Name,
                             input, response, topic, mood, 0.6);
                     }
-                    catch (Exception) { }
+                    catch (HttpRequestException) { }
                 })
                 .ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
             }
@@ -204,7 +204,7 @@ public sealed partial class ChatSubsystem
                 .Add("topic", topic);
             await _episodicMemory.StoreEpisodeAsync(branch, ctx, outcome, metadata).ConfigureAwait(false);
         }
-        catch (Exception) { }
+        catch (HttpRequestException) { }
     }
 
     // Causal extraction and graph building consolidated in SharedAgentBootstrap.

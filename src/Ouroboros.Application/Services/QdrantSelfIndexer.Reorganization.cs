@@ -174,7 +174,7 @@ public sealed partial class QdrantSelfIndexer
                     optimizations++;
                 }
             }
-            catch (Exception) { /* Point may not exist */ }
+            catch (Grpc.Core.RpcException) { /* Point may not exist */ }
         }
 
         return optimizations;
@@ -249,7 +249,7 @@ public sealed partial class QdrantSelfIndexer
                 await _client.DeleteAsync(_config.CollectionName, toRemove, cancellationToken: ct);
             }
         }
-        catch (Exception ex)
+        catch (Grpc.Core.RpcException ex)
         {
             Console.WriteLine($"[Reorganize] Duplicate removal error: {ex.Message}");
         }
@@ -301,7 +301,7 @@ public sealed partial class QdrantSelfIndexer
                             cancellationToken: ct);
                     }
                 }
-                catch (Exception) { /* Point may not exist */ }
+                catch (Grpc.Core.RpcException) { /* Point may not exist */ }
             }
         }
 
@@ -374,7 +374,7 @@ public sealed partial class QdrantSelfIndexer
 
                 summariesCreated++;
             }
-            catch (Exception ex)
+            catch (Grpc.Core.RpcException ex)
             {
                 Console.WriteLine($"[Reorganize] Summary creation error: {ex.Message}");
             }
@@ -405,7 +405,7 @@ public sealed partial class QdrantSelfIndexer
                     updated++;
                 }
             }
-            catch (Exception) { /* Point may not exist */ }
+            catch (Grpc.Core.RpcException) { /* Point may not exist */ }
         }
 
         return updated;

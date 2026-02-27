@@ -121,7 +121,7 @@ public sealed partial class WebAvatarRenderer
         {
             combinedPath = Path.GetFullPath(Path.Combine(rootDir, relativePath));
         }
-        catch (Exception)
+        catch (ArgumentException)
         {
             return false;
         }
@@ -190,7 +190,7 @@ public sealed partial class WebAvatarRenderer
             using var fs = File.OpenRead(filePath);
             fs.CopyTo(context.Response.OutputStream);
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             Console.Error.WriteLine($"  [Avatar] File serve error: {ex.Message}");
         }
@@ -240,7 +240,11 @@ public sealed partial class WebAvatarRenderer
             else
                 Process.Start("xdg-open", url);
         }
-        catch (Exception)
+        catch (InvalidOperationException)
+        {
+            // Browser launch is best-effort
+        }
+        catch (System.ComponentModel.Win32Exception)
         {
             // Browser launch is best-effort
         }

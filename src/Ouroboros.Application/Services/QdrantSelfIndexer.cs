@@ -317,7 +317,7 @@ public sealed partial class QdrantSelfIndexer : IAsyncDisposable
                 VectorSize = _config.VectorSize
             };
         }
-        catch
+        catch (Grpc.Core.RpcException)
         {
             return new IndexStats { CollectionName = _config.CollectionName };
         }
@@ -354,7 +354,7 @@ public sealed partial class QdrantSelfIndexer : IAsyncDisposable
 
         if (_debounceTask != null)
         {
-            try { await _debounceTask; } catch (Exception) { /* debounce may have been cancelled */ }
+            try { await _debounceTask; } catch (OperationCanceledException) { /* debounce may have been cancelled */ }
         }
 
         _watcherCts.Dispose();

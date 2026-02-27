@@ -63,7 +63,9 @@ public sealed class OpenClawDeviceIdentity
         if (File.Exists(path))
         {
             try { return await LoadAsync(path, ct); }
-            catch (Exception) { /* Corrupted or unreadable — regenerate below */ }
+            catch (System.Text.Json.JsonException) { /* Corrupted — regenerate below */ }
+            catch (FormatException) { /* Invalid Base64 seed — regenerate below */ }
+            catch (IOException) { /* Unreadable file — regenerate below */ }
         }
 
         var fresh = Create();

@@ -114,7 +114,7 @@ Use this actual code information to answer the user's question accurately.
                         hybridContext[..Math.Min(80, hybridContext.Length)], "Neural-symbolic bridge");
                 }
             }
-            catch (Exception) { }
+            catch (HttpRequestException) { }
         }
 
         // ── Causal reasoning ─────────────────────────────────────────────────
@@ -137,7 +137,7 @@ Use this actual code information to answer the user's question accurately.
                         causalContext[..Math.Min(80, causalContext.Length)], "Causal reasoning");
                 }
             }
-            catch (Exception) { }
+            catch (HttpRequestException) { }
         }
 
         // ── Personality conversation memory (recalled past conversations from Qdrant) ──

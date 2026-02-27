@@ -203,7 +203,7 @@ public sealed partial class MeTTaBlueprintValidator
                 return new ConstraintResult(constraint, passed,
                     passed ? null : $"MeTTa evaluation returned: {result}");
             }
-            catch (Exception)
+            catch (InvalidOperationException)
             {
                 // Fall back to local evaluation on MeTTa failure
                 return EvaluateLocally(constraint, blueprint);

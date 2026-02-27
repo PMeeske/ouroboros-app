@@ -68,9 +68,13 @@ public static partial class SharedAgentBootstrap
         {
             return new EpisodicMemoryEngine(qdrantEndpoint, embeddingModel, collectionName);
         }
-        catch
+        catch (Grpc.Core.RpcException)
         {
             return null; // Qdrant unavailable
+        }
+        catch (HttpRequestException)
+        {
+            return null; // Qdrant unavailable (HTTP mode)
         }
     }
 
@@ -90,7 +94,7 @@ public static partial class SharedAgentBootstrap
             var kb = new SymbolicKnowledgeBase(mettaEngine);
             return new NeuralSymbolicBridge(chatModel, kb);
         }
-        catch
+        catch (InvalidOperationException)
         {
             return null;
         }
@@ -135,7 +139,7 @@ public static partial class SharedAgentBootstrap
             curiosity = new CuriosityEngine(chatModel, memStore, skills, safetyGuard, ethics);
 
             try { sovereignty = new PersonaSovereigntyGate(chatModel); }
-            catch (Exception) { /* sovereignty gate optional */ }
+            catch (InvalidOperationException) { /* sovereignty gate optional */ }
 
             if (mind != null)
             {
@@ -165,15 +169,19 @@ public static partial class SharedAgentBootstrap
                             }
                         }
                     }
-                    catch
+                    catch (OperationCanceledException)
                     {
-                        // exploration loop ended (cancellation or transient failure)
+                        // exploration loop ended (cancellation)
+                    }
+                    catch (HttpRequestException)
+                    {
+                        // exploration loop ended (transient failure)
                     }
                 }, ct)
                 .ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
             }
         }
-        catch
+        catch (InvalidOperationException)
         {
             // curiosity system optional
         }
@@ -260,7 +268,7 @@ public static partial class SharedAgentBootstrap
                 log?.Invoke("Voice output: Windows SAPI");
                 return tts;
             }
-            catch (Exception) { }
+            catch (InvalidOperationException) { }
         }
 
         // OpenAI TTS fallback
@@ -273,7 +281,7 @@ public static partial class SharedAgentBootstrap
                 log?.Invoke("Voice output: OpenAI TTS");
                 return tts;
             }
-            catch (Exception) { /* OpenAI TTS unavailable */ }
+            catch (HttpRequestException) { /* OpenAI TTS unavailable */ }
         }
 
         log?.Invoke("Voice output: Text only (no TTS backend available)");
@@ -300,7 +308,7 @@ public static partial class SharedAgentBootstrap
                 return whisper;
             }
         }
-        catch (Exception) { /* Whisper.net unavailable */ }
+        catch (InvalidOperationException) { /* Whisper.net unavailable */ }
 
         log?.Invoke("Voice input: No backend available (install Whisper.net for voice input)");
         return null;

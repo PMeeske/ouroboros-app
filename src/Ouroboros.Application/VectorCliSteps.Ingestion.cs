@@ -106,7 +106,7 @@ public static partial class VectorCliSteps
                 {
                     content = await File.ReadAllTextAsync(fullPath, System.Text.Encoding.UTF8);
                 }
-                catch (Exception)
+                catch (IOException)
                 {
                     // Fallback: read as bytes and decode with replacement for invalid chars
                     var bytes = await File.ReadAllBytesAsync(fullPath);
@@ -142,7 +142,7 @@ public static partial class VectorCliSteps
 
                         await s.VectorStore.AddAsync(new[] { vector });
                     }
-                    catch (Exception chunkEx)
+                    catch (HttpRequestException chunkEx)
                     {
                         if (s.Trace) Console.WriteLine($"[vector] Skipped chunk {index}: {chunkEx.Message}");
                     }
@@ -196,7 +196,7 @@ public static partial class VectorCliSteps
                         {
                             content = await File.ReadAllTextAsync(file, System.Text.Encoding.UTF8);
                         }
-                        catch (Exception)
+                        catch (IOException)
                         {
                             var bytes = await File.ReadAllBytesAsync(file);
                             content = System.Text.Encoding.UTF8.GetString(bytes).Replace("\uFFFD", "?");
@@ -231,7 +231,7 @@ public static partial class VectorCliSteps
                                 await s.VectorStore.AddAsync(new[] { vector });
                                 successChunks++;
                             }
-                            catch (Exception)
+                            catch (HttpRequestException)
                             {
                                 // Skip problematic chunks silently
                             }

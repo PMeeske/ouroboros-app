@@ -97,7 +97,7 @@ public sealed partial class ChatSubsystem : IChatSubsystem
                             .Add("significance", sig.ToString("F2"));
                         await _episodicMemory.StoreEpisodeAsync(branch, execCtx, outcome, metadata, ct).ConfigureAwait(false);
                     }
-                    catch (Exception) { /* non-fatal */ }
+                    catch (HttpRequestException) { /* non-fatal */ }
                 };
 
             toolCtx.EpisodicExternalRecallFunc =
@@ -120,7 +120,7 @@ public sealed partial class ChatSubsystem : IChatSubsystem
                 var kb = new Ouroboros.Agent.NeuralSymbolic.SymbolicKnowledgeBase(ctx.Memory.MeTTaEngine);
                 _neuralSymbolicBridge = new Ouroboros.Agent.NeuralSymbolic.NeuralSymbolicBridge(ctx.Models.ChatModel, kb);
             }
-            catch (Exception) { }
+            catch (InvalidOperationException) { }
         }
 
         // ── Curiosity engine ──────────────────────────────────────────────────
@@ -139,7 +139,7 @@ public sealed partial class ChatSubsystem : IChatSubsystem
                 if (ctx.Models.ChatModel != null)
                 {
                     try { _sovereigntyGate = new Ouroboros.CLI.Sovereignty.PersonaSovereigntyGate(ctx.Models.ChatModel); }
-                    catch (Exception) { }
+                    catch (InvalidOperationException) { }
                 }
 
                 var mind = ctx.Autonomy.AutonomousMind;
@@ -170,12 +170,13 @@ public sealed partial class ChatSubsystem : IChatSubsystem
                                 }
                             }
                         }
-                        catch (Exception) { }
+                        catch (OperationCanceledException) { }
+                        catch (HttpRequestException) { }
                     })
                     .ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
                 }
             }
-            catch (Exception) { }
+            catch (InvalidOperationException) { /* curiosity system initialization failed */ }
         }
 
         ctx.Output.RecordInit("Chat", true, "pipeline ready");

@@ -48,7 +48,7 @@ public sealed partial class ImmersiveMode
             if (!string.IsNullOrEmpty(preThought.CognitiveApproach) && preThought.CognitiveApproach != "direct engagement")
                 innerThoughts.Add($"cognitive approach: {preThought.CognitiveApproach}");
         }
-        catch (Exception)
+        catch (HttpRequestException)
         {
             // Non-fatal — inner dialog failure does not block the response
         }
@@ -114,7 +114,7 @@ public sealed partial class ImmersiveMode
                         ethicsCautionNote = $"[Ethical caution: {ethicsCheck.Value.Reasoning}]";
                 }
             }
-            catch (Exception) { /* Non-fatal — ethics check failure does not block response */ }
+            catch (HttpRequestException) { /* Non-fatal — ethics check failure does not block response */ }
         }
 
         _metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Validation,
@@ -146,7 +146,7 @@ public sealed partial class ImmersiveMode
                                          $"compression={_immersiveCogState.Compression:F2})";
                 }
             }
-            catch (Exception) { /* Non-fatal */ }
+            catch (HttpRequestException) { /* Non-fatal */ }
         }
 
         _metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Inference,
@@ -166,7 +166,7 @@ public sealed partial class ImmersiveMode
                 if (hybrid.IsSuccess && !string.IsNullOrEmpty(hybrid.Value.Answer))
                     hybridNote = $"[Symbolic: {hybrid.Value.Answer[..Math.Min(120, hybrid.Value.Answer.Length)]}]";
             }
-            catch (Exception) { }
+            catch (HttpRequestException) { }
             if (hybridNote != null)
                 _metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Inference,
                     hybridNote, "Neural-symbolic bridge");
@@ -190,7 +190,7 @@ public sealed partial class ImmersiveMode
                         causalNote, "Causal reasoning engine");
                 }
             }
-            catch (Exception) { }
+            catch (HttpRequestException) { }
         }
 
         // ── Phi (IIT) annotation ─────────────────────────────────────────────
@@ -221,7 +221,7 @@ public sealed partial class ImmersiveMode
                 phiNote = $"Phi={phiResult.Phi:F2}";
             }
         }
-        catch (Exception) { /* Non-fatal */ }
+        catch (InvalidOperationException) { /* Non-fatal — Phi computation edge case */ }
 
         var sb = new StringBuilder();
         sb.AppendLine("### System");
@@ -465,7 +465,7 @@ User: goodbye
                 .Add("topic", topic);
             await memory.StoreEpisodeAsync(branch, context, outcome, metadata, ct).ConfigureAwait(false);
         }
-        catch (Exception) { }
+        catch (HttpRequestException) { }
     }
 
     [System.Text.RegularExpressions.GeneratedRegex(@"^\[From [^\]]+\]:\s*")]

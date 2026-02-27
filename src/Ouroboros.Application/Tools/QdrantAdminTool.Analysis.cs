@@ -40,7 +40,7 @@ public sealed partial class QdrantAdminTool
                     currentDim = testEmbed.Length;
                     sb.AppendLine($"**Active embedding dimension:** {currentDim}");
                 }
-                catch (Exception) { }
+                catch (HttpRequestException) { }
             }
 
             sb.AppendLine("\n## Collections\n");
@@ -63,7 +63,7 @@ public sealed partial class QdrantAdminTool
 
             return Result<string, string>.Success(sb.ToString());
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
             return Result<string, string>.Failure($"Status check failed: {ex.Message}");
         }
@@ -155,7 +155,7 @@ public sealed partial class QdrantAdminTool
 
             return Result<string, string>.Success(sb.ToString());
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
             return Result<string, string>.Failure($"Diagnosis failed: {ex.Message}");
         }
@@ -204,7 +204,7 @@ public sealed partial class QdrantAdminTool
 
             return Result<string, string>.Success(sb.ToString());
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
             return Result<string, string>.Failure($"Stats failed: {ex.Message}");
         }
@@ -232,7 +232,7 @@ public sealed partial class QdrantAdminTool
 
             return Result<string, string>.Success(sb.ToString());
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
             return Result<string, string>.Failure($"List failed: {ex.Message}");
         }
@@ -349,7 +349,7 @@ public sealed partial class QdrantAdminTool
 
             return Result<string, string>.Success(sb.ToString());
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
             return Result<string, string>.Failure($"Compression analysis failed: {ex.Message}");
         }
@@ -385,7 +385,7 @@ public sealed partial class QdrantAdminTool
                 }
             }
         }
-        catch
+        catch (HttpRequestException)
         {
             // Ignore sampling errors
         }

@@ -117,7 +117,7 @@ public sealed partial class OuroborosAgent
                 string sanitized = await _chatModel.GenerateTextAsync(prompt, token);
                 return string.IsNullOrWhiteSpace(sanitized) ? rawOutput : sanitized.Trim();
             }
-            catch (Exception) { return rawOutput; }
+            catch (HttpRequestException) { return rawOutput; }
         };
 
         // Wire limitation-busting tools via shared context
@@ -152,7 +152,7 @@ public sealed partial class OuroborosAgent
             if (_avatarService is { } svc)
                 svc.NotifyMoodChange(svc.CurrentState.Mood, svc.CurrentState.Energy, svc.CurrentState.Positivity, statusText: thoughtContent);
 
-            try { await _voice.WhisperAsync(msg); } catch (Exception) { }
+            try { await _voice.WhisperAsync(msg); } catch (InvalidOperationException) { }
         };
 
         // Display only research (Curiosity/Observation) and inner feelings (Reflection) thoughts.
