@@ -710,7 +710,7 @@ public sealed partial class OuroborosAgent
             probe?.WaitForExit(2000);
             if (probe?.ExitCode == 0) return "claude";
         }
-        catch { /* fall through */ }
+        catch (Exception) { /* fall through — claude CLI not found */ }
 
         // 2. VS Code extension bundle (Windows: anthropic.claude-code-*)
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);

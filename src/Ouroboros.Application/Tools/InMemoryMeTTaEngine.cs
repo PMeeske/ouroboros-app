@@ -15,7 +15,7 @@ using Unit = Unit;
 /// In-memory MeTTa engine implementation for when Docker/subprocess is unavailable.
 /// Provides simplified symbolic reasoning for tool selection without full MeTTa capabilities.
 /// </summary>
-public sealed class InMemoryMeTTaEngine : IMeTTaEngine
+public sealed partial class InMemoryMeTTaEngine : IMeTTaEngine
 {
     private readonly ConcurrentDictionary<string, List<string>> _facts = new();
     private readonly ConcurrentDictionary<string, string> _rules = new();
@@ -31,7 +31,7 @@ public sealed class InMemoryMeTTaEngine : IMeTTaEngine
         {
             // Parse simple match queries
             // Example: !(match &self (goal $plan $goal) $goal)
-            var matchPattern = Regex.Match(query, @"\(goal\s+\S+\s+""([^""]+)""\)");
+            var matchPattern = GoalQueryRegex().Match(query);
             if (matchPattern.Success)
             {
                 string goal = matchPattern.Groups[1].Value.ToLowerInvariant();
@@ -40,7 +40,7 @@ public sealed class InMemoryMeTTaEngine : IMeTTaEngine
             }
 
             // Check for capability queries
-            var capabilityMatch = Regex.Match(query, @"\(capability\s+(\S+)\s+(\S+)\)");
+            var capabilityMatch = CapabilityRegex().Match(query);
             if (capabilityMatch.Success)
             {
                 return Task.FromResult(Result<string, string>.Success("[capability-match]"));
@@ -70,7 +70,7 @@ public sealed class InMemoryMeTTaEngine : IMeTTaEngine
         {
             // Parse and store facts
             // Example: (tool tool_search "search")
-            var toolMatch = Regex.Match(fact, @"\(tool\s+(\S+)\s+""([^""]+)""\)");
+            var toolMatch = ToolFactRegex().Match(fact);
             if (toolMatch.Success)
             {
                 string toolId = toolMatch.Groups[1].Value;
@@ -81,7 +81,7 @@ public sealed class InMemoryMeTTaEngine : IMeTTaEngine
 
             // Store capability
             // Example: (capability tool_search information-retrieval)
-            var capMatch = Regex.Match(fact, @"\(capability\s+(\S+)\s+(\S+)\)");
+            var capMatch = CapabilityRegex().Match(fact);
             if (capMatch.Success)
             {
                 string toolId = capMatch.Groups[1].Value;
@@ -92,7 +92,7 @@ public sealed class InMemoryMeTTaEngine : IMeTTaEngine
             }
 
             // Store goal
-            var goalMatch = Regex.Match(fact, @"\(goal\s+(\S+)\s+""([^""]+)""\)");
+            var goalMatch = GoalFactRegex().Match(fact);
             if (goalMatch.Success)
             {
                 string goalId = goalMatch.Groups[1].Value;
@@ -103,7 +103,7 @@ public sealed class InMemoryMeTTaEngine : IMeTTaEngine
             }
 
             // Store rules
-            var ruleMatch = Regex.Match(fact, @"\(=\s+\(([^)]+)\)\s+(.+)\)", RegexOptions.Singleline);
+            var ruleMatch = RuleDefinitionRegex().Match(fact);
             if (ruleMatch.Success)
             {
                 string ruleName = ruleMatch.Groups[1].Value.Trim();
@@ -126,7 +126,7 @@ public sealed class InMemoryMeTTaEngine : IMeTTaEngine
             return Task.FromResult(Result<string, string>.Failure("Engine disposed"));
 
         // Store the rule
-        var match = Regex.Match(rule, @"\(=\s+\(([^)]+)\)\s+(.+)\)", RegexOptions.Singleline);
+        var match = RuleDefinitionRegex().Match(rule);
         if (match.Success)
         {
             string ruleName = match.Groups[1].Value.Trim();
@@ -218,4 +218,19 @@ public sealed class InMemoryMeTTaEngine : IMeTTaEngine
         _facts.Clear();
         _rules.Clear();
     }
+
+    [GeneratedRegex(@"\(goal\s+\S+\s+""([^""]+)""\)")]
+    private static partial Regex GoalQueryRegex();
+
+    [GeneratedRegex(@"\(capability\s+(\S+)\s+(\S+)\)")]
+    private static partial Regex CapabilityRegex();
+
+    [GeneratedRegex(@"\(tool\s+(\S+)\s+""([^""]+)""\)")]
+    private static partial Regex ToolFactRegex();
+
+    [GeneratedRegex(@"\(goal\s+(\S+)\s+""([^""]+)""\)")]
+    private static partial Regex GoalFactRegex();
+
+    [GeneratedRegex(@"\(=\s+\(([^)]+)\)\s+(.+)\)", RegexOptions.Singleline)]
+    private static partial Regex RuleDefinitionRegex();
 }

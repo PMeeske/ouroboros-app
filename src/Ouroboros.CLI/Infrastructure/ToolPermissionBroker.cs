@@ -80,7 +80,7 @@ public sealed class ToolPermissionBroker
             {
                 ConsoleKeyInfo keyInfo;
                 try { keyInfo = Console.ReadKey(intercept: true); }
-                catch { return PermissionAction.Deny; }
+                catch (InvalidOperationException) { return PermissionAction.Deny; /* console not available */ }
 
                 var ch = char.ToLowerInvariant(keyInfo.KeyChar);
 

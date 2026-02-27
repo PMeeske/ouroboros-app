@@ -57,7 +57,7 @@ public sealed class DeviceKeyAuthService : IAuthenticationProvider, IDisposable
                 _initialized = true;
                 return;
             }
-            catch { /* Corrupted — regenerate */ }
+            catch (Exception) { /* Corrupted — regenerate */ }
         }
 
         GenerateNewKey();

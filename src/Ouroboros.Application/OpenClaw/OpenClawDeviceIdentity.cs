@@ -63,7 +63,7 @@ public sealed class OpenClawDeviceIdentity
         if (File.Exists(path))
         {
             try { return await LoadAsync(path, ct); }
-            catch { /* Corrupted or unreadable — regenerate below */ }
+            catch (Exception) { /* Corrupted or unreadable — regenerate below */ }
         }
 
         var fresh = Create();
@@ -107,7 +107,7 @@ public sealed class OpenClawDeviceIdentity
     {
         DeviceToken = token;
         try { await PersistAsync(StoragePath(), ct); }
-        catch { /* Non-fatal — token will be re-acquired on next connect */ }
+        catch (IOException) { /* Non-fatal — token will be re-acquired on next connect */ }
     }
 
     // ── Internals ─────────────────────────────────────────────────────────────────

@@ -28,7 +28,7 @@ using IEmbeddingModel = Ouroboros.Domain.IEmbeddingModel;
 /// <see cref="SharedAgentBootstrap"/> produces shared-ready instances that can be
 /// consumed by any mode or handler.
 /// </summary>
-public static class SharedAgentBootstrap
+public static partial class SharedAgentBootstrap
 {
     /// <summary>
     /// Creates an embedding model backed by Ollama.
@@ -135,7 +135,7 @@ public static class SharedAgentBootstrap
             curiosity = new CuriosityEngine(chatModel, memStore, skills, safetyGuard, ethics);
 
             try { sovereignty = new PersonaSovereigntyGate(chatModel); }
-            catch { /* sovereignty gate optional */ }
+            catch (Exception) { /* sovereignty gate optional */ }
 
             if (mind != null)
             {
@@ -189,27 +189,19 @@ public static class SharedAgentBootstrap
     {
         if (string.IsNullOrWhiteSpace(input)) return null;
 
-        var m = System.Text.RegularExpressions.Regex.Match(
-            input, @"\bwhy\s+(?:does|is|did|do|are)\s+(.+?)(?:\?|$)",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        var m = WhyCausalRegex().Match(input);
         if (m.Success)
             return ("external factors", m.Groups[1].Value.Trim().TrimEnd('?'));
 
-        m = System.Text.RegularExpressions.Regex.Match(
-            input, @"\bwhat\s+(?:causes?|leads?\s+to|results?\s+in)\s+(.+?)(?:\?|$)",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        m = WhatCausesRegex().Match(input);
         if (m.Success)
             return ("preceding conditions", m.Groups[1].Value.Trim().TrimEnd('?'));
 
-        m = System.Text.RegularExpressions.Regex.Match(
-            input, @"\bif\s+(.+?)\s+then\s+(.+?)(?:\?|$)",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        m = IfThenRegex().Match(input);
         if (m.Success)
             return (m.Groups[1].Value.Trim(), m.Groups[2].Value.Trim().TrimEnd('?'));
 
-        m = System.Text.RegularExpressions.Regex.Match(
-            input, @"(.+?)\s+causes?\s+(.+?)(?:\?|$)",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        m = CausesRegex().Match(input);
         if (m.Success)
             return (m.Groups[1].Value.Trim(), m.Groups[2].Value.Trim().TrimEnd('?'));
 
@@ -280,7 +272,7 @@ public static class SharedAgentBootstrap
                 log?.Invoke("Voice output: OpenAI TTS");
                 return tts;
             }
-            catch { }
+            catch (Exception) { /* OpenAI TTS unavailable */ }
         }
 
         log?.Invoke("Voice output: Text only (no TTS backend available)");
@@ -307,7 +299,7 @@ public static class SharedAgentBootstrap
                 return whisper;
             }
         }
-        catch { }
+        catch (Exception) { /* Whisper.net unavailable */ }
 
         log?.Invoke("Voice input: No backend available (install Whisper.net for voice input)");
         return null;
@@ -346,4 +338,16 @@ public static class SharedAgentBootstrap
         log?.Invoke($"{personaName} is awake");
         return persona;
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\bwhy\s+(?:does|is|did|do|are)\s+(.+?)(?:\?|$)", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex WhyCausalRegex();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\bwhat\s+(?:causes?|leads?\s+to|results?\s+in)\s+(.+?)(?:\?|$)", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex WhatCausesRegex();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\bif\s+(.+?)\s+then\s+(.+?)(?:\?|$)", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex IfThenRegex();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"(.+?)\s+causes?\s+(.+?)(?:\?|$)", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex CausesRegex();
 }

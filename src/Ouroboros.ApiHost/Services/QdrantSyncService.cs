@@ -51,9 +51,15 @@ public sealed class QdrantSyncService : IQdrantSyncService, IDisposable
         else
         {
             _cloudEndpoint = "";
-            _cloudClient = new HttpClient();
+            _cloudClient = UnconfiguredCloudClient;
         }
     }
+
+    /// <summary>Shared placeholder client for the unconfigured cloud path (never called).</summary>
+    private static readonly HttpClient UnconfiguredCloudClient = new(new SocketsHttpHandler
+    {
+        PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+    });
 
     // ═══════════════════════════════════════════════════════════════════════
     //  IQdrantSyncService

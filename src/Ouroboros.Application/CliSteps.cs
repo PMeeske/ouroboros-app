@@ -14,7 +14,7 @@ namespace Ouroboros.Application;
 /// Discoverable CLI pipeline steps. Each method is annotated with PipelineToken and returns a Step over CliPipelineState.
 /// Parsing of simple args is supported via optional string? args parameter.
 /// </summary>
-public static class CliSteps
+public static partial class CliSteps
 {
     public static (string topic, string query) Normalize(CliPipelineState s)
     {
@@ -129,7 +129,7 @@ public static class CliSteps
         {
             if (!string.IsNullOrWhiteSpace(args))
             {
-                Match m = Regex.Match(args, @"\s*(\d+)\s*");
+                Match m = DigitsRegex().Match(args);
                 if (m.Success && int.TryParse(m.Groups[1].Value, out int k))
                 {
                     s.RetrievalK = k;
@@ -231,9 +231,9 @@ public static class CliSteps
     public static string ParseString(string? arg)
     {
         arg ??= string.Empty;
-        Match m = Regex.Match(arg, @"^'(?<s>.*)'$", RegexOptions.Singleline);
+        Match m = SingleQuotedStringRegex().Match(arg);
         if (m.Success) return m.Groups["s"].Value;
-        m = Regex.Match(arg, @"^""(?<s>.*)""$", RegexOptions.Singleline);
+        m = DoubleQuotedStringRegex().Match(arg);
         if (m.Success) return m.Groups["s"].Value;
         return arg;
     }
@@ -422,7 +422,7 @@ public static class CliSteps
             // Ensure retrieved context
             if (s.Retrieved.Count == 0)
             {
-                try { s = await RetrieveSimilarDocuments($"amount={k}")(s); } catch { /* ignore */ }
+                try { s = await RetrieveSimilarDocuments($"amount={k}")(s); } catch (Exception) { /* retrieval optional — ignore */ }
             }
             if (s.Retrieved.Count == 0) return s;
 
@@ -553,7 +553,7 @@ public static class CliSteps
             if (string.IsNullOrWhiteSpace(question)) return s;
 
             // Optional: warm retrieval cache using the main question
-            try { s = await RetrieveSimilarDocuments($"amount={k}|query={question.Replace("|", ":")}")(s); } catch { /* ignore */ }
+            try { s = await RetrieveSimilarDocuments($"amount={k}|query={question.Replace("|", ":")}")(s); } catch (Exception) { /* retrieval cache warm-up optional — ignore */ }
 
             // Default templates
             decomposeTpl ??= "You are tasked with answering a complex question by breaking it down into distinct sub-questions that together fully address the original.\n" +
@@ -587,7 +587,7 @@ public static class CliSteps
                         string t = line.Trim();
                         if (string.IsNullOrWhiteSpace(t)) continue;
                         // Accept formats like: "1. ...", "1) ...", "- ..." or plain line
-                        t = Regex.Replace(t, @"^\s*(\d+\.|\d+\)|[-*])\s*", string.Empty);
+                        t = ListPrefixRegex().Replace(t, string.Empty);
                         if (!string.IsNullOrWhiteSpace(t)) subQuestions.Add(t);
                     }
                 }
@@ -767,5 +767,17 @@ public static class CliSteps
 
     public static Step<CliPipelineState, CliPipelineState> LangChainLlmStep(string? args = null)
         => LlmStep(args);
+
+    [GeneratedRegex(@"\s*(\d+)\s*")]
+    private static partial Regex DigitsRegex();
+
+    [GeneratedRegex(@"^'(?<s>.*)'$", RegexOptions.Singleline)]
+    private static partial Regex SingleQuotedStringRegex();
+
+    [GeneratedRegex(@"^""(?<s>.*)""$", RegexOptions.Singleline)]
+    private static partial Regex DoubleQuotedStringRegex();
+
+    [GeneratedRegex(@"^\s*(\d+\.|\d+\)|[-*])\s*")]
+    private static partial Regex ListPrefixRegex();
 }
 

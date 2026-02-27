@@ -14,6 +14,12 @@ namespace Ouroboros.Application.GitHub;
 /// </summary>
 public sealed class GitHubMcpClient : IGitHubMcpClient
 {
+    private static readonly JsonSerializerOptions GitHubJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+        WriteIndented = false,
+    };
+
     private readonly GitHubMcpClientOptions _options;
     private readonly HttpClient _httpClient;
     private readonly JsonSerializerOptions _jsonOptions;
@@ -31,7 +37,10 @@ public sealed class GitHubMcpClient : IGitHubMcpClient
         }
 
         _options = options;
-        _httpClient = httpClient ?? new HttpClient();
+        _httpClient = httpClient ?? new HttpClient(new SocketsHttpHandler
+        {
+            PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+        });
         _httpClient.BaseAddress = new Uri(_options.BaseUrl);
         // GitHub API authentication - supports both Personal Access Tokens (PAT) and OAuth tokens
         // For PATs, use scheme "token"; for OAuth tokens, use "Bearer"
@@ -41,11 +50,7 @@ public sealed class GitHubMcpClient : IGitHubMcpClient
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
         _httpClient.Timeout = _options.Timeout;
 
-        _jsonOptions = new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-            WriteIndented = false
-        };
+        _jsonOptions = GitHubJsonOptions;
     }
 
     /// <inheritdoc/>

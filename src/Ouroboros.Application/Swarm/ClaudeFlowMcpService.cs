@@ -266,7 +266,7 @@ public sealed class ClaudeFlowMcpService : IAsyncDisposable
         {
             // Content might not be JSON — try regex fallback
             var match = System.Text.RegularExpressions.Regex.Match(
-                content, $@"""{fieldName}""\s*:\s*""([^""]+)""");
+                content, $@"""{fieldName}""\s*:\s*""([^""]+)"""); // dynamic field name — cannot use GeneratedRegex
             if (match.Success) return match.Groups[1].Value;
         }
 
@@ -281,7 +281,7 @@ public sealed class ClaudeFlowMcpService : IAsyncDisposable
             if (doc.RootElement.TryGetProperty(fieldName, out var val))
                 return val.GetInt32();
         }
-        catch { /* non-JSON */ }
+        catch (System.Text.Json.JsonException) { /* non-JSON */ }
 
         return fallback;
     }

@@ -103,7 +103,7 @@ public sealed class AskQueryHandler : IRequestHandler<AskQuery, string>
                     questionForAgent = $"Context:\n- {ctx}\n\nQuestion: {r.Question}";
                 }
             }
-            catch { /* fallback silently */ }
+            catch (Exception) { /* vector search fallback silently */ }
         }
 
         string answer = await agentInstance.RunAsync(questionForAgent);

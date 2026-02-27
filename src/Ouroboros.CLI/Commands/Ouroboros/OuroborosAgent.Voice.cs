@@ -31,7 +31,7 @@ public sealed partial class OuroborosAgent
         {
             string trimmed = line.Trim();
             // Skip lines starting with [something]:
-            if (Regex.IsMatch(trimmed, @"^\[[\w_:-]+\]:?\s*"))
+            if (ToolOutputPrefixRegex().IsMatch(trimmed))
                 return false;
             // Skip lines containing TOOL-RESULT
             if (trimmed.Contains("TOOL-RESULT", StringComparison.OrdinalIgnoreCase))
@@ -226,7 +226,7 @@ public sealed partial class OuroborosAgent
             ct.Register(() =>
             {
                 try { _ = speechSynthesizer.StopSpeakingAsync(); }
-                catch { /* Best effort */ }
+                catch (Exception) { /* Best effort barge-in stop */ }
             });
 
             // Detect the response language via LanguageSubsystem (Ollama LLM → heuristic fallback).
@@ -456,7 +456,7 @@ $synth.Dispose()
             catch (OperationCanceledException)
             {
                 // Kill the process if cancelled
-                try { process.Kill(entireProcessTree: true); } catch { /* ignore */ }
+                try { process.Kill(entireProcessTree: true); } catch (InvalidOperationException) { /* process already exited */ }
                 throw;
             }
             finally
@@ -464,10 +464,12 @@ $synth.Dispose()
                 // Remove from tracking (best effort - ConcurrentBag doesn't have Remove)
             }
         }
-        catch
+        catch (Exception)
         {
             // Silently fail if SAPI not available
         }
     }
 
+    [GeneratedRegex(@"^\[[\w_:-]+\]:?\s*")]
+    private static partial Regex ToolOutputPrefixRegex();
 }

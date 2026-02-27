@@ -50,7 +50,7 @@ public partial class LocalWebScrapeTool : ITool
             if (doc.RootElement.TryGetProperty("maxLength", out var lengthEl))
                 maxLength = lengthEl.GetInt32();
         }
-        catch { /* Use raw input as URL */ }
+        catch (System.Text.Json.JsonException) { /* Use raw input as URL */ }
 
         if (string.IsNullOrWhiteSpace(url))
             return Result<string, string>.Failure("No URL provided. Usage: web_scrape <url>");
@@ -227,7 +227,7 @@ public partial class LocalWebScrapeTool : ITool
                 if (!links.Any(l => l.Item2 == fullUrl))
                     links.Add((text, fullUrl));
             }
-            catch { /* Invalid URL */ }
+            catch (UriFormatException) { /* Invalid URL */ }
         }
 
         return links;

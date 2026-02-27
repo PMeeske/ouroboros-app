@@ -246,7 +246,7 @@ public sealed partial class ImmersiveMode
         }
 
         // Run skill: "run <skillname>" or "execute <skillname>"
-        var runMatch = Regex.Match(lower, @"^(run|execute)\s+(.+)$");
+        var runMatch = RunExecuteRegex().Match(lower);
         if (runMatch.Success)
         {
             var skillName = runMatch.Groups[2].Value.Trim();
@@ -254,7 +254,7 @@ public sealed partial class ImmersiveMode
         }
 
         // Google search: "google <query>" or "google search <query>"
-        var googleMatch = Regex.Match(lower, @"^google\s*(search)?\s*(.+)$");
+        var googleMatch = GoogleSearchRegex().Match(lower);
         if (googleMatch.Success)
         {
             var query = googleMatch.Groups[2].Value.Trim();
@@ -262,7 +262,7 @@ public sealed partial class ImmersiveMode
         }
 
         // Learn about topic: "learn about <topic>"
-        var learnMatch = Regex.Match(lower, @"^learn\s+about\s+(.+)$");
+        var learnMatch = LearnAboutRegex().Match(lower);
         if (learnMatch.Success)
         {
             var topic = learnMatch.Groups[1].Value.Trim();
@@ -270,7 +270,7 @@ public sealed partial class ImmersiveMode
         }
 
         // Conversational tool creation confirmation: "yes", "ok", "create it", "do it", "build it"
-        if (_pendingToolRequest != null && Regex.IsMatch(lower, @"^(yes|ok|create\s*it|do\s*it|build\s*it|make\s*it|go\s*ahead|sure|please)$"))
+        if (_pendingToolRequest != null && ConfirmationRegex().IsMatch(lower))
         {
             var (topic, description) = _pendingToolRequest.Value;
             _pendingToolRequest = null;
@@ -278,7 +278,7 @@ public sealed partial class ImmersiveMode
         }
 
         // Add tool: "add tool <name>" or "learn <toolname>" or "create tool <name>"
-        var toolMatch = Regex.Match(lower, @"^(add\s+tool|learn|create\s+tool|build\s+tool|make\s+tool)\s+(.+)$");
+        var toolMatch = AddToolRegex().Match(lower);
         if (toolMatch.Success && !lower.Contains("about"))
         {
             var toolName = toolMatch.Groups[2].Value.Trim();
@@ -286,7 +286,7 @@ public sealed partial class ImmersiveMode
         }
 
         // Natural language tool creation: "create a tool that...", "build a tool for...", "make a tool to..."
-        var nlToolMatch = Regex.Match(lower, @"^(create|build|make)\s+(a\s+)?tool\s+(that|for|to|which)\s+(.+)$");
+        var nlToolMatch = NaturalLanguageToolRegex().Match(lower);
         if (nlToolMatch.Success)
         {
             var description = nlToolMatch.Groups[4].Value.Trim();
@@ -294,7 +294,7 @@ public sealed partial class ImmersiveMode
         }
 
         // Smart tool: "smart tool for <goal>" or "find tool for <goal>"
-        var smartMatch = Regex.Match(lower, @"^(smart\s+tool|find\s+tool)\s+(for\s+)?(.+)$");
+        var smartMatch = SmartToolRegex().Match(lower);
         if (smartMatch.Success)
         {
             var goal = smartMatch.Groups[3].Value.Trim();
@@ -302,7 +302,7 @@ public sealed partial class ImmersiveMode
         }
 
         // Memory recall: "remember <topic>", "recall <topic>", "what do you remember about <topic>"
-        var rememberMatch = Regex.Match(lower, @"^(remember|recall|what\s+do\s+you\s+remember\s+about)\s+(.+)$");
+        var rememberMatch = MemoryRecallRegex().Match(lower);
         if (rememberMatch.Success)
         {
             var topic = rememberMatch.Groups[2].Value.Trim();
@@ -341,7 +341,7 @@ public sealed partial class ImmersiveMode
             return HandleShowInterests();
         }
 
-        var thinkAboutMatch = Regex.Match(lower, @"^(think about|explore|be curious about|research)\s+(.+)$");
+        var thinkAboutMatch = ThinkAboutRegex().Match(lower);
         if (thinkAboutMatch.Success)
         {
             var topic = thinkAboutMatch.Groups[2].Value.Trim();
@@ -350,7 +350,7 @@ public sealed partial class ImmersiveMode
             return $"🤔 I'll explore '{topic}' in the background and let you know if I find something interesting!";
         }
 
-        var addInterestMatch = Regex.Match(lower, @"^(add interest|interest in|i'm interested in)\s+(.+)$");
+        var addInterestMatch = AddInterestRegex().Match(lower);
         if (addInterestMatch.Success)
         {
             var interest = addInterestMatch.Groups[2].Value.Trim();
@@ -370,7 +370,7 @@ public sealed partial class ImmersiveMode
         }
 
         // Index search: "index search <query>" or "search index <query>"
-        var indexSearchMatch = Regex.Match(lower, @"^(index\s+search|search\s+index|find\s+in\s+index)\s+(.+)$");
+        var indexSearchMatch = IndexSearchRegex().Match(lower);
         if (indexSearchMatch.Success)
         {
             var query = indexSearchMatch.Groups[2].Value.Trim();
@@ -384,7 +384,7 @@ public sealed partial class ImmersiveMode
         }
 
         // Emergence: "emergence <topic>"
-        var emergenceMatch = Regex.Match(lower, @"^emergence\s+(.+)$");
+        var emergenceMatch = EmergenceRegex().Match(lower);
         if (emergenceMatch.Success)
         {
             var topic = emergenceMatch.Groups[1].Value.Trim();
@@ -412,7 +412,7 @@ public sealed partial class ImmersiveMode
         }
 
         // Use tool command: "use tool <name> <json_input>" or "tool <name> <json_input>"
-        var useToolMatch = Regex.Match(lower, @"^(?:use\s+)?tool\s+(\w+)\s*(.*)$");
+        var useToolMatch = UseToolRegex().Match(lower);
         if (useToolMatch.Success)
         {
             var toolName = useToolMatch.Groups[1].Value.Trim();
@@ -504,4 +504,45 @@ public sealed partial class ImmersiveMode
 
     // Causal extraction and graph building consolidated in SharedAgentBootstrap.
     // Call sites use SharedAgentBootstrap.TryExtractCausalTerms / BuildMinimalCausalGraph.
+
+    // ── GeneratedRegex declarations ─────────────────────────────────────────
+
+    [GeneratedRegex(@"^(run|execute)\s+(.+)$")]
+    private static partial Regex RunExecuteRegex();
+
+    [GeneratedRegex(@"^google\s*(search)?\s*(.+)$")]
+    private static partial Regex GoogleSearchRegex();
+
+    [GeneratedRegex(@"^learn\s+about\s+(.+)$")]
+    private static partial Regex LearnAboutRegex();
+
+    [GeneratedRegex(@"^(yes|ok|create\s*it|do\s*it|build\s*it|make\s*it|go\s*ahead|sure|please)$")]
+    private static partial Regex ConfirmationRegex();
+
+    [GeneratedRegex(@"^(add\s+tool|learn|create\s+tool|build\s+tool|make\s+tool)\s+(.+)$")]
+    private static partial Regex AddToolRegex();
+
+    [GeneratedRegex(@"^(create|build|make)\s+(a\s+)?tool\s+(that|for|to|which)\s+(.+)$")]
+    private static partial Regex NaturalLanguageToolRegex();
+
+    [GeneratedRegex(@"^(smart\s+tool|find\s+tool)\s+(for\s+)?(.+)$")]
+    private static partial Regex SmartToolRegex();
+
+    [GeneratedRegex(@"^(remember|recall|what\s+do\s+you\s+remember\s+about)\s+(.+)$")]
+    private static partial Regex MemoryRecallRegex();
+
+    [GeneratedRegex(@"^(think about|explore|be curious about|research)\s+(.+)$")]
+    private static partial Regex ThinkAboutRegex();
+
+    [GeneratedRegex(@"^(add interest|interest in|i'm interested in)\s+(.+)$")]
+    private static partial Regex AddInterestRegex();
+
+    [GeneratedRegex(@"^(index\s+search|search\s+index|find\s+in\s+index)\s+(.+)$")]
+    private static partial Regex IndexSearchRegex();
+
+    [GeneratedRegex(@"^emergence\s+(.+)$")]
+    private static partial Regex EmergenceRegex();
+
+    [GeneratedRegex(@"^(?:use\s+)?tool\s+(\w+)\s*(.*)$")]
+    private static partial Regex UseToolRegex();
 }

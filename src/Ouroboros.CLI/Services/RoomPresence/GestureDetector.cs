@@ -72,7 +72,7 @@ public sealed class GestureDetector : IAsyncDisposable
                     }
 
                     // Clean up the capture file
-                    try { File.Delete(imagePath); } catch { }
+                    try { File.Delete(imagePath); } catch (IOException) { /* best effort cleanup */ }
                 }
 
                 await Task.Delay(TimeSpan.FromSeconds(IntervalSeconds), ct).ConfigureAwait(false);
@@ -121,7 +121,7 @@ public sealed class GestureDetector : IAsyncDisposable
                 if (process.ExitCode == 0 && File.Exists(filepath))
                     return filepath;
             }
-            catch { /* try next camera name */ }
+            catch (Exception) { /* try next camera name */ }
         }
 
         return null;

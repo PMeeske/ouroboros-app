@@ -45,7 +45,7 @@ public sealed partial class ImmersiveMode
         var random = new Random();
 
         // Clear console safely (may fail in redirected/piped scenarios)
-        try { Console.Clear(); } catch { /* ignore */ }
+        try { Console.Clear(); } catch (IOException) { /* ignore — redirected console */ }
         PrintImmersiveBanner(personaName);
 
         // Initialize MeTTa engine for symbolic reasoning

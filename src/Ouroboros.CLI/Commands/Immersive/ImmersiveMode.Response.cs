@@ -483,8 +483,7 @@ public sealed partial class ImmersiveMode
             if (content == lastContent) continue;
             lastContent = content;
 
-            var cleanContent = System.Text.RegularExpressions.Regex.Replace(
-                content, @"^\[From [^\]]+\]:\s*", string.Empty);
+            var cleanContent = RecalledSessionPrefixRegex().Replace(content, string.Empty);
 
             if (role == "user")
                 sb.AppendLine($"### Human\n{cleanContent}");
@@ -561,7 +560,7 @@ public sealed partial class ImmersiveMode
         }
 
         // Remove any remaining ### markers
-        response = System.Text.RegularExpressions.Regex.Replace(response, @"###\s*(System|Human|Assistant)\s*", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+        response = MarkdownRoleMarkerRegex().Replace(response, "").Trim();
 
         // If response contains prompt keywords, it's echoing the system prompt - provide fallback
         if (response.Contains("friendly AI companion", StringComparison.OrdinalIgnoreCase) ||
@@ -666,4 +665,10 @@ User: goodbye
         }
         catch (Exception) { }
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"^\[From [^\]]+\]:\s*")]
+    private static partial System.Text.RegularExpressions.Regex RecalledSessionPrefixRegex();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"###\s*(System|Human|Assistant)\s*", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex MarkdownRoleMarkerRegex();
 }

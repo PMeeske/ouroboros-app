@@ -15,7 +15,7 @@ using Ouroboros.Application.Tools;
 /// engines concurrently, producing interleaved thought streams with modulo-square
 /// theory solving capabilities. Uses Ollama for neural inference fusion.
 /// </summary>
-public sealed class ParallelMeTTaThoughtStreams : IAsyncDisposable
+public sealed partial class ParallelMeTTaThoughtStreams : IAsyncDisposable
 {
     private readonly ConcurrentDictionary<string, MeTTaStreamNode> _nodes = new();
     private readonly Channel<ThoughtAtom> _mergedStream;
@@ -364,8 +364,7 @@ Be brief (1-2 sentences) and focus on the emergent meaning.";
         if (derivation.Contains("(square-root") || derivation.Contains("(solution"))
         {
             // Parse the claimed solution
-            var match = System.Text.RegularExpressions.Regex.Match(
-                derivation, @"\((?:square-root|solution)\s+(\d+)\)");
+            var match = SolutionExtractRegex().Match(derivation);
 
             if (match.Success && BigInteger.TryParse(match.Groups[1].Value, out var candidate))
             {
@@ -724,4 +723,7 @@ Respond with ONLY a MeTTa expression, like:
         _semaphore.Dispose();
         _cts.Dispose();
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\((?:square-root|solution)\s+(\d+)\)")]
+    private static partial System.Text.RegularExpressions.Regex SolutionExtractRegex();
 }

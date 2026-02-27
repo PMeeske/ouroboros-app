@@ -113,7 +113,7 @@ public sealed partial class RoomMode
                         episodicNote = $"[Prior context with {speaker}: {s}]";
                 }
             }
-            catch { }
+            catch (Exception) { /* episodic recall failed — non-critical */ }
         }
 
         // ── Stage 3c: Neural-symbolic hybrid (complex utterances) ────────────
@@ -130,7 +130,7 @@ public sealed partial class RoomMode
                 if (hybrid.IsSuccess && !string.IsNullOrEmpty(hybrid.Value.Answer))
                     hybridNote = $"[Symbolic: {hybrid.Value.Answer[..Math.Min(120, hybrid.Value.Answer.Length)]}]";
             }
-            catch { }
+            catch (Exception) { /* hybrid reasoning failed — non-critical */ }
         }
 
         // ── Stage 3d: Causal reasoning ────────────────────────────────────────
@@ -147,7 +147,7 @@ public sealed partial class RoomMode
                 if (explanation.IsSuccess && !string.IsNullOrEmpty(explanation.Value.NarrativeExplanation))
                     causalNote = $"[Causal: {explanation.Value.NarrativeExplanation[..Math.Min(120, explanation.Value.NarrativeExplanation.Length)]}]";
             }
-            catch { }
+            catch (Exception) { /* causal reasoning failed — non-critical */ }
         }
 
         // ── Stage 3e: Metacognitive trace start ───────────────────────────────
@@ -405,7 +405,7 @@ Reply ONLY with the sentence, nothing else.";
 
             immersive.SetPresenceState("Listening", "attentive");
         }
-        catch { /* LLM/TTS failure — stay silent */ }
+        catch (Exception) { /* LLM/TTS failure — stay silent */ }
     }
 
     // ── Gesture response ─────────────────────────────────────────────────────
@@ -474,7 +474,7 @@ Reply ONLY with the sentence.";
 
             immersive.SetPresenceState("Listening", "attentive");
         }
-        catch { /* LLM/TTS failure — stay silent */ }
+        catch (Exception) { /* LLM/TTS failure — stay silent */ }
     }
 
     // ── Presence greeting ────────────────────────────────────────────────────
@@ -521,7 +521,7 @@ Reply ONLY with the greeting.";
 
             immersive.SetPresenceState("Listening", "attentive");
         }
-        catch { /* LLM/TTS failure — stay silent */ }
+        catch (Exception) { /* LLM/TTS failure — stay silent */ }
     }
 
     /// <summary>
@@ -569,6 +569,6 @@ Reply ONLY with the sentence.";
                 finally { listener.NotifySelfSpeechEnded(); }
             }
         }
-        catch { /* LLM/TTS failure — stay silent */ }
+        catch (Exception) { /* LLM/TTS failure — stay silent */ }
     }
 }

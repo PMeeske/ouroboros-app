@@ -21,8 +21,7 @@ public sealed partial class ToolSubsystem
         var inputLower = input.ToLowerInvariant();
 
         // PTZ movement requests
-        var ptzMatch = Regex.Match(inputLower,
-            @"\b(pan\s*(left|right)|tilt\s*(up|down)|turn.*camera.*(left|right|up|down)|rotate.*camera|move.*camera.*(left|right|up|down)|point.*camera|camera.*(left|right|up|down)|look\s*(left|right|up|down)|patrol|sweep|go\s*home|center\s*camera)\b");
+        var ptzMatch = PtzCommandRegex().Match(inputLower);
         if (ptzMatch.Success)
         {
             var ptzTool = Tools.All.FirstOrDefault(t => t.Name == "camera_ptz");
@@ -60,8 +59,7 @@ public sealed partial class ToolSubsystem
         }
 
         // Camera/vision requests
-        if (Regex.IsMatch(inputLower,
-            @"\b(camera|cam|visual|snapshot|what do you see|look around|check.*room|see.*through)\b"))
+        if (CameraRequestRegex().IsMatch(inputLower))
         {
             var cameraTool = Tools.All.FirstOrDefault(t => t.Name == "capture_camera");
             if (cameraTool != null)
@@ -86,8 +84,7 @@ public sealed partial class ToolSubsystem
         }
 
         // Smart home requests
-        var smartHomeMatch = Regex.Match(inputLower,
-            @"\b(turn\s*(on|off)|switch\s*(on|off)|light\s*(on|off)|plug\s*(on|off)|set\s*(color|brightness|colour)|list\s*devices?|device\s*info)\b");
+        var smartHomeMatch = SmartHomeCommandRegex().Match(inputLower);
         if (smartHomeMatch.Success)
         {
             var smartHomeTool = Tools.All.FirstOrDefault(t => t.Name == "smart_home");
@@ -163,7 +160,7 @@ public sealed partial class ToolSubsystem
                 {
                     results.Add($"Search results for '{searchTerm}':\n{searchResult}");
 
-                    var fileMatch = Regex.Match(searchResult, @"([\w/\\]+\.cs)");
+                    var fileMatch = CsFilePathRegex().Match(searchResult);
                     if (fileMatch.Success)
                     {
                         var readTool = Tools.All.FirstOrDefault(t => t.Name == "read_my_file");
@@ -178,7 +175,7 @@ public sealed partial class ToolSubsystem
                                     results.Add($"File content ({fileMatch.Value}):\n{fileContent}");
                                 }
                             }
-                            catch { }
+                            catch (Exception) { /* file read failed — non-critical */ }
                         }
                     }
                 }
@@ -224,7 +221,7 @@ public sealed partial class ToolSubsystem
             // Pattern: "read file X" / "check file X" / "look at X.cs"
             if (thoughtLower.Contains("read") || thoughtLower.Contains("check") || thoughtLower.Contains("look at"))
             {
-                var fileMatch = Regex.Match(thought, @"([\w/\\]+\.(?:cs|json|md|txt|yaml|yml))", RegexOptions.IgnoreCase);
+                var fileMatch = SourceFilePathRegex().Match(thought);
                 if (fileMatch.Success)
                 {
                     var readTool = Tools.All.FirstOrDefault(t => t.Name == "read_my_file");
@@ -241,9 +238,9 @@ public sealed partial class ToolSubsystem
             }
 
             // Pattern: "calculate X" / "compute X" / math expressions
-            if (thoughtLower.Contains("calculate") || thoughtLower.Contains("compute") || Regex.IsMatch(thought, @"\d+\s*[+\-*/]\s*\d+"))
+            if (thoughtLower.Contains("calculate") || thoughtLower.Contains("compute") || MathExpressionRegex().IsMatch(thought))
             {
-                var mathMatch = Regex.Match(thought, @"[\d\s+\-*/().]+");
+                var mathMatch = MathTokensRegex().Match(thought);
                 if (mathMatch.Success && mathMatch.Value.Trim().Length > 2)
                 {
                     var calcTool = Tools.All.FirstOrDefault(t => t.Name == "calculator");
@@ -322,7 +319,7 @@ public sealed partial class ToolSubsystem
     /// </summary>
     internal static string ExtractSearchTarget(string thought)
     {
-        var quotedMatch = Regex.Match(thought, @"[""']([^""']+)[""']");
+        var quotedMatch = QuotedStringRegex().Match(thought);
         if (quotedMatch.Success)
             return quotedMatch.Groups[1].Value;
 
@@ -336,11 +333,11 @@ public sealed partial class ToolSubsystem
 
         foreach (var pattern in patterns)
         {
-            var match = Regex.Match(thought, pattern, RegexOptions.IgnoreCase);
+            var match = Regex.Match(thought, pattern, RegexOptions.IgnoreCase); // dynamic pattern — cannot use GeneratedRegex
             if (match.Success && match.Groups[1].Value.Length > 2)
             {
                 var target = match.Groups[1].Value.Trim();
-                target = Regex.Replace(target, @"^(the|a|an|my|our)\s+", "", RegexOptions.IgnoreCase);
+                target = LeadingArticleRegex().Replace(target, "");
                 if (target.Length > 2)
                     return target;
             }
@@ -439,4 +436,31 @@ public sealed partial class ToolSubsystem
             };
         }
     }
+
+    [GeneratedRegex(@"\b(pan\s*(left|right)|tilt\s*(up|down)|turn.*camera.*(left|right|up|down)|rotate.*camera|move.*camera.*(left|right|up|down)|point.*camera|camera.*(left|right|up|down)|look\s*(left|right|up|down)|patrol|sweep|go\s*home|center\s*camera)\b")]
+    private static partial Regex PtzCommandRegex();
+
+    [GeneratedRegex(@"\b(camera|cam|visual|snapshot|what do you see|look around|check.*room|see.*through)\b")]
+    private static partial Regex CameraRequestRegex();
+
+    [GeneratedRegex(@"\b(turn\s*(on|off)|switch\s*(on|off)|light\s*(on|off)|plug\s*(on|off)|set\s*(color|brightness|colour)|list\s*devices?|device\s*info)\b")]
+    private static partial Regex SmartHomeCommandRegex();
+
+    [GeneratedRegex(@"([\w/\\]+\.cs)")]
+    private static partial Regex CsFilePathRegex();
+
+    [GeneratedRegex(@"([\w/\\]+\.(?:cs|json|md|txt|yaml|yml))", RegexOptions.IgnoreCase)]
+    private static partial Regex SourceFilePathRegex();
+
+    [GeneratedRegex(@"\d+\s*[+\-*/]\s*\d+")]
+    private static partial Regex MathExpressionRegex();
+
+    [GeneratedRegex(@"[\d\s+\-*/().]+")]
+    private static partial Regex MathTokensRegex();
+
+    [GeneratedRegex(@"[""']([^""']+)[""']")]
+    private static partial Regex QuotedStringRegex();
+
+    [GeneratedRegex(@"^(the|a|an|my|our)\s+", RegexOptions.IgnoreCase)]
+    private static partial Regex LeadingArticleRegex();
 }

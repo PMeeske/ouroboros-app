@@ -69,7 +69,7 @@ public sealed partial class ToolSubsystem
                  responseLower.Contains("checking file") || responseLower.Contains("in the file")) &&
                 !responseLower.Contains("[tool:"))
             {
-                var fileMatch = Regex.Match(response, @"([\w/\\]+\.(?:cs|json|md|txt|yaml|yml))", RegexOptions.IgnoreCase);
+                var fileMatch = SourceFilePathRegex().Match(response);
                 if (fileMatch.Success)
                 {
                     var readTool = Tools.All.FirstOrDefault(t => t.Name == "read_my_file");
@@ -89,7 +89,7 @@ public sealed partial class ToolSubsystem
             }
 
             // Pattern: LLM talks about calculations
-            var mathMatch = Regex.Match(response, @"(\d+(?:\.\d+)?)\s*([+\-*/])\s*(\d+(?:\.\d+)?)");
+            var mathMatch = ArithmeticExpressionRegex().Match(response);
             if (mathMatch.Success && responseLower.Contains("calculat"))
             {
                 var calcTool = Tools.All.FirstOrDefault(t => t.Name == "calculator");
@@ -143,15 +143,15 @@ public sealed partial class ToolSubsystem
     /// </summary>
     internal static string ExtractClaimedSearchTarget(string response, string originalInput)
     {
-        var quotedMatch = Regex.Match(response, @"[""']([^""']+)[""']");
+        var quotedMatch = QuotedStringRegex().Match(response);
         if (quotedMatch.Success && quotedMatch.Groups[1].Value.Length > 2 && quotedMatch.Groups[1].Value.Length < 50)
             return quotedMatch.Groups[1].Value;
 
-        var fileClassMatch = Regex.Match(response, @"(\b[A-Z][a-zA-Z]+(?:Command|Manager|Service|Agent|Config|Tool|Engine)(?:\.cs)?)\b");
+        var fileClassMatch = ClassOrFileNameRegex().Match(response);
         if (fileClassMatch.Success)
             return fileClassMatch.Groups[1].Value.Replace(".cs", "");
 
-        var hyphenMatch = Regex.Match(response, @"\b([a-z]+-[a-z]+(?:-[a-z]+)?)\b", RegexOptions.IgnoreCase);
+        var hyphenMatch = HyphenatedWordRegex().Match(response);
         if (hyphenMatch.Success && hyphenMatch.Groups[1].Value.Length > 4)
             return hyphenMatch.Groups[1].Value;
 
@@ -167,11 +167,11 @@ public sealed partial class ToolSubsystem
 
         foreach (var pattern in patterns)
         {
-            var match = Regex.Match(response, pattern, RegexOptions.IgnoreCase);
+            var match = Regex.Match(response, pattern, RegexOptions.IgnoreCase); // dynamic pattern — cannot use GeneratedRegex
             if (match.Success && match.Groups[1].Value.Length > 2 && match.Groups[1].Value.Length < 50)
             {
                 var target = match.Groups[1].Value.Trim();
-                target = Regex.Replace(target, @"^(the|a|an|my|your|our|some|any)\s+", "", RegexOptions.IgnoreCase);
+                target = LeadingArticleExtendedRegex().Replace(target, "");
                 target = target.TrimEnd('.', ',', '!', '?');
                 if (target.Length > 2 && !target.Contains(" there ") && !target.Contains(" was "))
                     return target;
@@ -221,7 +221,7 @@ public sealed partial class ToolSubsystem
         ];
 
         bool llmClaimingToolsUnavailable = falseClaimPatterns.Any(pattern =>
-            Regex.IsMatch(response, pattern, RegexOptions.IgnoreCase));
+            Regex.IsMatch(response, pattern, RegexOptions.IgnoreCase)); // dynamic pattern — cannot use GeneratedRegex
 
         if (llmClaimingToolsUnavailable)
         {
@@ -242,4 +242,16 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
 
         return response;
     }
+
+    [GeneratedRegex(@"(\d+(?:\.\d+)?)\s*([+\-*/])\s*(\d+(?:\.\d+)?)")]
+    private static partial Regex ArithmeticExpressionRegex();
+
+    [GeneratedRegex(@"(\b[A-Z][a-zA-Z]+(?:Command|Manager|Service|Agent|Config|Tool|Engine)(?:\.cs)?)\b")]
+    private static partial Regex ClassOrFileNameRegex();
+
+    [GeneratedRegex(@"\b([a-z]+-[a-z]+(?:-[a-z]+)?)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex HyphenatedWordRegex();
+
+    [GeneratedRegex(@"^(the|a|an|my|your|our|some|any)\s+", RegexOptions.IgnoreCase)]
+    private static partial Regex LeadingArticleExtendedRegex();
 }

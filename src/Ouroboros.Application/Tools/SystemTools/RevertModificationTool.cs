@@ -9,7 +9,7 @@ using System.Text.RegularExpressions;
 /// <summary>
 /// Revert a self-modification by restoring from backup.
 /// </summary>
-internal class RevertModificationTool : ITool
+internal partial class RevertModificationTool : ITool
 {
     public string Name => "revert_modification";
     public string Description => "Revert a self-modification by restoring from a backup file. Input: path to backup file (e.g., 'src/file.cs.backup.20241212_153000').";
@@ -31,7 +31,7 @@ internal class RevertModificationTool : ITool
             }
 
             // Extract original file path by removing .backup.* suffix
-            var originalPath = Regex.Replace(backupPath, @"\.backup\.\d{8}_\d{6}$", "");
+            var originalPath = BackupSuffixRegex().Replace(backupPath, "");
 
             if (originalPath == backupPath)
             {
@@ -58,4 +58,7 @@ internal class RevertModificationTool : ITool
             return Result<string, string>.Failure($"Revert failed: {ex.Message}");
         }
     }
+
+    [GeneratedRegex(@"\.backup\.\d{8}_\d{6}$")]
+    private static partial Regex BackupSuffixRegex();
 }

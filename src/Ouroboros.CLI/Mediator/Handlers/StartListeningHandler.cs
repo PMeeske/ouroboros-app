@@ -83,7 +83,7 @@ public sealed class StartListeningHandler : IRequestHandler<StartListeningReques
             ct.Register(() =>
             {
                 try { _ = speechSynthesizer.StopSpeakingAsync(); }
-                catch { /* Best effort */ }
+                catch (Exception) { /* Best effort barge-in stop */ }
             });
 
             // Detect the response language via LanguageSubsystem (Ollama LLM -> heuristic fallback).

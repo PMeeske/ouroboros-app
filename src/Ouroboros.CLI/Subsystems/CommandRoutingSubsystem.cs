@@ -12,7 +12,7 @@ using Ouroboros.Domain;
 /// Command routing subsystem: parses raw user input into typed action triples
 /// and provides system-level informational responses (help, status, mood, DSL tokens).
 /// </summary>
-public sealed class CommandRoutingSubsystem : ICommandRoutingSubsystem
+public sealed partial class CommandRoutingSubsystem : ICommandRoutingSubsystem
 {
     public string Name => "CommandRouting";
     public bool IsInitialized { get; private set; }
@@ -618,9 +618,12 @@ public sealed class CommandRoutingSubsystem : ICommandRoutingSubsystem
 
     private static string ExtractToolName(string input)
     {
-        var match = Regex.Match(input, @"(?:make|create|add)\s+(?:a\s+)?(\w+)\s+tool", RegexOptions.IgnoreCase);
+        var match = CreateToolNameRegex().Match(input);
         return match.Success ? match.Groups[1].Value : input.Split(' ').Last();
     }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+
+    [GeneratedRegex(@"(?:make|create|add)\s+(?:a\s+)?(\w+)\s+tool", RegexOptions.IgnoreCase)]
+    private static partial Regex CreateToolNameRegex();
 }

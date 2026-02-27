@@ -1,11 +1,12 @@
-﻿using Ouroboros.Genetic.Abstractions;
+﻿using System.Text.RegularExpressions;
+using Ouroboros.Genetic.Abstractions;
 
 namespace Ouroboros.Application.Tools;
 
 /// <summary>
 /// Fitness function for action sequences using LLM evaluation.
 /// </summary>
-public sealed class ActionSequenceFitness : IFitnessFunction<ActionGene>
+public sealed partial class ActionSequenceFitness : IFitnessFunction<ActionGene>
 {
     private readonly ToolAwareChatModel _llm;
     private readonly string _goal;
@@ -35,7 +36,7 @@ Just respond with a number 0-100.";
         try
         {
             string response = await _llm.InnerModel.GenerateTextAsync(prompt);
-            var match = System.Text.RegularExpressions.Regex.Match(response, @"\d+");
+            var match = DigitsRegex().Match(response);
             if (match.Success && int.TryParse(match.Value, out int score))
             {
                 // Normalize and add bonus for shorter sequences
@@ -44,12 +45,15 @@ Just respond with a number 0-100.";
                 return Math.Min(normalizedScore + lengthBonus, 1.0);
             }
         }
-        catch
+        catch (Exception)
         {
-            // Ignore errors
+            // LLM evaluation failed — fall through to heuristic
         }
 
         // Heuristic fallback
         return 0.3 + (chromosome.Genes.Count > 0 ? 0.2 : 0.0);
     }
+
+    [GeneratedRegex(@"\d+")]
+    private static partial Regex DigitsRegex();
 }

@@ -201,7 +201,7 @@ public sealed class CognitiveStreamEngine : IDisposable
             .Subscribe(evt =>
             {
                 try { RenderToConsole(evt); }
-                catch { /* never crash the stream due to display errors */ }
+                catch (Exception) { /* never crash the stream due to display errors */ }
             });
         _disposables.Add(sub);
     }

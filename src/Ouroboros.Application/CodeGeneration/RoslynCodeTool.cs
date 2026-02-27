@@ -12,7 +12,7 @@ namespace Ouroboros.Application.CodeGeneration;
 /// Roslyn-based code analysis, generation, and refactoring tool.
 /// Provides full code creation/edit capabilities with analyzer support.
 /// </summary>
-public class RoslynCodeTool
+public partial class RoslynCodeTool
 {
     private readonly AdhocWorkspace _workspace;
 
@@ -701,11 +701,7 @@ namespace Ouroboros.SourceGenerators
     private string ExtractCodeFromMarkdown(string response)
     {
         // Extract code from markdown code blocks
-        string pattern = @"```(?:csharp|cs|c#)?\s*\n(.*?)\n```";
-        System.Text.RegularExpressions.Match match = System.Text.RegularExpressions.Regex.Match(
-            response,
-            pattern,
-            System.Text.RegularExpressions.RegexOptions.Singleline);
+        System.Text.RegularExpressions.Match match = MarkdownCodeBlockRegex().Match(response);
 
         return match.Success ? match.Groups[1].Value.Trim() : response.Trim();
     }
@@ -724,4 +720,7 @@ namespace Ouroboros.SourceGenerators
             MetadataReference.CreateFromFile(Path.Combine(assemblyPath, "System.Linq.dll")),
         };
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"```(?:csharp|cs|c#)?\s*\n(.*?)\n```", System.Text.RegularExpressions.RegexOptions.Singleline)]
+    private static partial System.Text.RegularExpressions.Regex MarkdownCodeBlockRegex();
 }

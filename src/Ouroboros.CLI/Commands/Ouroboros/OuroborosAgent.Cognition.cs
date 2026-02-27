@@ -86,7 +86,7 @@ public sealed partial class OuroborosAgent
             Ouroboros.CLI.Services.RoomPresence.RoomIntentBus.Reset();
             await roomCts.CancelAsync();
             try { await roomTask.WaitAsync(TimeSpan.FromSeconds(3)); }
-            catch { /* best-effort */ }
+            catch (Exception) { /* best-effort room shutdown */ }
         }
     }
 

@@ -118,7 +118,7 @@ public sealed partial class CognitiveSubsystem
                     }
                 }
             }
-            catch { /* MeTTa may not be initialized */ }
+            catch (Exception) { /* MeTTa may not be initialized */ }
         }
 
         // Check conversation pattern emergence
@@ -241,7 +241,7 @@ Be creative and philosophical but grounded. 2-3 sentences max.";
                     dreamMaterial.AddRange(facts);
                 }
             }
-            catch { }
+            catch (Exception) { /* MeTTa dream query failed */ }
         }
 
         // Generate dream content

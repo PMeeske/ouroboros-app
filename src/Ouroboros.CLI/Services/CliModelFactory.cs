@@ -59,7 +59,7 @@ public static class CliModelFactory
                 ApplyModelPreset(model, modelName);
             }
         }
-        catch { /* best-effort */ }
+        catch (Exception) { /* best-effort preset application */ }
     }
 
     // ── Embedding model ─────────────────────────────────────────────────────

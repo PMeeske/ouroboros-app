@@ -83,7 +83,7 @@ public static class PipelineCommands
                         m.Settings = OllamaPresets.Phi3MiniGeneral;
                     }
                 }
-                catch { /* non-fatal: fall back to provider defaults */ }
+                catch (Exception) { /* non-fatal: fall back to provider defaults */ }
                 return new OllamaChatAdapter(m, settings?.Culture);
             }
             string general = pipelineOpts.GeneralModel ?? modelName;
@@ -126,7 +126,7 @@ public static class PipelineCommands
                 else if (n.StartsWith("qwen2.5") || n.Contains("qwen")) chat.Settings = OllamaPresets.Qwen25_7B_General;
                 else if (n.StartsWith("phi3") || n.Contains("phi-3")) chat.Settings = OllamaPresets.Phi3MiniGeneral;
             }
-            catch { /* ignore and use defaults */ }
+            catch (Exception) { /* ignore and use defaults */ }
             chatModel = new OllamaChatAdapter(chat, settings?.Culture); // adapter added below
         }
         IEmbeddingModel embed = ServiceFactory.CreateEmbeddingModel(endpoint, apiKey, endpointType, embedName, provider);

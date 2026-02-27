@@ -156,7 +156,7 @@ Example: [Learn] I should consolidate my understanding of the recent coding task
             var response = await Models.ChatModel.GenerateTextAsync(thoughtPrompt);
 
             // Parse the thought
-            var match = Regex.Match(response, @"\[(\w+)\]\s*(.+)", RegexOptions.Singleline);
+            var match = AutonomousThoughtRegex().Match(response);
             if (match.Success)
             {
                 var actionType = match.Groups[1].Value;
@@ -344,4 +344,7 @@ Example: [Learn] I should consolidate my understanding of the recent coding task
             AnsiConsole.MarkupLine($"  [rgb(148,103,189)]{Markup.Escape($"[self-improvement] Queued learning goal: {gap}")}[/]");
         }
     }
+
+    [GeneratedRegex(@"\[(\w+)\]\s*(.+)", RegexOptions.Singleline)]
+    private static partial Regex AutonomousThoughtRegex();
 }

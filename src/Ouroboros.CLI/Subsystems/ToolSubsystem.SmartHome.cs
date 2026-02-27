@@ -38,16 +38,15 @@ public sealed partial class ToolSubsystem
     /// </summary>
     internal static string ExtractDeviceName(string input)
     {
-        var quoteMatch = Regex.Match(input, @"[""']([^""']+)[""']");
+        var quoteMatch = DeviceQuotedNameRegex().Match(input);
         if (quoteMatch.Success)
             return quoteMatch.Groups[1].Value.Trim();
 
-        var afterAction = Regex.Match(input,
-            @"\b(?:turn\s*(?:on|off)|switch\s*(?:on|off))\s+(?:the\s+)?(.+?)(?:\s+(?:light|lamp|plug|switch|bulb|strip))?$");
+        var afterAction = DeviceAfterActionRegex().Match(input);
         if (afterAction.Success)
         {
             var raw = afterAction.Groups[1].Value.Trim();
-            raw = Regex.Replace(raw, @"\s*(please|now|for me)\s*$", "").Trim();
+            raw = PoliteSuffixRegex().Replace(raw, "").Trim();
             if (!string.IsNullOrEmpty(raw))
                 return raw;
         }
@@ -83,6 +82,15 @@ public sealed partial class ToolSubsystem
         "openclaw_pc_toggle_capability",
         "openclaw_approval_respond",
     };
+
+    [GeneratedRegex(@"[""']([^""']+)[""']")]
+    private static partial Regex DeviceQuotedNameRegex();
+
+    [GeneratedRegex(@"\b(?:turn\s*(?:on|off)|switch\s*(?:on|off))\s+(?:the\s+)?(.+?)(?:\s+(?:light|lamp|plug|switch|bulb|strip))?$")]
+    private static partial Regex DeviceAfterActionRegex();
+
+    [GeneratedRegex(@"\s*(please|now|for me)\s*$")]
+    private static partial Regex PoliteSuffixRegex();
 
     /// <summary>
     /// Read-only / harmless tools that are exempt from permission checks.

@@ -40,7 +40,7 @@ public class FirecrawlScrapeTool : ITool
             if (doc.RootElement.TryGetProperty("url", out var urlEl))
                 url = urlEl.GetString() ?? url;
         }
-        catch { /* Use raw input as URL */ }
+        catch (System.Text.Json.JsonException) { /* Use raw input as URL */ }
 
         if (string.IsNullOrWhiteSpace(url))
             return Result<string, string>.Failure("No URL provided. Usage: firecrawl_scrape <url>");

@@ -304,7 +304,7 @@ public sealed partial class AutonomySubsystem : IAutonomySubsystem
                         var result = await ctx.Memory.MeTTaEngine.ExecuteQueryAsync(expr, ct);
                         return result.Match(s => s, e => "False");
                     }
-                    catch { return "False"; }
+                    catch (Exception) { return "False"; }
                 };
             }
 
@@ -346,7 +346,7 @@ public sealed partial class AutonomySubsystem : IAutonomySubsystem
         SelfExecutionCts?.Cancel();
         if (SelfExecutionTask != null)
         {
-            try { await SelfExecutionTask; } catch { /* ignored */ }
+            try { await SelfExecutionTask; } catch (OperationCanceledException) { /* expected on shutdown */ }
         }
         SelfExecutionCts?.Dispose();
 
@@ -354,7 +354,7 @@ public sealed partial class AutonomySubsystem : IAutonomySubsystem
         PushModeCts?.Cancel();
         if (PushModeTask != null)
         {
-            try { await PushModeTask; } catch { /* ignored */ }
+            try { await PushModeTask; } catch (OperationCanceledException) { /* expected on shutdown */ }
         }
         PushModeCts?.Dispose();
 

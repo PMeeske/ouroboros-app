@@ -354,7 +354,7 @@ public sealed partial class QdrantSelfIndexer : IAsyncDisposable
 
         if (_debounceTask != null)
         {
-            try { await _debounceTask; } catch { }
+            try { await _debounceTask; } catch (Exception) { /* debounce may have been cancelled */ }
         }
 
         _watcherCts.Dispose();

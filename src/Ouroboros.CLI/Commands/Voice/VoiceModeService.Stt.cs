@@ -66,7 +66,7 @@ public sealed partial class VoiceModeService
                 }
                 finally
                 {
-                    try { File.Delete(audioFile); } catch { }
+                    try { File.Delete(audioFile); } catch (IOException) { /* best effort cleanup */ }
                 }
             }
         }

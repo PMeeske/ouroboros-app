@@ -206,8 +206,8 @@ public sealed partial class VoiceModeService
     private static string SanitizeForTts(string text)
     {
         // Remove code blocks and inline code
-        var sanitized = System.Text.RegularExpressions.Regex.Replace(text, @"```[\s\S]*?```", " ");
-        sanitized = System.Text.RegularExpressions.Regex.Replace(sanitized, @"`[^`]+`", " ");
+        var sanitized = FencedCodeBlockRegex().Replace(text, " ");
+        sanitized = InlineCodeRegex().Replace(sanitized, " ");
 
         // Remove emojis - keep only ASCII printable and extended Latin
         var sb = new System.Text.StringBuilder();
@@ -224,7 +224,7 @@ public sealed partial class VoiceModeService
         }
 
         // Normalize whitespace
-        return System.Text.RegularExpressions.Regex.Replace(sb.ToString(), @"\s+", " ").Trim();
+        return WhitespaceCollapseRegex().Replace(sb.ToString(), " ").Trim();
     }
 
     private async Task SpeakWithLocalTtsAsync(string text, bool isWhisper = false)
@@ -350,4 +350,13 @@ public sealed partial class VoiceModeService
 
         return chunks;
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"```[\s\S]*?```")]
+    private static partial System.Text.RegularExpressions.Regex FencedCodeBlockRegex();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"`[^`]+`")]
+    private static partial System.Text.RegularExpressions.Regex InlineCodeRegex();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\s+")]
+    private static partial System.Text.RegularExpressions.Regex WhitespaceCollapseRegex();
 }

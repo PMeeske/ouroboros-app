@@ -77,7 +77,7 @@ public class CliDslTool : ITool
             if (doc.RootElement.TryGetProperty("list", out var listEl))
                 list = listEl.GetBoolean();
         }
-        catch { /* Use raw input as DSL */ }
+        catch (System.Text.Json.JsonException) { /* Use raw input as DSL */ }
 
         // Handle list request
         if (list || dsl.Equals("list", StringComparison.OrdinalIgnoreCase) ||

@@ -109,7 +109,7 @@ public sealed class AutonomousActionEngine : IDisposable
                 }
             }
             catch (OperationCanceledException) { break; }
-            catch { /* individual cycle failures are non-fatal */ }
+            catch (Exception) { /* individual cycle failures are non-fatal */ }
 
             await Task.Delay(Interval, ct).ConfigureAwait(false);
         }

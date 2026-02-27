@@ -244,12 +244,14 @@ public sealed class PcNodeSecurityConfig
     public static PcNodeSecurityConfig CreateFromFile(string path)
     {
         var json = File.ReadAllText(path);
-        return JsonSerializer.Deserialize<PcNodeSecurityConfig>(json, new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true,
-            ReadCommentHandling = JsonCommentHandling.Skip,
-            AllowTrailingCommas = true,
-            Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
-        }) ?? new PcNodeSecurityConfig();
+        return JsonSerializer.Deserialize<PcNodeSecurityConfig>(json, ConfigFileJsonOptions) ?? new PcNodeSecurityConfig();
     }
+
+    private static readonly JsonSerializerOptions ConfigFileJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        ReadCommentHandling = JsonCommentHandling.Skip,
+        AllowTrailingCommas = true,
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
+    };
 }

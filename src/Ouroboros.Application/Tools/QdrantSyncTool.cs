@@ -69,10 +69,16 @@ public sealed class QdrantSyncTool : ITool, IDisposable
         else
         {
             _cloudBaseUrl = "";
-            _cloudClient = new HttpClient();
+            _cloudClient = UnconfiguredCloudClient;
             _isConfigured = false;
         }
     }
+
+    /// <summary>Shared placeholder client for the unconfigured cloud path (never called).</summary>
+    private static readonly HttpClient UnconfiguredCloudClient = new(new SocketsHttpHandler
+    {
+        PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+    });
 
     /// <inheritdoc/>
     public string Name => "qdrant_sync";

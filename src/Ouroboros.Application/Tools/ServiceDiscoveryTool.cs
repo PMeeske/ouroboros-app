@@ -203,7 +203,7 @@ public sealed class ServiceDiscoveryTool : ITool
         if (!string.IsNullOrWhiteSpace(argsJson))
         {
             try { jsonRoot = JsonDocument.Parse(argsJson).RootElement; }
-            catch { /* plain-string fallback */ }
+            catch (System.Text.Json.JsonException) { /* plain-string fallback */ }
         }
 
         for (int i = 0; i < parameters.Length; i++)

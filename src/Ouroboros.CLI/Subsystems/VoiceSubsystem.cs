@@ -109,7 +109,7 @@ public sealed class VoiceSubsystem : IVoiceSubsystem
         ListeningCts?.Cancel();
         if (ListeningTask != null)
         {
-            try { await ListeningTask; } catch { /* expected */ }
+            try { await ListeningTask; } catch (OperationCanceledException) { /* expected on shutdown */ }
         }
         ListeningCts?.Dispose();
 

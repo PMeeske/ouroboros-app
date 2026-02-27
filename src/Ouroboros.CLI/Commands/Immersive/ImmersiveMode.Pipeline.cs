@@ -108,7 +108,7 @@ public sealed partial class ImmersiveMode
             foreach (var stepStr in steps)
             {
                 // Parse step: "TokenName 'arg'" or "TokenName arg" or just "TokenName"
-                var match = Regex.Match(stepStr, @"^(\w+)\s*(?:'([^']*)'|""([^""]*)""|(.*))?$");
+                var match = PipelineStepRegex().Match(stepStr);
                 if (!match.Success)
                 {
                     AnsiConsole.MarkupLine($"      [red]{Markup.Escape($"[!] Invalid step syntax: {stepStr}")}[/]");
@@ -208,7 +208,7 @@ public sealed partial class ImmersiveMode
             return null;
 
         // Parse: "TokenName arg" or "TokenName 'arg'"
-        var match = Regex.Match(input.Trim(), @"^(\w+)\s*(?:'([^']*)'|""([^""]*)""|(.*))?$");
+        var match = PipelineStepRegex().Match(input.Trim());
         if (!match.Success) return null;
 
         string tokenName = match.Groups[1].Value;
@@ -314,7 +314,7 @@ public sealed partial class ImmersiveMode
 
         foreach (var (pattern, token, argGroup) in patterns)
         {
-            var match = Regex.Match(lower, pattern, RegexOptions.IgnoreCase);
+            var match = Regex.Match(lower, pattern, RegexOptions.IgnoreCase); // dynamic pattern — cannot use GeneratedRegex
             if (match.Success && _allTokens.ContainsKey(token))
             {
                 var arg = match.Groups[argGroup].Value.Trim();
@@ -346,4 +346,7 @@ public sealed partial class ImmersiveMode
 
         return $"I completed an emergence cycle on {topic}. I've synthesized new patterns from the research.";
     }
+
+    [GeneratedRegex(@"^(\w+)\s*(?:'([^']*)'|""([^""]*)""|(.*))?$")]
+    private static partial Regex PipelineStepRegex();
 }

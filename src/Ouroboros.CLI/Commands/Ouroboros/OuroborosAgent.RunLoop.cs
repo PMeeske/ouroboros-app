@@ -140,7 +140,7 @@ public sealed partial class OuroborosAgent
                             await _personalityEngine.SavePersonalitySnapshotAsync(_voice.ActivePersona.Name);
                             System.Diagnostics.Debug.WriteLine("[Personality] Periodic snapshot saved");
                         }
-                        catch { /* Ignore */ }
+                        catch (Exception) { /* Ignore — snapshot is non-critical */ }
                     });
                     interactionsSinceSnapshot = 0;
                 }

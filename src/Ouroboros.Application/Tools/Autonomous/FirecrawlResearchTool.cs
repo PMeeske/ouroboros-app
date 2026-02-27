@@ -41,7 +41,7 @@ public partial class FirecrawlResearchTool : ITool
             if (doc.RootElement.TryGetProperty("query", out var queryEl))
                 query = queryEl.GetString() ?? query;
         }
-        catch { /* Use raw input as query */ }
+        catch (System.Text.Json.JsonException) { /* Use raw input as query */ }
 
         if (string.IsNullOrWhiteSpace(query))
             return Result<string, string>.Failure("No query provided");

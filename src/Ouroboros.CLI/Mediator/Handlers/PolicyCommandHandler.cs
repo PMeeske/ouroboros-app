@@ -8,7 +8,7 @@ namespace Ouroboros.CLI.Mediator;
 /// MediatR handler for <see cref="PolicyCommandRequest"/>.
 /// Extracted from <c>OuroborosAgent.PolicyCommandAsync</c>.
 /// </summary>
-public sealed class PolicyCommandHandler : IRequestHandler<PolicyCommandRequest, string>
+public sealed partial class PolicyCommandHandler : IRequestHandler<PolicyCommandRequest, string>
 {
     private readonly OuroborosAgent _agent;
 
@@ -60,7 +60,7 @@ public sealed class PolicyCommandHandler : IRequestHandler<PolicyCommandRequest,
                 }
                 if (argument.Contains("--risk-level"))
                 {
-                    var match = Regex.Match(argument, @"--risk-level\s+(\w+)");
+                    var match = RiskLevelArgRegex().Match(argument);
                     if (match.Success)
                     {
                         policyOpts.RiskLevel = match.Groups[1].Value;
@@ -120,4 +120,7 @@ public sealed class PolicyCommandHandler : IRequestHandler<PolicyCommandRequest,
             return $"Policy command failed: {ex.Message}";
         }
     }
+
+    [GeneratedRegex(@"--risk-level\s+(\w+)")]
+    private static partial Regex RiskLevelArgRegex();
 }

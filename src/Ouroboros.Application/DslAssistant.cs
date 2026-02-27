@@ -7,7 +7,7 @@ namespace Ouroboros.Application;
 /// GitHub Copilot-like assistant for Ouroboros CLI DSL.
 /// Provides intelligent code completion, suggestions, and error recovery for pipeline DSL.
 /// </summary>
-public class DslAssistant
+public partial class DslAssistant
 {
     private readonly ToolAwareChatModel _llm;
     private readonly ToolRegistry _tools;
@@ -283,7 +283,7 @@ You provide intelligent code completion, error recovery, and guidance.";
         foreach (string line in lines.Take(maxSuggestions * 3)) // Process more lines than needed
         {
             // Match numbered list format: "1. TokenName - explanation"
-            if (System.Text.RegularExpressions.Regex.Match(line, @"^\d+\.\s+(\w+)(?:\([^)]*\))?\s*-\s*(.+)$") is var match && match.Success)
+            if (NumberedListSuggestionRegex().Match(line) is var match && match.Success)
             {
                 string token = match.Groups[1].Value;
                 string explanation = match.Groups[2].Value;
@@ -307,9 +307,7 @@ You provide intelligent code completion, error recovery, and guidance.";
     {
         string name = token;
         string? args = null;
-        System.Text.RegularExpressions.Match m = System.Text.RegularExpressions.Regex.Match(
-            token, 
-            @"^(?<name>[A-Za-z0-9_<>:, ]+)\s*\((?<args>.*)\)\s*$");
+        System.Text.RegularExpressions.Match m = DslTokenParseRegex().Match(token);
         
         if (m.Success)
         {
@@ -371,4 +369,10 @@ You provide intelligent code completion, error recovery, and guidance.";
         
         return sb.ToString();
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"^\d+\.\s+(\w+)(?:\([^)]*\))?\s*-\s*(.+)$")]
+    private static partial System.Text.RegularExpressions.Regex NumberedListSuggestionRegex();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"^(?<name>[A-Za-z0-9_<>:, ]+)\s*\((?<args>.*)\)\s*$")]
+    private static partial System.Text.RegularExpressions.Regex DslTokenParseRegex();
 }

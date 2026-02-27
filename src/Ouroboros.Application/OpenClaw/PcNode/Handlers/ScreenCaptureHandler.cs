@@ -69,7 +69,7 @@ public sealed class ScreenCaptureHandler : IPcNodeCapabilityHandler
         finally
         {
             // Clean up the temporary file
-            try { File.Delete(filePath); } catch { /* best effort */ }
+            try { File.Delete(filePath); } catch (IOException) { /* best effort cleanup */ }
         }
     }
 }

@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 
 namespace Ouroboros.Application;
 
-public static class ReasoningCliSteps
+public static partial class ReasoningCliSteps
 {
     [PipelineToken("UseDraft")]
     public static Step<CliPipelineState, CliPipelineState> UseDraft(string? args = null)
@@ -460,7 +460,7 @@ public static class ReasoningCliSteps
             int count = 1;
             if (!string.IsNullOrWhiteSpace(args))
             {
-                Match m = Regex.Match(args, @"\s*(\d+)\s*");
+                Match m = DigitsRegex().Match(args);
                 if (m.Success && int.TryParse(m.Groups[1].Value, out int n)) count = n;
             }
 
@@ -482,5 +482,8 @@ public static class ReasoningCliSteps
             }
             return s;
         };
+
+    [GeneratedRegex(@"\s*(\d+)\s*")]
+    private static partial Regex DigitsRegex();
 }
 

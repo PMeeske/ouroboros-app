@@ -226,7 +226,7 @@ public sealed class PersonDetectionEngine
 
                     _knownPersons[person.Id] = person;
                 }
-                catch { /* Skip malformed entries */ }
+                catch (Exception) { /* Skip malformed entries */ }
             }
 
             if (_knownPersons.Count > 0)
@@ -320,7 +320,7 @@ public sealed class PersonDetectionEngine
 
         foreach (var (pattern, confidence) in patterns)
         {
-            var match = System.Text.RegularExpressions.Regex.Match(message, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            var match = System.Text.RegularExpressions.Regex.Match(message, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase); // dynamic pattern from multilingual list — cannot use GeneratedRegex
             if (match.Success && match.Groups.Count > 1)
             {
                 var name = match.Groups[1].Value.Trim();

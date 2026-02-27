@@ -334,7 +334,7 @@ public static class AgentToolFactory
             }
             catch (OperationCanceledException)
             {
-                try { process.Kill(entireProcessTree: true); } catch { /* best-effort */ }
+                try { process.Kill(entireProcessTree: true); } catch (InvalidOperationException) { /* process already exited */ }
                 return s.CancellationToken.IsCancellationRequested
                     ? "Error: Command cancelled"
                     : $"Error: Command timed out after {CommandTimeout.TotalSeconds}s and was killed";
