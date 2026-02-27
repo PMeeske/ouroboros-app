@@ -364,7 +364,7 @@ public static class StreamingCliSteps
 
             // Collect full response for state tracking
             System.Text.StringBuilder fullResponse = new System.Text.StringBuilder();
-            using System.Threading.ManualResetEventSlim completionEvent = new System.Threading.ManualResetEventSlim(false);
+            var completionTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             Exception? streamError = null;
 
             // Subscribe to the Rx stream with console sink
@@ -380,7 +380,7 @@ public static class StreamingCliSteps
                     Console.WriteLine();
                     Console.WriteLine($"[stream:error] {ex.Message}");
                     streamError = ex;
-                    completionEvent.Set();
+                    completionTcs.TrySetResult(false);
                 },
                 onCompleted: () =>
                 {
@@ -388,15 +388,15 @@ public static class StreamingCliSteps
                     {
                         Console.WriteLine();
                     }
-                    completionEvent.Set();
+                    completionTcs.TrySetResult(true);
                 }
             );
 
             // Register subscription for cleanup
             s.Streaming.Register(subscription);
 
-            // Wait for stream completion without blocking the thread
-            await Task.Run(() => completionEvent.Wait());
+            // Wait for stream completion asynchronously via TaskCompletionSource
+            await completionTcs.Task.ConfigureAwait(false);
 
             // Update state with the full response
             if (streamError == null)

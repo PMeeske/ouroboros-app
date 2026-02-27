@@ -22,12 +22,12 @@ public class AutonomousToolsTests : IDisposable
     public AutonomousToolsTests()
     {
         _coordinator = new AutonomousCoordinator();
-        AutonomousTools.SharedCoordinator = _coordinator;
+        AutonomousTools.LegacyCoordinator = _coordinator;
     }
 
     public void Dispose()
     {
-        AutonomousTools.SharedCoordinator = null;
+        AutonomousTools.LegacyCoordinator = null;
         _coordinator.Dispose();
         GC.SuppressFinalize(this);
     }
@@ -40,7 +40,7 @@ public class AutonomousToolsTests : IDisposable
     public async Task GetAutonomousStatus_WhenCoordinatorNull_ShouldReturnFailure()
     {
         // Arrange
-        AutonomousTools.SharedCoordinator = null;
+        AutonomousTools.LegacyCoordinator = null;
         var tool = new GetAutonomousStatusTool();
 
         // Act
@@ -71,7 +71,7 @@ public class AutonomousToolsTests : IDisposable
     public async Task ListPendingIntentions_WhenCoordinatorNull_ShouldReturnFailure()
     {
         // Arrange
-        AutonomousTools.SharedCoordinator = null;
+        AutonomousTools.LegacyCoordinator = null;
         var tool = new ListPendingIntentionsTool();
 
         // Act
@@ -121,7 +121,7 @@ public class AutonomousToolsTests : IDisposable
     public async Task ApproveIntention_WhenCoordinatorNull_ShouldReturnFailure()
     {
         // Arrange
-        AutonomousTools.SharedCoordinator = null;
+        AutonomousTools.LegacyCoordinator = null;
         var tool = new ApproveIntentionTool();
 
         // Act
@@ -295,7 +295,7 @@ public class AutonomousToolsTests : IDisposable
     public async Task ProposeIntention_WhenCoordinatorNull_ShouldReturnFailure()
     {
         // Arrange
-        AutonomousTools.SharedCoordinator = null;
+        AutonomousTools.LegacyCoordinator = null;
         var tool = new ProposeIntentionTool();
 
         // Act
@@ -386,7 +386,7 @@ public class AutonomousToolsTests : IDisposable
     public async Task ToggleAutonomous_WhenCoordinatorNull_ShouldReturnFailure()
     {
         // Arrange
-        AutonomousTools.SharedCoordinator = null;
+        AutonomousTools.LegacyCoordinator = null;
         var tool = new ToggleAutonomousModeTool();
 
         // Act
@@ -432,7 +432,7 @@ public class AutonomousToolsTests : IDisposable
     public async Task InjectGoal_WhenCoordinatorNull_ShouldReturnFailure()
     {
         // Arrange
-        AutonomousTools.SharedCoordinator = null;
+        AutonomousTools.LegacyCoordinator = null;
         var tool = new InjectGoalTool();
 
         // Act
@@ -466,7 +466,7 @@ public class AutonomousToolsTests : IDisposable
     public async Task SendNeuronMessage_WhenCoordinatorNull_ShouldReturnFailure()
     {
         // Arrange
-        AutonomousTools.SharedCoordinator = null;
+        AutonomousTools.LegacyCoordinator = null;
         var tool = new SendNeuronMessageTool();
 
         // Act
@@ -512,7 +512,7 @@ public class AutonomousToolsTests : IDisposable
     public async Task SearchNeuronHistory_WhenCoordinatorNull_ShouldReturnFailure()
     {
         // Arrange
-        AutonomousTools.SharedCoordinator = null;
+        AutonomousTools.LegacyCoordinator = null;
         var tool = new SearchNeuronHistoryTool();
 
         // Act
@@ -543,7 +543,7 @@ public class AutonomousToolsTests : IDisposable
     public async Task GetNetworkStatus_WhenCoordinatorNull_ShouldReturnFailure()
     {
         // Arrange
-        AutonomousTools.SharedCoordinator = null;
+        AutonomousTools.LegacyCoordinator = null;
         var tool = new GetNetworkStatusTool();
 
         // Act

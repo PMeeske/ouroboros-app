@@ -22,7 +22,7 @@ using Ouroboros.Tools;
 /// Factory for dynamically generating, compiling, and registering tools at runtime.
 /// Uses Roslyn for compilation and LLM for code generation.
 /// </summary>
-public class DynamicToolFactory
+public partial class DynamicToolFactory
 {
     private readonly ToolAwareChatModel _llm;
     private readonly PlaywrightMcpTool? _playwrightMcpTool;
@@ -31,6 +31,19 @@ public class DynamicToolFactory
     private readonly List<MetadataReference> _references;
     private readonly string _storagePath;
     private int _toolCounter;
+
+    /// <summary>
+    /// Dangerous namespaces that must not appear in dynamically compiled tool code.
+    /// These namespaces allow arbitrary file/process/network/emit access and are blocked
+    /// to prevent sandbox escape in LLM-generated tools.
+    /// </summary>
+    private static readonly string[] BlockedNamespaces =
+    [
+        "System.IO",
+        "System.Diagnostics",
+        "System.Net",
+        "System.Reflection.Emit",
+    ];
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DynamicToolFactory"/> class.
@@ -63,57 +76,6 @@ public class DynamicToolFactory
             .AddStrategy(new SemanticCaptchaResolverDecorator(alternativeResolver, _llm, useSemanticDetection: false))
             .AddStrategy(visionResolver)  // Fallback without semantic analysis
             .AddStrategy(alternativeResolver);
-    }
-
-    /// <summary>
-    /// Fixes malformed URLs that LLMs sometimes generate (e.g., "https: example.com path" → "https://example.com/path").
-    /// </summary>
-    private static string FixMalformedUrl(string url)
-    {
-        if (string.IsNullOrWhiteSpace(url))
-            return url;
-
-        url = url.Trim();
-
-        // Fix "https: " → "https://" and "http: " → "http://"
-        url = Regex.Replace(url, @"^(https?): +", "$1://");
-
-        // If URL still doesn't have proper scheme, check for common patterns
-        if (!url.StartsWith("http://") && !url.StartsWith("https://"))
-        {
-            // Check if it looks like a domain (e.g., "www.example.com" or "example.com")
-            if (Regex.IsMatch(url, @"^[\w\-]+(\.[\w\-]+)+"))
-            {
-                url = "https://" + url;
-            }
-        }
-
-        // Try to parse and fix path components with spaces
-        if (Uri.TryCreate(url, UriKind.Absolute, out Uri? parsed))
-        {
-            // URL is valid, return as-is
-            return url;
-        }
-
-        // If parsing failed, try to fix spaces in path
-        // Pattern: "https://domain path1 path2" → "https://domain/path1/path2"
-        var match = Regex.Match(url, @"^(https?://[\w\.\-]+)([\s/].*)$");
-        if (match.Success)
-        {
-            string domain = match.Groups[1].Value;
-            string path = match.Groups[2].Value.Trim();
-
-            // Replace spaces with / in path, normalize multiple slashes
-            path = Regex.Replace(path, @"\s+", "/");
-            path = Regex.Replace(path, @"/+", "/");
-
-            if (!path.StartsWith("/"))
-                path = "/" + path;
-
-            url = domain + path;
-        }
-
-        return url;
     }
 
     /// <summary>
@@ -152,6 +114,13 @@ public class DynamicToolFactory
             // Ensure required using statements are present
             code = EnsureRequiredUsings(code);
 
+            // SECURITY: Validate code does not use dangerous namespaces
+            var securityViolation = ValidateCodeSecurity(code);
+            if (securityViolation != null)
+            {
+                return Result<ITool, string>.Failure($"Security violation: {securityViolation}");
+            }
+
             // Compile the tool
             var compileResult = CompileTool(code, className);
             if (!compileResult.IsSuccess)
@@ -170,6 +139,14 @@ CODE:
                 string fixedCode = await _llm.InnerModel.GenerateTextAsync(fixPrompt, ct);
                 fixedCode = ExtractCode(fixedCode);
                 fixedCode = EnsureRequiredUsings(fixedCode); // Ensure usings are present
+
+                // SECURITY: Re-validate after LLM fix
+                securityViolation = ValidateCodeSecurity(fixedCode);
+                if (securityViolation != null)
+                {
+                    return Result<ITool, string>.Failure($"Security violation in fixed code: {securityViolation}");
+                }
+
                 compileResult = CompileTool(fixedCode, className);
 
                 if (!compileResult.IsSuccess)
@@ -199,6 +176,30 @@ CODE:
         {
             return Result<ITool, string>.Failure($"Tool creation failed: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Validates that generated code does not use dangerous namespaces.
+    /// Returns null if safe, or a description of the violation.
+    /// </summary>
+    private static string? ValidateCodeSecurity(string code)
+    {
+        foreach (var ns in BlockedNamespaces)
+        {
+            // Check for using directives: "using System.IO;" or "using System.IO.Something;"
+            if (Regex.IsMatch(code, $@"using\s+{Regex.Escape(ns)}(\s*;|\.\w)", RegexOptions.Multiline))
+            {
+                return $"Code uses blocked namespace '{ns}'. Dynamic tools may not use {ns} for security reasons.";
+            }
+
+            // Check for fully-qualified usage: "System.IO.File.ReadAllText"
+            if (code.Contains($"{ns}."))
+            {
+                return $"Code references blocked namespace '{ns}'. Dynamic tools may not use {ns} for security reasons.";
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -534,7 +535,7 @@ CODE:
                     return "Fetch failed: URL is required";
                 }
 
-                // Fix malformed URLs from LLM (e.g., "https: example.com path" → "https://example.com/path")
+                // Fix malformed URLs from LLM (e.g., "https: example.com path" -> "https://example.com/path")
                 url = FixMalformedUrl(url);
 
                 // Detect placeholder descriptions that LLMs sometimes generate instead of actual URLs
@@ -600,10 +601,10 @@ CODE:
                     }
 
                     // Basic HTML to text conversion
-                    content = System.Text.RegularExpressions.Regex.Replace(content, @"<script[^>]*>[\s\S]*?</script>", "");
-                    content = System.Text.RegularExpressions.Regex.Replace(content, @"<style[^>]*>[\s\S]*?</style>", "");
-                    content = System.Text.RegularExpressions.Regex.Replace(content, @"<[^>]+>", " ");
-                    content = System.Text.RegularExpressions.Regex.Replace(content, @"\s+", " ");
+                    content = FetchScriptTagRegex().Replace(content, "");
+                    content = FetchStyleTagRegex().Replace(content, "");
+                    content = FetchHtmlTagRegex().Replace(content, " ");
+                    content = FetchWhitespaceRegex().Replace(content, " ");
                     content = System.Net.WebUtility.HtmlDecode(content);
 
                     // Sanitize for embedding - remove non-printable characters
@@ -619,55 +620,17 @@ CODE:
             });
     }
 
-    /// <summary>
-    /// Detects if content appears to be binary/compressed rather than text.
-    /// </summary>
-    private static bool IsBinaryContent(string content)
-    {
-        if (string.IsNullOrEmpty(content)) return false;
+    [GeneratedRegex(@"<script[^>]*>[\s\S]*?</script>", RegexOptions.IgnoreCase)]
+    private static partial Regex FetchScriptTagRegex();
 
-        // Check first 1000 chars for binary indicators
-        int checkLength = Math.Min(content.Length, 1000);
-        int nonPrintable = 0;
+    [GeneratedRegex(@"<style[^>]*>[\s\S]*?</style>", RegexOptions.IgnoreCase)]
+    private static partial Regex FetchStyleTagRegex();
 
-        for (int i = 0; i < checkLength; i++)
-        {
-            char c = content[i];
-            // Count non-printable chars (excluding common whitespace)
-            if (c < 32 && c != '\t' && c != '\n' && c != '\r')
-                nonPrintable++;
-            // High rate of replacement chars indicates encoding issues
-            if (c == '\uFFFD')
-                nonPrintable++;
-        }
+    [GeneratedRegex(@"<[^>]+>")]
+    private static partial Regex FetchHtmlTagRegex();
 
-        // If more than 10% is non-printable, likely binary
-        return nonPrintable > checkLength * 0.1;
-    }
-
-    /// <summary>
-    /// Sanitizes content for safe storage/embedding.
-    /// </summary>
-    private static string SanitizeForStorage(string content)
-    {
-        if (string.IsNullOrEmpty(content)) return content;
-
-        var sb = new System.Text.StringBuilder(content.Length);
-        foreach (char c in content)
-        {
-            // Keep printable ASCII and common Unicode
-            if (c >= 32 && c < 127) // Basic ASCII
-                sb.Append(c);
-            else if (c == '\t' || c == '\n' || c == '\r') // Whitespace
-                sb.Append(c);
-            else if (c >= 160 && c < 0xFFFD) // Extended Unicode (but not replacement char)
-                sb.Append(c);
-            else
-                sb.Append(' '); // Replace problematic chars with space
-        }
-
-        return sb.ToString();
-    }
+    [GeneratedRegex(@"\s+")]
+    private static partial Regex FetchWhitespaceRegex();
 
     /// <summary>
     /// Creates a calculator tool.
@@ -885,186 +848,5 @@ Generate ONLY the complete C# code, no explanations.";
         return string.Join("", snakeCase.Split('_')
             .Where(s => s.Length > 0)
             .Select(s => char.ToUpperInvariant(s[0]) + s[1..]));
-    }
-
-    private static string ExtractCode(string response)
-    {
-        // Extract code from markdown code blocks if present
-        var match = System.Text.RegularExpressions.Regex.Match(
-            response,
-            @"```(?:csharp|cs)?\s*([\s\S]*?)```",
-            System.Text.RegularExpressions.RegexOptions.Singleline);
-
-        return match.Success ? match.Groups[1].Value.Trim() : response.Trim();
-    }
-
-    /// <summary>
-    /// Ensures that required using statements are present in the generated code.
-    /// </summary>
-    private static string EnsureRequiredUsings(string code)
-    {
-        var requiredUsings = new[]
-        {
-            "using System;",
-            "using System.Threading;",
-            "using System.Threading.Tasks;",
-            "using Ouroboros.Core.Monads;",
-            "using Ouroboros.Tools;",
-        };
-
-        var sb = new StringBuilder();
-        var existingUsings = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        // Extract existing using statements
-        var lines = code.Split('\n');
-        var usingLines = new List<string>();
-        var codeStart = 0;
-
-        for (int i = 0; i < lines.Length; i++)
-        {
-            var trimmed = lines[i].Trim();
-            if (trimmed.StartsWith("using ") && trimmed.EndsWith(";"))
-            {
-                existingUsings.Add(trimmed);
-                usingLines.Add(lines[i]);
-                codeStart = i + 1;
-            }
-            else if (!string.IsNullOrWhiteSpace(trimmed) && !trimmed.StartsWith("//"))
-            {
-                // Found non-using, non-empty line
-                break;
-            }
-            else
-            {
-                codeStart = i + 1;
-            }
-        }
-
-        // Add all existing usings
-        foreach (var u in usingLines)
-        {
-            sb.AppendLine(u);
-        }
-
-        // Add missing required usings
-        foreach (var required in requiredUsings)
-        {
-            if (!existingUsings.Contains(required))
-            {
-                sb.AppendLine(required);
-            }
-        }
-
-        // Add the rest of the code
-        if (usingLines.Count > 0)
-        {
-            sb.AppendLine();
-        }
-
-        for (int i = codeStart; i < lines.Length; i++)
-        {
-            sb.AppendLine(lines[i]);
-        }
-
-        return sb.ToString().TrimEnd();
-    }
-
-    private static List<string> ExtractSearchResults(string html, string provider)
-    {
-        var results = new List<string>();
-
-        // Try multiple patterns for each provider (they change HTML frequently)
-        var patterns = provider.ToLowerInvariant() switch
-        {
-            "google" => new[]
-            {
-                @"<span[^>]*>([^<]{50,})</span>",
-                @"<div[^>]*class=""[^""]*BNeawe[^""]*""[^>]*>([^<]{30,})</div>",
-                @"<div[^>]*data-sncf=""[^""]*""[^>]*>([^<]{30,})</div>"
-            },
-            "bing" => new[]
-            {
-                @"<p[^>]*>([^<]{50,})</p>",
-                @"<li[^>]*class=""b_algo""[^>]*>.*?<p>([^<]{30,})</p>",
-                @"<span[^>]*class=""algoSlug_icon""[^>]*>([^<]{30,})</span>"
-            },
-            "brave" => new[]
-            {
-                @"<p[^>]*class=""[^""]*snippet[^""]*""[^>]*>([^<]{30,})</p>",
-                @"<div[^>]*class=""[^""]*snippet[^""]*""[^>]*>([^<]{30,})</div>",
-                @"<span[^>]*class=""[^""]*description[^""]*""[^>]*>([^<]{30,})</span>",
-                @"data-testid=""result-item""[^>]*>.*?<p[^>]*>([^<]{30,})</p>"
-            },
-            _ => new[] // DuckDuckGo (including lite version) - try multiple selectors
-            {
-                @"<a[^>]*class=""result__snippet""[^>]*>([^<]+)</a>",
-                @"<td[^>]*class=""result__snippet""[^>]*>([^<]+)</td>",
-                @"class=""result__snippet""[^>]*>([^<]{20,})<",
-                @"<a[^>]*class=""[^""]*result[^""]*""[^>]*>([^<]{30,})</a>",
-                @"<div[^>]*class=""[^""]*snippet[^""]*""[^>]*>([^<]{30,})</div>",
-                @"<span[^>]*class=""[^""]*snippet[^""]*""[^>]*>([^<]{30,})</span>",
-                // Lite version patterns
-                @"<td>([^<]{40,})</td>",
-                @"<tr[^>]*>.*?<td[^>]*>([^<]{30,})</td>"
-            }
-        };
-
-        foreach (var pattern in patterns)
-        {
-            var matches = System.Text.RegularExpressions.Regex.Matches(html, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-            foreach (System.Text.RegularExpressions.Match m in matches)
-            {
-                // Try all capture groups
-                for (int i = 1; i <= m.Groups.Count - 1; i++)
-                {
-                    if (m.Groups[i].Success)
-                    {
-                        string text = System.Net.WebUtility.HtmlDecode(m.Groups[i].Value).Trim();
-                        // Filter out noise
-                        if (text.Length > 25 &&
-                            !results.Contains(text) &&
-                            !text.StartsWith("http") &&
-                            !text.Contains("javascript:") &&
-                            !text.All(c => char.IsDigit(c) || char.IsWhiteSpace(c)))
-                        {
-                            results.Add(text);
-                        }
-                    }
-                }
-            }
-
-            // If we found results with this pattern, don't need to try more
-            if (results.Count >= 3) break;
-        }
-
-        // Fallback: extract any reasonably sized text blocks if no results found
-        if (results.Count == 0)
-        {
-            var fallbackPattern = @">([^<]{40,200})<";
-            var fallbackMatches = System.Text.RegularExpressions.Regex.Matches(html, fallbackPattern);
-            foreach (System.Text.RegularExpressions.Match m in fallbackMatches)
-            {
-                string text = System.Net.WebUtility.HtmlDecode(m.Groups[1].Value).Trim();
-                if (text.Length > 40 &&
-                    !results.Contains(text) &&
-                    !text.StartsWith("http") &&
-                    !text.Contains("{") &&  // Skip JSON/CSS
-                    !text.Contains("function") &&  // Skip JS
-                    !text.Contains("var ") && // Skip JS vars
-                    !text.Contains("window.") && // Skip JS window objects
-                    !text.Contains(";") && // Skip code-like lines
-                    results.Count < 10)
-                {
-                    // Check for high density of symbols (likely code or garbage)
-                    int symbols = text.Count(c => !char.IsLetterOrDigit(c) && !char.IsWhiteSpace(c) && c != '.' && c != ',');
-                    if (symbols < text.Length * 0.2) // Less than 20% symbols
-                    {
-                        results.Add(text);
-                    }
-                }
-            }
-        }
-
-        return results;
     }
 }

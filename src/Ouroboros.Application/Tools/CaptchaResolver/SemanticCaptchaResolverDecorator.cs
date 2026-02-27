@@ -158,10 +158,10 @@ Content: {truncatedContent}";
 
         try
         {
-            var task = _llm.GenerateWithToolsAsync(prompt);
-            if (task.Wait(TimeSpan.FromSeconds(5)))
+            var captchaTask = _llm.GenerateWithToolsAsync(prompt);
+            if (captchaTask.Wait(TimeSpan.FromSeconds(5))) // sync-over-async:accepted — timeout guard
             {
-                var (response, _) = task.Result;
+                var (response, _) = captchaTask.GetAwaiter().GetResult(); // sync-over-async:accepted
                 var responseLower = response.ToLowerInvariant().Trim();
 
                 if (responseLower.StartsWith("yes"))

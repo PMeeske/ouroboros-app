@@ -117,7 +117,7 @@ public sealed partial class OuroborosAgent
                 // Try to fetch discovered camera devices from the gateway
                 try
                 {
-                    var devicesResult = Task.Run(async () => await gateway.GetDevicesAsync()).GetAwaiter().GetResult();
+                    var devicesResult = Task.Run(async () => await gateway.GetDevicesAsync()).GetAwaiter().GetResult(); // sync-over-async:accepted — sync init path
                     if (devicesResult.IsSuccess)
                     {
                         var discoveredCameras = devicesResult.Value

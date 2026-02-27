@@ -14,13 +14,15 @@ public static class AutonomousTools
     /// Default shared context used when no explicit context is provided.
     /// Consumers should prefer injecting <see cref="IAutonomousToolContext"/> directly.
     /// </summary>
+    [Obsolete("Use IAutonomousToolContext from DI")]
     public static IAutonomousToolContext DefaultContext { get; set; } = new AutonomousToolContext();
 
     /// <summary>
-    /// Shared autonomous coordinator reference.
+    /// Legacy autonomous coordinator reference.
     /// Delegates to <see cref="DefaultContext"/>. Prefer using <see cref="IAutonomousToolContext.Coordinator"/> directly.
     /// </summary>
-    public static AutonomousCoordinator? SharedCoordinator
+    [Obsolete("Use IAutonomousToolContext from DI")]
+    public static AutonomousCoordinator? LegacyCoordinator
     {
         get => DefaultContext.Coordinator;
         set => DefaultContext.Coordinator = value;

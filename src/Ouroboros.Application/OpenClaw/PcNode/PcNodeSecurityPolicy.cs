@@ -19,7 +19,7 @@ namespace Ouroboros.Application.OpenClaw.PcNode;
 ///
 /// Default stance: deny unless explicitly allowed (fail-closed).
 /// </summary>
-public sealed class PcNodeSecurityPolicy
+public sealed partial class PcNodeSecurityPolicy
 {
     private readonly PcNodeSecurityConfig _config;
     private readonly OpenClawAuditLog _auditLog;
@@ -29,7 +29,7 @@ public sealed class PcNodeSecurityPolicy
     private readonly Queue<DateTime> _highRiskInvocations = new();
     private readonly object _rateLimitLock = new();
 
-    // Compiled blocklist patterns for shell commands
+    // Compiled blocklist patterns for shell commands (config-driven, cannot use [GeneratedRegex])
     private readonly Lazy<Regex[]> _blockedShellRegexes;
 
     public PcNodeSecurityPolicy(PcNodeSecurityConfig config, OpenClawAuditLog auditLog)
@@ -321,41 +321,48 @@ public sealed class PcNodeSecurityPolicy
             queue.Dequeue();
     }
 
-    // Reuse the same sensitive data patterns as the outbound security policy
-    private static readonly (Regex Pattern, string Label)[] SensitivePatterns =
-    [
-        (new Regex(@"(?:api[_-]?key|apikey|token|bearer|authorization)\s*[:=]\s*['""]?[A-Za-z0-9\-_.]{20,}",
-            RegexOptions.IgnoreCase | RegexOptions.Compiled), "API key/token"),
+    // ── Source-Generated Sensitive Data Patterns ─────────────────────────────────
 
-        (new Regex(@"AKIA[0-9A-Z]{16}", RegexOptions.Compiled), "AWS access key"),
-
-        (new Regex(@"-----BEGIN\s+(RSA\s+)?PRIVATE\s+KEY-----", RegexOptions.Compiled), "Private key"),
-
-        (new Regex(@"(?:mongodb|postgres|mysql|redis|amqp)://\S+:(\S+)@",
-            RegexOptions.IgnoreCase | RegexOptions.Compiled), "Connection string with password"),
-
-        (new Regex(@"(?:password|passwd|pwd|secret)\s*[:=]\s*['""]?[^\s'""]{8,}",
-            RegexOptions.IgnoreCase | RegexOptions.Compiled), "Password/secret"),
-
-        (new Regex(@"eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}",
-            RegexOptions.Compiled), "JWT token"),
-
-        (new Regex(@"\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})\b",
-            RegexOptions.Compiled), "Credit card number"),
-
-        (new Regex(@"\b\d{3}-\d{2}-\d{4}\b", RegexOptions.Compiled), "SSN-like pattern"),
-    ];
-
+    /// <summary>
+    /// Scans content for sensitive data using source-generated regex patterns.
+    /// </summary>
     private static string? ScanForSensitiveData(string content)
     {
-        foreach (var (pattern, label) in SensitivePatterns)
-        {
-            if (pattern.IsMatch(content))
-                return label;
-        }
+        if (ApiKeyTokenRegex().IsMatch(content)) return "API key/token";
+        if (AwsAccessKeyRegex().IsMatch(content)) return "AWS access key";
+        if (PrivateKeyRegex().IsMatch(content)) return "Private key";
+        if (ConnectionStringRegex().IsMatch(content)) return "Connection string with password";
+        if (PasswordSecretRegex().IsMatch(content)) return "Password/secret";
+        if (JwtTokenRegex().IsMatch(content)) return "JWT token";
+        if (CreditCardRegex().IsMatch(content)) return "Credit card number";
+        if (SsnRegex().IsMatch(content)) return "SSN-like pattern";
 
         return null;
     }
+
+    [GeneratedRegex(@"(?:api[_-]?key|apikey|token|bearer|authorization)\s*[:=]\s*['""]?[A-Za-z0-9\-_.]{20,}", RegexOptions.IgnoreCase)]
+    private static partial Regex ApiKeyTokenRegex();
+
+    [GeneratedRegex(@"AKIA[0-9A-Z]{16}")]
+    private static partial Regex AwsAccessKeyRegex();
+
+    [GeneratedRegex(@"-----BEGIN\s+(RSA\s+)?PRIVATE\s+KEY-----")]
+    private static partial Regex PrivateKeyRegex();
+
+    [GeneratedRegex(@"(?:mongodb|postgres|mysql|redis|amqp)://\S+:(\S+)@", RegexOptions.IgnoreCase)]
+    private static partial Regex ConnectionStringRegex();
+
+    [GeneratedRegex(@"(?:password|passwd|pwd|secret)\s*[:=]\s*['""]?[^\s'""]{8,}", RegexOptions.IgnoreCase)]
+    private static partial Regex PasswordSecretRegex();
+
+    [GeneratedRegex(@"eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}")]
+    private static partial Regex JwtTokenRegex();
+
+    [GeneratedRegex(@"\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})\b")]
+    private static partial Regex CreditCardRegex();
+
+    [GeneratedRegex(@"\b\d{3}-\d{2}-\d{4}\b")]
+    private static partial Regex SsnRegex();
 }
 
 /// <summary>

@@ -196,15 +196,13 @@ public sealed partial class ImmersiveMode
             AnsiConsole.MarkupLine(OuroborosTheme.Dim($"  [D&C] Processing large input ({prompt.Length} chars)..."));
 
             var chunks = _divideAndConquer.DivideIntoChunks(prompt);
-            var result = await _divideAndConquer.ExecuteAsync("Process:", chunks, ct);
+            var dcResult = await _divideAndConquer.ExecuteAsync("Process:", chunks, ct);
 
-            return result.Match(
-                success => success,
-                error =>
-                {
-                    // Fall back to direct generation
-                    return (_orchestratedModel ?? _baseModel)?.GenerateTextAsync(prompt, ct).Result ?? "";
-                });
+            if (dcResult.IsSuccess)
+                return dcResult.Value;
+
+            // Fall back to direct generation on D&C failure
+            return await ((_orchestratedModel ?? _baseModel)?.GenerateTextAsync(prompt, ct) ?? Task.FromResult(""));
         }
 
         // Use orchestrated model if available

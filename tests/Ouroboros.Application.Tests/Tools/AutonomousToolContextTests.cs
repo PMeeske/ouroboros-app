@@ -357,11 +357,11 @@ public class AutonomousToolContextTests : IDisposable
         AutonomousTools.DefaultContext = _context;
 
         // Act
-        AutonomousTools.SharedCoordinator = _coordinator;
+        AutonomousTools.LegacyCoordinator = _coordinator;
 
         // Assert
         _context.Coordinator.Should().BeSameAs(_coordinator);
-        AutonomousTools.SharedCoordinator.Should().BeSameAs(_coordinator);
+        AutonomousTools.LegacyCoordinator.Should().BeSameAs(_coordinator);
     }
 
     // ======================================================================

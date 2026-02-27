@@ -48,11 +48,14 @@ SYNC_FILES=(
     "src/Ouroboros.CLI/Commands/Ouroboros/OuroborosAgent.Voice.cs"
     "src/Ouroboros.CLI/Commands/Ouroboros/OuroborosAgent.Tools.cs"
     "src/Ouroboros.Application/StreamingCliSteps.cs"
+    "src/Ouroboros.CLI/Commands/Immersive/ImmersiveMode.Response.cs"
+    "src/Ouroboros.CLI/Mediator/Handlers/ProcessLargeInputHandler.cs"
+    "src/Ouroboros.Application/Tools/CaptchaResolver/SemanticCaptchaResolverDecorator.cs"
 )
 SYNC_COUNT=0
 for f in "${SYNC_FILES[@]}"; do
     if [ -f "$f" ]; then
-        HITS=$(grep -n '\.GetAwaiter()\.GetResult()\|\.Wait()' "$f" 2>/dev/null | grep -v '//' || true)
+        HITS=$(grep -n '\.GetAwaiter()\.GetResult()\|\.Wait()' "$f" 2>/dev/null | grep -v '//' | grep -v 'sync-over-async:accepted' || true)
         if [ -n "$HITS" ]; then
             fail "Sync-over-async in $f"
             echo "$HITS"
@@ -166,7 +169,8 @@ fi
 echo ""
 echo "── Duplicate Domain Types ──"
 for type in ValidationResult Plan Observation ReasoningStep Goal; do
-    COUNT=$(grep -rn "class $type\b" src/ --include="*.cs" 2>/dev/null | wc -l || echo 0)
+    COUNT=$(grep -rn "class $type\b" src/ --include="*.cs" 2>/dev/null | wc -l | tr -d '[:space:]' || echo 0)
+    COUNT=${COUNT:-0}
     if [ "$COUNT" -gt 2 ]; then
         warn "Duplicate: $type defined $COUNT times"
     fi

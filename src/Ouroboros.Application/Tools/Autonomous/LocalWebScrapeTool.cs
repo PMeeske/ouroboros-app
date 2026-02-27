@@ -5,6 +5,7 @@
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace Ouroboros.Application.Tools;
 
@@ -12,7 +13,7 @@ namespace Ouroboros.Application.Tools;
 /// Local web scraping tool that extracts clean content without external APIs.
 /// Provides Firecrawl-like functionality using local HTML parsing.
 /// </summary>
-public class LocalWebScrapeTool : ITool
+public partial class LocalWebScrapeTool : ITool
 {
     /// <inheritdoc/>
     public string Name => "web_scrape";
@@ -84,11 +85,11 @@ public class LocalWebScrapeTool : ITool
         var result = new StringBuilder();
 
         // Extract metadata
-        string? title = ExtractMetaContent(html, @"<title[^>]*>([^<]+)</title>");
-        string? description = ExtractMetaContent(html, @"<meta[^>]*name=[""']description[""'][^>]*content=[""']([^""']+)[""']")
-                           ?? ExtractMetaContent(html, @"<meta[^>]*content=[""']([^""']+)[""'][^>]*name=[""']description[""']");
-        string? ogTitle = ExtractMetaContent(html, @"<meta[^>]*property=[""']og:title[""'][^>]*content=[""']([^""']+)[""']");
-        string? author = ExtractMetaContent(html, @"<meta[^>]*name=[""']author[""'][^>]*content=[""']([^""']+)[""']");
+        string? title = ExtractMetaContent(html, TitleRegex());
+        string? description = ExtractMetaContent(html, MetaDescriptionRegex())
+                           ?? ExtractMetaContent(html, MetaDescriptionAltRegex());
+        string? ogTitle = ExtractMetaContent(html, OgTitleRegex());
+        string? author = ExtractMetaContent(html, AuthorRegex());
 
         // Build header
         result.AppendLine($"# {System.Net.WebUtility.HtmlDecode(ogTitle ?? title ?? "Untitled")}\n");
@@ -129,10 +130,9 @@ public class LocalWebScrapeTool : ITool
         return Result<string, string>.Success(result.ToString());
     }
 
-    private static string? ExtractMetaContent(string html, string pattern)
+    private static string? ExtractMetaContent(string html, Regex pattern)
     {
-        var match = System.Text.RegularExpressions.Regex.Match(
-            html, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        var match = pattern.Match(html);
         return match.Success ? match.Groups[1].Value : null;
     }
 
@@ -142,66 +142,43 @@ public class LocalWebScrapeTool : ITool
         string content = html;
 
         // Remove non-content elements first
-        content = System.Text.RegularExpressions.Regex.Replace(content,
-            @"<script[^>]*>[\s\S]*?</script>", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        content = System.Text.RegularExpressions.Regex.Replace(content,
-            @"<style[^>]*>[\s\S]*?</style>", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        content = System.Text.RegularExpressions.Regex.Replace(content,
-            @"<noscript[^>]*>[\s\S]*?</noscript>", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        content = System.Text.RegularExpressions.Regex.Replace(content,
-            @"<nav[^>]*>[\s\S]*?</nav>", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        content = System.Text.RegularExpressions.Regex.Replace(content,
-            @"<header[^>]*>[\s\S]*?</header>", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        content = System.Text.RegularExpressions.Regex.Replace(content,
-            @"<footer[^>]*>[\s\S]*?</footer>", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        content = System.Text.RegularExpressions.Regex.Replace(content,
-            @"<aside[^>]*>[\s\S]*?</aside>", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        content = System.Text.RegularExpressions.Regex.Replace(content,
-            @"<!--[\s\S]*?-->", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        content = ScriptTagRegex().Replace(content, "");
+        content = StyleTagRegex().Replace(content, "");
+        content = NoscriptTagRegex().Replace(content, "");
+        content = NavTagRegex().Replace(content, "");
+        content = HeaderTagRegex().Replace(content, "");
+        content = FooterTagRegex().Replace(content, "");
+        content = AsideTagRegex().Replace(content, "");
+        content = HtmlCommentRegex().Replace(content, "");
 
         // Try to extract article or main content
-        var articleMatch = System.Text.RegularExpressions.Regex.Match(content,
-            @"<article[^>]*>([\s\S]*?)</article>", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        var articleMatch = ArticleTagRegex().Match(content);
         if (articleMatch.Success && articleMatch.Groups[1].Value.Length > 500)
             content = articleMatch.Groups[1].Value;
         else
         {
-            var mainMatch = System.Text.RegularExpressions.Regex.Match(content,
-                @"<main[^>]*>([\s\S]*?)</main>", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            var mainMatch = MainTagRegex().Match(content);
             if (mainMatch.Success && mainMatch.Groups[1].Value.Length > 500)
                 content = mainMatch.Groups[1].Value;
         }
 
         // Convert common elements to markdown-style formatting
-        content = System.Text.RegularExpressions.Regex.Replace(content,
-            @"<h1[^>]*>([^<]+)</h1>", "\n# $1\n", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        content = System.Text.RegularExpressions.Regex.Replace(content,
-            @"<h2[^>]*>([^<]+)</h2>", "\n## $1\n", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        content = System.Text.RegularExpressions.Regex.Replace(content,
-            @"<h3[^>]*>([^<]+)</h3>", "\n### $1\n", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        content = System.Text.RegularExpressions.Regex.Replace(content,
-            @"<h[456][^>]*>([^<]+)</h[456]>", "\n**$1**\n", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        content = System.Text.RegularExpressions.Regex.Replace(content,
-            @"<li[^>]*>", "\n\u2022 ", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        content = System.Text.RegularExpressions.Regex.Replace(content,
-            @"<br\s*/?>", "\n", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        content = System.Text.RegularExpressions.Regex.Replace(content,
-            @"<p[^>]*>", "\n\n", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        content = System.Text.RegularExpressions.Regex.Replace(content,
-            @"<strong[^>]*>([^<]+)</strong>", "**$1**", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        content = System.Text.RegularExpressions.Regex.Replace(content,
-            @"<b[^>]*>([^<]+)</b>", "**$1**", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        content = System.Text.RegularExpressions.Regex.Replace(content,
-            @"<em[^>]*>([^<]+)</em>", "*$1*", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        content = System.Text.RegularExpressions.Regex.Replace(content,
-            @"<i[^>]*>([^<]+)</i>", "*$1*", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        content = System.Text.RegularExpressions.Regex.Replace(content,
-            @"<code[^>]*>([^<]+)</code>", "`$1`", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        content = System.Text.RegularExpressions.Regex.Replace(content,
-            @"<blockquote[^>]*>([^<]+)</blockquote>", "\n> $1\n", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        content = H1TagRegex().Replace(content, "\n# $1\n");
+        content = H2TagRegex().Replace(content, "\n## $1\n");
+        content = H3TagRegex().Replace(content, "\n### $1\n");
+        content = H456TagRegex().Replace(content, "\n**$1**\n");
+        content = LiTagRegex().Replace(content, "\n\u2022 ");
+        content = BrTagRegex().Replace(content, "\n");
+        content = PTagRegex().Replace(content, "\n\n");
+        content = StrongTagRegex().Replace(content, "**$1**");
+        content = BoldTagRegex().Replace(content, "**$1**");
+        content = EmTagRegex().Replace(content, "*$1*");
+        content = ItalicTagRegex().Replace(content, "*$1*");
+        content = CodeTagRegex().Replace(content, "`$1`");
+        content = BlockquoteTagRegex().Replace(content, "\n> $1\n");
 
         // Strip remaining tags
-        content = System.Text.RegularExpressions.Regex.Replace(content, @"<[^>]+>", " ");
+        content = AnyHtmlTagRegex().Replace(content, " ");
 
         return content;
     }
@@ -212,8 +189,8 @@ public class LocalWebScrapeTool : ITool
         content = System.Net.WebUtility.HtmlDecode(content);
 
         // Normalize whitespace
-        content = System.Text.RegularExpressions.Regex.Replace(content, @"[ \t]+", " ");
-        content = System.Text.RegularExpressions.Regex.Replace(content, @"\n{3,}", "\n\n");
+        content = HorizontalWhitespaceRegex().Replace(content, " ");
+        content = ExcessiveNewlinesRegex().Replace(content, "\n\n");
 
         // Remove leading/trailing whitespace from lines
         var lines = content.Split('\n')
@@ -228,11 +205,7 @@ public class LocalWebScrapeTool : ITool
         var links = new List<(string, string)>();
         var baseUri = new Uri(baseUrl);
 
-        var linkRegex = new System.Text.RegularExpressions.Regex(
-            @"<a[^>]*href=[""']([^""']+)[""'][^>]*>([^<]*)</a>",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-        foreach (System.Text.RegularExpressions.Match match in linkRegex.Matches(html))
+        foreach (Match match in AnchorTagRegex().Matches(html))
         {
             string href = match.Groups[1].Value;
             string text = System.Net.WebUtility.HtmlDecode(match.Groups[2].Value).Trim();
@@ -256,4 +229,108 @@ public class LocalWebScrapeTool : ITool
 
         return links;
     }
+
+    // === Generated Regex Patterns ===
+
+    // Metadata extraction
+    [GeneratedRegex(@"<title[^>]*>([^<]+)</title>", RegexOptions.IgnoreCase)]
+    private static partial Regex TitleRegex();
+
+    [GeneratedRegex(@"<meta[^>]*name=[""']description[""'][^>]*content=[""']([^""']+)[""']", RegexOptions.IgnoreCase)]
+    private static partial Regex MetaDescriptionRegex();
+
+    [GeneratedRegex(@"<meta[^>]*content=[""']([^""']+)[""'][^>]*name=[""']description[""']", RegexOptions.IgnoreCase)]
+    private static partial Regex MetaDescriptionAltRegex();
+
+    [GeneratedRegex(@"<meta[^>]*property=[""']og:title[""'][^>]*content=[""']([^""']+)[""']", RegexOptions.IgnoreCase)]
+    private static partial Regex OgTitleRegex();
+
+    [GeneratedRegex(@"<meta[^>]*name=[""']author[""'][^>]*content=[""']([^""']+)[""']", RegexOptions.IgnoreCase)]
+    private static partial Regex AuthorRegex();
+
+    // Non-content element removal
+    [GeneratedRegex(@"<script[^>]*>[\s\S]*?</script>", RegexOptions.IgnoreCase)]
+    private static partial Regex ScriptTagRegex();
+
+    [GeneratedRegex(@"<style[^>]*>[\s\S]*?</style>", RegexOptions.IgnoreCase)]
+    private static partial Regex StyleTagRegex();
+
+    [GeneratedRegex(@"<noscript[^>]*>[\s\S]*?</noscript>", RegexOptions.IgnoreCase)]
+    private static partial Regex NoscriptTagRegex();
+
+    [GeneratedRegex(@"<nav[^>]*>[\s\S]*?</nav>", RegexOptions.IgnoreCase)]
+    private static partial Regex NavTagRegex();
+
+    [GeneratedRegex(@"<header[^>]*>[\s\S]*?</header>", RegexOptions.IgnoreCase)]
+    private static partial Regex HeaderTagRegex();
+
+    [GeneratedRegex(@"<footer[^>]*>[\s\S]*?</footer>", RegexOptions.IgnoreCase)]
+    private static partial Regex FooterTagRegex();
+
+    [GeneratedRegex(@"<aside[^>]*>[\s\S]*?</aside>", RegexOptions.IgnoreCase)]
+    private static partial Regex AsideTagRegex();
+
+    [GeneratedRegex(@"<!--[\s\S]*?-->", RegexOptions.IgnoreCase)]
+    private static partial Regex HtmlCommentRegex();
+
+    // Content area extraction
+    [GeneratedRegex(@"<article[^>]*>([\s\S]*?)</article>", RegexOptions.IgnoreCase)]
+    private static partial Regex ArticleTagRegex();
+
+    [GeneratedRegex(@"<main[^>]*>([\s\S]*?)</main>", RegexOptions.IgnoreCase)]
+    private static partial Regex MainTagRegex();
+
+    // HTML to markdown conversion
+    [GeneratedRegex(@"<h1[^>]*>([^<]+)</h1>", RegexOptions.IgnoreCase)]
+    private static partial Regex H1TagRegex();
+
+    [GeneratedRegex(@"<h2[^>]*>([^<]+)</h2>", RegexOptions.IgnoreCase)]
+    private static partial Regex H2TagRegex();
+
+    [GeneratedRegex(@"<h3[^>]*>([^<]+)</h3>", RegexOptions.IgnoreCase)]
+    private static partial Regex H3TagRegex();
+
+    [GeneratedRegex(@"<h[456][^>]*>([^<]+)</h[456]>", RegexOptions.IgnoreCase)]
+    private static partial Regex H456TagRegex();
+
+    [GeneratedRegex(@"<li[^>]*>", RegexOptions.IgnoreCase)]
+    private static partial Regex LiTagRegex();
+
+    [GeneratedRegex(@"<br\s*/?>", RegexOptions.IgnoreCase)]
+    private static partial Regex BrTagRegex();
+
+    [GeneratedRegex(@"<p[^>]*>", RegexOptions.IgnoreCase)]
+    private static partial Regex PTagRegex();
+
+    [GeneratedRegex(@"<strong[^>]*>([^<]+)</strong>", RegexOptions.IgnoreCase)]
+    private static partial Regex StrongTagRegex();
+
+    [GeneratedRegex(@"<b[^>]*>([^<]+)</b>", RegexOptions.IgnoreCase)]
+    private static partial Regex BoldTagRegex();
+
+    [GeneratedRegex(@"<em[^>]*>([^<]+)</em>", RegexOptions.IgnoreCase)]
+    private static partial Regex EmTagRegex();
+
+    [GeneratedRegex(@"<i[^>]*>([^<]+)</i>", RegexOptions.IgnoreCase)]
+    private static partial Regex ItalicTagRegex();
+
+    [GeneratedRegex(@"<code[^>]*>([^<]+)</code>", RegexOptions.IgnoreCase)]
+    private static partial Regex CodeTagRegex();
+
+    [GeneratedRegex(@"<blockquote[^>]*>([^<]+)</blockquote>", RegexOptions.IgnoreCase)]
+    private static partial Regex BlockquoteTagRegex();
+
+    // Tag stripping and cleanup
+    [GeneratedRegex(@"<[^>]+>")]
+    private static partial Regex AnyHtmlTagRegex();
+
+    [GeneratedRegex(@"[ \t]+")]
+    private static partial Regex HorizontalWhitespaceRegex();
+
+    [GeneratedRegex(@"\n{3,}")]
+    private static partial Regex ExcessiveNewlinesRegex();
+
+    // Link extraction
+    [GeneratedRegex(@"<a[^>]*href=[""']([^""']+)[""'][^>]*>([^<]*)</a>", RegexOptions.IgnoreCase)]
+    private static partial Regex AnchorTagRegex();
 }

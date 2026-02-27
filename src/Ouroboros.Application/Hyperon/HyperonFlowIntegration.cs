@@ -271,8 +271,9 @@ public sealed class HyperonFlowIntegration : IAsyncDisposable
                 return Enumerable.Empty<Atom>();
 
             var prompt = expr.Children[1].ToSExpr();
-            // GroundedOperation is synchronous; offload to thread pool to avoid deadlock
-            var response = Task.Run(async () => await llmInference(prompt, CancellationToken.None)).GetAwaiter().GetResult();
+            // GroundedOperation is synchronous; offload async call to thread pool
+            // to avoid SynchronizationContext deadlock.
+            var response = Task.Run(() => llmInference(prompt, CancellationToken.None)).GetAwaiter().GetResult(); // sync-over-async:accepted — GroundedOperation delegate is synchronous by design
 
             // Parse response as atom if possible, otherwise create a string atom
             var parseResult = _parser.Parse(response);

@@ -5,13 +5,14 @@
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace Ouroboros.Application.Tools;
 
 /// <summary>
 /// Research tool that searches and scrapes web content using Firecrawl API.
 /// </summary>
-public class FirecrawlResearchTool : ITool
+public partial class FirecrawlResearchTool : ITool
 {
     /// <inheritdoc/>
     public string Name => "web_research";
@@ -84,16 +85,9 @@ public class FirecrawlResearchTool : ITool
             // Parse results from HTML
             var results = new StringBuilder();
 
-            // Extract result links and snippets using regex
-            var linkRegex = new System.Text.RegularExpressions.Regex(
-                @"<a[^>]*class=""result__a""[^>]*href=""([^""]+)""[^>]*>([^<]+)</a>",
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-            var snippetRegex = new System.Text.RegularExpressions.Regex(
-                @"<a[^>]*class=""result__snippet""[^>]*>(.+?)</a>",
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
-
-            var linkMatches = linkRegex.Matches(html);
-            var snippetMatches = snippetRegex.Matches(html);
+            // Extract result links and snippets using cached regex
+            var linkMatches = DdgResultLinkRegex().Matches(html);
+            var snippetMatches = DdgResultSnippetRegex().Matches(html);
 
             int count = 0;
             for (int i = 0; i < Math.Min(linkMatches.Count, 5); i++)
@@ -109,7 +103,7 @@ public class FirecrawlResearchTool : ITool
                 // Extract actual URL from DDG redirect
                 if (url.StartsWith("//duckduckgo.com/l/?uddg="))
                 {
-                    var urlMatch = System.Text.RegularExpressions.Regex.Match(url, @"uddg=([^&]+)");
+                    var urlMatch = DdgUddgParamRegex().Match(url);
                     if (urlMatch.Success)
                         url = Uri.UnescapeDataString(urlMatch.Groups[1].Value);
                 }
@@ -119,7 +113,7 @@ public class FirecrawlResearchTool : ITool
                 if (i < snippetMatches.Count)
                 {
                     snippet = System.Net.WebUtility.HtmlDecode(
-                        System.Text.RegularExpressions.Regex.Replace(snippetMatches[i].Groups[1].Value, @"<[^>]+>", "")).Trim();
+                        AnyHtmlTagRegex().Replace(snippetMatches[i].Groups[1].Value, "")).Trim();
                     if (snippet.Length > 100) snippet = snippet[..100] + "...";
                 }
 
@@ -242,12 +236,12 @@ public class FirecrawlResearchTool : ITool
             response.EnsureSuccessStatusCode();
             string content = await response.Content.ReadAsStringAsync(ct);
 
-            // Basic HTML stripping
-            content = System.Text.RegularExpressions.Regex.Replace(content, @"<script[^>]*>[\s\S]*?</script>", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-            content = System.Text.RegularExpressions.Regex.Replace(content, @"<style[^>]*>[\s\S]*?</style>", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-            content = System.Text.RegularExpressions.Regex.Replace(content, @"<[^>]+>", " ");
+            // Basic HTML stripping using cached regex
+            content = ScriptTagRegex().Replace(content, "");
+            content = StyleTagRegex().Replace(content, "");
+            content = AnyHtmlTagRegex().Replace(content, " ");
             content = System.Net.WebUtility.HtmlDecode(content);
-            content = System.Text.RegularExpressions.Regex.Replace(content, @"\s+", " ").Trim();
+            content = WhitespaceRegex().Replace(content, " ").Trim();
 
             return Result<string, string>.Success(content.Length > 20000 ? content[..20000] + "...[truncated]" : content);
         }
@@ -256,4 +250,29 @@ public class FirecrawlResearchTool : ITool
             return Result<string, string>.Failure($"Failed to fetch URL: {ex.Message}");
         }
     }
+
+    // === Generated Regex Patterns ===
+
+    // DuckDuckGo search result parsing
+    [GeneratedRegex(@"<a[^>]*class=""result__a""[^>]*href=""([^""]+)""[^>]*>([^<]+)</a>", RegexOptions.IgnoreCase)]
+    private static partial Regex DdgResultLinkRegex();
+
+    [GeneratedRegex(@"<a[^>]*class=""result__snippet""[^>]*>(.+?)</a>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex DdgResultSnippetRegex();
+
+    [GeneratedRegex(@"uddg=([^&]+)")]
+    private static partial Regex DdgUddgParamRegex();
+
+    // HTML stripping
+    [GeneratedRegex(@"<script[^>]*>[\s\S]*?</script>", RegexOptions.IgnoreCase)]
+    private static partial Regex ScriptTagRegex();
+
+    [GeneratedRegex(@"<style[^>]*>[\s\S]*?</style>", RegexOptions.IgnoreCase)]
+    private static partial Regex StyleTagRegex();
+
+    [GeneratedRegex(@"<[^>]+>")]
+    private static partial Regex AnyHtmlTagRegex();
+
+    [GeneratedRegex(@"\s+")]
+    private static partial Regex WhitespaceRegex();
 }
