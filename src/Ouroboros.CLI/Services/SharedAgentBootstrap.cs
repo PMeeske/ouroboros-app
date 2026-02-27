@@ -169,7 +169,8 @@ public static partial class SharedAgentBootstrap
                     {
                         // exploration loop ended (cancellation or transient failure)
                     }
-                }, ct);
+                }, ct)
+                .ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
             }
         }
         catch

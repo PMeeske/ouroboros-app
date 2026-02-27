@@ -265,7 +265,8 @@ public sealed partial class AutonomySubsystem : IAutonomySubsystem
                 {
                     System.Diagnostics.Debug.WriteLine($"[SelfIndex] Incremental failed: {ex.Message}");
                 }
-            });
+            })
+            .ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
         }
         catch (Exception ex)
         {

@@ -19,7 +19,8 @@ public sealed partial class CommandRoutingSubsystem
         {
             var thought = input.TrimStart()[4..].Trim();
             _memorySub.TrackLastThought(thought);
-            _ = Task.Run(async () => await _toolsSub.ExecuteToolsFromThought(thought));
+            _ = Task.Run(async () => await _toolsSub.ExecuteToolsFromThought(thought))
+                .ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
             return (ActionType.SaveThought, thought, null);
         }
 

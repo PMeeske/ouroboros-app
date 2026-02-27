@@ -112,7 +112,8 @@ public sealed partial class ChatSubsystem
                             input, response, topic, mood, 0.6);
                     }
                     catch (Exception) { }
-                });
+                })
+                .ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
             }
 
             if (_autonomySub.Coordinator?.IsActive == true && !string.IsNullOrWhiteSpace(input))

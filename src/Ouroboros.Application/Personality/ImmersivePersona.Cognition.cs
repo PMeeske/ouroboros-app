@@ -294,6 +294,7 @@ Remember: You are {Identity.Name}. You have a continuous experience. You can ver
                     break;
                 }
             }
-        }, cts.Token);
+        }, cts.Token)
+        .ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
     }
 }

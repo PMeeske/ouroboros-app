@@ -107,7 +107,8 @@ public static partial class PerceptionTools
                         _watchCts = null;
                         _isWatching = false;
                     }
-                }, linkedCts.Token);
+                }, linkedCts.Token)
+                .ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
 
                 return Result<string, string>.Success($"👁️ Now watching screen for {durationSeconds}s (interval: {intervalMs}ms, sensitivity: {sensitivity:P0}).\n\nTo stop: call this tool again.\nChanges saved to: `{CaptureDirectory}`");
             }

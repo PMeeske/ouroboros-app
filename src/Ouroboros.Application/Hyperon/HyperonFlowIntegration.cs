@@ -177,6 +177,7 @@ public sealed class HyperonFlowIntegration : IAsyncDisposable
                             Atom.Sym("meta-thought"),
                             Atom.Sym(loopId),
                             reflection,
+
                             Atom.Sym(DateTime.UtcNow.Ticks.ToString()));
                         _engine.AddAtom(metaAtom);
                     }
@@ -211,7 +212,8 @@ public sealed class HyperonFlowIntegration : IAsyncDisposable
                     _engine.AddAtom(errorAtom);
                 }
             }
-        }, loopCts.Token);
+        }, loopCts.Token)
+        .ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
 
         return loopCts;
     }

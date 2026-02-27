@@ -171,7 +171,8 @@ public sealed partial class ChatSubsystem : IChatSubsystem
                             }
                         }
                         catch (Exception) { }
-                    });
+                    })
+                    .ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
                 }
             }
             catch (Exception) { }

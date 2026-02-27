@@ -141,7 +141,8 @@ public sealed partial class OuroborosAgent
                             System.Diagnostics.Debug.WriteLine("[Personality] Periodic snapshot saved");
                         }
                         catch (Exception) { /* Ignore — snapshot is non-critical */ }
-                    });
+                    })
+                    .ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
                     interactionsSinceSnapshot = 0;
                 }
             }

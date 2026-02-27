@@ -169,7 +169,8 @@ public sealed class AgentEventBridge : IDisposable
                     // skip forwarding unless there's a reason to expose them.
                 }
             }
-        }, ct);
+        }, ct)
+        .ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

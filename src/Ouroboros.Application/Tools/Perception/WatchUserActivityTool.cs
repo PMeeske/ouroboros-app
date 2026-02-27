@@ -108,7 +108,8 @@ public static partial class PerceptionTools
                         _activityCts = null;
                         _isWatchingActivity = false;
                     }
-                }, linkedCts.Token);
+                }, linkedCts.Token)
+                .ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
 
                 return Result<string, string>.Success($"👀 Now monitoring user activity for {durationSeconds}s.\n\nTracking: window changes, mouse movement\nLogs saved to: `{CaptureDirectory}`\n\nTo stop: call this tool again.");
             }
