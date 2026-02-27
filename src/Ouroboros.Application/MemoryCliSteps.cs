@@ -18,7 +18,7 @@ public static class MemoryCliSteps
     /// <summary>
     /// Gets or initializes the memory manager singleton.
     /// </summary>
-    private static async Task<OuroborosMemoryManager> GetMemoryManagerAsync(string endpoint = "http://localhost:6333")
+    private static async Task<OuroborosMemoryManager> GetMemoryManagerAsync(string endpoint = Configuration.DefaultEndpoints.QdrantRest)
     {
         if (_memoryManager == null)
         {

@@ -52,7 +52,7 @@ public sealed class AvatarVideoGenerator
     /// <param name="stabilityModel">Stability AI model (default: sd3.5-medium).</param>
     /// <param name="stabilityStrength">Image-to-image strength for Stability AI (0-1, default: 0.35).</param>
     public AvatarVideoGenerator(
-        string sdEndpoint = "http://localhost:7860",
+        string sdEndpoint = Configuration.DefaultEndpoints.StableDiffusion,
         string? sdModel = null,
         int timeoutSeconds = 300,
         ILogger<AvatarVideoGenerator>? logger = null,

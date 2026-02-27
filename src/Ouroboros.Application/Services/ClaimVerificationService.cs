@@ -6,6 +6,7 @@ namespace Ouroboros.Application.Services;
 
 using System.Collections.Concurrent;
 using System.Text.Json;
+using Ouroboros.Application.Tools.SystemTools;
 
 /// <summary>
 /// Interface for anti-hallucination claim verification and modification verification.
@@ -92,6 +93,12 @@ public class ClaimVerificationService : IClaimVerificationService
                             ? filePath
                             : Path.Combine(Environment.CurrentDirectory, filePath);
 
+                        try { absolutePath = PathSanitizer.Sanitize(absolutePath); }
+                        catch (UnauthorizedAccessException ex)
+                        {
+                            return new ClaimVerification { IsValid = false, Reason = $"Access denied: {ex.Message}", ClaimType = "file_existence" };
+                        }
+
                         var exists = VerifyFileExistsFunction?.Invoke(absolutePath) ?? File.Exists(absolutePath);
                         return new ClaimVerification
                         {
@@ -114,6 +121,12 @@ public class ClaimVerificationService : IClaimVerificationService
                         var absolutePath = Path.IsPathRooted(filePath)
                             ? filePath
                             : Path.Combine(Environment.CurrentDirectory, filePath);
+
+                        try { absolutePath = PathSanitizer.Sanitize(absolutePath); }
+                        catch (UnauthorizedAccessException ex)
+                        {
+                            return new ClaimVerification { IsValid = false, Reason = $"Access denied: {ex.Message}", ClaimType = "file_contains" };
+                        }
 
                         if (File.Exists(absolutePath))
                         {
@@ -176,6 +189,13 @@ public class ClaimVerificationService : IClaimVerificationService
                 var absolutePath = Path.IsPathRooted(claimArg)
                     ? claimArg
                     : Path.Combine(Environment.CurrentDirectory, claimArg);
+
+                try { absolutePath = PathSanitizer.Sanitize(absolutePath); }
+                catch (UnauthorizedAccessException ex)
+                {
+                    return new ClaimVerification { IsValid = false, Reason = $"Access denied: {ex.Message}", ClaimType = "path_check" };
+                }
+
                 var exists = File.Exists(absolutePath);
                 return new ClaimVerification
                 {

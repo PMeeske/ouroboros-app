@@ -1,5 +1,6 @@
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 using CommandLine;
+using Ouroboros.Application.Configuration;
 
 namespace Ouroboros.Options;
 
@@ -24,11 +25,11 @@ public class AssistOptions : BaseModelOptions, IVoiceOptions
     [Option("embed-model", Required = false, Default = "nomic-embed-text", HelpText = "Embedding model for voice mode.")]
     public string EmbedModel { get; set; } = "nomic-embed-text";
 
-    [Option("qdrant", Required = false, Default = "http://localhost:6334", HelpText = "Qdrant endpoint for skills.")]
-    public string QdrantEndpoint { get; set; } = "http://localhost:6334";
+    [Option("qdrant", Required = false, Default = DefaultEndpoints.QdrantGrpc, HelpText = "Qdrant endpoint for skills.")]
+    public string QdrantEndpoint { get; set; } = DefaultEndpoints.QdrantGrpc;
 
     // Explicit interface for Endpoint
-    string IVoiceOptions.Endpoint { get => Endpoint ?? "http://localhost:11434"; set => Endpoint = value; }
+    string IVoiceOptions.Endpoint { get => Endpoint ?? DefaultEndpoints.Ollama; set => Endpoint = value; }
 
     [Option('m', "mode", Required = false, Default = "suggest", HelpText = "Assistant mode: suggest, complete, validate, explain, build")]
     public string Mode { get; set; } = "suggest";

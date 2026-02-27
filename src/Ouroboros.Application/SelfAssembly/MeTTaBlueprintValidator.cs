@@ -11,7 +11,7 @@ namespace Ouroboros.Application.SelfAssembly;
 /// Validates neuron blueprints using MeTTa symbolic reasoning.
 /// Ensures safety constraints are met before assembly.
 /// </summary>
-public sealed class MeTTaBlueprintValidator
+public sealed partial class MeTTaBlueprintValidator
 {
     private readonly List<SafetyConstraint> _constraints = [];
 
@@ -267,9 +267,11 @@ public sealed class MeTTaBlueprintValidator
     private static bool ValidateTopicPatterns(IReadOnlyList<string> topics)
     {
         // Topic patterns should be alphanumeric with dots and wildcards
-        var validPattern = new Regex(@"^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_*]+)*$");
-        return topics.All(t => validPattern.IsMatch(t));
+        return topics.All(t => TopicPatternRegex().IsMatch(t));
     }
+
+    [GeneratedRegex(@"^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_*]+)*$")]
+    private static partial Regex TopicPatternRegex();
 
     private static bool DetectNetworkManipulation(NeuronBlueprint blueprint)
     {

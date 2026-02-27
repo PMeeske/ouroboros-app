@@ -1,5 +1,6 @@
 using LangChain.DocumentLoaders;
 using LangChain.Providers.Ollama;
+using Ouroboros.Application.Configuration;
 using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Diagnostics;
 using Ouroboros.Options;
@@ -204,7 +205,7 @@ public static class PipelineCommands
             localTts: o.LocalTts,
             voiceLoop: o.VoiceLoop,
             model: o.Model,
-            endpoint: o.Endpoint ?? "http://localhost:11434");
+            endpoint: o.Endpoint ?? DefaultEndpoints.Ollama);
 
         await voiceService.InitializeAsync();
         voiceService.PrintHeader("PIPELINE DSL");

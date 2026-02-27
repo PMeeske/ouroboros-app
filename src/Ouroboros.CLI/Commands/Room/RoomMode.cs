@@ -4,6 +4,7 @@ namespace Ouroboros.CLI.Commands;
 using Microsoft.Extensions.DependencyInjection;
 using LangChain.Providers.Ollama;
 using Ouroboros.Abstractions.Monads;
+using Ouroboros.Application.Configuration;
 using Ouroboros.Application.Personality;
 using Ouroboros.Application.Services;
 using Ouroboros.CLI.Avatar;
@@ -97,9 +98,9 @@ public sealed partial class RoomMode
     {
         var personaName  = parseResult.GetValue(opts.PersonaOption) ?? "Iaret";
         var model        = parseResult.GetValue(opts.ModelOption) ?? "deepseek-v3.1:671b-cloud";
-        var endpoint     = parseResult.GetValue(opts.EndpointOption) ?? "http://localhost:11434";
+        var endpoint     = parseResult.GetValue(opts.EndpointOption) ?? DefaultEndpoints.Ollama;
         var embedModel   = parseResult.GetValue(opts.EmbedModelOption) ?? "nomic-embed-text";
-        var qdrant       = parseResult.GetValue(opts.QdrantEndpointOption) ?? "http://localhost:6334";
+        var qdrant       = parseResult.GetValue(opts.QdrantEndpointOption) ?? DefaultEndpoints.QdrantGrpc;
         var speechKey    = parseResult.GetValue(opts.AzureSpeechKeyOption)
                           ?? Environment.GetEnvironmentVariable("AZURE_SPEECH_KEY");
         var speechRegion = parseResult.GetValue(opts.AzureSpeechRegionOption) ?? "eastus";
@@ -154,9 +155,9 @@ public sealed partial class RoomMode
     public async Task RunAsync(
         string personaName = "Iaret",
         string model       = "deepseek-v3.1:671b-cloud",
-        string endpoint    = "http://localhost:11434",
+        string endpoint    = DefaultEndpoints.Ollama,
         string embedModel  = "nomic-embed-text",
-        string qdrant      = "http://localhost:6334",
+        string qdrant      = DefaultEndpoints.QdrantGrpc,
         string? azureSpeechKey    = null,
         string azureSpeechRegion  = "eastus",
         string ttsVoice           = "en-US-JennyMultilingualNeural",

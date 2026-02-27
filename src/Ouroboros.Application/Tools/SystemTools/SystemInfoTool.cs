@@ -34,8 +34,8 @@ internal class SystemInfoTool : ITool
 
             // Memory info via GC
             var gcInfo = GC.GetGCMemoryInfo();
-            sb.AppendLine($"Total Memory: {FormatSize(gcInfo.TotalAvailableMemoryBytes)}");
-            sb.AppendLine($"Process Memory: {FormatSize(Environment.WorkingSet)}");
+            sb.AppendLine($"Total Memory: {ByteFormatter.Format(gcInfo.TotalAvailableMemoryBytes)}");
+            sb.AppendLine($"Process Memory: {ByteFormatter.Format(Environment.WorkingSet)}");
 
             // Uptime
             var uptime = TimeSpan.FromMilliseconds(Environment.TickCount64);
@@ -49,10 +49,4 @@ internal class SystemInfoTool : ITool
         }
     }
 
-    private static string FormatSize(long bytes) => bytes switch
-    {
-        < 1024 * 1024 => $"{bytes / 1024.0:F1} KB",
-        < 1024 * 1024 * 1024 => $"{bytes / (1024.0 * 1024):F1} MB",
-        _ => $"{bytes / (1024.0 * 1024 * 1024):F2} GB"
-    };
 }

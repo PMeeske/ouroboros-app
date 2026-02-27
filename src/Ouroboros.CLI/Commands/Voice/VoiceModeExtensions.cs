@@ -1,4 +1,6 @@
-﻿namespace Ouroboros.CLI.Commands;
+﻿using Ouroboros.Application.Configuration;
+
+namespace Ouroboros.CLI.Commands;
 
 /// <summary>
 /// Extension methods for voice mode integration.
@@ -15,9 +17,9 @@ public static class VoiceModeExtensions
         bool localTts = false,
         bool voiceLoop = true,
         string model = "llama3",
-        string endpoint = "http://localhost:11434",
+        string endpoint = DefaultEndpoints.Ollama,
         string embedModel = "nomic-embed-text",
-        string qdrantEndpoint = "http://localhost:6334")
+        string qdrantEndpoint = DefaultEndpoints.QdrantGrpc)
     {
         return new VoiceModeService(new VoiceModeConfig(
             Persona: persona,

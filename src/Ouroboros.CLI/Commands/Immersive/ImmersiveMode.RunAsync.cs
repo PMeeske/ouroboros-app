@@ -8,6 +8,7 @@ using System.Text;
 using LangChain.DocumentLoaders;
 using LangChain.Providers.Ollama;
 using Ouroboros.Abstractions.Agent;
+using Ouroboros.Application.Configuration;
 using Ouroboros.Agent;
 using Ouroboros.Agent.MetaAI;
 using Ouroboros.CLI.Avatar;
@@ -130,7 +131,7 @@ public sealed partial class ImmersiveMode
         }
 
         // Initialize persistent conversation memory
-        var qdrantEndpoint = NormalizeEndpoint(options.QdrantEndpoint, "http://localhost:6334");
+        var qdrantEndpoint = NormalizeEndpoint(options.QdrantEndpoint, DefaultEndpoints.QdrantGrpc);
         {
             var client = _serviceProvider?.GetService<QdrantClient>();
             var registry = _serviceProvider?.GetService<IQdrantCollectionRegistry>();

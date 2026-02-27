@@ -2,6 +2,7 @@
 namespace Ouroboros.CLI.Subsystems.Autonomy;
 
 using Microsoft.Extensions.DependencyInjection;
+using Ouroboros.Application.Configuration;
 using Ouroboros.CLI.Infrastructure;
 using Ouroboros.CLI.Subsystems;
 using Ouroboros.Core.Configuration;
@@ -78,7 +79,7 @@ internal sealed class NetworkStateManager
             }
             else
             {
-                var qdrantEndpoint = NormalizeEndpoint(ctx.Config.QdrantEndpoint, "http://localhost:6334");
+                var qdrantEndpoint = NormalizeEndpoint(ctx.Config.QdrantEndpoint, DefaultEndpoints.QdrantGrpc);
                 NetworkProjector = new PersistentNetworkStateProjector(
                     dag, qdrantEndpoint, embedFunc);
             }

@@ -8,6 +8,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
 using Ouroboros.ApiHost.Extensions;
+using Ouroboros.Application.Configuration;
 using Ouroboros.CLI.Commands;
 using Ouroboros.CLI.Commands.Options;
 using Ouroboros.CLI.Commands.Handlers;
@@ -312,15 +313,15 @@ static Command CreateMeTTaCommand(IHost host, System.CommandLine.Option<bool> gl
 static Command CreateServeCommand()
 {
     var urlOption = new System.CommandLine.Option<string>("--url");
-    urlOption.Description = "URL(s) to listen on (default: http://localhost:5000)";
-    urlOption.DefaultValueFactory = _ => "http://localhost:5000";
+    urlOption.Description = "URL(s) to listen on (default: " + DefaultEndpoints.OuroborosApi + ")";
+    urlOption.DefaultValueFactory = _ => DefaultEndpoints.OuroborosApi;
 
     var command = new Command("serve", "Start the Ouroboros Web API server in-process (co-hosted with CLI)");
     command.Add(urlOption);
 
     command.SetAction(async (parseResult, cancellationToken) =>
     {
-        var url = parseResult.GetValue(urlOption) ?? "http://localhost:5000";
+        var url = parseResult.GetValue(urlOption) ?? DefaultEndpoints.OuroborosApi;
 
         var webBuilder = WebApplication.CreateBuilder([]);
         webBuilder.WebHost.UseUrls(url);

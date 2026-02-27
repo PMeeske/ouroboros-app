@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Ouroboros.Application.Configuration;
 using Ouroboros.CLI.Commands;
 using Ouroboros.Options;
 
@@ -32,7 +33,7 @@ public class OrchestratorService : IOrchestratorService
             LocalTts = false,
             Persona = "Iaret",
             Model = "deepseek-v3.1:671b-cloud",
-            Endpoint = "http://localhost:11434",
+            Endpoint = DefaultEndpoints.Ollama,
             Temperature = 0.7f,
             MaxTokens = 2048,
             TimeoutSeconds = 60

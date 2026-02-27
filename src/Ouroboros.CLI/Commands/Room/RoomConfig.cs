@@ -1,3 +1,5 @@
+using Ouroboros.Application.Configuration;
+
 namespace Ouroboros.CLI.Commands;
 
 /// <summary>
@@ -11,9 +13,9 @@ namespace Ouroboros.CLI.Commands;
 public sealed record RoomConfig(
     string Persona = "Iaret",
     string Model = "deepseek-v3.1:671b-cloud",
-    string Endpoint = "http://localhost:11434",
+    string Endpoint = DefaultEndpoints.Ollama,
     string EmbedModel = "nomic-embed-text",
-    string QdrantEndpoint = "http://localhost:6334",
+    string QdrantEndpoint = DefaultEndpoints.QdrantGrpc,
     string? AzureSpeechKey = null,
     string AzureSpeechRegion = "eastus",
     string TtsVoice = "en-US-AvaMultilingualNeural",

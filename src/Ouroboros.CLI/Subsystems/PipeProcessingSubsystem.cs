@@ -11,7 +11,7 @@ using Spectre.Console;
 /// Pipe processing subsystem: command chaining via | syntax, [PIPE:] detection,
 /// and non-interactive batch/exec/pipe-mode execution.
 /// </summary>
-public sealed class PipeProcessingSubsystem : IPipeProcessingSubsystem
+public sealed partial class PipeProcessingSubsystem : IPipeProcessingSubsystem
 {
     public string Name => "PipeProcessing";
     public bool IsInitialized { get; private set; }
@@ -149,8 +149,7 @@ public sealed class PipeProcessingSubsystem : IPipeProcessingSubsystem
     {
         if (maxDepth <= 0) return response;
 
-        var pipePattern = new Regex(@"\[PIPE:\s*(.+?)\]|```pipe\s*\n(.+?)\n```", RegexOptions.Singleline);
-        var matches = pipePattern.Matches(response);
+        var matches = PipePatternRegex().Matches(response);
 
         if (matches.Count == 0) return response;
 
@@ -257,6 +256,9 @@ public sealed class PipeProcessingSubsystem : IPipeProcessingSubsystem
             Console.Error.WriteLine($"ERROR: {message}");
         }
     }
+
+    [GeneratedRegex(@"\[PIPE:\s*(.+?)\]|```pipe\s*\n(.+?)\n```", RegexOptions.Singleline)]
+    private static partial Regex PipePatternRegex();
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }

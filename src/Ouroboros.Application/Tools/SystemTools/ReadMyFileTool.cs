@@ -25,6 +25,16 @@ internal class ReadMyFileTool : ITool
             filePath = Path.Combine(Environment.CurrentDirectory, filePath);
         }
 
+        // Security gate: sanitize and validate the file path
+        try
+        {
+            filePath = PathSanitizer.Sanitize(filePath);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Result<string, string>.Failure($"Error: {ex.Message}");
+        }
+
         if (!File.Exists(filePath))
         {
             return Result<string, string>.Failure($"File not found: {filePath}");

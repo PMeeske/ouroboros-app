@@ -16,6 +16,16 @@ internal class ProcessStartTool : ITool
     public string Description => "Start a program. Input: JSON {\"program\":\"notepad.exe\", \"args\":\"\", \"wait\":false}";
     public string? JsonSchema => null;
 
+    /// <summary>
+    /// Programs that are allowed to be started by this tool.
+    /// All other programs are blocked to prevent arbitrary process execution.
+    /// </summary>
+    private static readonly HashSet<string> AllowedPrograms = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "notepad", "explorer", "code", "calc", "mspaint",
+        "xdg-open", "open", "firefox", "chrome", "chromium"
+    };
+
     public async Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
     {
         try
@@ -37,6 +47,11 @@ internal class ProcessStartTool : ITool
             {
                 program = input.Trim();
             }
+
+            // Security gate: only allow programs from the allowlist
+            var programName = Path.GetFileNameWithoutExtension(program);
+            if (!AllowedPrograms.Contains(programName))
+                return Result<string, string>.Failure($"Program '{program}' is not in the allowed list. Allowed: {string.Join(", ", AllowedPrograms)}");
 
             var psi = new ProcessStartInfo(program, args)
             {

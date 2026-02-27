@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Ouroboros.ApiHost.Extensions;
+using Ouroboros.Application.Configuration;
 using Ouroboros.Application.Integration;
 using Ouroboros.Application.Tools;
 using Ouroboros.CLI.Commands;
@@ -156,9 +157,9 @@ public static class AgentBootstrapper
         return new OuroborosConfig(
             Persona: opts.Persona,
             Model: opts.Model,
-            Endpoint: opts.Endpoint ?? "http://localhost:11434",
+            Endpoint: opts.Endpoint ?? DefaultEndpoints.Ollama,
             EmbedModel: opts.EmbedModel,
-            EmbedEndpoint: "http://localhost:11434",
+            EmbedEndpoint: DefaultEndpoints.Ollama,
             QdrantEndpoint: opts.QdrantEndpoint,
             ApiKey: Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY"),
             Voice: opts.Voice,

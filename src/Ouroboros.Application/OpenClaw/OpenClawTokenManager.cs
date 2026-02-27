@@ -64,7 +64,7 @@ public static class OpenClawTokenManager
         if (!string.IsNullOrWhiteSpace(envUrl))
             return envUrl;
 
-        return "ws://127.0.0.1:18789";
+        return Configuration.DefaultEndpoints.OpenClawGateway;
     }
 
     /// <summary>

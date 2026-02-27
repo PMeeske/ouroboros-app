@@ -18,6 +18,11 @@ internal class PowerShellTool : ITool
 
     public async Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
     {
+        // Security gate: block dangerous command patterns before execution
+        var safetyCheck = Agent.AgentToolFactory.CheckCommandSafety(input);
+        if (!string.IsNullOrEmpty(safetyCheck))
+            return Result<string, string>.Failure($"Blocked: {safetyCheck}");
+
         try
         {
             var (shell, shellArgs) = Agent.AgentToolFactory.GetShellCommand(input);

@@ -82,9 +82,22 @@ internal class EnvironmentTool : ITool
         return SecretPatterns.Any(p => name.Contains(p, StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    /// Environment variable names that are blocked from being set by tools.
+    /// These are critical system variables that should not be modified by autonomous agents.
+    /// </summary>
+    private static readonly HashSet<string> BlockedEnvVars = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "PATH", "HOME", "USERPROFILE", "APPDATA", "COMSPEC", "SHELL",
+        "SystemRoot", "TEMP", "TMP", "PROGRAMFILES"
+    };
+
     private static Task<Result<string, string>> SetEnvVar(string name, string value)
     {
+        if (BlockedEnvVars.Contains(name) || SecretPatterns.Any(p => name.Contains(p, StringComparison.OrdinalIgnoreCase)))
+            return Task.FromResult(Result<string, string>.Failure($"Setting '{name}' is blocked for security"));
+
         Environment.SetEnvironmentVariable(name, value);
-        return Task.FromResult(Result<string, string>.Success($"Set {name}={value}"));
+        return Task.FromResult(Result<string, string>.Success($"Set {name}=****"));
     }
 }

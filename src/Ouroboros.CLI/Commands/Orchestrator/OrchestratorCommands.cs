@@ -233,7 +233,7 @@ public static class OrchestratorCommands
             localTts: o.LocalTts,
             voiceLoop: o.VoiceLoop,
             model: o.Model,
-            endpoint: o.Endpoint ?? "http://localhost:11434");
+            endpoint: o.Endpoint ?? DefaultEndpoints.Ollama);
 
         await voiceService.InitializeAsync();
         voiceService.PrintHeader("SMART ORCHESTRATOR");

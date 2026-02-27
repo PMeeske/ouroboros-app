@@ -13,7 +13,7 @@ namespace Ouroboros.Application.Tools;
 /// </summary>
 public static class OpenClawTools
 {
-    private const string DefaultGateway = "ws://127.0.0.1:18789";
+    private const string DefaultGateway = Configuration.DefaultEndpoints.OpenClawGateway;
 
     /// <summary>Shared gateway client, set during init.</summary>
     public static OpenClawGatewayClient? SharedClient { get; set; }

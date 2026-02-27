@@ -2,6 +2,7 @@ using System.Diagnostics;
 using LangChain.Providers.Ollama;
 using Microsoft.Extensions.Logging;
 using Ouroboros.Agent.MetaAI;
+using Ouroboros.Application.Configuration;
 using Ouroboros.Application.Services;
 using Ouroboros.CLI.Commands;
 using Ouroboros.CLI.Infrastructure;
@@ -190,7 +191,7 @@ public sealed class MeTTaService : IMeTTaService
             localTts: config.LocalTts,
             voiceLoop: config.VoiceLoop,
             model: config.Model,
-            endpoint: config.Endpoint ?? "http://localhost:11434");
+            endpoint: config.Endpoint ?? DefaultEndpoints.Ollama);
 
         await voiceService.InitializeAsync();
         voiceService.PrintHeader("METTA ORCHESTRATOR");

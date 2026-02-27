@@ -1,4 +1,6 @@
 // Copyright (c) Ouroboros. All rights reserved.
+using Ouroboros.Application.Configuration;
+
 namespace Ouroboros.Options;
 
 /// <summary>
@@ -9,9 +11,9 @@ public sealed class ImmersiveCommandVoiceOptions : IVoiceOptions
 {
     public string Persona       { get; set; } = "Iaret";
     public string Model         { get; set; } = "deepseek-v3.1:671b-cloud";
-    public string Endpoint      { get; set; } = "http://localhost:11434";
+    public string Endpoint      { get; set; } = DefaultEndpoints.Ollama;
     public string EmbedModel    { get; set; } = "nomic-embed-text";
-    public string QdrantEndpoint { get; set; } = "http://localhost:6334";
+    public string QdrantEndpoint { get; set; } = DefaultEndpoints.QdrantGrpc;
 
     public bool Voice     { get; set; }
     public bool VoiceOnly { get; set; }

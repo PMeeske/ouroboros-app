@@ -14,6 +14,12 @@ namespace Ouroboros.Application.Tools;
 /// </summary>
 public partial class FirecrawlResearchTool : ITool
 {
+    private static readonly Lazy<HttpClient> _sharedClient = new(() => new HttpClient(new HttpClientHandler
+    {
+        AutomaticDecompression = System.Net.DecompressionMethods.All,
+    })
+    { Timeout = TimeSpan.FromSeconds(30) });
+
     /// <inheritdoc/>
     public string Name => "web_research";
 
@@ -68,16 +74,13 @@ public partial class FirecrawlResearchTool : ITool
     {
         try
         {
-            using var handler = new HttpClientHandler
-            {
-                AutomaticDecompression = System.Net.DecompressionMethods.All
-            };
-            using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
-            client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+            var client = _sharedClient.Value;
 
             // Use DuckDuckGo HTML search (free, no API key needed)
             var encodedQuery = Uri.EscapeDataString(query);
-            var response = await client.GetAsync($"https://html.duckduckgo.com/html/?q={encodedQuery}", ct);
+            using var ddgRequest = new HttpRequestMessage(HttpMethod.Get, $"https://html.duckduckgo.com/html/?q={encodedQuery}");
+            ddgRequest.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+            var response = await client.SendAsync(ddgRequest, ct);
             response.EnsureSuccessStatusCode();
 
             string html = await response.Content.ReadAsStringAsync(ct);
@@ -137,12 +140,7 @@ public partial class FirecrawlResearchTool : ITool
     {
         try
         {
-            using var handler = new HttpClientHandler
-            {
-                AutomaticDecompression = System.Net.DecompressionMethods.All
-            };
-            using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(60) };
-            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
+            var client = _sharedClient.Value;
 
             // Use Firecrawl's search endpoint
             var searchRequest = new
@@ -161,7 +159,11 @@ public partial class FirecrawlResearchTool : ITool
                 Encoding.UTF8,
                 "application/json");
 
-            var response = await client.PostAsync("https://api.firecrawl.dev/v1/search", jsonContent, ct);
+            using var fcRequest = new HttpRequestMessage(HttpMethod.Post, "https://api.firecrawl.dev/v1/search");
+            fcRequest.Headers.TryAddWithoutValidation("Authorization", $"Bearer {apiKey}");
+            fcRequest.Content = jsonContent;
+
+            var response = await client.SendAsync(fcRequest, ct);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -225,14 +227,12 @@ public partial class FirecrawlResearchTool : ITool
         // Fallback to basic fetch with decompression
         try
         {
-            using var handler = new HttpClientHandler
-            {
-                AutomaticDecompression = System.Net.DecompressionMethods.All
-            };
-            using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
-            client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+            var client = _sharedClient.Value;
 
-            var response = await client.GetAsync(url, ct);
+            using var scrapeRequest = new HttpRequestMessage(HttpMethod.Get, url);
+            scrapeRequest.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
+
+            var response = await client.SendAsync(scrapeRequest, ct);
             response.EnsureSuccessStatusCode();
             string content = await response.Content.ReadAsStringAsync(ct);
 

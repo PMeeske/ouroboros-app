@@ -2,7 +2,6 @@
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
-using System.Diagnostics;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Logging;
 using Ouroboros.ApiHost.Services;
@@ -614,30 +613,6 @@ public sealed class ClaudeCheckCommandHandler
         }
     }
 
-    private static async Task<(bool success, string output)> RunGitAsync(string workDir, string args)
-    {
-        try
-        {
-            var psi = new ProcessStartInfo
-            {
-                FileName = "git",
-                Arguments = args,
-                WorkingDirectory = workDir,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-            using var process = Process.Start(psi);
-            if (process is null) return (false, string.Empty);
-
-            var output = await process.StandardOutput.ReadToEndAsync();
-            await process.WaitForExitAsync();
-            return (process.ExitCode == 0, output);
-        }
-        catch
-        {
-            return (false, string.Empty);
-        }
-    }
+    private static Task<(bool success, string output)> RunGitAsync(string workDir, string args)
+        => GitProcessHelper.RunGitAsync(workDir, args);
 }

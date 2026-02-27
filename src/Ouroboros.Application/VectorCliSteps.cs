@@ -60,8 +60,8 @@ public static class VectorCliSteps
             var parsed = ParseVectorArgs(args);
             
             // Default to localhost gRPC port for Qdrant if no connection string
-            string connectionString = string.IsNullOrEmpty(parsed.ConnectionString) 
-                ? "http://localhost:6334" 
+            string connectionString = string.IsNullOrEmpty(parsed.ConnectionString)
+                ? Configuration.DefaultEndpoints.QdrantGrpc
                 : parsed.ConnectionString;
 
             try

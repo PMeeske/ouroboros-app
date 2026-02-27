@@ -1,4 +1,6 @@
-﻿namespace Ouroboros.CLI.Commands;
+﻿using Ouroboros.Application.Configuration;
+
+namespace Ouroboros.CLI.Commands;
 
 /// <summary>
 /// Configuration for the unified Ouroboros agent.
@@ -6,10 +8,10 @@
 public sealed record OuroborosConfig(
     string Persona = "Iaret",
     string Model = "deepseek-v3.1:671b-cloud",
-    string Endpoint = "http://localhost:11434",
+    string Endpoint = DefaultEndpoints.Ollama,
     string EmbedModel = "nomic-embed-text",
-    string EmbedEndpoint = "http://localhost:11434",
-    string QdrantEndpoint = "http://localhost:6334",
+    string EmbedEndpoint = DefaultEndpoints.Ollama,
+    string QdrantEndpoint = DefaultEndpoints.QdrantGrpc,
     string? ApiKey = null,
     string? EndpointType = null,  // auto|openai|ollama-cloud|litellm|github-models|anthropic
     bool Voice = false,
@@ -93,7 +95,7 @@ public sealed record OuroborosConfig(
     // Room Presence
     bool RoomMode = false,
     // OpenClaw Gateway integration
-    string? OpenClawGateway = "ws://127.0.0.1:18789",
+    string? OpenClawGateway = DefaultEndpoints.OpenClawGateway,
     string? OpenClawToken = null,          // gateway auth token
     bool EnableOpenClaw = true,
     // OpenClaw PC Node

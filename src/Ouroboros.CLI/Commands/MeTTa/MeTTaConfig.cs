@@ -1,3 +1,5 @@
+using Ouroboros.Application.Configuration;
+
 namespace Ouroboros.CLI.Commands;
 
 /// <summary>
@@ -18,7 +20,7 @@ public sealed record MeTTaConfig(
     bool Debug = false,
     string Embed = "nomic-embed-text",
     string EmbedModel = "nomic-embed-text",
-    string QdrantEndpoint = "http://localhost:6334",
+    string QdrantEndpoint = DefaultEndpoints.QdrantGrpc,
     bool PlanOnly = false,
     bool ShowMetrics = true,
     bool Interactive = false,

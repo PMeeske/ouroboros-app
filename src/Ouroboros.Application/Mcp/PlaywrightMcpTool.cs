@@ -45,7 +45,7 @@ public class PlaywrightMcpTool : ITool, IAsyncDisposable
         string browser = "edge",
         string? screenshotDirectory = null,
         string visionModel = "minicpm-v",
-        string ollamaEndpoint = "http://localhost:11434")
+        string ollamaEndpoint = Configuration.DefaultEndpoints.Ollama)
     {
         // Use -y to auto-confirm package installation and @latest to get current version
         var args = new List<string> { "-y", "@playwright/mcp@latest", "--browser", browser };

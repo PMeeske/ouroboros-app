@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Ouroboros.ApiHost.Extensions;
+using Ouroboros.Application.Configuration;
 using Ouroboros.Application.Integration;
 using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Core.EmbodiedInteraction;
@@ -121,7 +122,7 @@ public static class OuroborosCliIntegration
             services.AddLogging();
 
             // Register Ollama vision model for embodiment and multi-model swarm
-            var ollamaEndpoint = config["Ollama:Endpoint"] ?? "http://localhost:11434";
+            var ollamaEndpoint = config["Ollama:Endpoint"] ?? DefaultEndpoints.Ollama;
             var visionModelName = config["Ollama:VisionModel"] ?? OllamaVisionModel.DefaultModel;
             services.AddSingleton<IVisionModel>(sp =>
             {

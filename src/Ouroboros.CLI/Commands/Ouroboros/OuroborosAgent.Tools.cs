@@ -5,6 +5,7 @@
 using System.Diagnostics;
 using MediatR;
 using Ouroboros.Abstractions.Monads;
+using Ouroboros.Application.Configuration;
 using Ouroboros.CLI.Avatar;
 using Ouroboros.CLI.Mediator;
 using Spectre.Console;
@@ -140,7 +141,7 @@ public sealed partial class OuroborosAgent
 
         // Create vision model from config
         var ollamaEndpoint = _staticConfiguration?["Ollama:Endpoint"]
-            ?? _config.Endpoint ?? "http://localhost:11434";
+            ?? _config.Endpoint ?? DefaultEndpoints.Ollama;
         var visionModelName = _staticConfiguration?["Ollama:VisionModel"]
             ?? Ouroboros.Providers.OllamaVisionModel.DefaultModel;
         _visionModel = new Ouroboros.Providers.OllamaVisionModel(ollamaEndpoint, visionModelName);

@@ -3,6 +3,7 @@ namespace Ouroboros.CLI.Commands;
 using System.Diagnostics;
 using System.Net.Http;
 using System.Runtime.InteropServices;
+using Ouroboros.Application.Configuration;
 using Spectre.Console;
 
 /// <summary>
@@ -38,11 +39,11 @@ public static class DoctorCommand
         // Ollama connectivity
         if (ollamaOk)
         {
-            var ollamaReachable = await CheckHttpAsync("http://localhost:11434/api/tags");
+            var ollamaReachable = await CheckHttpAsync($"{DefaultEndpoints.Ollama}/api/tags");
             table.AddRow(
                 "  Ollama API",
                 ollamaReachable ? "[green]REACHABLE[/]" : "[yellow]UNREACHABLE[/]",
-                ollamaReachable ? "http://localhost:11434" : "Run 'ollama serve' to start");
+                ollamaReachable ? DefaultEndpoints.Ollama : "Run 'ollama serve' to start");
         }
 
         // Docker

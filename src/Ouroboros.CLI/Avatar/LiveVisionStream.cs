@@ -8,6 +8,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Ouroboros.Application.Avatar;
+using Ouroboros.Application.Configuration;
 
 namespace Ouroboros.CLI.Avatar;
 
@@ -45,7 +46,7 @@ public sealed class LiveVisionStream : IAsyncDisposable
 
     public LiveVisionStream(
         InteractiveAvatarService avatarService,
-        string ollamaEndpoint = "http://localhost:11434",
+        string ollamaEndpoint = DefaultEndpoints.Ollama,
         string visionModel = "qwen3-vl:235b-cloud",
         string? assetDirectory = null,
         ILogger<LiveVisionStream>? logger = null,

@@ -79,22 +79,30 @@ public class McpClient : IDisposable
         if (IsConnected) return;
 
         // On Windows, npx is a .cmd file that needs to be run via cmd.exe
+        // Use ArgumentList instead of string interpolation to prevent argument injection
         var isWindows = Environment.OSVersion.Platform == PlatformID.Win32NT;
-        var fileName = isWindows ? "cmd.exe" : _command;
-        var arguments = isWindows
-            ? $"/c {_command} {string.Join(" ", _args)}"
-            : string.Join(" ", _args);
-
         var startInfo = new ProcessStartInfo
         {
-            FileName = fileName,
-            Arguments = arguments,
+            FileName = isWindows ? "cmd.exe" : _command,
             UseShellExecute = false,
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             CreateNoWindow = true,
         };
+
+        if (isWindows)
+        {
+            startInfo.ArgumentList.Add("/c");
+            startInfo.ArgumentList.Add(_command);
+            foreach (var arg in _args)
+                startInfo.ArgumentList.Add(arg);
+        }
+        else
+        {
+            foreach (var arg in _args)
+                startInfo.ArgumentList.Add(arg);
+        }
 
         _process = Process.Start(startInfo)
             ?? throw new InvalidOperationException("Failed to start MCP server process");

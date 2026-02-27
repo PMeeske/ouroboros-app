@@ -20,6 +20,9 @@ public static class AgentToolExecutor
         "run_command",
         "write_file",
         "edit_file",
+        "shell",
+        "start_process",
+        "environment",
     };
 
     /// <summary>

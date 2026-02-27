@@ -30,7 +30,7 @@ internal class DiskInfoTool : ITool
                 {
                     if (!drive.IsReady) continue;
                     var usedPercent = 100.0 * (drive.TotalSize - drive.TotalFreeSpace) / drive.TotalSize;
-                    sb.AppendLine($"{drive.Name,-6} {drive.VolumeLabel,-20} {drive.DriveType,-12} {FormatSize(drive.TotalSize),-12} {FormatSize(drive.TotalFreeSpace),-12} {usedPercent:F1}%");
+                    sb.AppendLine($"{drive.Name,-6} {drive.VolumeLabel,-20} {drive.DriveType,-12} {ByteFormatter.Format(drive.TotalSize),-12} {ByteFormatter.Format(drive.TotalFreeSpace),-12} {usedPercent:F1}%");
                 }
                 catch
                 {
@@ -50,10 +50,4 @@ internal class DiskInfoTool : ITool
         }
     }
 
-    private static string FormatSize(long bytes) => bytes switch
-    {
-        < 1024 * 1024 => $"{bytes / 1024.0:F1} KB",
-        < 1024 * 1024 * 1024 => $"{bytes / (1024.0 * 1024):F1} MB",
-        _ => $"{bytes / (1024.0 * 1024 * 1024):F2} GB"
-    };
 }

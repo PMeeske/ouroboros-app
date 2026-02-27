@@ -1,6 +1,7 @@
 // Copyright (c) Ouroboros. All rights reserved.
 namespace Ouroboros.CLI.Subsystems;
 
+using Ouroboros.Application.Configuration;
 using Ouroboros.CLI.Services;
 using Ouroboros.Providers;
 
@@ -28,7 +29,7 @@ public sealed class LanguageSubsystem : ILanguageSubsystem
 
     private static readonly TimeSpan DetectionTimeout = TimeSpan.FromSeconds(2);
 
-    private string _endpoint = "http://localhost:11434";
+    private string _endpoint = DefaultEndpoints.Ollama;
     private string _model    = DefaultModel;
 
     // Static accessor — set on InitializeAsync so static callers work.
@@ -41,7 +42,7 @@ public sealed class LanguageSubsystem : ILanguageSubsystem
 
     public Task InitializeAsync(SubsystemInitContext ctx)
     {
-        _endpoint = ctx.Config.Endpoint ?? "http://localhost:11434";
+        _endpoint = ctx.Config.Endpoint ?? DefaultEndpoints.Ollama;
         _model    = ctx.Config.LanguageModel ?? DefaultModel;
         _current  = this;
         IsInitialized = true;

@@ -97,7 +97,11 @@ public static class AgentToolFactory
 
     private static async Task<string> ReadFileAsync(string args, CliPipelineState s)
     {
-        var path = ParseToolArg(args, "path") ?? args.Trim().Trim('"', '\'');
+        var rawPath = ParseToolArg(args, "path") ?? args.Trim().Trim('"', '\'');
+        string path;
+        try { path = PathSanitizer.Sanitize(rawPath); }
+        catch (UnauthorizedAccessException ex) { return $"Error: {ex.Message}"; }
+
         if (!File.Exists(path))
             return $"Error: File not found: {path}";
 
@@ -199,8 +203,12 @@ public static class AgentToolFactory
 
     private static Task<string> ListDirAsync(string args, CliPipelineState s)
     {
-        var path = ParseToolArg(args, "path") ?? args.Trim().Trim('"', '\'');
-        if (string.IsNullOrEmpty(path)) path = ".";
+        var rawPath = ParseToolArg(args, "path") ?? args.Trim().Trim('"', '\'');
+        if (string.IsNullOrEmpty(rawPath)) rawPath = ".";
+
+        string path;
+        try { path = PathSanitizer.Sanitize(rawPath); }
+        catch (UnauthorizedAccessException ex) { return Task.FromResult($"Error: {ex.Message}"); }
 
         if (!Directory.Exists(path))
             return Task.FromResult($"Error: Directory not found: {path}");
@@ -224,11 +232,15 @@ public static class AgentToolFactory
     private static async Task<string> SearchFilesAsync(string args, CliPipelineState s)
     {
         var query = ParseToolArg(args, "query") ?? args.Trim().Trim('"', '\'');
-        var path = ParseToolArg(args, "path") ?? ".";
+        var rawPath = ParseToolArg(args, "path") ?? ".";
         var pattern = ParseToolArg(args, "pattern") ?? "*.cs";
 
         if (string.IsNullOrEmpty(query))
             return "Error: Required arg: query";
+
+        string path;
+        try { path = PathSanitizer.Sanitize(rawPath); }
+        catch (UnauthorizedAccessException ex) { return $"Error: {ex.Message}"; }
 
         try
         {

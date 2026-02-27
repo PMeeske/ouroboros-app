@@ -3,6 +3,7 @@
 // </copyright>
 
 using MediatR;
+using Ouroboros.Application.Configuration;
 using Ouroboros.CLI.Mediator;
 
 namespace Ouroboros.CLI.Commands;
@@ -32,9 +33,9 @@ public sealed partial class OuroborosAgent
         {
             Persona           = _config.Persona ?? "Iaret",
             Model             = _config.Model   ?? "deepseek-v3.1:671b-cloud",
-            Endpoint          = _config.Endpoint ?? "http://localhost:11434",
+            Endpoint          = _config.Endpoint ?? DefaultEndpoints.Ollama,
             EmbedModel        = _config.EmbedModel ?? "nomic-embed-text",
-            QdrantEndpoint    = _config.QdrantEndpoint ?? "http://localhost:6334",
+            QdrantEndpoint    = _config.QdrantEndpoint ?? DefaultEndpoints.QdrantGrpc,
             Voice             = _config.Voice,
             VoiceOnly         = _config.VoiceOnly,
             LocalTts          = _config.LocalTts,
