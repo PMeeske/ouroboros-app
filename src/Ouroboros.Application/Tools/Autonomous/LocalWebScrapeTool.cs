@@ -58,6 +58,10 @@ public partial class LocalWebScrapeTool : ITool
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || (uri.Scheme != "http" && uri.Scheme != "https"))
             return Result<string, string>.Failure($"Invalid URL: {url}. Must be http or https.");
 
+        // SSRF protection: block private/internal IPs
+        if (!await UrlValidator.IsUrlSafeAsync(url))
+            return Result<string, string>.Failure($"Blocked: URL '{url}' resolves to a private or internal IP address.");
+
         try
         {
             return await ScrapeLocallyAsync(url, includeLinks, maxLength, ct);

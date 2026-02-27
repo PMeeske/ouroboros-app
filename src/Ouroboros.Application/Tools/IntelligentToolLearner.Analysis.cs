@@ -67,10 +67,7 @@ Respond in JSON format:
             string response = await _llm.InnerModel.GenerateTextAsync(prompt, ct);
 
             // Parse JSON response
-            var match = System.Text.RegularExpressions.Regex.Match(
-                response,
-                @"\{[^}]+""toolName""\s*:\s*""([^""]+)""[^}]+""description""\s*:\s*""([^""]+)""[^}]*\}",
-                System.Text.RegularExpressions.RegexOptions.Singleline);
+            var match = ToolNameJsonRegex().Match(response);
 
             if (match.Success)
             {
@@ -81,12 +78,12 @@ Respond in JSON format:
             string safeName = goal.ToLowerInvariant()
                 .Replace(" ", "_")
                 .Replace("-", "_");
-            safeName = System.Text.RegularExpressions.Regex.Replace(safeName, @"[^a-z0-9_]", string.Empty);
+            safeName = NonAlphanumericUnderscoreRegex().Replace(safeName, string.Empty);
             if (safeName.Length > 30) safeName = safeName[..30];
 
             return (safeName + "_tool", $"Tool to accomplish: {goal}");
         }
-        catch
+        catch (Exception)
         {
             return ("dynamic_tool", goal);
         }
@@ -191,4 +188,12 @@ Respond in JSON format:
 
     private static string EscapeMeTTa(string text) =>
         text.Replace("\"", "\\\"").Replace("\n", "\\n");
+
+    [System.Text.RegularExpressions.GeneratedRegex(
+        @"\{[^}]+""toolName""\s*:\s*""([^""]+)""[^}]+""description""\s*:\s*""([^""]+)""[^}]*\}",
+        System.Text.RegularExpressions.RegexOptions.Singleline)]
+    private static partial System.Text.RegularExpressions.Regex ToolNameJsonRegex();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"[^a-z0-9_]")]
+    private static partial System.Text.RegularExpressions.Regex NonAlphanumericUnderscoreRegex();
 }

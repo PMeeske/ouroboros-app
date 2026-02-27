@@ -259,7 +259,7 @@ public static partial class SharedAgentBootstrap
                 log?.Invoke("Voice output: Windows SAPI");
                 return tts;
             }
-            catch { }
+            catch (Exception) { }
         }
 
         // OpenAI TTS fallback

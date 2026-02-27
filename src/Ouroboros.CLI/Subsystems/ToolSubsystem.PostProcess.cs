@@ -106,7 +106,7 @@ public sealed partial class ToolSubsystem
             }
 
             // Pattern: LLM mentions URLs but didn't fetch
-            var urlMatch = Regex.Match(response, @"https?://[^\s""'<>]+", RegexOptions.IgnoreCase);
+            var urlMatch = HttpUrlRegex().Match(response);
             if (urlMatch.Success && (responseLower.Contains("fetch") || responseLower.Contains("check") ||
                                       responseLower.Contains("visit") || responseLower.Contains("see")))
             {
@@ -254,4 +254,5 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
 
     [GeneratedRegex(@"^(the|a|an|my|your|our|some|any)\s+", RegexOptions.IgnoreCase)]
     private static partial Regex LeadingArticleExtendedRegex();
+
 }

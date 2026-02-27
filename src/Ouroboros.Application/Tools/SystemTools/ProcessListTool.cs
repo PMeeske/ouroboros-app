@@ -26,7 +26,7 @@ internal class ProcessListTool : ITool
                 .OrderByDescending(p =>
                 {
                     try { return p.WorkingSet64; }
-                    catch { return 0; } // Process exited or access denied
+                    catch (InvalidOperationException) { return 0; } // Process exited or access denied
                 })
                 .Take(50)
                 .ToList();

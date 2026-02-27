@@ -262,7 +262,7 @@ public sealed class ClaudeFlowMcpService : IAsyncDisposable
             if (doc.RootElement.TryGetProperty(fieldName, out var val))
                 return val.GetString() ?? fallback;
         }
-        catch
+        catch (System.Text.Json.JsonException)
         {
             // Content might not be JSON — try regex fallback
             var match = System.Text.RegularExpressions.Regex.Match(

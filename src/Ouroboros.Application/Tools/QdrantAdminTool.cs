@@ -117,7 +117,7 @@ public sealed partial class QdrantAdminTool : ITool
                 if (doc.RootElement.TryGetProperty("collection", out var colEl))
                     collection = colEl.GetString();
             }
-            catch { /* Use raw input */ }
+            catch (System.Text.Json.JsonException) { /* Use raw input */ }
 
             return command switch
             {

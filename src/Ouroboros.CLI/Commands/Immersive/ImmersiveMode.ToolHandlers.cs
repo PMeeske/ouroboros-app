@@ -445,13 +445,13 @@ public sealed partial class ImmersiveMode
             if (match.Success)
             {
                 // Extract the tool purpose from the input
-                var descriptionMatch = Regex.Match(lowerInput, @"tool\s+(that|to|for|which)\s+(.+)");
+                var descriptionMatch = ToolPurposeRegex().Match(lowerInput);
                 var description = descriptionMatch.Success
                     ? descriptionMatch.Groups[2].Value.Trim()
                     : userInput;
 
                 // Try to extract a topic name
-                var topicMatch = Regex.Match(lowerInput, @"(?:create|build|make)\s+(?:a|an|me)?\s*(\w+)\s*tool");
+                var topicMatch = ToolTopicRegex().Match(lowerInput);
                 var topic = topicMatch.Success
                     ? topicMatch.Groups[1].Value.Trim()
                     : ExtractTopicFromDescription(description);
@@ -493,4 +493,10 @@ public sealed partial class ImmersiveMode
         var topic = string.Join("", words);
         return string.IsNullOrEmpty(topic) ? "Custom" : topic;
     }
+
+    [GeneratedRegex(@"tool\s+(that|to|for|which)\s+(.+)")]
+    private static partial Regex ToolPurposeRegex();
+
+    [GeneratedRegex(@"(?:create|build|make)\s+(?:a|an|me)?\s*(\w+)\s*tool")]
+    private static partial Regex ToolTopicRegex();
 }

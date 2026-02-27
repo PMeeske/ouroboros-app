@@ -52,6 +52,10 @@ public partial class FirecrawlResearchTool : ITool
         // Check if input is a URL - if so, scrape it
         if (Uri.TryCreate(query, UriKind.Absolute, out var uri) && (uri.Scheme == "http" || uri.Scheme == "https"))
         {
+            // SSRF protection: block private/internal IPs
+            if (!await UrlValidator.IsUrlSafeAsync(query))
+                return Result<string, string>.Failure($"Blocked: URL '{query}' resolves to a private or internal IP address.");
+
             return await ScrapeUrlAsync(query, apiKey, ct);
         }
 

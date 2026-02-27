@@ -168,17 +168,14 @@ What single action should be taken? Respond in JSON:
             var response = await _llm.InnerModel.GenerateTextAsync(prompt, ct);
 
             // Parse JSON
-            var match = System.Text.RegularExpressions.Regex.Match(
-                response,
-                @"""actionType""\s*:\s*""([^""]+)"".*?""actionName""\s*:\s*""([^""]+)"".*?""reasoning""\s*:\s*""([^""]+)""",
-                System.Text.RegularExpressions.RegexOptions.Singleline);
+            var match = ActionJsonRegex().Match(response);
 
             if (match.Success)
             {
                 return (match.Groups[1].Value, match.Groups[2].Value, match.Groups[3].Value);
             }
         }
-        catch
+        catch (Exception)
         {
             // Fallback
         }
@@ -248,4 +245,9 @@ What single action should be taken? Respond in JSON:
     }
 
     #endregion
+
+    [System.Text.RegularExpressions.GeneratedRegex(
+        @"""actionType""\s*:\s*""([^""]+)"".*?""actionName""\s*:\s*""([^""]+)"".*?""reasoning""\s*:\s*""([^""]+)""",
+        System.Text.RegularExpressions.RegexOptions.Singleline)]
+    private static partial System.Text.RegularExpressions.Regex ActionJsonRegex();
 }

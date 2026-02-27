@@ -257,7 +257,7 @@ public sealed partial class ToolSubsystem
             }
 
             // Pattern: "fetch URL" / "get page" / URLs in thought
-            var urlMatch = Regex.Match(thought, @"https?://[^\s""'<>]+", RegexOptions.IgnoreCase);
+            var urlMatch = HttpUrlRegex().Match(thought);
             if (urlMatch.Success)
             {
                 var fetchTool = Tools.All.FirstOrDefault(t => t.Name == "fetch_url");
@@ -463,4 +463,7 @@ public sealed partial class ToolSubsystem
 
     [GeneratedRegex(@"^(the|a|an|my|our)\s+", RegexOptions.IgnoreCase)]
     private static partial Regex LeadingArticleRegex();
+
+    [GeneratedRegex(@"https?://[^\s""'<>]+", RegexOptions.IgnoreCase)]
+    private static partial Regex HttpUrlRegex();
 }

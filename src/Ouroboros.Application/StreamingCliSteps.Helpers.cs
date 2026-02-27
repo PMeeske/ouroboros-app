@@ -231,12 +231,18 @@ public static partial class StreamingCliSteps
     private static string ParseString(string? arg)
     {
         arg ??= string.Empty;
-        System.Text.RegularExpressions.Match m = System.Text.RegularExpressions.Regex.Match(arg, @"^'(?<s>.*)'$");
+        System.Text.RegularExpressions.Match m = SingleQuotedStringRegex().Match(arg);
         if (m.Success) return m.Groups["s"].Value;
-        m = System.Text.RegularExpressions.Regex.Match(arg, @"^""(?<s>.*)""$");
+        m = DoubleQuotedStringRegex().Match(arg);
         if (m.Success) return m.Groups["s"].Value;
         return arg;
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"^'(?<s>.*)'$")]
+    private static partial System.Text.RegularExpressions.Regex SingleQuotedStringRegex();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"^""(?<s>.*)""$")]
+    private static partial System.Text.RegularExpressions.Regex DoubleQuotedStringRegex();
 
     private static Dictionary<string, string> ParseKeyValueArgs(string? args)
     {

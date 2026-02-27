@@ -40,7 +40,7 @@ public sealed partial class QdrantAdminTool
                     currentDim = testEmbed.Length;
                     sb.AppendLine($"**Active embedding dimension:** {currentDim}");
                 }
-                catch { }
+                catch (Exception) { }
             }
 
             sb.AppendLine("\n## Collections\n");

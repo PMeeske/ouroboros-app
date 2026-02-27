@@ -154,9 +154,15 @@ public partial class PlaywrightMcpTool
         }
 
         // Clean up excessive whitespace
-        output = System.Text.RegularExpressions.Regex.Replace(output, @"[ \t]{20,}", "    ");
-        output = System.Text.RegularExpressions.Regex.Replace(output, @"(\r?\n){5,}", "\n\n\n");
+        output = ExcessiveHorizontalWhitespaceRegex().Replace(output, "    ");
+        output = ExcessiveNewlinesRegex().Replace(output, "\n\n\n");
 
         return output;
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"[ \t]{20,}")]
+    private static partial System.Text.RegularExpressions.Regex ExcessiveHorizontalWhitespaceRegex();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"(\r?\n){5,}")]
+    private static partial System.Text.RegularExpressions.Regex ExcessiveNewlinesRegex();
 }

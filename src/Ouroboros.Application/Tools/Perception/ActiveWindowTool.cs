@@ -52,7 +52,8 @@ public static partial class PerceptionTools
         private static string GetProcessPath(Process process)
         {
             try { return process.MainModule?.FileName ?? "Unknown"; }
-            catch { return "Access denied"; }
+            catch (InvalidOperationException) { return "Access denied"; }
+            catch (System.ComponentModel.Win32Exception) { return "Access denied"; }
         }
     }
 }

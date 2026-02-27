@@ -77,7 +77,7 @@ public static partial class MeTTaCliSteps
             string source, target, relation;
 
             // Parse arrow notation: "concept1 -> concept2" or "concept1 -relation-> concept2"
-            var arrowMatch = Regex.Match(linkSpec, @"(\S+)\s*-(\w*)-?>\s*(\S+)");
+            var arrowMatch = ArrowNotationRegex().Match(linkSpec);
             if (arrowMatch.Success)
             {
                 source = arrowMatch.Groups[1].Value;
@@ -261,4 +261,7 @@ Generate 5-10 relevant atoms:";
 
             return s;
         };
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"(\S+)\s*-(\w*)-?>\s*(\S+)")]
+    private static partial System.Text.RegularExpressions.Regex ArrowNotationRegex();
 }

@@ -97,7 +97,8 @@ public sealed partial class OuroborosAgent
                 var hash = sha256.ComputeHash(stream);
                 return Convert.ToBase64String(hash);
             }
-            catch { return null; }
+            catch (IOException) { return null; }
+            catch (UnauthorizedAccessException) { return null; }
         };
 
         _autonomousMind.ExecutePipeCommandFunction = async (pipeCommand, token) =>
@@ -116,7 +117,7 @@ public sealed partial class OuroborosAgent
                 string sanitized = await _chatModel.GenerateTextAsync(prompt, token);
                 return string.IsNullOrWhiteSpace(sanitized) ? rawOutput : sanitized.Trim();
             }
-            catch { return rawOutput; }
+            catch (Exception) { return rawOutput; }
         };
 
         // Wire limitation-busting tools via shared context
@@ -151,7 +152,7 @@ public sealed partial class OuroborosAgent
             if (_avatarService is { } svc)
                 svc.NotifyMoodChange(svc.CurrentState.Mood, svc.CurrentState.Energy, svc.CurrentState.Positivity, statusText: thoughtContent);
 
-            try { await _voice.WhisperAsync(msg); } catch { }
+            try { await _voice.WhisperAsync(msg); } catch (Exception) { }
         };
 
         // Display only research (Curiosity/Observation) and inner feelings (Reflection) thoughts.
