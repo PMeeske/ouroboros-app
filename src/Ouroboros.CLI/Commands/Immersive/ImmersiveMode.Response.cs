@@ -538,4 +538,134 @@ public sealed partial class ImmersiveMode
             return "I'm having trouble thinking right now. Let me try again.";
         }
     }
+
+    private string CleanResponse(string raw, string personaName)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return "I'm here. What would you like to talk about?";
+
+        var response = raw.Trim();
+
+        // Remove model fallback markers
+        if (response.Contains("[ollama-fallback:"))
+        {
+            var markerEnd = response.IndexOf(']');
+            if (markerEnd > 0 && markerEnd < response.Length - 1)
+                response = response[(markerEnd + 1)..].Trim();
+        }
+
+        // If response contains "### Assistant" marker, extract only the content after it
+        var assistantMarker = "### Assistant";
+        var lastAssistantIdx = response.LastIndexOf(assistantMarker, StringComparison.OrdinalIgnoreCase);
+        if (lastAssistantIdx >= 0)
+        {
+            response = response[(lastAssistantIdx + assistantMarker.Length)..].Trim();
+        }
+
+        // Remove any remaining ### markers
+        response = System.Text.RegularExpressions.Regex.Replace(response, @"###\s*(System|Human|Assistant)\s*", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+
+        // If response contains prompt keywords, it's echoing the system prompt - provide fallback
+        if (response.Contains("friendly AI companion", StringComparison.OrdinalIgnoreCase) ||
+            response.Contains("Current mood:", StringComparison.OrdinalIgnoreCase) ||
+            response.Contains("Keep responses concise", StringComparison.OrdinalIgnoreCase) ||
+            response.StartsWith("You are " + personaName, StringComparison.OrdinalIgnoreCase) ||
+            response.Contains("CORE IDENTITY:") ||
+            response.Contains("BEHAVIORAL GUIDELINES:"))
+        {
+            return "Hey there! What's up?";
+        }
+
+        // Strip Iaret-as-AI self-introduction lines — the persona should never introduce herself as "an AI"
+        // These are usually echoes from a confused model or safety-filter responses
+        var selfIntroLines = response.Split('\n')
+            .Where(l =>
+            {
+                var t = l.Trim();
+                return !t.StartsWith("I am an AI", StringComparison.OrdinalIgnoreCase)
+                    && !t.StartsWith("As an AI", StringComparison.OrdinalIgnoreCase)
+                    && !t.StartsWith("I'm an AI", StringComparison.OrdinalIgnoreCase)
+                    && !(t.StartsWith("I am " + personaName, StringComparison.OrdinalIgnoreCase)
+                         && t.Length < 80); // short identity sentences like "I am Iaret, your AI companion"
+            })
+            .ToList();
+        if (selfIntroLines.Count > 0)
+            response = string.Join("\n", selfIntroLines).Trim();
+
+        // Remove persona name prefix if echoed
+        if (response.StartsWith($"{personaName}:", StringComparison.OrdinalIgnoreCase))
+            response = response[(personaName.Length + 1)..].Trim();
+
+        // Remove "Human:" lines that might be echoed back
+        var lines = response.Split('\n');
+        var cleanedLines = lines.Where(l =>
+            !l.TrimStart().StartsWith("Human:", StringComparison.OrdinalIgnoreCase) &&
+            !l.TrimStart().StartsWith("###", StringComparison.OrdinalIgnoreCase)).ToList();
+        if (cleanedLines.Count > 0)
+            response = string.Join("\n", cleanedLines).Trim();
+
+        // Deduplicate repeated lines (LLM repetition loop symptom)
+        var deduped = new List<string>();
+        string? prevLine = null;
+        foreach (var line in response.Split('\n'))
+        {
+            var trimmed = line.Trim();
+            if (trimmed != prevLine)
+                deduped.Add(line);
+            prevLine = trimmed;
+        }
+        response = string.Join("\n", deduped).Trim();
+
+        // Detect generic AI safety refusals — model is confused by the prompt
+        if (response.Contains("I cannot answer that question", StringComparison.OrdinalIgnoreCase) ||
+            response.Contains("I am an AI assistant designed to provide helpful and harmless", StringComparison.OrdinalIgnoreCase))
+        {
+            return "I'm here with you. What would you like to explore?";
+        }
+
+        // If still empty after cleaning, provide fallback
+        if (string.IsNullOrWhiteSpace(response))
+            return "I'm listening. Tell me more.";
+
+        return response;
+    }
+
+    private async Task<string> GenerateGoodbyeAsync(
+        ImmersivePersona persona,
+        IChatCompletionModel chatModel)
+    {
+        var prompt = $@"{persona.GenerateSystemPrompt()}
+
+The user is leaving. Generate a warm, personal goodbye that reflects your relationship with them.
+Remember: you've had {persona.InteractionCount} interactions this session.
+Keep it to 1-2 sentences. Be genuine, not formal.
+
+User: goodbye
+{persona.Identity.Name}:";
+
+        var result = await chatModel.GenerateTextAsync(prompt, CancellationToken.None);
+        return result.Trim();
+    }
+
+    private async Task StoreConversationEpisodeAsync(
+        Ouroboros.Pipeline.Memory.IEpisodicMemoryEngine memory,
+        string input, string response, string topic, string personaName, CancellationToken ct)
+    {
+        try
+        {
+            var store = new Ouroboros.Domain.Vectors.TrackedVectorStore();
+            var dataSource = LangChain.DocumentLoaders.DataSource.FromPath(Environment.CurrentDirectory);
+            var branch = new Ouroboros.Pipeline.Branches.PipelineBranch("conversation", store, dataSource);
+            var context = Ouroboros.Pipeline.Memory.ExecutionContext.WithGoal(
+                $"{personaName}: {input[..Math.Min(80, input.Length)]}");
+            var outcome = Ouroboros.Pipeline.Memory.Outcome.Successful(
+                "Conversation turn", TimeSpan.Zero);
+            var metadata = System.Collections.Immutable.ImmutableDictionary<string, object>.Empty
+                .Add("summary", $"Q: {input[..Math.Min(60, input.Length)]} → {response[..Math.Min(60, response.Length)]}")
+                .Add("persona", personaName)
+                .Add("topic", topic);
+            await memory.StoreEpisodeAsync(branch, context, outcome, metadata, ct).ConfigureAwait(false);
+        }
+        catch { }
+    }
 }

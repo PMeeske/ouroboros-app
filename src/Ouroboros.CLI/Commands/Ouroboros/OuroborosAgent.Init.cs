@@ -110,7 +110,7 @@ public sealed partial class OuroborosAgent
         await _commandRoutingSub.InitializeAsync(ctx);
 
         // ── Phase 8: Cross-subsystem wiring (mediator orchestration) ──
-        WireCrossSubsystemDependencies();
+        await WireCrossSubsystemDependenciesAsync();
 
         // ── Phase 8.5: Agent event bridge (MediatR notification pipeline) ──
         WireAgentEventBridge(agentEventBus);
@@ -144,19 +144,19 @@ public sealed partial class OuroborosAgent
     /// This is the core of the mediator pattern — connecting subsystem components.
     /// </summary>
 
-    private void WireCrossSubsystemDependencies()
+    private async Task WireCrossSubsystemDependenciesAsync()
     {
         // ── Autonomy subsystem cross-references ──
         WireAutonomyCallbacks();
 
         // ── Autonomous Mind delegates ──
-        WireAutonomousMindDelegatesAsync().GetAwaiter().GetResult();
+        await WireAutonomousMindDelegatesAsync();
 
         // ── Autonomous Action Engine (on by default, 3-min interval) ──
         WireAutonomousActionEngine();
 
         // ── Autonomous Coordinator ──
-        WireAutonomousCoordinatorAsync().GetAwaiter().GetResult();
+        await WireAutonomousCoordinatorAsync();
 
         // ── Self-Execution ──
         if (_config.EnableMind)
@@ -208,18 +208,18 @@ public sealed partial class OuroborosAgent
         _mettaOrchestrator = new Ouroboros.Application.Services.ParallelMeTTaThoughtStreams(maxParallelism: 5);
         if (_chatModel != null)
             _mettaOrchestrator.ConnectOllama(async (p, ct) => await _chatModel.GenerateTextAsync(p, ct));
-        Ouroboros.Application.Tools.AutonomousTools.ParallelMeTTaThinkTool.SharedOrchestrator = _mettaOrchestrator;
-        Ouroboros.Application.Tools.AutonomousTools.OuroborosMeTTaTool.SharedOrchestrator    = _mettaOrchestrator;
+        Ouroboros.Application.Tools.AutonomousTools.DefaultContext.MeTTaOrchestrator = _mettaOrchestrator;
 
         // ── verify_claim: always-on search wiring (fallback when mind is disabled) ──
-        Ouroboros.Application.Tools.AutonomousTools.VerifyClaimTool.SearchFunction ??= async (query, ct) =>
+        var toolCtx = Ouroboros.Application.Tools.AutonomousTools.DefaultContext;
+        toolCtx.SearchFunction ??= async (query, ct) =>
         {
             var t = _toolFactory?.CreateWebSearchTool("duckduckgo");
             if (t == null) return string.Empty;
             var r = await t.InvokeAsync(query, ct).ConfigureAwait(false);
             return r.Match(s => s, _ => string.Empty);
         };
-        Ouroboros.Application.Tools.AutonomousTools.VerifyClaimTool.EvaluateFunction ??= async (p, ct) =>
+        toolCtx.EvaluateFunction ??= async (p, ct) =>
             _chatModel != null ? await _chatModel.GenerateTextAsync(p, ct) : string.Empty;
 
         // ── Cognitive Thought Streams (Rx — bridges all event sources) ──
@@ -238,7 +238,7 @@ public sealed partial class OuroborosAgent
         _autonomySub.ChatAsyncFunc = ChatAsync;
         _autonomySub.GetLanguageNameFunc = GetLanguageName;
         _autonomySub.StartListeningAsyncFunc = () => StartListeningAsync();
-        _autonomySub.StopListeningAction = StopListening;
+        _autonomySub.StopListeningAsyncAction = StopListeningAsync;
     }
 
     /// <summary>
@@ -331,20 +331,19 @@ public sealed partial class OuroborosAgent
             catch { return rawOutput; }
         };
 
-        // Wire limitation-busting tools
-        AutonomousTools.VerifyClaimTool.SearchFunction = _autonomousMind.SearchFunction;
-        AutonomousTools.VerifyClaimTool.EvaluateFunction = async (prompt, token) =>
+        // Wire limitation-busting tools via shared context
+        var mindCtx = AutonomousTools.DefaultContext;
+        mindCtx.SearchFunction = _autonomousMind.SearchFunction;
+        mindCtx.EvaluateFunction = async (prompt, token) =>
             _chatModel != null ? await _chatModel.GenerateTextAsync(prompt, token) : "";
-        AutonomousTools.ReasoningChainTool.ReasonFunction = async (prompt, token) =>
+        mindCtx.ReasonFunction = async (prompt, token) =>
             _chatModel != null ? await _chatModel.GenerateTextAsync(prompt, token) : "";
-        AutonomousTools.ParallelToolsTool.ExecuteToolFunction = _autonomousMind.ExecuteToolFunction;
-        AutonomousTools.CompressContextTool.SummarizeFunction = async (prompt, token) =>
+        mindCtx.ExecuteToolFunction = _autonomousMind.ExecuteToolFunction;
+        mindCtx.SummarizeFunction = async (prompt, token) =>
             _chatModel != null ? await _chatModel.GenerateTextAsync(prompt, token) : "";
-        AutonomousTools.SelfDoubtTool.CritiqueFunction = async (prompt, token) =>
+        mindCtx.CritiqueFunction = async (prompt, token) =>
             _chatModel != null ? await _chatModel.GenerateTextAsync(prompt, token) : "";
-        AutonomousTools.ParallelMeTTaThinkTool.OllamaFunction = async (prompt, token) =>
-            _chatModel != null ? await _chatModel.GenerateTextAsync(prompt, token) : "";
-        AutonomousTools.OuroborosMeTTaTool.OllamaFunction = async (prompt, token) =>
+        mindCtx.OllamaFunction = async (prompt, token) =>
             _chatModel != null ? await _chatModel.GenerateTextAsync(prompt, token) : "";
 
         // Proactive message events — track, whisper, and flow into conversation memory
@@ -822,7 +821,7 @@ public sealed partial class OuroborosAgent
         _chatSub.CognitiveStreamEngine = _cognitiveStream;
 
         // ── OuroborosAtom events → cognitive stream ───────────────────────
-        Ouroboros.Application.Tools.AutonomousTools.OuroborosMeTTaTool.CognitiveEmitFunc =
+        Ouroboros.Application.Tools.AutonomousTools.DefaultContext.CognitiveEmitFunc =
             _cognitiveStream.EmitRawThought;
 
         // ── Start throttled console display ───────────────────────────────

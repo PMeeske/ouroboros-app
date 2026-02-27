@@ -253,13 +253,11 @@ public sealed class MeTTaService : IMeTTaService
             await voiceService.SayAsync($"Planning for: {goal}");
 
             var planResult = await orchestrator.PlanAsync(goal);
+            string? planError = null;
             var plan = planResult.Match<Plan?>(
                 success => success,
-                error =>
-                {
-                    voiceService.SayAsync($"Planning failed: {error}").Wait();
-                    return null;
-                });
+                error => { planError = error; return null; });
+            if (planError != null) await voiceService.SayAsync($"Planning failed: {planError}");
 
             if (plan == null) return;
 
@@ -275,19 +273,22 @@ public sealed class MeTTaService : IMeTTaService
             await voiceService.SayAsync("Executing the plan now...");
             var executionResult = await orchestrator.ExecuteAsync(plan);
 
+            string? execSummary = null;
+            string? execError = null;
             executionResult.Match(
                 success =>
                 {
-                    var summary = success.Success
+                    execSummary = success.Success
                         ? $"Execution completed successfully in {success.Duration.TotalSeconds:F1} seconds."
                         : "Execution completed with some issues.";
                     if (!string.IsNullOrWhiteSpace(success.FinalOutput))
                     {
-                        summary += $" Result: {success.FinalOutput}";
+                        execSummary += $" Result: {success.FinalOutput}";
                     }
-                    voiceService.SayAsync(summary).Wait();
                 },
-                error => voiceService.SayAsync($"Execution failed: {error}").Wait());
+                error => { execError = error; });
+            if (execSummary != null) await voiceService.SayAsync(execSummary);
+            if (execError != null) await voiceService.SayAsync($"Execution failed: {execError}");
         }
         catch (Exception ex)
         {

@@ -112,10 +112,10 @@ public static class AutonomousCliSteps
     [PipelineToken("ApproveAllSafe")]
     public static Task<string> ApproveAllSafe()
     {
-        if (AutonomousTools.SharedCoordinator == null)
+        if (AutonomousTools.DefaultContext.Coordinator == null)
             return Task.FromResult("Error: Autonomous coordinator not initialized.");
 
-        var count = AutonomousTools.SharedCoordinator.IntentionBus.ApproveAllLowRisk();
+        var count = AutonomousTools.DefaultContext.Coordinator.IntentionBus.ApproveAllLowRisk();
         return Task.FromResult($"✅ Auto-approved {count} low-risk intentions.");
     }
 
@@ -204,7 +204,7 @@ public static class AutonomousCliSteps
         bool pushBasedMode = true,
         bool autoApproveSelfReflection = true)
     {
-        if (AutonomousTools.SharedCoordinator != null)
+        if (AutonomousTools.DefaultContext.Coordinator != null)
             return Task.FromResult("Autonomous coordinator already initialized.");
 
         var config = new AutonomousConfiguration
@@ -217,7 +217,7 @@ public static class AutonomousCliSteps
             EnableCodeModification = true,
         };
 
-        AutonomousTools.SharedCoordinator = new AutonomousCoordinator(config);
+        AutonomousTools.DefaultContext.Coordinator = new AutonomousCoordinator(config);
         return Task.FromResult(
             $"✅ Autonomous coordinator initialized.\n" +
             $"   Push-based mode: {pushBasedMode}\n" +
@@ -231,10 +231,10 @@ public static class AutonomousCliSteps
     [PipelineToken("IntentionBusSummary")]
     public static Task<string> IntentionBusSummary()
     {
-        if (AutonomousTools.SharedCoordinator == null)
+        if (AutonomousTools.DefaultContext.Coordinator == null)
             return Task.FromResult("Error: Autonomous coordinator not initialized.");
 
-        return Task.FromResult(AutonomousTools.SharedCoordinator.IntentionBus.GetSummary());
+        return Task.FromResult(AutonomousTools.DefaultContext.Coordinator.IntentionBus.GetSummary());
     }
 
     /// <summary>
@@ -244,10 +244,10 @@ public static class AutonomousCliSteps
     [PipelineToken("ProcessCommand")]
     public static Task<string> ProcessCommand(string command)
     {
-        if (AutonomousTools.SharedCoordinator == null)
+        if (AutonomousTools.DefaultContext.Coordinator == null)
             return Task.FromResult("Error: Autonomous coordinator not initialized.");
 
-        var processed = AutonomousTools.SharedCoordinator.ProcessCommand(command);
+        var processed = AutonomousTools.DefaultContext.Coordinator.ProcessCommand(command);
         return Task.FromResult(processed
             ? "Command processed successfully."
             : "Not a recognized command. Use /help for available commands.");

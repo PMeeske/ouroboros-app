@@ -14,47 +14,63 @@ namespace Ouroboros.Application.Tools;
 public static class AutonomousTools
 {
     /// <summary>
-    /// Shared autonomous coordinator reference.
+    /// Default shared context used when no explicit context is provided.
+    /// Consumers should prefer injecting <see cref="IAutonomousToolContext"/> directly.
     /// </summary>
-    public static AutonomousCoordinator? SharedCoordinator { get; set; }
+    public static IAutonomousToolContext DefaultContext { get; set; } = new AutonomousToolContext();
 
     /// <summary>
-    /// Gets all autonomous tools.
+    /// Shared autonomous coordinator reference.
+    /// Delegates to <see cref="DefaultContext"/>. Prefer using <see cref="IAutonomousToolContext.Coordinator"/> directly.
     /// </summary>
-    public static IEnumerable<ITool> GetAllTools()
+    public static AutonomousCoordinator? SharedCoordinator
     {
-        yield return new GetAutonomousStatusTool();
-        yield return new ListPendingIntentionsTool();
-        yield return new ApproveIntentionTool();
-        yield return new RejectIntentionTool();
-        yield return new ProposeIntentionTool();
-        yield return new GetNetworkStatusTool();
-        yield return new SendNeuronMessageTool();
-        yield return new ToggleAutonomousModeTool();
-        yield return new InjectGoalTool();
-        yield return new SearchNeuronHistoryTool();
-        yield return new FirecrawlScrapeTool();
-        yield return new FirecrawlResearchTool();
-        yield return new LocalWebScrapeTool();
-        yield return new CliDslTool();
-
-        // Limitation-busting tools
-        yield return new VerifyClaimTool();
-        yield return new ReasoningChainTool();
-        yield return new EpisodicMemoryTool();
-        yield return new ParallelToolsTool();
-        yield return new CompressContextTool();
-        yield return new ParallelMeTTaThinkTool();
-        yield return new SelfDoubtTool();
-        yield return new OuroborosMeTTaTool();
+        get => DefaultContext.Coordinator;
+        set => DefaultContext.Coordinator = value;
     }
 
     /// <summary>
-    /// Adds autonomous tools to a registry.
+    /// Gets all autonomous tools using the specified context.
     /// </summary>
-    public static ToolRegistry WithAutonomousTools(this ToolRegistry registry)
+    public static IEnumerable<ITool> GetAllTools(IAutonomousToolContext context)
     {
-        foreach (var tool in GetAllTools())
+        yield return new GetAutonomousStatusTool(context);
+        yield return new ListPendingIntentionsTool(context);
+        yield return new ApproveIntentionTool(context);
+        yield return new RejectIntentionTool(context);
+        yield return new ProposeIntentionTool(context);
+        yield return new GetNetworkStatusTool(context);
+        yield return new SendNeuronMessageTool(context);
+        yield return new ToggleAutonomousModeTool(context);
+        yield return new InjectGoalTool(context);
+        yield return new SearchNeuronHistoryTool(context);
+        yield return new FirecrawlScrapeTool();
+        yield return new FirecrawlResearchTool();
+        yield return new LocalWebScrapeTool();
+        yield return new CliDslTool(context);
+
+        // Limitation-busting tools
+        yield return new VerifyClaimTool(context);
+        yield return new ReasoningChainTool(context);
+        yield return new EpisodicMemoryTool(context);
+        yield return new ParallelToolsTool(context);
+        yield return new CompressContextTool(context);
+        yield return new ParallelMeTTaThinkTool(context);
+        yield return new SelfDoubtTool(context);
+        yield return new OuroborosMeTTaTool(context);
+    }
+
+    /// <summary>
+    /// Gets all autonomous tools using the <see cref="DefaultContext"/>.
+    /// </summary>
+    public static IEnumerable<ITool> GetAllTools() => GetAllTools(DefaultContext);
+
+    /// <summary>
+    /// Adds autonomous tools to a registry using the specified context.
+    /// </summary>
+    public static ToolRegistry WithAutonomousTools(this ToolRegistry registry, IAutonomousToolContext context)
+    {
+        foreach (var tool in GetAllTools(context))
         {
             registry = registry.WithTool(tool);
         }
@@ -62,10 +78,20 @@ public static class AutonomousTools
     }
 
     /// <summary>
+    /// Adds autonomous tools to a registry using the <see cref="DefaultContext"/>.
+    /// </summary>
+    public static ToolRegistry WithAutonomousTools(this ToolRegistry registry)
+        => registry.WithAutonomousTools(DefaultContext);
+
+    /// <summary>
     /// Gets the current autonomous status.
     /// </summary>
     public class GetAutonomousStatusTool : ITool
     {
+        private readonly IAutonomousToolContext _ctx;
+        public GetAutonomousStatusTool(IAutonomousToolContext context) => _ctx = context;
+        public GetAutonomousStatusTool() : this(DefaultContext) { }
+
         /// <inheritdoc/>
         public string Name => "autonomous_status";
 
@@ -78,10 +104,10 @@ public static class AutonomousTools
         /// <inheritdoc/>
         public Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
         {
-            if (SharedCoordinator == null)
+            if (_ctx.Coordinator == null)
                 return Task.FromResult(Result<string, string>.Failure("Autonomous coordinator not initialized."));
 
-            return Task.FromResult(Result<string, string>.Success(SharedCoordinator.GetStatus()));
+            return Task.FromResult(Result<string, string>.Success(_ctx.Coordinator.GetStatus()));
         }
     }
 
@@ -90,6 +116,10 @@ public static class AutonomousTools
     /// </summary>
     public class ListPendingIntentionsTool : ITool
     {
+        private readonly IAutonomousToolContext _ctx;
+        public ListPendingIntentionsTool(IAutonomousToolContext context) => _ctx = context;
+        public ListPendingIntentionsTool() : this(DefaultContext) { }
+
         /// <inheritdoc/>
         public string Name => "list_my_intentions";
 
@@ -102,10 +132,10 @@ public static class AutonomousTools
         /// <inheritdoc/>
         public Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
         {
-            if (SharedCoordinator == null)
+            if (_ctx.Coordinator == null)
                 return Task.FromResult(Result<string, string>.Failure("Autonomous coordinator not initialized."));
 
-            var pending = SharedCoordinator.IntentionBus.GetPendingIntentions();
+            var pending = _ctx.Coordinator.IntentionBus.GetPendingIntentions();
 
             if (pending.Count == 0)
                 return Task.FromResult(Result<string, string>.Success("📭 No pending intentions."));
@@ -132,6 +162,10 @@ public static class AutonomousTools
     /// </summary>
     public class ApproveIntentionTool : ITool
     {
+        private readonly IAutonomousToolContext _ctx;
+        public ApproveIntentionTool(IAutonomousToolContext context) => _ctx = context;
+        public ApproveIntentionTool() : this(DefaultContext) { }
+
         /// <inheritdoc/>
         public string Name => "approve_my_intention";
 
@@ -144,7 +178,7 @@ public static class AutonomousTools
         /// <inheritdoc/>
         public Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
         {
-            if (SharedCoordinator == null)
+            if (_ctx.Coordinator == null)
                 return Task.FromResult(Result<string, string>.Failure("Autonomous coordinator not initialized."));
 
             try
@@ -153,7 +187,7 @@ public static class AutonomousTools
                 var id = args.GetProperty("id").GetString() ?? "";
                 var comment = args.TryGetProperty("comment", out var c) ? c.GetString() : null;
 
-                var success = SharedCoordinator.IntentionBus.ApproveIntentionByPartialId(id, comment);
+                var success = _ctx.Coordinator.IntentionBus.ApproveIntentionByPartialId(id, comment);
 
                 return Task.FromResult(success
                     ? Result<string, string>.Success($"✅ Intention `{id}` approved and queued for execution.")
@@ -171,6 +205,10 @@ public static class AutonomousTools
     /// </summary>
     public class RejectIntentionTool : ITool
     {
+        private readonly IAutonomousToolContext _ctx;
+        public RejectIntentionTool(IAutonomousToolContext context) => _ctx = context;
+        public RejectIntentionTool() : this(DefaultContext) { }
+
         /// <inheritdoc/>
         public string Name => "reject_my_intention";
 
@@ -183,7 +221,7 @@ public static class AutonomousTools
         /// <inheritdoc/>
         public Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
         {
-            if (SharedCoordinator == null)
+            if (_ctx.Coordinator == null)
                 return Task.FromResult(Result<string, string>.Failure("Autonomous coordinator not initialized."));
 
             try
@@ -192,7 +230,7 @@ public static class AutonomousTools
                 var id = args.GetProperty("id").GetString() ?? "";
                 var reason = args.TryGetProperty("reason", out var r) ? r.GetString() : null;
 
-                var success = SharedCoordinator.IntentionBus.RejectIntentionByPartialId(id, reason);
+                var success = _ctx.Coordinator.IntentionBus.RejectIntentionByPartialId(id, reason);
 
                 return Task.FromResult(success
                     ? Result<string, string>.Success($"❌ Intention `{id}` rejected.")
@@ -210,6 +248,10 @@ public static class AutonomousTools
     /// </summary>
     public class ProposeIntentionTool : ITool
     {
+        private readonly IAutonomousToolContext _ctx;
+        public ProposeIntentionTool(IAutonomousToolContext context) => _ctx = context;
+        public ProposeIntentionTool() : this(DefaultContext) { }
+
         /// <inheritdoc/>
         public string Name => "propose_intention";
 
@@ -231,7 +273,7 @@ public static class AutonomousTools
         /// <inheritdoc/>
         public Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
         {
-            if (SharedCoordinator == null)
+            if (_ctx.Coordinator == null)
                 return Task.FromResult(Result<string, string>.Failure("Autonomous coordinator not initialized."));
 
             try
@@ -249,7 +291,7 @@ public static class AutonomousTools
                 if (!Enum.TryParse<IntentionPriority>(priorityStr, true, out var priority))
                     priority = IntentionPriority.Normal;
 
-                var intention = SharedCoordinator.IntentionBus.ProposeIntention(
+                var intention = _ctx.Coordinator.IntentionBus.ProposeIntention(
                     title, description, rationale, category, "self", null, priority);
 
                 return Task.FromResult(Result<string, string>.Success(
@@ -269,6 +311,10 @@ public static class AutonomousTools
     /// </summary>
     public class GetNetworkStatusTool : ITool
     {
+        private readonly IAutonomousToolContext _ctx;
+        public GetNetworkStatusTool(IAutonomousToolContext context) => _ctx = context;
+        public GetNetworkStatusTool() : this(DefaultContext) { }
+
         /// <inheritdoc/>
         public string Name => "neural_network_status";
 
@@ -281,11 +327,11 @@ public static class AutonomousTools
         /// <inheritdoc/>
         public Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
         {
-            if (SharedCoordinator == null)
+            if (_ctx.Coordinator == null)
                 return Task.FromResult(Result<string, string>.Failure("Autonomous coordinator not initialized."));
 
             return Task.FromResult(Result<string, string>.Success(
-                SharedCoordinator.Network.GetNetworkState()));
+                _ctx.Coordinator.Network.GetNetworkState()));
         }
     }
 
@@ -294,6 +340,10 @@ public static class AutonomousTools
     /// </summary>
     public class SendNeuronMessageTool : ITool
     {
+        private readonly IAutonomousToolContext _ctx;
+        public SendNeuronMessageTool(IAutonomousToolContext context) => _ctx = context;
+        public SendNeuronMessageTool() : this(DefaultContext) { }
+
         /// <inheritdoc/>
         public string Name => "send_to_neuron";
 
@@ -313,7 +363,7 @@ public static class AutonomousTools
         /// <inheritdoc/>
         public Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
         {
-            if (SharedCoordinator == null)
+            if (_ctx.Coordinator == null)
                 return Task.FromResult(Result<string, string>.Failure("Autonomous coordinator not initialized."));
 
             try
@@ -323,7 +373,7 @@ public static class AutonomousTools
                 var topic = args.GetProperty("topic").GetString() ?? "";
                 var payload = args.GetProperty("payload").GetString() ?? "";
 
-                SharedCoordinator.SendToNeuron(neuronId, topic, payload);
+                _ctx.Coordinator.SendToNeuron(neuronId, topic, payload);
 
                 return Task.FromResult(Result<string, string>.Success(
                     $"📤 Message sent to `{neuronId}` on topic `{topic}`"));
@@ -340,6 +390,10 @@ public static class AutonomousTools
     /// </summary>
     public class ToggleAutonomousModeTool : ITool
     {
+        private readonly IAutonomousToolContext _ctx;
+        public ToggleAutonomousModeTool(IAutonomousToolContext context) => _ctx = context;
+        public ToggleAutonomousModeTool() : this(DefaultContext) { }
+
         /// <inheritdoc/>
         public string Name => "toggle_autonomous";
 
@@ -352,25 +406,25 @@ public static class AutonomousTools
         /// <inheritdoc/>
         public async Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
         {
-            if (SharedCoordinator == null)
+            if (_ctx.Coordinator == null)
                 return Result<string, string>.Failure("Autonomous coordinator not initialized.");
 
             var action = input.Trim().ToLowerInvariant();
 
             if (action == "start")
             {
-                if (SharedCoordinator.IsActive)
+                if (_ctx.Coordinator.IsActive)
                     return Result<string, string>.Success("Autonomous mode is already active.");
 
-                SharedCoordinator.Start();
+                _ctx.Coordinator.Start();
                 return Result<string, string>.Success("🟢 Autonomous mode started. I will now propose actions for your approval.");
             }
             else if (action == "stop")
             {
-                if (!SharedCoordinator.IsActive)
+                if (!_ctx.Coordinator.IsActive)
                     return Result<string, string>.Success("Autonomous mode is already stopped.");
 
-                await SharedCoordinator.StopAsync();
+                await _ctx.Coordinator.StopAsync();
                 return Result<string, string>.Success("🔴 Autonomous mode stopped. I will wait for your instructions.");
             }
 
@@ -383,6 +437,10 @@ public static class AutonomousTools
     /// </summary>
     public class InjectGoalTool : ITool
     {
+        private readonly IAutonomousToolContext _ctx;
+        public InjectGoalTool(IAutonomousToolContext context) => _ctx = context;
+        public InjectGoalTool() : this(DefaultContext) { }
+
         /// <inheritdoc/>
         public string Name => "set_autonomous_goal";
 
@@ -395,7 +453,7 @@ public static class AutonomousTools
         /// <inheritdoc/>
         public Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
         {
-            if (SharedCoordinator == null)
+            if (_ctx.Coordinator == null)
                 return Task.FromResult(Result<string, string>.Failure("Autonomous coordinator not initialized."));
 
             try
@@ -407,7 +465,7 @@ public static class AutonomousTools
                 if (!Enum.TryParse<IntentionPriority>(priorityStr, true, out var priority))
                     priority = IntentionPriority.Normal;
 
-                SharedCoordinator.InjectGoal(goal, priority);
+                _ctx.Coordinator.InjectGoal(goal, priority);
 
                 return Task.FromResult(Result<string, string>.Success(
                     $"🎯 Goal injected: {goal}\n" +
@@ -425,6 +483,10 @@ public static class AutonomousTools
     /// </summary>
     public class SearchNeuronHistoryTool : ITool
     {
+        private readonly IAutonomousToolContext _ctx;
+        public SearchNeuronHistoryTool(IAutonomousToolContext context) => _ctx = context;
+        public SearchNeuronHistoryTool() : this(DefaultContext) { }
+
         /// <inheritdoc/>
         public string Name => "search_neuron_history";
 
@@ -437,11 +499,11 @@ public static class AutonomousTools
         /// <inheritdoc/>
         public Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
         {
-            if (SharedCoordinator == null)
+            if (_ctx.Coordinator == null)
                 return Task.FromResult(Result<string, string>.Failure("Autonomous coordinator not initialized."));
 
             var query = input.Trim().ToLowerInvariant();
-            var messages = SharedCoordinator.Network.GetRecentMessages(100);
+            var messages = _ctx.Coordinator.Network.GetRecentMessages(100);
 
             var matches = messages
                 .Where(m => m.Topic.Contains(query, StringComparison.OrdinalIgnoreCase) ||
@@ -1104,11 +1166,20 @@ public static class AutonomousTools
 }
 """;
 
+        private readonly IAutonomousToolContext _ctx;
+        public CliDslTool(IAutonomousToolContext context) => _ctx = context;
+        public CliDslTool() : this(DefaultContext) { }
+
         // Shared state for pipeline continuity (injected by OuroborosAgent)
         /// <summary>
         /// The shared CLI pipeline state. Must be set before execution for full functionality.
+        /// Delegates to <see cref="IAutonomousToolContext.PipelineState"/>.
         /// </summary>
-        public static CliPipelineState? SharedState { get; set; }
+        public static CliPipelineState? SharedState
+        {
+            get => DefaultContext.PipelineState;
+            set => DefaultContext.PipelineState = value;
+        }
 
         /// <inheritdoc/>
         public async Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
@@ -1149,7 +1220,7 @@ public static class AutonomousTools
                 return Result<string, string>.Failure("No DSL expression provided. Use 'list' to see available tokens.");
 
             // Check if we have a shared state
-            if (SharedState == null)
+            if (_ctx.PipelineState == null)
             {
                 // No state available - just explain what would happen
                 string explanation = PipelineDsl.Explain(dsl);
@@ -1162,8 +1233,8 @@ public static class AutonomousTools
             {
                 // Build and execute the pipeline
                 var step = PipelineDsl.Build(dsl);
-                var state = await step(SharedState);
-                SharedState = state;
+                var state = await step(_ctx.PipelineState);
+                _ctx.PipelineState = state;
 
                 // Build result summary
                 var result = new StringBuilder();
@@ -1263,7 +1334,7 @@ public static class AutonomousTools
         /// </summary>
         public static void ResetState()
         {
-            SharedState = null;
+            DefaultContext.PipelineState = null;
         }
     }
 
@@ -1273,19 +1344,31 @@ public static class AutonomousTools
     /// </summary>
     public class VerifyClaimTool : ITool
     {
+        private readonly IAutonomousToolContext _ctx;
+        public VerifyClaimTool(IAutonomousToolContext context) => _ctx = context;
+        public VerifyClaimTool() : this(DefaultContext) { }
+
         public string Name => "verify_claim";
         public string Description => "Verify a claim or fact by cross-referencing multiple sources. Reduces hallucination risk. Input: JSON {\"claim\":\"...\", \"depth\":\"quick|thorough\"}";
         public string? JsonSchema => null;
 
         /// <summary>
-        /// Delegate for web search function.
+        /// Delegate for web search function. Delegates to <see cref="IAutonomousToolContext.SearchFunction"/>.
         /// </summary>
-        public static Func<string, CancellationToken, Task<string>>? SearchFunction { get; set; }
+        public static Func<string, CancellationToken, Task<string>>? SearchFunction
+        {
+            get => DefaultContext.SearchFunction;
+            set => DefaultContext.SearchFunction = value;
+        }
 
         /// <summary>
-        /// Delegate for LLM evaluation function.
+        /// Delegate for LLM evaluation function. Delegates to <see cref="IAutonomousToolContext.EvaluateFunction"/>.
         /// </summary>
-        public static Func<string, CancellationToken, Task<string>>? EvaluateFunction { get; set; }
+        public static Func<string, CancellationToken, Task<string>>? EvaluateFunction
+        {
+            get => DefaultContext.EvaluateFunction;
+            set => DefaultContext.EvaluateFunction = value;
+        }
 
         public async Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
         {
@@ -1306,12 +1389,12 @@ public static class AutonomousTools
                 var evidence = new List<(string source, string content, double confidence)>();
 
                 // Search for supporting/contradicting evidence
-                if (SearchFunction != null)
+                if (_ctx.SearchFunction != null)
                 {
                     var searchQueries = new[] { claim, $"is it true that {claim}", $"{claim} fact check" };
                     var searchTasks = depth == "thorough"
-                        ? searchQueries.Select(q => SearchFunction(q, ct))
-                        : new[] { SearchFunction(searchQueries[0], ct) };
+                        ? searchQueries.Select(q => _ctx.SearchFunction(q, ct))
+                        : new[] { _ctx.SearchFunction(searchQueries[0], ct) };
 
                     var results = await Task.WhenAll(searchTasks);
 
@@ -1325,7 +1408,7 @@ public static class AutonomousTools
                 }
 
                 // Use LLM to evaluate evidence
-                if (EvaluateFunction != null && evidence.Count > 0)
+                if (_ctx.EvaluateFunction != null && evidence.Count > 0)
                 {
                     var evalPrompt = new StringBuilder();
                     evalPrompt.AppendLine("Evaluate this claim against the evidence. Be critical and skeptical.");
@@ -1341,7 +1424,7 @@ public static class AutonomousTools
                     evalPrompt.AppendLine("REASONING: Brief explanation");
                     evalPrompt.AppendLine("CAVEATS: Any important qualifications");
 
-                    var evaluation = await EvaluateFunction(evalPrompt.ToString(), ct);
+                    var evaluation = await _ctx.EvaluateFunction(evalPrompt.ToString(), ct);
                     sb.AppendLine("**Analysis:**");
                     sb.AppendLine(evaluation);
                 }
@@ -1374,14 +1457,22 @@ public static class AutonomousTools
     /// </summary>
     public class ReasoningChainTool : ITool
     {
+        private readonly IAutonomousToolContext _ctx;
+        public ReasoningChainTool(IAutonomousToolContext context) => _ctx = context;
+        public ReasoningChainTool() : this(DefaultContext) { }
+
         public string Name => "reasoning_chain";
         public string Description => "Execute structured step-by-step reasoning. Enforces logical derivation instead of pattern matching. Input: JSON {\"problem\":\"...\", \"mode\":\"deductive|inductive|abductive\"}";
         public string? JsonSchema => null;
 
         /// <summary>
-        /// Delegate for LLM reasoning function.
+        /// Delegate for LLM reasoning function. Delegates to <see cref="IAutonomousToolContext.ReasonFunction"/>.
         /// </summary>
-        public static Func<string, CancellationToken, Task<string>>? ReasonFunction { get; set; }
+        public static Func<string, CancellationToken, Task<string>>? ReasonFunction
+        {
+            get => DefaultContext.ReasonFunction;
+            set => DefaultContext.ReasonFunction = value;
+        }
 
         public async Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
         {
@@ -1399,7 +1490,7 @@ public static class AutonomousTools
                 sb.AppendLine($"**Problem:** {problem}");
                 sb.AppendLine();
 
-                if (ReasonFunction == null)
+                if (_ctx.ReasonFunction == null)
                     return Result<string, string>.Failure("Reasoning function not available.");
 
                 // Multi-step structured reasoning
@@ -1407,7 +1498,7 @@ public static class AutonomousTools
 
                 // Step 1: Decompose
                 var decomposePrompt = $"DECOMPOSITION STEP: Break down this problem into 2-4 sub-questions that must be answered to solve it.\nPROBLEM: {problem}\n\nList each sub-question on its own line, numbered 1-4.";
-                var decomposed = await ReasonFunction(decomposePrompt, ct);
+                var decomposed = await _ctx.ReasonFunction(decomposePrompt, ct);
                 steps.Add(("Decomposition", decomposed));
 
                 // Step 2: For each sub-question, derive
@@ -1418,12 +1509,12 @@ public static class AutonomousTools
                     "abductive" => $"ABDUCTIVE REASONING: Find the best explanation for:\n{decomposed}\n\nFor each sub-question:\n1. List possible explanations\n2. Evaluate plausibility of each\n3. Select the most likely explanation\n\nShow your work explicitly.",
                     _ => $"REASONING: Answer these sub-questions systematically:\n{decomposed}\n\nShow your work explicitly."
                 };
-                var derived = await ReasonFunction(derivePrompt, ct);
+                var derived = await _ctx.ReasonFunction(derivePrompt, ct);
                 steps.Add(("Derivation", derived));
 
                 // Step 3: Synthesize
                 var synthesizePrompt = $"SYNTHESIS STEP: Combine the derived answers into a final solution.\n\nORIGINAL PROBLEM: {problem}\n\nDERIVED CONCLUSIONS:\n{derived}\n\nProvide:\n1. ANSWER: The direct answer to the problem\n2. CONFIDENCE: How certain (0-100%)\n3. LIMITATIONS: What assumptions were made or what could be wrong";
-                var synthesis = await ReasonFunction(synthesizePrompt, ct);
+                var synthesis = await _ctx.ReasonFunction(synthesizePrompt, ct);
                 steps.Add(("Synthesis", synthesis));
 
                 // Format output
@@ -1449,6 +1540,10 @@ public static class AutonomousTools
     /// </summary>
     public class EpisodicMemoryTool : ITool
     {
+        private readonly IAutonomousToolContext _ctx;
+        public EpisodicMemoryTool(IAutonomousToolContext context) => _ctx = context;
+        public EpisodicMemoryTool() : this(DefaultContext) { }
+
         public string Name => "episodic_memory";
         public string Description => "Store or recall episodic memories with emotional/experiential context. Input: JSON {\"action\":\"store|recall|consolidate\", \"content\":\"...\", \"emotion\":\"...\", \"significance\":0-1}";
         public string? JsonSchema => null;
@@ -1458,17 +1553,23 @@ public static class AutonomousTools
 
         /// <summary>
         /// Optional delegate to persist a memory to an external store (e.g. Qdrant EpisodicMemoryEngine).
-        /// Invoked fire-and-forget after local storage; failures are swallowed silently.
-        /// Signature: (content, emotion, significance, cancellationToken) → Task
+        /// Delegates to <see cref="IAutonomousToolContext.EpisodicExternalStoreFunc"/>.
         /// </summary>
-        public static Func<string, string, double, CancellationToken, Task>? ExternalStoreFunc { get; set; }
+        public static Func<string, string, double, CancellationToken, Task>? ExternalStoreFunc
+        {
+            get => DefaultContext.EpisodicExternalStoreFunc;
+            set => DefaultContext.EpisodicExternalStoreFunc = value;
+        }
 
         /// <summary>
         /// Optional delegate to recall memories from an external persistent store (cross-session).
-        /// Results are prepended to in-session results.
-        /// Signature: (query, count, cancellationToken) → IEnumerable&lt;string&gt;
+        /// Delegates to <see cref="IAutonomousToolContext.EpisodicExternalRecallFunc"/>.
         /// </summary>
-        public static Func<string, int, CancellationToken, Task<IEnumerable<string>>>? ExternalRecallFunc { get; set; }
+        public static Func<string, int, CancellationToken, Task<IEnumerable<string>>>? ExternalRecallFunc
+        {
+            get => DefaultContext.EpisodicExternalRecallFunc;
+            set => DefaultContext.EpisodicExternalRecallFunc = value;
+        }
 
         public async Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
         {
@@ -1491,7 +1592,7 @@ public static class AutonomousTools
             }
         }
 
-        private static Result<string, string> StoreMemory(JsonElement root)
+        private Result<string, string> StoreMemory(JsonElement root)
         {
             var content = root.TryGetProperty("content", out var c) ? c.GetString() ?? "" : "";
             var emotion = root.TryGetProperty("emotion", out var e) ? e.GetString() ?? "neutral" : "neutral";
@@ -1524,13 +1625,13 @@ public static class AutonomousTools
             }
 
             // Fire-and-forget to external persistent store (non-blocking)
-            if (ExternalStoreFunc != null)
-                _ = ExternalStoreFunc(content, emotion, significance, CancellationToken.None);
+            if (_ctx.EpisodicExternalStoreFunc != null)
+                _ = _ctx.EpisodicExternalStoreFunc(content, emotion, significance, CancellationToken.None);
 
             return Result<string, string>.Success($"✅ Memory stored (significance: {significance:P0}, emotion: {emotion})");
         }
 
-        private static async Task<Result<string, string>> RecallMemoriesAsync(JsonElement root, CancellationToken ct)
+        private async Task<Result<string, string>> RecallMemoriesAsync(JsonElement root, CancellationToken ct)
         {
             var query = root.TryGetProperty("content", out var q) ? q.GetString() ?? "" : "";
             var count = root.TryGetProperty("count",   out var n) ? n.GetInt32()    : 5;
@@ -1539,13 +1640,13 @@ public static class AutonomousTools
             var localResult = RecallMemories(root);
 
             // If no external bridge configured, return local only
-            if (ExternalRecallFunc == null)
+            if (_ctx.EpisodicExternalRecallFunc == null)
                 return localResult;
 
             List<string> persisted;
             try
             {
-                persisted = (await ExternalRecallFunc(query, count, ct).ConfigureAwait(false)).ToList();
+                persisted = (await _ctx.EpisodicExternalRecallFunc(query, count, ct).ConfigureAwait(false)).ToList();
             }
             catch
             {
@@ -1704,14 +1805,22 @@ public static class AutonomousTools
     /// </summary>
     public class ParallelToolsTool : ITool
     {
+        private readonly IAutonomousToolContext _ctx;
+        public ParallelToolsTool(IAutonomousToolContext context) => _ctx = context;
+        public ParallelToolsTool() : this(DefaultContext) { }
+
         public string Name => "parallel_tools";
         public string Description => "Execute multiple tools in parallel. Overcomes sequential execution limit. Input: JSON {\"tools\":[{\"name\":\"...\",\"input\":\"...\"},...]]}";
         public string? JsonSchema => null;
 
         /// <summary>
-        /// Delegate for executing a tool by name.
+        /// Delegate for executing a tool by name. Delegates to <see cref="IAutonomousToolContext.ExecuteToolFunction"/>.
         /// </summary>
-        public static Func<string, string, CancellationToken, Task<string>>? ExecuteToolFunction { get; set; }
+        public static Func<string, string, CancellationToken, Task<string>>? ExecuteToolFunction
+        {
+            get => DefaultContext.ExecuteToolFunction;
+            set => DefaultContext.ExecuteToolFunction = value;
+        }
 
         public async Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
         {
@@ -1720,7 +1829,7 @@ public static class AutonomousTools
                 using var doc = JsonDocument.Parse(input);
                 var toolsArray = doc.RootElement.GetProperty("tools");
 
-                if (ExecuteToolFunction == null)
+                if (_ctx.ExecuteToolFunction == null)
                     return Result<string, string>.Failure("Tool execution function not available.");
 
                 var toolCalls = new List<(string name, string input)>();
@@ -1743,7 +1852,7 @@ public static class AutonomousTools
                 {
                     try
                     {
-                        var result = await ExecuteToolFunction(tc.name, tc.input, ct);
+                        var result = await _ctx.ExecuteToolFunction(tc.name, tc.input, ct);
                         return (tc.name, success: true, result);
                     }
                     catch (Exception ex)
@@ -1779,14 +1888,22 @@ public static class AutonomousTools
     /// </summary>
     public class CompressContextTool : ITool
     {
+        private readonly IAutonomousToolContext _ctx;
+        public CompressContextTool(IAutonomousToolContext context) => _ctx = context;
+        public CompressContextTool() : this(DefaultContext) { }
+
         public string Name => "compress_context";
         public string Description => "Compress long context into essential summary. Overcomes context window limits. Input: JSON {\"content\":\"...\", \"target_tokens\":500, \"preserve\":[\"keywords\"]}";
         public string? JsonSchema => null;
 
         /// <summary>
-        /// Delegate for LLM summarization.
+        /// Delegate for LLM summarization. Delegates to <see cref="IAutonomousToolContext.SummarizeFunction"/>.
         /// </summary>
-        public static Func<string, CancellationToken, Task<string>>? SummarizeFunction { get; set; }
+        public static Func<string, CancellationToken, Task<string>>? SummarizeFunction
+        {
+            get => DefaultContext.SummarizeFunction;
+            set => DefaultContext.SummarizeFunction = value;
+        }
 
         public async Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
         {
@@ -1814,7 +1931,7 @@ public static class AutonomousTools
                 if (currentTokens <= targetTokens)
                     return Result<string, string>.Success($"📦 Content already within target ({currentTokens} ≤ {targetTokens} tokens).\n\n{content}");
 
-                if (SummarizeFunction == null)
+                if (_ctx.SummarizeFunction == null)
                 {
                     // Fallback: simple truncation with sentence preservation
                     var sentences = content.Split(new[] { ". ", "! ", "? " }, StringSplitOptions.RemoveEmptyEntries);
@@ -1843,7 +1960,7 @@ public static class AutonomousTools
 
                 var prompt = $"Compress this content to approximately {targetTokens} tokens while preserving key information and meaning.{preserveInstructions}\n\nCONTENT:\n{content}";
 
-                var compressed2 = await SummarizeFunction(prompt, ct);
+                var compressed2 = await _ctx.SummarizeFunction(prompt, ct);
 
                 return Result<string, string>.Success($"📦 **Compressed** ({currentTokens} → ~{compressed2.Length / 4} tokens)\n\n{compressed2}");
             }
@@ -1860,14 +1977,22 @@ public static class AutonomousTools
     /// </summary>
     public class SelfDoubtTool : ITool
     {
+        private readonly IAutonomousToolContext _ctx;
+        public SelfDoubtTool(IAutonomousToolContext context) => _ctx = context;
+        public SelfDoubtTool() : this(DefaultContext) { }
+
         public string Name => "self_doubt";
         public string Description => "Question my own response for errors, biases, or overconfidence. Metacognitive check. Input: JSON {\"response\":\"...\", \"context\":\"...\"}";
         public string? JsonSchema => null;
 
         /// <summary>
-        /// Delegate for LLM critique.
+        /// Delegate for LLM critique. Delegates to <see cref="IAutonomousToolContext.CritiqueFunction"/>.
         /// </summary>
-        public static Func<string, CancellationToken, Task<string>>? CritiqueFunction { get; set; }
+        public static Func<string, CancellationToken, Task<string>>? CritiqueFunction
+        {
+            get => DefaultContext.CritiqueFunction;
+            set => DefaultContext.CritiqueFunction = value;
+        }
 
         public async Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
         {
@@ -1880,7 +2005,7 @@ public static class AutonomousTools
                 if (string.IsNullOrWhiteSpace(response))
                     return Result<string, string>.Failure("Response to doubt is required.");
 
-                if (CritiqueFunction == null)
+                if (_ctx.CritiqueFunction == null)
                     return Result<string, string>.Failure("Critique function not available.");
 
                 var prompt = $@"You are a critical reviewer. Examine this AI response for potential issues.
@@ -1901,7 +2026,7 @@ Analyze for:
 For each issue found, rate severity (LOW/MEDIUM/HIGH) and suggest correction.
 If the response seems solid, acknowledge that too.";
 
-                var critique = await CritiqueFunction(prompt, ct);
+                var critique = await _ctx.CritiqueFunction(prompt, ct);
 
                 var sb = new StringBuilder();
                 sb.AppendLine("🤔 **Self-Doubt Analysis**\n");
@@ -1922,19 +2047,31 @@ If the response seems solid, acknowledge that too.";
     /// </summary>
     public class ParallelMeTTaThinkTool : ITool
     {
+        private readonly IAutonomousToolContext _ctx;
+        public ParallelMeTTaThinkTool(IAutonomousToolContext context) => _ctx = context;
+        public ParallelMeTTaThinkTool() : this(DefaultContext) { }
+
         public string Name => "parallel_metta_think";
         public string Description => "Run parallel MeTTa symbolic thought streams with Ollama fusion. Input: JSON {\"query\":\"...\", \"streams\":3, \"mode\":\"explore|solve_square|converge\", \"target\":123}";
         public string? JsonSchema => null;
 
         /// <summary>
-        /// Shared parallel streams orchestrator.
+        /// Shared parallel streams orchestrator. Delegates to <see cref="IAutonomousToolContext.MeTTaOrchestrator"/>.
         /// </summary>
-        public static Services.ParallelMeTTaThoughtStreams? SharedOrchestrator { get; set; }
+        public static Services.ParallelMeTTaThoughtStreams? SharedOrchestrator
+        {
+            get => DefaultContext.MeTTaOrchestrator;
+            set => DefaultContext.MeTTaOrchestrator = value;
+        }
 
         /// <summary>
-        /// Delegate for Ollama inference.
+        /// Delegate for Ollama inference. Delegates to <see cref="IAutonomousToolContext.OllamaFunction"/>.
         /// </summary>
-        public static Func<string, CancellationToken, Task<string>>? OllamaFunction { get; set; }
+        public static Func<string, CancellationToken, Task<string>>? OllamaFunction
+        {
+            get => DefaultContext.OllamaFunction;
+            set => DefaultContext.OllamaFunction = value;
+        }
 
         public async Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
         {
@@ -1947,11 +2084,11 @@ If the response seems solid, acknowledge that too.";
                 var target = doc.RootElement.TryGetProperty("target", out var t) ? t.GetInt64() : 0;
 
                 // Create or reuse orchestrator
-                var orchestrator = SharedOrchestrator ?? new Services.ParallelMeTTaThoughtStreams(streamCount);
+                var orchestrator = _ctx.MeTTaOrchestrator ?? new Services.ParallelMeTTaThoughtStreams(streamCount);
 
-                if (OllamaFunction != null)
+                if (_ctx.OllamaFunction != null)
                 {
-                    orchestrator.ConnectOllama(OllamaFunction);
+                    orchestrator.ConnectOllama(_ctx.OllamaFunction);
                 }
 
                 var sb = new StringBuilder();
@@ -2002,7 +2139,7 @@ If the response seems solid, acknowledge that too.";
                             };
                         }
 
-                        orchestrator.CreateTheoryStreams(theories);
+                        await orchestrator.CreateTheoryStreamsAsync(theories);
 
                         var convergenceResults = new List<string>();
                         orchestrator.OnConvergence += (e) =>
@@ -2045,7 +2182,7 @@ If the response seems solid, acknowledge that too.";
                         // Simple parallel exploration
                         for (int i = 0; i < streamCount; i++)
                         {
-                            orchestrator.CreateStream($"explorer_{i}", new[]
+                            await orchestrator.CreateStreamAsync($"explorer_{i}", new[]
                             {
                                 $"(explorer {i})",
                                 $"(goal \"{query}\")",
@@ -2068,7 +2205,7 @@ If the response seems solid, acknowledge that too.";
                 }
 
                 // Cleanup if we created a new orchestrator
-                if (SharedOrchestrator == null)
+                if (_ctx.MeTTaOrchestrator == null)
                 {
                     await orchestrator.DisposeAsync();
                 }
@@ -2087,6 +2224,10 @@ If the response seems solid, acknowledge that too.";
     /// </summary>
     public class OuroborosMeTTaTool : ITool
     {
+        private readonly IAutonomousToolContext _ctx;
+        public OuroborosMeTTaTool(IAutonomousToolContext context) => _ctx = context;
+        public OuroborosMeTTaTool() : this(DefaultContext) { }
+
         /// <inheritdoc/>
         public string Name => "ouroboros_metta";
 
@@ -2097,21 +2238,32 @@ If the response seems solid, acknowledge that too.";
         public string? JsonSchema => null;
 
         /// <summary>
-        /// Shared parallel streams orchestrator.
+        /// Shared parallel streams orchestrator. Delegates to <see cref="IAutonomousToolContext.MeTTaOrchestrator"/>.
         /// </summary>
-        public static Services.ParallelMeTTaThoughtStreams? SharedOrchestrator { get; set; }
+        public static Services.ParallelMeTTaThoughtStreams? SharedOrchestrator
+        {
+            get => DefaultContext.MeTTaOrchestrator;
+            set => DefaultContext.MeTTaOrchestrator = value;
+        }
 
         /// <summary>
-        /// Delegate for Ollama inference.
+        /// Delegate for Ollama inference. Delegates to <see cref="IAutonomousToolContext.OllamaFunction"/>.
         /// </summary>
-        public static Func<string, CancellationToken, Task<string>>? OllamaFunction { get; set; }
+        public static Func<string, CancellationToken, Task<string>>? OllamaFunction
+        {
+            get => DefaultContext.OllamaFunction;
+            set => DefaultContext.OllamaFunction = value;
+        }
 
         /// <summary>
         /// Optional callback to emit Ouroboros atom events (OnSelfConsumption, OnFixedPoint) to the
-        /// cognitive thought stream. Wire to <c>CognitiveStreamEngine.EmitRawThought</c> in Init.cs.
-        /// Signature: (summary: string) → void
+        /// cognitive thought stream. Delegates to <see cref="IAutonomousToolContext.CognitiveEmitFunc"/>.
         /// </summary>
-        public static Action<string>? CognitiveEmitFunc { get; set; }
+        public static Action<string>? CognitiveEmitFunc
+        {
+            get => DefaultContext.CognitiveEmitFunc;
+            set => DefaultContext.CognitiveEmitFunc = value;
+        }
 
         /// <summary>
         /// Active Ouroboros atoms for persistent self-reference.
@@ -2130,10 +2282,10 @@ If the response seems solid, acknowledge that too.";
                 var atomIndex = doc.RootElement.TryGetProperty("atom_index", out var ai) ? ai.GetInt32() : 0;
 
                 // Ensure orchestrator exists
-                var orchestrator = SharedOrchestrator ?? new Services.ParallelMeTTaThoughtStreams();
-                if (OllamaFunction != null)
+                var orchestrator = _ctx.MeTTaOrchestrator ?? new Services.ParallelMeTTaThoughtStreams();
+                if (_ctx.OllamaFunction != null)
                 {
-                    orchestrator.ConnectOllama(OllamaFunction);
+                    orchestrator.ConnectOllama(_ctx.OllamaFunction);
                 }
 
                 var sb = new StringBuilder();
@@ -2184,16 +2336,16 @@ If the response seems solid, acknowledge that too.";
             StringBuilder sb,
             CancellationToken ct)
         {
-            var (atom, node) = orchestrator.CreateOuroborosStream(concept);
+            var (atom, node) = await orchestrator.CreateOuroborosStreamAsync(concept);
             ActiveAtoms.Add(atom);
 
             // Wire atom events to the cognitive stream (if callback is set)
-            if (CognitiveEmitFunc != null)
+            if (_ctx.CognitiveEmitFunc != null)
             {
                 atom.OnSelfConsumption += (a, record) =>
-                    CognitiveEmitFunc($"Ouroboros depth={a.SelfReferenceDepth}: {record[..Math.Min(80, record.Length)]}");
+                    _ctx.CognitiveEmitFunc!($"Ouroboros depth={a.SelfReferenceDepth}: {record[..Math.Min(80, record.Length)]}");
                 atom.OnFixedPoint += (a) =>
-                    CognitiveEmitFunc($"Fixed point! emergence={a.EmergenceLevel:F3} after {a.SelfReferenceDepth} cycles");
+                    _ctx.CognitiveEmitFunc!($"Fixed point! emergence={a.EmergenceLevel:F3} after {a.SelfReferenceDepth} cycles");
             }
 
             sb.AppendLine($"**Mode:** Create Self-Aware Ouroboros");
@@ -2231,7 +2383,7 @@ If the response seems solid, acknowledge that too.";
                 if (ActiveAtoms.Count == 0)
                 {
                     // Create a default atom if none exist
-                    var (newAtom, _) = orchestrator.CreateOuroborosStream("self");
+                    var (newAtom, _) = await orchestrator.CreateOuroborosStreamAsync("self");
                     ActiveAtoms.Add(newAtom);
                     atomIndex = 0;
                 }
@@ -2287,7 +2439,7 @@ If the response seems solid, acknowledge that too.";
             StringBuilder sb,
             CancellationToken ct)
         {
-            var networkAtoms = orchestrator.CreateOuroborosNetwork(Math.Max(2, Math.Min(count, 7)));
+            var networkAtoms = await orchestrator.CreateOuroborosNetworkAsync(Math.Max(2, Math.Min(count, 7)));
 
             sb.AppendLine($"**Mode:** Ouroboros Network");
             sb.AppendLine($"**Network Size:** {networkAtoms.Count}");
@@ -2331,7 +2483,7 @@ If the response seems solid, acknowledge that too.";
             var atom1 = ActiveAtoms[atom1Index];
             var atom2 = ActiveAtoms[atom2Index];
 
-            var (merged, node) = orchestrator.MergeOuroborosStreams(atom1, atom2);
+            var (merged, node) = await orchestrator.MergeOuroborosStreamsAsync(atom1, atom2);
             ActiveAtoms.Add(merged);
 
             sb.AppendLine($"**Mode:** Merge Ouroboros Atoms");

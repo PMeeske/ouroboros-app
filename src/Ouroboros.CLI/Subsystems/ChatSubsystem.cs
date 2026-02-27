@@ -80,7 +80,8 @@ public sealed class ChatSubsystem : IChatSubsystem
         // Qdrant-backed engine so memories persist across sessions.
         if (_episodicMemory != null)
         {
-            Ouroboros.Application.Tools.AutonomousTools.EpisodicMemoryTool.ExternalStoreFunc =
+            var toolCtx = Ouroboros.Application.Tools.AutonomousTools.DefaultContext;
+            toolCtx.EpisodicExternalStoreFunc =
                 async (content, emotion, sig, ct) =>
                 {
                     try
@@ -99,7 +100,7 @@ public sealed class ChatSubsystem : IChatSubsystem
                     catch { /* non-fatal */ }
                 };
 
-            Ouroboros.Application.Tools.AutonomousTools.EpisodicMemoryTool.ExternalRecallFunc =
+            toolCtx.EpisodicExternalRecallFunc =
                 async (query, count, ct) =>
                 {
                     var r = await _episodicMemory.RetrieveSimilarEpisodesAsync(
@@ -573,7 +574,7 @@ Use this actual code information to answer the user's question accurately.
         try
         {
             var goal = PipelineGoal.Atomic(input, _ => true);
-            var selectionResult = _toolsSub.SmartToolSelector.SelectForGoalAsync(goal).GetAwaiter().GetResult();
+            var selectionResult = Task.Run(() => _toolsSub.SmartToolSelector.SelectForGoalAsync(goal)).GetAwaiter().GetResult();
             if (selectionResult.IsSuccess && selectionResult.Value.HasTools)
             {
                 return (selectionResult.Value.SelectedTools.ToList(), selectionResult.Value.Reasoning);

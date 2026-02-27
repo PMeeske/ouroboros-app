@@ -19,6 +19,7 @@ using Ouroboros.Application.Services;
 using Ouroboros.Application.Tools;
 using Ouroboros.CLI.Avatar;
 using Ouroboros.CLI.Commands;
+using Ouroboros.CLI.Subsystems.Autonomy;
 using Ouroboros.Core.Configuration;
 using Ouroboros.Domain.Voice;
 using Ouroboros.CLI.Infrastructure;
@@ -50,17 +51,51 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
     public CancellationTokenSource? SelfExecutionCts { get; set; }
     public bool SelfExecutionEnabled { get; set; }
 
-    // Sub-Agent Orchestration
-    public ConcurrentDictionary<string, SubAgentInstance> SubAgents { get; } = new();
-    public IDistributedOrchestrator? DistributedOrchestrator { get; set; }
-    public IEpicBranchOrchestrator? EpicOrchestrator { get; set; }
+    // ── Extracted managers ──
+    private readonly SubAgentOrchestrationManager _subAgentManager = new();
+    private readonly SelfModelManager _selfModelManager = new();
+    private readonly NetworkStateManager _networkStateManager = new();
+    private SaveCodeCommandHandler? _saveCodeHandler;
 
-    // Self-Model
-    public IIdentityGraph? IdentityGraph { get; set; }
-    public IGlobalWorkspace? GlobalWorkspace { get; set; }
-    public IPredictiveMonitor? PredictiveMonitor { get; set; }
-    public ISelfEvaluator? SelfEvaluator { get; set; }
-    public ICapabilityRegistry? CapabilityRegistry { get; set; }
+    // Sub-Agent Orchestration (delegate to manager)
+    public ConcurrentDictionary<string, SubAgentInstance> SubAgents => _subAgentManager.SubAgents;
+    public IDistributedOrchestrator? DistributedOrchestrator
+    {
+        get => _subAgentManager.DistributedOrchestrator;
+        set { /* retained for interface/setter compat; manager owns actual init */ }
+    }
+    public IEpicBranchOrchestrator? EpicOrchestrator
+    {
+        get => _subAgentManager.EpicOrchestrator;
+        set { /* retained for interface/setter compat; manager owns actual init */ }
+    }
+
+    // Self-Model (delegate to manager)
+    public IIdentityGraph? IdentityGraph
+    {
+        get => _selfModelManager.IdentityGraph;
+        set { /* retained for interface/setter compat; manager owns actual init */ }
+    }
+    public IGlobalWorkspace? GlobalWorkspace
+    {
+        get => _selfModelManager.GlobalWorkspace;
+        set { /* retained for interface/setter compat; manager owns actual init */ }
+    }
+    public IPredictiveMonitor? PredictiveMonitor
+    {
+        get => _selfModelManager.PredictiveMonitor;
+        set { /* retained for interface/setter compat; manager owns actual init */ }
+    }
+    public ISelfEvaluator? SelfEvaluator
+    {
+        get => _selfModelManager.SelfEvaluator;
+        set { /* retained for interface/setter compat; manager owns actual init */ }
+    }
+    public ICapabilityRegistry? CapabilityRegistry
+    {
+        get => _selfModelManager.CapabilityRegistry;
+        set { /* retained for interface/setter compat; manager owns actual init */ }
+    }
 
     // Self-Assembly
     public SelfAssemblyEngine? SelfAssemblyEngine { get; set; }
@@ -70,11 +105,19 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
     // Self-Code Perception
     public QdrantSelfIndexer? SelfIndexer { get; set; }
 
-    // Network State
-    public NetworkStateTracker? NetworkTracker { get; set; }
+    // Network State (delegate to manager)
+    public NetworkStateTracker? NetworkTracker
+    {
+        get => _networkStateManager.NetworkTracker;
+        set { /* retained for interface/setter compat; manager owns actual init */ }
+    }
 
-    // Persistent Network State Projector
-    public PersistentNetworkStateProjector? NetworkProjector { get; set; }
+    // Persistent Network State Projector (delegate to manager)
+    public PersistentNetworkStateProjector? NetworkProjector
+    {
+        get => _networkStateManager.NetworkProjector;
+        set { /* retained for interface/setter compat; manager owns actual init */ }
+    }
 
     // Push Mode
     public Task? PushModeTask { get; set; }
@@ -96,7 +139,7 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
     internal Func<string, Task<string>> ChatAsyncFunc { get; set; } = _ => Task.FromResult("");
     internal Func<string, string> GetLanguageNameFunc { get; set; } = _ => "English";
     internal Func<Task> StartListeningAsyncFunc { get; set; } = () => Task.CompletedTask;
-    internal Action StopListeningAction { get; set; } = () => { };
+    internal Func<Task> StopListeningAsyncAction { get; set; } = () => Task.CompletedTask;
 
     public void MarkInitialized() => IsInitialized = true;
 
@@ -129,16 +172,19 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
         ctx.Output.RecordInit("Autonomous Action Engine", true, "3 min interval (delegates pending)");
 
         // ── Sub-Agent Orchestration ──
-        await InitializeSubAgentOrchestrationCoreAsync(ctx);
+        await _subAgentManager.InitializeCoreAsync(ctx);
 
         // ── Self-Model (identity, capabilities, global workspace) ──
-        await InitializeSelfModelCoreAsync(ctx);
+        await _selfModelManager.InitializeCoreAsync(ctx, Orchestrator);
 
         // ── Network State (Merkle-DAG + Qdrant) ──
-        await InitializeNetworkStateCoreAsync(ctx);
+        await _networkStateManager.InitializeNetworkStateCoreAsync(ctx);
 
         // ── Persistent Network State Projector (learning persistence) ──
-        await InitializeNetworkProjectorCoreAsync(ctx);
+        await _networkStateManager.InitializeNetworkProjectorCoreAsync(ctx);
+
+        // ── SaveCode command handler ──
+        _saveCodeHandler = new SaveCodeCommandHandler(name => Tools.Tools.GetTool(name));
 
         // ── Self-Indexer (code perception) ──
         await InitializeSelfIndexerCoreAsync(ctx);
@@ -152,236 +198,10 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
         MarkInitialized();
     }
 
-    private async Task InitializeSubAgentOrchestrationCoreAsync(SubsystemInitContext ctx)
-    {
-        try
-        {
-            var safety = new SafetyGuard();
-            DistributedOrchestrator = new DistributedOrchestrator(safety);
-
-            var selfCaps = new HashSet<string>
-            {
-                "planning", "reasoning", "coding", "research", "analysis",
-                "summarization", "tool_use", "metta_reasoning"
-            };
-            var selfAgent = new AgentInfo(
-                "ouroboros-primary", ctx.Config.Persona, selfCaps,
-                MetaAgentStatus.Available, DateTime.UtcNow);
-            DistributedOrchestrator.RegisterAgent(selfAgent);
-
-            EpicOrchestrator = new EpicBranchOrchestrator(
-                DistributedOrchestrator,
-                new EpicBranchConfig(
-                    BranchPrefix: "ouroboros-epic",
-                    AgentPoolPrefix: "sub-agent",
-                    AutoCreateBranches: true,
-                    AutoAssignAgents: true,
-                    MaxConcurrentSubIssues: 5));
-
-            ctx.Output.RecordInit("Sub-Agents", true, "distributed orchestration (1 agent)");
-            await Task.CompletedTask;
-        }
-        catch (Exception ex)
-        {
-            AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ SubAgent orchestration failed: {ex.Message}")}");
-        }
-    }
-
-    private async Task InitializeSelfModelCoreAsync(SubsystemInitContext ctx)
-    {
-        try
-        {
-            var chatModel = ctx.Models.ChatModel;
-            if (chatModel != null)
-            {
-                CapabilityRegistry = new CapabilityRegistry(chatModel, ctx.Tools.Tools);
-
-                CapabilityRegistry.RegisterCapability(new MetaAgentCapability(
-                    "natural_language", "Natural language understanding and generation",
-                    new List<string>(), 0.95, 0.5, new List<string>(), 100,
-                    DateTime.UtcNow, DateTime.UtcNow, new Dictionary<string, object>()));
-                CapabilityRegistry.RegisterCapability(new MetaAgentCapability(
-                    "planning", "Task decomposition and multi-step planning",
-                    new List<string> { "orchestrator" }, 0.85, 1.0, new List<string>(), 50,
-                    DateTime.UtcNow, DateTime.UtcNow, new Dictionary<string, object>()));
-                CapabilityRegistry.RegisterCapability(new MetaAgentCapability(
-                    "tool_use", "Dynamic tool creation and invocation",
-                    new List<string>(), 0.90, 0.8, new List<string>(), 75,
-                    DateTime.UtcNow, DateTime.UtcNow, new Dictionary<string, object>()));
-                CapabilityRegistry.RegisterCapability(new MetaAgentCapability(
-                    "symbolic_reasoning", "MeTTa symbolic reasoning and queries",
-                    new List<string> { "metta" }, 0.80, 0.5, new List<string>(), 30,
-                    DateTime.UtcNow, DateTime.UtcNow, new Dictionary<string, object>()));
-                CapabilityRegistry.RegisterCapability(new MetaAgentCapability(
-                    "memory_management", "Persistent memory storage and retrieval",
-                    new List<string>(), 0.92, 0.3, new List<string>(), 60,
-                    DateTime.UtcNow, DateTime.UtcNow, new Dictionary<string, object>()));
-                CapabilityRegistry.RegisterCapability(new MetaAgentCapability(
-                    "pipeline_execution", "DSL pipeline construction and execution with reification",
-                    new List<string> { "dsl", "network" }, 0.88, 0.7, new List<string>(), 40,
-                    DateTime.UtcNow, DateTime.UtcNow, new Dictionary<string, object>()));
-                CapabilityRegistry.RegisterCapability(new MetaAgentCapability(
-                    "self_improvement", "Autonomous learning, evaluation, and capability enhancement",
-                    new List<string> { "evaluator" }, 0.75, 2.0, new List<string>(), 20,
-                    DateTime.UtcNow, DateTime.UtcNow, new Dictionary<string, object>()));
-                CapabilityRegistry.RegisterCapability(new MetaAgentCapability(
-                    "coding", "Code generation, analysis, and debugging",
-                    new List<string>(), 0.82, 1.5, new List<string>(), 45,
-                    DateTime.UtcNow, DateTime.UtcNow, new Dictionary<string, object>()));
-
-                IdentityGraph = new IdentityGraph(Guid.NewGuid(), ctx.Config.Persona, CapabilityRegistry);
-                GlobalWorkspace = new GlobalWorkspace();
-                PredictiveMonitor = new PredictiveMonitor();
-
-                if (Orchestrator != null && ctx.Memory.Skills != null && ctx.Models.Embedding != null)
-                {
-                    var memory = new MemoryStore(ctx.Models.Embedding, new TrackedVectorStore());
-                    SelfEvaluator = new SelfEvaluator(
-                        chatModel, CapabilityRegistry, ctx.Memory.Skills, memory, Orchestrator);
-                }
-
-                var capCount = (await CapabilityRegistry.GetCapabilitiesAsync()).Count;
-                ctx.Output.RecordInit("Self-Model", true, $"identity graph ({capCount} capabilities)");
-            }
-            else
-            {
-                ctx.Output.RecordInit("Self-Model", false, "requires chat model");
-            }
-        }
-        catch (Exception ex)
-        {
-            AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ SelfModel initialization failed: {ex.Message}")}");
-        }
-    }
-
-    private async Task InitializeNetworkStateCoreAsync(SubsystemInitContext ctx)
-    {
-        try
-        {
-            NetworkTracker = new NetworkStateTracker();
-
-            var dagClient = ctx.Services?.GetService<QdrantClient>();
-            var dagRegistry = ctx.Services?.GetService<IQdrantCollectionRegistry>();
-            var dagSettings = ctx.Services?.GetService<QdrantSettings>();
-            if (dagClient != null && dagRegistry != null && dagSettings != null)
-            {
-                try
-                {
-                    Func<string, Task<float[]>>? embeddingFunc = null;
-                    if (ctx.Models.Embedding != null)
-                        embeddingFunc = async (text) => await ctx.Models.Embedding.CreateEmbeddingsAsync(text);
-
-                    var dagStore = new Ouroboros.Network.QdrantDagStore(dagClient, dagRegistry, dagSettings, embeddingFunc);
-                    await dagStore.InitializeAsync();
-                    NetworkTracker.ConfigureQdrantPersistence(dagStore, autoPersist: true);
-                    ctx.Output.RecordInit("Network State", true, "Merkle-DAG with Qdrant persistence (DI)");
-                }
-                catch (Exception qdrantEx)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[NetworkState] Qdrant DAG storage unavailable: {qdrantEx.Message}");
-                    ctx.Output.RecordInit("Network State", true, "Merkle-DAG (in-memory)");
-                }
-            }
-            else if (!string.IsNullOrEmpty(ctx.Config.QdrantEndpoint))
-            {
-                try
-                {
-                    Func<string, Task<float[]>>? embeddingFunc = null;
-                    if (ctx.Models.Embedding != null)
-                        embeddingFunc = async (text) => await ctx.Models.Embedding.CreateEmbeddingsAsync(text);
-
-                    var dagConfig = new Ouroboros.Network.QdrantDagConfig(
-                        Endpoint: ctx.Config.QdrantEndpoint,
-                        NodesCollection: "ouroboros_dag_nodes",
-                        EdgesCollection: "ouroboros_dag_edges",
-                        VectorSize: 768);
-                    var dagStore = new Ouroboros.Network.QdrantDagStore(dagConfig, embeddingFunc);
-                    await dagStore.InitializeAsync();
-                    NetworkTracker.ConfigureQdrantPersistence(dagStore, autoPersist: true);
-                    ctx.Output.RecordInit("Network State", true, "Merkle-DAG with Qdrant persistence");
-                }
-                catch (Exception qdrantEx)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[NetworkState] Qdrant DAG storage unavailable: {qdrantEx.Message}");
-                    ctx.Output.RecordInit("Network State", true, "Merkle-DAG (in-memory)");
-                }
-            }
-            else
-            {
-                ctx.Output.RecordInit("Network State", true, "Merkle-DAG (in-memory)");
-            }
-
-            if (ctx.Memory.MeTTaEngine != null)
-            {
-                NetworkTracker.ConfigureMeTTaExport(ctx.Memory.MeTTaEngine, autoExport: true);
-                AnsiConsole.MarkupLine($"    {OuroborosTheme.Ok("✓ MeTTa symbolic export enabled (DAG facts → MeTTa)")}");
-            }
-
-            NetworkTracker.BranchReified += (_, args) =>
-            {
-                System.Diagnostics.Debug.WriteLine($"[NetworkState] Branch '{args.BranchName}' reified: {args.NodesCreated} nodes");
-            };
-
-            await Task.CompletedTask;
-        }
-        catch (Exception ex)
-        {
-            AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ NetworkState initialization failed: {ex.Message}")}");
-            NetworkTracker = new NetworkStateTracker();
-        }
-    }
-
-    private async Task InitializeNetworkProjectorCoreAsync(SubsystemInitContext ctx)
-    {
-        var embedding = ctx.Models.Embedding;
-        if (embedding == null) return;
-
-        try
-        {
-            var dag = new Ouroboros.Network.MerkleDag();
-            Func<string, Task<float[]>> embedFunc = async text => await embedding.CreateEmbeddingsAsync(text);
-            var npClient = ctx.Services?.GetService<QdrantClient>();
-            var npRegistry = ctx.Services?.GetService<IQdrantCollectionRegistry>();
-            var npSettings = ctx.Services?.GetService<QdrantSettings>();
-            if (npClient != null && npRegistry != null)
-                NetworkProjector = new PersistentNetworkStateProjector(
-                    dag, npClient, npRegistry, embedFunc);
-            else
-            {
-                var qdrantEndpoint = NormalizeEndpoint(ctx.Config.QdrantEndpoint, "http://localhost:6334");
-                NetworkProjector = new PersistentNetworkStateProjector(
-                    dag, qdrantEndpoint, embedFunc);
-            }
-            await NetworkProjector.InitializeAsync(CancellationToken.None);
-            ctx.Output.RecordInit("Network Projector", true,
-                $"epoch {NetworkProjector.CurrentEpoch}, {NetworkProjector.RecentLearnings.Count} learnings");
-        }
-        catch (Exception ex)
-        {
-            AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ Network Projector: {ex.Message}")}");
-        }
-    }
-
-    private static string NormalizeEndpoint(string? rawEndpoint, string fallbackEndpoint)
-    {
-        var endpoint = (rawEndpoint ?? string.Empty).Trim();
-        if (string.IsNullOrWhiteSpace(endpoint))
-        {
-            return fallbackEndpoint;
-        }
-
-        if (!endpoint.Contains("://", StringComparison.Ordinal))
-        {
-            endpoint = $"http://{endpoint}";
-        }
-
-        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) || string.IsNullOrWhiteSpace(uri.Host))
-        {
-            return fallbackEndpoint;
-        }
-
-        return uri.ToString().TrimEnd('/');
-    }
+    // NOTE: InitializeSubAgentOrchestrationCoreAsync, InitializeSelfModelCoreAsync,
+    // InitializeNetworkStateCoreAsync, InitializeNetworkProjectorCoreAsync, and NormalizeEndpoint
+    // have been extracted to SubAgentOrchestrationManager, SelfModelManager, and NetworkStateManager
+    // in the Autonomy/ subdirectory.
 
     private async Task InitializeSelfIndexerCoreAsync(SubsystemInitContext ctx)
     {
@@ -550,7 +370,7 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
             Coordinator = new AutonomousCoordinator(autonomousConfig);
 
             // Share coordinator with autonomous tools (enables status checks even without push mode)
-            Ouroboros.Application.Tools.AutonomousTools.SharedCoordinator = Coordinator;
+            Ouroboros.Application.Tools.AutonomousTools.DefaultContext.Coordinator = Coordinator;
 
             // Wire up event handlers
             Coordinator.OnProactiveMessage += HandleAutonomousMessage;
@@ -703,7 +523,7 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
                 }
                 else
                 {
-                    StopListeningAction();
+                    StopListeningAsyncAction().ConfigureAwait(false);
                 }
             };
 
@@ -728,7 +548,7 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
     /// <summary>
     /// Handles proactive messages from autonomous coordinator.
     /// </summary>
-    internal void HandleAutonomousMessage(ProactiveMessageEventArgs args)
+    internal async void HandleAutonomousMessage(ProactiveMessageEventArgs args)
     {
         // Always show auto-training and user_persona messages
         bool isTrainingMessage = args.Source is "user_persona" or "auto_training";
@@ -756,12 +576,19 @@ public sealed class AutonomySubsystem : IAutonomySubsystem
             Output.WriteSystem(displayMessage);
         }
 
-        // Speak on voice side channel - block until complete
+        // Speak on voice side channel - await completion
         // Use distinct persona for user_persona to get a different voice
         if (args.Priority >= IntentionPriority.Normal)
         {
-            var voicePersona = args.Source == "user_persona" ? "User" : null;
-            SayAndWaitAsyncFunc(args.Message, voicePersona).GetAwaiter().GetResult();
+            try
+            {
+                var voicePersona = args.Source == "user_persona" ? "User" : null;
+                await SayAndWaitAsyncFunc(args.Message, voicePersona);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Autonomy] Voice error: {ex.Message}");
+            }
         }
     }
 
@@ -1526,8 +1353,7 @@ Commands:
         if (cmd.StartsWith("remove "))
         {
             var agentId = cmd[7..].Trim();
-            DistributedOrchestrator?.UnregisterAgent(agentId);
-            SubAgents.TryRemove(agentId, out _);
+            _subAgentManager.RemoveSubAgent(agentId);
             return $"Removed sub-agent: {agentId}";
         }
 
@@ -1537,44 +1363,11 @@ Commands:
 
     /// <summary>
     /// Spawns a new sub-agent with specialized capabilities.
+    /// Delegates to <see cref="SubAgentOrchestrationManager"/>.
     /// </summary>
-    internal async Task<string> SpawnSubAgentAsync(string agentName)
+    internal Task<string> SpawnSubAgentAsync(string agentName)
     {
-        if (DistributedOrchestrator == null)
-        {
-            return "Sub-agent orchestration not initialized.";
-        }
-
-        var agentId = $"sub-{agentName.ToLowerInvariant()}-{Guid.NewGuid().ToString()[..8]}";
-
-        // Determine capabilities based on name hints
-        var capabilities = new HashSet<string>();
-        var lowerName = agentName.ToLowerInvariant();
-
-        if (lowerName.Contains("code") || lowerName.Contains("dev"))
-            capabilities.UnionWith(new[] { "coding", "debugging", "refactoring", "testing" });
-        else if (lowerName.Contains("research") || lowerName.Contains("analyst"))
-            capabilities.UnionWith(new[] { "research", "analysis", "summarization", "web_search" });
-        else if (lowerName.Contains("plan") || lowerName.Contains("architect"))
-            capabilities.UnionWith(new[] { "planning", "architecture", "design", "decomposition" });
-        else
-            capabilities.UnionWith(new[] { "general", "chat", "reasoning" });
-
-        var agent = new AgentInfo(
-            agentId,
-            agentName,
-            capabilities,
-            MetaAgentStatus.Available,
-            DateTime.UtcNow);
-
-        DistributedOrchestrator.RegisterAgent(agent);
-
-        // Create sub-agent instance
-        var subAgent = new SubAgentInstance(agentId, agentName, capabilities, Models.ChatModel);
-        SubAgents[agentId] = subAgent;
-
-        await Task.CompletedTask;
-        return $"Spawned sub-agent '{agentName}' ({agentId}) with capabilities: {string.Join(", ", capabilities)}";
+        return _subAgentManager.SpawnSubAgentAsync(agentName, Models.ChatModel);
     }
 
     /// <summary>
@@ -2003,159 +1796,12 @@ Commands:
 
     /// <summary>
     /// Direct command to save/modify code using modify_my_code tool.
-    /// Bypasses LLM since some models don't properly use tools.
+    /// Delegates to <see cref="SaveCodeCommandHandler"/>.
     /// </summary>
     internal async Task<string> SaveCodeCommandAsync(string argument)
     {
-        try
-        {
-            // Check if we have the tool
-            Maybe<ITool> toolOption = Tools.Tools.GetTool("modify_my_code");
-            if (!toolOption.HasValue)
-            {
-                return "❌ Self-modification tool (modify_my_code) is not registered. Please restart with proper tool initialization.";
-            }
-
-            ITool tool = toolOption.GetValueOrDefault(null!)!;
-
-            // Parse the argument - expect JSON or guided input
-            if (string.IsNullOrWhiteSpace(argument))
-            {
-                return @"📝 **Save Code - Direct Tool Invocation**
-
-Usage: `save {""file"":""path/to/file.cs"",""search"":""exact text to find"",""replace"":""replacement text""}`
-
-Or use the interactive format:
-  `save file.cs ""old text"" ""new text""`
-
-Examples:
-  `save {""file"":""src/Ouroboros.CLI/Commands/OuroborosAgent.cs"",""search"":""old code"",""replace"":""new code""}`
-  `save MyClass.cs ""public void Old()"" ""public void New()""
-
-This command directly invokes the `modify_my_code` tool, bypassing the LLM.";
-            }
-
-            string jsonInput;
-            if (argument.TrimStart().StartsWith("{"))
-            {
-                // Already JSON
-                jsonInput = argument;
-            }
-            else
-            {
-                // Try to parse as "file search replace" format
-                // Normalize smart quotes and other quote variants to standard quotes
-                string normalizedArg = argument
-                    .Replace('\u201C', '"')  // Left smart quote "
-                    .Replace('\u201D', '"')  // Right smart quote "
-                    .Replace('\u201E', '"')  // German low quote „
-                    .Replace('\u201F', '"')  // Double high-reversed-9 ‟
-                    .Replace('\u2018', '\'') // Left single smart quote '
-                    .Replace('\u2019', '\'') // Right single smart quote '
-                    .Replace('`', '\'');     // Backtick to single quote
-
-                // Find first quote (double or single)
-                int firstDoubleQuote = normalizedArg.IndexOf('"');
-                int firstSingleQuote = normalizedArg.IndexOf('\'');
-
-                char quoteChar;
-                int firstQuote;
-                if (firstDoubleQuote == -1 && firstSingleQuote == -1)
-                {
-                    return @"❌ Invalid format. Use JSON or: filename ""search text"" ""replace text""
-
-Example: save MyClass.cs ""old code"" ""new code""
-Note: You can use double quotes ("") or single quotes ('')";
-                }
-                else if (firstDoubleQuote == -1)
-                {
-                    quoteChar = '\'';
-                    firstQuote = firstSingleQuote;
-                }
-                else if (firstSingleQuote == -1)
-                {
-                    quoteChar = '"';
-                    firstQuote = firstDoubleQuote;
-                }
-                else
-                {
-                    // Use whichever comes first
-                    if (firstDoubleQuote < firstSingleQuote)
-                    {
-                        quoteChar = '"';
-                        firstQuote = firstDoubleQuote;
-                    }
-                    else
-                    {
-                        quoteChar = '\'';
-                        firstQuote = firstSingleQuote;
-                    }
-                }
-
-                string filePart = normalizedArg[..firstQuote].Trim();
-                string rest = normalizedArg[firstQuote..];
-
-                // Parse quoted strings
-                List<string> quoted = new();
-                bool inQuote = false;
-                StringBuilder current = new();
-                for (int i = 0; i < rest.Length; i++)
-                {
-                    char c = rest[i];
-                    if (c == quoteChar)
-                    {
-                        if (inQuote)
-                        {
-                            quoted.Add(current.ToString());
-                            current.Clear();
-                            inQuote = false;
-                        }
-                        else
-                        {
-                            inQuote = true;
-                        }
-                    }
-                    else if (inQuote)
-                    {
-                        current.Append(c);
-                    }
-                }
-
-                if (quoted.Count < 2)
-                {
-                    return $@"❌ Could not parse search and replace strings. Found {quoted.Count} quoted section(s).
-
-Use format: filename ""search"" ""replace""
-Or with single quotes: filename 'search' 'replace'
-
-Make sure both search and replace text are quoted.";
-                }
-
-                jsonInput = System.Text.Json.JsonSerializer.Serialize(new
-                {
-                    file = filePart,
-                    search = quoted[0],
-                    replace = quoted[1]
-                });
-            }
-
-            // Invoke the tool directly
-            AnsiConsole.MarkupLine(OuroborosTheme.Dim($"[SaveCode] Invoking modify_my_code with: {jsonInput[..Math.Min(100, jsonInput.Length)]}..."));
-            Result<string, string> result = await tool.InvokeAsync(jsonInput);
-
-            if (result.IsSuccess)
-            {
-                return $"✅ **Code Modified Successfully**\n\n{result.Value}";
-            }
-            else
-            {
-                return $"❌ **Modification Failed**\n\n{result.Error}";
-            }
-        }
-        catch (Exception ex)
-        {
-            return $"❌ SaveCode command failed: {ex.Message}";
-        }
+        _saveCodeHandler ??= new SaveCodeCommandHandler(name => Tools.Tools.GetTool(name));
+        return await _saveCodeHandler.ExecuteAsync(argument);
     }
 
     /// <summary>
@@ -2515,7 +2161,7 @@ Examples:
         PushModeCts?.Dispose();
 
         // Clear sub-agents
-        SubAgents.Clear();
+        _subAgentManager.Clear();
 
         // Dispose autonomous mind and action engine
         AutonomousMind?.Dispose();
@@ -2529,12 +2175,8 @@ Examples:
         if (SelfAssemblyEngine != null)
             await SelfAssemblyEngine.DisposeAsync();
 
-        // Dispose network tracker
-        NetworkTracker?.Dispose();
-
-        // Dispose network projector
-        if (NetworkProjector != null)
-            await NetworkProjector.DisposeAsync();
+        // Dispose network state manager (tracker + projector)
+        await _networkStateManager.DisposeAsync();
 
         IsInitialized = false;
     }

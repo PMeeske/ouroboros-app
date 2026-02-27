@@ -6,7 +6,7 @@ namespace Ouroboros.CLI.Mediator;
 /// <summary>
 /// MediatR handler for <see cref="StopListeningRequest"/>.
 /// Cancels the listening CTS, disposes the enhanced listener, and resets state.
-/// Extracted from <c>OuroborosAgent.StopListening</c>.
+/// Extracted from <c>OuroborosAgent.StopListeningAsync</c>.
 /// </summary>
 public sealed class StopListeningHandler : IRequestHandler<StopListeningRequest, Unit>
 {

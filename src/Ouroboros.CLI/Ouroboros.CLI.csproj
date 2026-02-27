@@ -11,6 +11,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Ouroboros.CLI.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="..\..\appsettings.json" CopyToOutputDirectory="PreserveNewest" Link="appsettings.json"
           Condition="Exists('$(MSBuildThisFileDirectory)..\..\appsettings.json')" />
     <None Include="..\..\appsettings.Example.json" CopyToOutputDirectory="PreserveNewest" Link="appsettings.json"

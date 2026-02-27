@@ -395,8 +395,8 @@ public static class StreamingCliSteps
             // Register subscription for cleanup
             s.Streaming.Register(subscription);
 
-            // Wait for stream completion
-            completionEvent.Wait();
+            // Wait for stream completion without blocking the thread
+            await Task.Run(() => completionEvent.Wait());
 
             // Update state with the full response
             if (streamError == null)

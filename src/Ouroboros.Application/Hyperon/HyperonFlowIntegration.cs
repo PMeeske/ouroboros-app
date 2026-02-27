@@ -271,8 +271,8 @@ public sealed class HyperonFlowIntegration : IAsyncDisposable
                 return Enumerable.Empty<Atom>();
 
             var prompt = expr.Children[1].ToSExpr();
-            // Block on async call since GroundedOperation is synchronous
-            var response = llmInference(prompt, CancellationToken.None).GetAwaiter().GetResult();
+            // GroundedOperation is synchronous; offload to thread pool to avoid deadlock
+            var response = Task.Run(() => llmInference(prompt, CancellationToken.None)).GetAwaiter().GetResult();
 
             // Parse response as atom if possible, otherwise create a string atom
             var parseResult = _parser.Parse(response);

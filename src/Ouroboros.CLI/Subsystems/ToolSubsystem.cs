@@ -945,6 +945,59 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
     };
 
     /// <summary>
+    /// Read-only / harmless tools that are exempt from permission checks.
+    /// Every tool NOT in this set requires interactive approval by default,
+    /// providing defense-in-depth against newly added or unknown tools.
+    /// </summary>
+    internal static readonly HashSet<string> ExemptTools = new(StringComparer.OrdinalIgnoreCase)
+    {
+        // Status queries (read-only)
+        "autonomous_status",
+        "neural_network_status",
+        "search_neuron_history",
+
+        // Read-only file / code access
+        "search_my_code",
+        "read_my_file",
+        "read_file",
+        "list_directory",
+        "list_my_files",
+        "search_files",
+        "search_indexed",
+
+        // System info (read-only)
+        "system_info",
+        "list_processes",
+        "disk_info",
+        "network_info",
+
+        // Safe cognitive tools
+        "verify_claim",
+        "reasoning_chain",
+        "self_doubt",
+        "compress_context",
+        "episodic_memory",
+
+        // Display / screen capture (passive observation)
+        "see_screen",
+        "read_screen_text",
+        "list_captured_images",
+        "capture_screen",
+        "get_active_window",
+        "get_mouse_position",
+
+        // Persistence read / discovery
+        "persistence_stats",
+        "service_discovery",
+        "git_status",
+        "get_codebase_overview",
+
+        // List-only / read-only helpers
+        "list_my_intentions",
+        "clipboard",
+    };
+
+    /// <summary>
     /// Executes a tool with full Crush-style UI pipeline:
     ///   1. <c>●</c> pending header via <see cref="IConsoleOutput.WriteToolCall"/>
     ///   2. Permission check for sensitive tools via <see cref="SubsystemInitContext.PermissionBroker"/>
@@ -962,8 +1015,8 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
         var label = displayParam ?? (args.Length > 60 ? args[..59] + "…" : args);
         Output.WriteToolCall(tool.Name, label);
 
-        // Permission gate for sensitive tools
-        if (SensitiveTools.Contains(tool.Name) && Ctx.PermissionBroker != null)
+        // Permission gate: default-on for all tools except known safe/read-only ones
+        if (!ExemptTools.Contains(tool.Name) && Ctx.PermissionBroker != null)
         {
             var action = await Ctx.PermissionBroker.RequestAsync(tool.Name, "invoke", label, ct);
             if (action == Infrastructure.PermissionAction.Deny)
@@ -999,7 +1052,7 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
         {
             llm.BeforeInvoke = async (toolName, args, ct) =>
             {
-                if (!SensitiveTools.Contains(toolName)) return true;
+                if (ExemptTools.Contains(toolName)) return true;
                 Output.WriteToolCall(toolName, args.Length > 60 ? args[..59] + "…" : args);
                 var action = await broker.RequestAsync(toolName, "invoke", args, ct);
                 return action == Infrastructure.PermissionAction.Allow;
@@ -1010,8 +1063,8 @@ Example: `save src/Ouroboros.CLI/Commands/OuroborosAgent.cs ""old code"" ""new c
         {
             llm.AfterInvoke = (toolName, _, output, elapsed, success) =>
             {
-                // Only show result line for sensitive tools (already shown by BeforeInvoke path)
-                if (SensitiveTools.Contains(toolName))
+                // Only show result line for non-exempt tools (already shown by BeforeInvoke path)
+                if (!ExemptTools.Contains(toolName))
                     Output.WriteToolResult(toolName, success, output);
 
                 bus?.Publish(new Infrastructure.ToolCompletedEvent(toolName, success, output, elapsed));

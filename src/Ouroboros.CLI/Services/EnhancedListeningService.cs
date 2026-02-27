@@ -194,7 +194,12 @@ public sealed class EnhancedListeningService : IAsyncDisposable
         // Keep alive until cancelled
         ct.Register(() =>
         {
-            _recognizer?.StopContinuousRecognitionAsync().GetAwaiter().GetResult();
+            // Offload to thread pool to avoid deadlock in CancellationToken callback
+            Task.Run(async () =>
+            {
+                try { if (_recognizer != null) await _recognizer.StopContinuousRecognitionAsync(); }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Listening] Stop error: {ex.Message}"); }
+            }).GetAwaiter().GetResult();
         });
     }
 

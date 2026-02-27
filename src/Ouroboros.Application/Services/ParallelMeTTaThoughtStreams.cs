@@ -83,7 +83,7 @@ public sealed class ParallelMeTTaThoughtStreams : IAsyncDisposable
     /// <param name="streamId">Unique identifier for this stream.</param>
     /// <param name="seedAtoms">Initial atoms to seed the knowledge base.</param>
     /// <returns>The created stream node.</returns>
-    public MeTTaStreamNode CreateStream(string streamId, IEnumerable<string>? seedAtoms = null)
+    public async Task<MeTTaStreamNode> CreateStreamAsync(string streamId, IEnumerable<string>? seedAtoms = null)
     {
         var engine = new InMemoryMeTTaEngine();
         var node = new MeTTaStreamNode(streamId, engine, this);
@@ -92,7 +92,7 @@ public sealed class ParallelMeTTaThoughtStreams : IAsyncDisposable
         {
             foreach (var atom in seedAtoms)
             {
-                _ = engine.AddFactAsync(atom).GetAwaiter().GetResult();
+                _ = await engine.AddFactAsync(atom);
             }
         }
 
@@ -105,9 +105,14 @@ public sealed class ParallelMeTTaThoughtStreams : IAsyncDisposable
     /// </summary>
     /// <param name="theories">Dictionary of stream ID to theory seed atoms.</param>
     /// <returns>List of created stream nodes.</returns>
-    public List<MeTTaStreamNode> CreateTheoryStreams(Dictionary<string, List<string>> theories)
+    public async Task<List<MeTTaStreamNode>> CreateTheoryStreamsAsync(Dictionary<string, List<string>> theories)
     {
-        return theories.Select(kvp => CreateStream(kvp.Key, kvp.Value)).ToList();
+        var nodes = new List<MeTTaStreamNode>();
+        foreach (var kvp in theories)
+        {
+            nodes.Add(await CreateStreamAsync(kvp.Key, kvp.Value));
+        }
+        return nodes;
     }
 
     /// <summary>
@@ -275,7 +280,7 @@ Be brief (1-2 sentences) and focus on the emergent meaning.";
     /// <param name="target">The target value to solve for.</param>
     /// <param name="moduliBases">List of moduli to use (default: primes up to 17).</param>
     /// <returns>Stream nodes configured for modulo-square theory.</returns>
-    public List<MeTTaStreamNode> InitializeModuloSquareTheory(
+    public async Task<List<MeTTaStreamNode>> InitializeModuloSquareTheoryAsync(
         BigInteger target,
         IEnumerable<int>? moduliBases = null)
     {
@@ -289,7 +294,7 @@ Be brief (1-2 sentences) and focus on the emergent meaning.";
             theories[streamId] = atoms;
         }
 
-        var nodes = CreateTheoryStreams(theories);
+        var nodes = await CreateTheoryStreamsAsync(theories);
 
         // Wire up theory solving events
         foreach (var node in nodes)
@@ -393,7 +398,7 @@ Be brief (1-2 sentences) and focus on the emergent meaning.";
         int maxIterations = 100,
         CancellationToken ct = default)
     {
-        var nodes = InitializeModuloSquareTheory(target);
+        var nodes = await InitializeModuloSquareTheoryAsync(target);
         ModuloSquareSolution? solution = null;
         var solutionFound = new TaskCompletionSource<ModuloSquareSolution>();
 
@@ -473,11 +478,11 @@ Respond with a single MeTTa-style fact or inference, like:
     /// </summary>
     /// <param name="seedConcept">The concept to seed self-referential thinking.</param>
     /// <returns>The Ouroboros atom and its associated stream node.</returns>
-    public (OuroborosAtom Atom, MeTTaStreamNode Node) CreateOuroborosStream(string seedConcept = "self")
+    public async Task<(OuroborosAtom Atom, MeTTaStreamNode Node)> CreateOuroborosStreamAsync(string seedConcept = "self")
     {
         var atom = OuroborosAtomFactory.CreateSelfAware(seedConcept);
         var streamId = $"ouroboros_{atom.Id.ToString()[..8]}";
-        var node = CreateStream(streamId, atom.ToMeTTaAtoms());
+        var node = await CreateStreamAsync(streamId, atom.ToMeTTaAtoms());
 
         // Wire self-consumption events to stream
         atom.OnSelfConsumption += (a, record) =>
@@ -514,7 +519,7 @@ Respond with a single MeTTa-style fact or inference, like:
     /// </summary>
     /// <param name="count">Number of Ouroboros atoms in the network.</param>
     /// <returns>List of Ouroboros atoms and their stream nodes.</returns>
-    public List<(OuroborosAtom Atom, MeTTaStreamNode Node)> CreateOuroborosNetwork(int count = 3)
+    public async Task<List<(OuroborosAtom Atom, MeTTaStreamNode Node)>> CreateOuroborosNetworkAsync(int count = 3)
     {
         var atoms = OuroborosAtomFactory.CreateNetwork(count);
         var results = new List<(OuroborosAtom Atom, MeTTaStreamNode Node)>();
@@ -522,7 +527,7 @@ Respond with a single MeTTa-style fact or inference, like:
         foreach (var atom in atoms)
         {
             var streamId = $"ouroboros_net_{atom.Id.ToString()[..8]}";
-            var node = CreateStream(streamId, atom.ToMeTTaAtoms());
+            var node = await CreateStreamAsync(streamId, atom.ToMeTTaAtoms());
             results.Add((atom, node));
         }
 
@@ -557,7 +562,7 @@ Respond with a single MeTTa-style fact or inference, like:
         var streamId = $"ouroboros_{atom.Id.ToString()[..8]}";
         if (!_nodes.ContainsKey(streamId))
         {
-            CreateStream(streamId, atom.ToMeTTaAtoms());
+            await CreateStreamAsync(streamId, atom.ToMeTTaAtoms());
         }
 
         for (int i = 0; i < iterations && !ct.IsCancellationRequested; i++)
@@ -658,7 +663,7 @@ Respond with ONLY a MeTTa expression, like:
     /// <param name="atom1">First Ouroboros atom.</param>
     /// <param name="atom2">Second Ouroboros atom.</param>
     /// <returns>The merged Ouroboros and its stream node.</returns>
-    public (OuroborosAtom Merged, MeTTaStreamNode Node) MergeOuroborosStreams(
+    public async Task<(OuroborosAtom Merged, MeTTaStreamNode Node)> MergeOuroborosStreamsAsync(
         OuroborosAtom atom1,
         OuroborosAtom atom2)
     {
@@ -676,7 +681,7 @@ Respond with ONLY a MeTTa expression, like:
             })
             .ToList();
 
-        var node = CreateStream(streamId, combinedAtoms);
+        var node = await CreateStreamAsync(streamId, combinedAtoms);
 
         return (merged, node);
     }

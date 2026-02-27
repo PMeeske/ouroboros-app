@@ -114,8 +114,8 @@ public sealed partial class OuroborosAgent
     /// Stops listening for voice input.
     /// Delegates to <see cref="StopListeningHandler"/> via MediatR.
     /// </summary>
-    public void StopListening()
-        => _mediator.Send(new StopListeningRequest()).GetAwaiter().GetResult();
+    public async Task StopListeningAsync()
+        => await _mediator.Send(new StopListeningRequest());
 
     /// <summary>
     /// Continuous listening loop using Azure Speech Recognition with optional Azure TTS response.
@@ -159,7 +159,7 @@ public sealed partial class OuroborosAgent
                 if (text.ToLowerInvariant().Contains("stop listening") ||
                     text.ToLowerInvariant().Contains("disable voice"))
                 {
-                    StopListening();
+                    await StopListeningAsync();
                     _autonomousCoordinator?.ProcessCommand("/listen off");
                     break;
                 }

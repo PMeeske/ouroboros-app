@@ -219,7 +219,7 @@ public sealed class OuroborosAtom
         [EnumeratorCancellation] CancellationToken ct = default)
     {
         var streamId = $"ouroboros_{Id.ToString()[..8]}";
-        var node = orchestrator.CreateStream(streamId, ToMeTTaAtoms());
+        var node = await orchestrator.CreateStreamAsync(streamId, ToMeTTaAtoms());
 
         var thoughtPrompts = new[]
         {
