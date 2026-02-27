@@ -158,7 +158,7 @@ public sealed class WebAvatarRenderer : IAvatarRenderer, IVideoFrameRenderer, IV
                             true,
                             CancellationToken.None);
                     }
-                    catch
+                    catch (WebSocketException)
                     {
                         dead.Add(ws);
                     }
@@ -211,7 +211,7 @@ public sealed class WebAvatarRenderer : IAvatarRenderer, IVideoFrameRenderer, IV
                             true,
                             CancellationToken.None);
                     }
-                    catch
+                    catch (WebSocketException)
                     {
                         dead.Add(ws);
                     }
@@ -253,7 +253,7 @@ public sealed class WebAvatarRenderer : IAvatarRenderer, IVideoFrameRenderer, IV
                     {
                         await ws.SendAsync(segment, WebSocketMessageType.Text, true, ct);
                     }
-                    catch
+                    catch (WebSocketException)
                     {
                         dead.Add(ws);
                     }
@@ -352,7 +352,7 @@ public sealed class WebAvatarRenderer : IAvatarRenderer, IVideoFrameRenderer, IV
         {
             wsContext = await context.AcceptWebSocketAsync(null);
         }
-        catch
+        catch (WebSocketException)
         {
             context.Response.StatusCode = 500;
             context.Response.Close();
@@ -385,7 +385,7 @@ public sealed class WebAvatarRenderer : IAvatarRenderer, IVideoFrameRenderer, IV
             if (ws.State == WebSocketState.Open)
             {
                 try { await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None); }
-                catch { }
+                catch (WebSocketException) { }
             }
 
             ws.Dispose();
@@ -418,7 +418,7 @@ public sealed class WebAvatarRenderer : IAvatarRenderer, IVideoFrameRenderer, IV
         {
             combinedPath = Path.GetFullPath(Path.Combine(rootDir, relativePath));
         }
-        catch
+        catch (Exception)
         {
             return false;
         }
@@ -525,6 +525,9 @@ public sealed class WebAvatarRenderer : IAvatarRenderer, IVideoFrameRenderer, IV
 
     private static void OpenBrowser(string url)
     {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || (uri.Scheme != "http" && uri.Scheme != "https"))
+            return;
+
         try
         {
             if (OperatingSystem.IsWindows())
@@ -534,7 +537,7 @@ public sealed class WebAvatarRenderer : IAvatarRenderer, IVideoFrameRenderer, IV
             else
                 Process.Start("xdg-open", url);
         }
-        catch
+        catch (Exception)
         {
             // Browser launch is best-effort
         }

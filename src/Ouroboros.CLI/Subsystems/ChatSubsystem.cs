@@ -97,7 +97,7 @@ public sealed class ChatSubsystem : IChatSubsystem
                             .Add("significance", sig.ToString("F2"));
                         await _episodicMemory.StoreEpisodeAsync(branch, execCtx, outcome, metadata, ct).ConfigureAwait(false);
                     }
-                    catch { /* non-fatal */ }
+                    catch (Exception) { /* non-fatal */ }
                 };
 
             toolCtx.EpisodicExternalRecallFunc =
@@ -120,7 +120,7 @@ public sealed class ChatSubsystem : IChatSubsystem
                 var kb = new Ouroboros.Agent.NeuralSymbolic.SymbolicKnowledgeBase(ctx.Memory.MeTTaEngine);
                 _neuralSymbolicBridge = new Ouroboros.Agent.NeuralSymbolic.NeuralSymbolicBridge(ctx.Models.ChatModel, kb);
             }
-            catch { }
+            catch (Exception) { }
         }
 
         // ── Curiosity engine ──────────────────────────────────────────────────
@@ -139,7 +139,7 @@ public sealed class ChatSubsystem : IChatSubsystem
                 if (ctx.Models.ChatModel != null)
                 {
                     try { _sovereigntyGate = new Ouroboros.CLI.Sovereignty.PersonaSovereigntyGate(ctx.Models.ChatModel); }
-                    catch { }
+                    catch (Exception) { }
                 }
 
                 var mind = ctx.Autonomy.AutonomousMind;
@@ -170,11 +170,11 @@ public sealed class ChatSubsystem : IChatSubsystem
                                 }
                             }
                         }
-                        catch { }
+                        catch (Exception) { }
                     });
                 }
             }
-            catch { }
+            catch (Exception) { }
         }
 
         ctx.Output.RecordInit("Chat", true, "pipeline ready");
@@ -262,7 +262,7 @@ Use this actual code information to answer the user's question accurately.
                             "\n[END EPISODIC]\n";
                 }
             }
-            catch { }
+            catch (HttpRequestException) { }
         }
 
         // ── Metacognitive trace ───────────────────────────────────────────────
@@ -290,7 +290,7 @@ Use this actual code information to answer the user's question accurately.
                         hybridContext[..Math.Min(80, hybridContext.Length)], "Neural-symbolic bridge");
                 }
             }
-            catch { }
+            catch (Exception) { }
         }
 
         // ── Causal reasoning ─────────────────────────────────────────────────
@@ -313,7 +313,7 @@ Use this actual code information to answer the user's question accurately.
                         causalContext[..Math.Min(80, causalContext.Length)], "Causal reasoning");
                 }
             }
-            catch { }
+            catch (Exception) { }
         }
 
         // ── Personality conversation memory (recalled past conversations from Qdrant) ──
@@ -325,7 +325,7 @@ Use this actual code information to answer the user's question accurately.
                 conversationMemoryContext = await _memorySub.PersonalityEngine.GetMemoryContextAsync(
                     input, _voiceService.ActivePersona.Name, 3).ConfigureAwait(false);
             }
-            catch { }
+            catch (HttpRequestException) { }
         }
 
         _lastUserInput = input;
@@ -446,7 +446,7 @@ Use this actual code information to answer the user's question accurately.
                                 _voiceService.ActivePersona.Name,
                                 input, response, topic, mood, 0.6);
                         }
-                        catch { }
+                        catch (Exception) { }
                     });
                 }
 
@@ -503,7 +503,7 @@ Use this actual code information to answer the user's question accurately.
                 ? $"{originalResponse}\n\n{toolResults}"
                 : sanitized;
         }
-        catch
+        catch (HttpRequestException)
         {
             return $"{originalResponse}\n\n{toolResults}";
         }
@@ -630,7 +630,7 @@ Use this actual code information to answer the user's question accurately.
             sb.AppendLine("[END REFLECTIVE MEMORY]\n");
             return sb.ToString();
         }
-        catch
+        catch (HttpRequestException)
         {
             return "";
         }
@@ -691,7 +691,7 @@ Use this actual code information to answer the user's question accurately.
                 .Add("topic", topic);
             await _episodicMemory.StoreEpisodeAsync(branch, ctx, outcome, metadata).ConfigureAwait(false);
         }
-        catch { }
+        catch (Exception) { }
     }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;

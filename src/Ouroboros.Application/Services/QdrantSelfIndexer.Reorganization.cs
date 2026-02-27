@@ -174,7 +174,7 @@ public sealed partial class QdrantSelfIndexer
                     optimizations++;
                 }
             }
-            catch { /* Point may not exist */ }
+            catch (Exception) { /* Point may not exist */ }
         }
 
         return optimizations;
@@ -301,7 +301,7 @@ public sealed partial class QdrantSelfIndexer
                             cancellationToken: ct);
                     }
                 }
-                catch { /* Point may not exist */ }
+                catch (Exception) { /* Point may not exist */ }
             }
         }
 
@@ -405,7 +405,7 @@ public sealed partial class QdrantSelfIndexer
                     updated++;
                 }
             }
-            catch { /* Point may not exist */ }
+            catch (Exception) { /* Point may not exist */ }
         }
 
         return updated;

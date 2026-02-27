@@ -79,7 +79,7 @@ fi
 # ── 4. Security: ToolSubsystem default-on ──────────────────────
 echo ""
 echo "── Security Model ──"
-if grep -q 'ExemptTools' src/Ouroboros.CLI/Subsystems/ToolSubsystem.cs 2>/dev/null; then
+if grep -rq 'ExemptTools' src/Ouroboros.CLI/Subsystems/ToolSubsystem*.cs 2>/dev/null; then
     pass "ToolSubsystem uses ExemptTools (default-on permission model)"
 else
     fail "ToolSubsystem missing ExemptTools — security bypass risk"

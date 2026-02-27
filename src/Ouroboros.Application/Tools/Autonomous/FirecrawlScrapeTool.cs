@@ -13,6 +13,12 @@ namespace Ouroboros.Application.Tools;
 /// </summary>
 public class FirecrawlScrapeTool : ITool
 {
+    private static readonly HttpClient _sharedHttpClient = new(new SocketsHttpHandler
+    {
+        PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+        AutomaticDecompression = System.Net.DecompressionMethods.All
+    }) { Timeout = TimeSpan.FromSeconds(60) };
+
     /// <inheritdoc/>
     public string Name => "firecrawl_scrape";
 
@@ -57,7 +63,7 @@ public class FirecrawlScrapeTool : ITool
 
     internal static async Task<string> FirecrawlScrapeInternalAsync(string url, string apiKey, CancellationToken ct)
     {
-        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
+        var client = _sharedHttpClient;
 
         var requestBody = new Dictionary<string, object>
         {

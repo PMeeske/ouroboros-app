@@ -59,7 +59,11 @@ public sealed class SystemNotifyHandler : IPcNodeCapabilityHandler
                 $"Start-Sleep -Seconds 6;" +
                 $"$n.Dispose()";
 
-            Process.Start(new ProcessStartInfo("powershell.exe", $"-NoProfile -WindowStyle Hidden -Command \"{script}\"")
+            var scriptBytes = System.Text.Encoding.Unicode.GetBytes(script);
+            var encodedScript = Convert.ToBase64String(scriptBytes);
+
+            Process.Start(new ProcessStartInfo("powershell.exe",
+                $"-NoProfile -NonInteractive -EncodedCommand {encodedScript}")
             {
                 CreateNoWindow = true,
                 UseShellExecute = false,

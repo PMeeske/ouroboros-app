@@ -246,7 +246,7 @@ public sealed partial class ImmersiveMode
             if (!string.IsNullOrEmpty(preThought.CognitiveApproach) && preThought.CognitiveApproach != "direct engagement")
                 innerThoughts.Add($"cognitive approach: {preThought.CognitiveApproach}");
         }
-        catch
+        catch (Exception)
         {
             // Non-fatal — inner dialog failure does not block the response
         }
@@ -269,7 +269,7 @@ public sealed partial class ImmersiveMode
                         episodicContext = $"[Recalled: {joined}]";
                 }
             }
-            catch { }
+            catch (HttpRequestException) { }
         }
 
         // ── Metacognitive trace ───────────────────────────────────────────────
@@ -312,7 +312,7 @@ public sealed partial class ImmersiveMode
                         ethicsCautionNote = $"[Ethical caution: {ethicsCheck.Value.Reasoning}]";
                 }
             }
-            catch { /* Non-fatal — ethics check failure does not block response */ }
+            catch (Exception) { /* Non-fatal — ethics check failure does not block response */ }
         }
 
         _metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Validation,
@@ -344,7 +344,7 @@ public sealed partial class ImmersiveMode
                                          $"compression={_immersiveCogState.Compression:F2})";
                 }
             }
-            catch { /* Non-fatal */ }
+            catch (Exception) { /* Non-fatal */ }
         }
 
         _metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Inference,
@@ -364,7 +364,7 @@ public sealed partial class ImmersiveMode
                 if (hybrid.IsSuccess && !string.IsNullOrEmpty(hybrid.Value.Answer))
                     hybridNote = $"[Symbolic: {hybrid.Value.Answer[..Math.Min(120, hybrid.Value.Answer.Length)]}]";
             }
-            catch { }
+            catch (Exception) { }
             if (hybridNote != null)
                 _metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Inference,
                     hybridNote, "Neural-symbolic bridge");
@@ -388,7 +388,7 @@ public sealed partial class ImmersiveMode
                         causalNote, "Causal reasoning engine");
                 }
             }
-            catch { }
+            catch (Exception) { }
         }
 
         // ── Phi (IIT) annotation ─────────────────────────────────────────────
@@ -419,7 +419,7 @@ public sealed partial class ImmersiveMode
                 phiNote = $"Φ={phiResult.Phi:F2}";
             }
         }
-        catch { /* Non-fatal */ }
+        catch (Exception) { /* Non-fatal */ }
 
         var sb = new StringBuilder();
         sb.AppendLine("### System");
@@ -664,6 +664,6 @@ User: goodbye
                 .Add("topic", topic);
             await memory.StoreEpisodeAsync(branch, context, outcome, metadata, ct).ConfigureAwait(false);
         }
-        catch { }
+        catch (Exception) { }
     }
 }

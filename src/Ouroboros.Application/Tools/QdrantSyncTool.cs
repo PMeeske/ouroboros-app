@@ -130,7 +130,7 @@ public sealed class QdrantSyncTool : ITool, IDisposable
                 if (doc.RootElement.TryGetProperty("collection", out var colEl))
                     collection = colEl.GetString();
             }
-            catch { /* Use raw input */ }
+            catch (JsonException) { /* Use raw input */ }
 
             return command switch
             {
@@ -185,7 +185,7 @@ public sealed class QdrantSyncTool : ITool, IDisposable
                 localCount = json.GetProperty("result").GetProperty("collections").GetArrayLength();
             }
         }
-        catch { /* offline */ }
+        catch (HttpRequestException) { /* offline */ }
 
         sb.AppendLine($"**Local** ({_localBaseUrl}): {(localOk ? $"Online — {localCount} collections" : "Offline")}");
 
@@ -202,7 +202,7 @@ public sealed class QdrantSyncTool : ITool, IDisposable
                 cloudCount = json.GetProperty("result").GetProperty("collections").GetArrayLength();
             }
         }
-        catch { /* offline */ }
+        catch (HttpRequestException) { /* offline */ }
 
         sb.AppendLine($"**Cloud** ({_cloudBaseUrl}): {(cloudOk ? $"Online — {cloudCount} collections" : "Offline / Unreachable")}");
         sb.AppendLine($"**Encryption:** {(_crypto != null ? "ECDH P-256 + AES-256-GCM (active)" : "Not configured")}");
@@ -404,7 +404,7 @@ public sealed class QdrantSyncTool : ITool, IDisposable
 
             return result;
         }
-        catch
+        catch (HttpRequestException)
         {
             return null;
         }
@@ -434,7 +434,7 @@ public sealed class QdrantSyncTool : ITool, IDisposable
 
             return (points, dim);
         }
-        catch
+        catch (HttpRequestException)
         {
             return (0, 0);
         }
@@ -548,7 +548,7 @@ public sealed class QdrantSyncTool : ITool, IDisposable
             var resp = await _cloudClient.PutAsJsonAsync($"/collections/{collection}/points", body, ct);
             return resp.IsSuccessStatusCode;
         }
-        catch
+        catch (HttpRequestException)
         {
             return false;
         }

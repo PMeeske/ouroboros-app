@@ -15,6 +15,14 @@ namespace Ouroboros.Application.Tools;
 /// </summary>
 public partial class LocalWebScrapeTool : ITool
 {
+    private static readonly HttpClient _sharedHttpClient = new(new SocketsHttpHandler
+    {
+        PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+        AutomaticDecompression = System.Net.DecompressionMethods.All,
+        AllowAutoRedirect = true,
+        MaxAutomaticRedirections = 5
+    }) { Timeout = TimeSpan.FromSeconds(45) };
+
     /// <inheritdoc/>
     public string Name => "web_scrape";
 
@@ -63,22 +71,17 @@ public partial class LocalWebScrapeTool : ITool
     private static async Task<Result<string, string>> ScrapeLocallyAsync(
         string url, bool includeLinks, int maxLength, CancellationToken ct)
     {
-        using var handler = new HttpClientHandler
-        {
-            AutomaticDecompression = System.Net.DecompressionMethods.All,
-            AllowAutoRedirect = true,
-            MaxAutomaticRedirections = 5
-        };
-        using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(45) };
+        var client = _sharedHttpClient;
 
-        // Human-like headers
-        client.DefaultRequestHeaders.Add("User-Agent",
+        // Use HttpRequestMessage for thread-safe per-request headers
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Add("User-Agent",
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-        client.DefaultRequestHeaders.Add("Accept",
+        request.Headers.Add("Accept",
             "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-        client.DefaultRequestHeaders.Add("Accept-Language", "en-US,en;q=0.9");
+        request.Headers.Add("Accept-Language", "en-US,en;q=0.9");
 
-        var response = await client.GetAsync(url, ct);
+        var response = await client.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
 
         string html = await response.Content.ReadAsStringAsync(ct);

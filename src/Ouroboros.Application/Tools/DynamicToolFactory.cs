@@ -24,6 +24,12 @@ using Ouroboros.Tools;
 /// </summary>
 public partial class DynamicToolFactory
 {
+    private static readonly HttpClient _sharedHttpClient = new(new SocketsHttpHandler
+    {
+        PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+        AutomaticDecompression = System.Net.DecompressionMethods.All
+    }) { Timeout = TimeSpan.FromSeconds(30) };
+
     private readonly ToolAwareChatModel _llm;
     private readonly PlaywrightMcpTool? _playwrightMcpTool;
     private readonly CaptchaResolverChain _captchaResolver;
@@ -250,23 +256,23 @@ CODE:
     }
 
     /// <summary>
-    /// Configures HttpClient with realistic browser-like headers.
+    /// Configures an HttpRequestMessage with realistic browser-like headers.
+    /// Thread-safe: sets headers per-request instead of on shared HttpClient.DefaultRequestHeaders.
     /// </summary>
-    private static void ConfigureHumanLikeHeaders(HttpClient http)
+    private static void ConfigureHumanLikeHeaders(HttpRequestMessage request)
     {
-        http.DefaultRequestHeaders.Clear();
-        http.DefaultRequestHeaders.Add("User-Agent", GetRandomUserAgent());
-        http.DefaultRequestHeaders.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8");
-        http.DefaultRequestHeaders.Add("Accept-Language", "en-US,en;q=0.9,de;q=0.8");
-        http.DefaultRequestHeaders.Add("Accept-Encoding", "gzip, deflate, br");
-        http.DefaultRequestHeaders.Add("DNT", "1");
-        http.DefaultRequestHeaders.Add("Connection", "keep-alive");
-        http.DefaultRequestHeaders.Add("Upgrade-Insecure-Requests", "1");
-        http.DefaultRequestHeaders.Add("Sec-Fetch-Dest", "document");
-        http.DefaultRequestHeaders.Add("Sec-Fetch-Mode", "navigate");
-        http.DefaultRequestHeaders.Add("Sec-Fetch-Site", "none");
-        http.DefaultRequestHeaders.Add("Sec-Fetch-User", "?1");
-        http.DefaultRequestHeaders.Add("Cache-Control", "max-age=0");
+        request.Headers.Add("User-Agent", GetRandomUserAgent());
+        request.Headers.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8");
+        request.Headers.Add("Accept-Language", "en-US,en;q=0.9,de;q=0.8");
+        request.Headers.Add("Accept-Encoding", "gzip, deflate, br");
+        request.Headers.Add("DNT", "1");
+        request.Headers.Add("Connection", "keep-alive");
+        request.Headers.Add("Upgrade-Insecure-Requests", "1");
+        request.Headers.Add("Sec-Fetch-Dest", "document");
+        request.Headers.Add("Sec-Fetch-Mode", "navigate");
+        request.Headers.Add("Sec-Fetch-Site", "none");
+        request.Headers.Add("Sec-Fetch-User", "?1");
+        request.Headers.Add("Cache-Control", "max-age=0");
     }
 
     /// <summary>
@@ -281,16 +287,7 @@ CODE:
             $"Search the web using {searchProvider} and return results",
             async (query) =>
             {
-                // Use handler with automatic decompression
-                using var handler = new HttpClientHandler
-                {
-                    AutomaticDecompression = System.Net.DecompressionMethods.All
-                };
-                using var http = new HttpClient(handler);
-
-                // Configure realistic browser-like headers
-                ConfigureHumanLikeHeaders(http);
-                http.Timeout = TimeSpan.FromSeconds(20);
+                var http = _sharedHttpClient;
 
                 // Initial human-like delay before first request (simulates typing/thinking)
                 await SimulateHumanDelayAsync(300, 800);
@@ -312,17 +309,19 @@ CODE:
                 {
                     try
                     {
+                        using var request = new HttpRequestMessage(HttpMethod.Get, searchUrl);
+                        ConfigureHumanLikeHeaders(request);
+
                         // Add referer for subsequent requests (simulates clicking through)
                         if (searchUrl != searchUrls[0])
                         {
-                            http.DefaultRequestHeaders.Remove("Referer");
-                            http.DefaultRequestHeaders.Add("Referer", searchUrls[0]);
+                            request.Headers.Add("Referer", searchUrls[0]);
 
                             // Human-like delay between retry attempts
                             await SimulateHumanDelayAsync(1000, 3000);
                         }
 
-                        var response = await http.GetAsync(searchUrl);
+                        var response = await http.SendAsync(request);
 
                         if (!response.IsSuccessStatusCode)
                         {
@@ -446,14 +445,7 @@ CODE:
                 // Simulate human typing/thinking delay
                 await SimulateHumanDelayAsync(200, 600);
 
-                // Use handler with automatic decompression
-                using var handler = new HttpClientHandler
-                {
-                    AutomaticDecompression = System.Net.DecompressionMethods.All
-                };
-                using var http = new HttpClient(handler);
-                ConfigureHumanLikeHeaders(http);
-                http.Timeout = TimeSpan.FromSeconds(30);
+                var http = _sharedHttpClient;
 
                 string? serpApiKey = Environment.GetEnvironmentVariable("SERPAPI_KEY");
                 var results = new List<string>();
@@ -464,7 +456,11 @@ CODE:
                     {
                         // Use SerpAPI for reliable Google results
                         string url = $"https://serpapi.com/search.json?q={Uri.EscapeDataString(query)}&api_key={serpApiKey}&num=10";
-                        string json = await http.GetStringAsync(url);
+                        using var serpRequest = new HttpRequestMessage(HttpMethod.Get, url);
+                        ConfigureHumanLikeHeaders(serpRequest);
+                        var serpResponse = await http.SendAsync(serpRequest);
+                        serpResponse.EnsureSuccessStatusCode();
+                        string json = await serpResponse.Content.ReadAsStringAsync();
                         using var doc = JsonDocument.Parse(json);
 
                         if (doc.RootElement.TryGetProperty("organic_results", out var organicEl))
@@ -482,7 +478,11 @@ CODE:
                     {
                         // Fallback to DuckDuckGo HTML
                         string url = $"https://html.duckduckgo.com/html/?q={Uri.EscapeDataString(query)}";
-                        string html = await http.GetStringAsync(url);
+                        using var ddgRequest = new HttpRequestMessage(HttpMethod.Get, url);
+                        ConfigureHumanLikeHeaders(ddgRequest);
+                        var ddgResponse = await http.SendAsync(ddgRequest);
+                        ddgResponse.EnsureSuccessStatusCode();
+                        string html = await ddgResponse.Content.ReadAsStringAsync();
                         results = ExtractSearchResults(html, "duckduckgo");
                     }
 
@@ -566,18 +566,13 @@ CODE:
                 // Simulate human-like delay before fetch
                 await SimulateHumanDelayAsync(200, 500);
 
-                // Use handler with automatic decompression for gzip/brotli responses
-                using var handler = new HttpClientHandler
-                {
-                    AutomaticDecompression = System.Net.DecompressionMethods.All
-                };
-                using HttpClient http = new HttpClient(handler);
-                ConfigureHumanLikeHeaders(http);
-                http.Timeout = TimeSpan.FromSeconds(30);
+                var http = _sharedHttpClient;
 
                 try
                 {
-                    var response = await http.GetAsync(parsedUri);
+                    using var fetchRequest = new HttpRequestMessage(HttpMethod.Get, parsedUri);
+                    ConfigureHumanLikeHeaders(fetchRequest);
+                    var response = await http.SendAsync(fetchRequest);
                     response.EnsureSuccessStatusCode();
 
                     // Read as bytes first, then decode as UTF-8 with fallback

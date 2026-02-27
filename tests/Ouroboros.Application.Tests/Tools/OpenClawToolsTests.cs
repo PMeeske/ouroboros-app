@@ -61,35 +61,35 @@ public class OpenClawToolsTests : IDisposable
     [Fact]
     public void StatusTool_HasCorrectName()
     {
-        var tool = new OpenClawTools.OpenClawStatusTool();
+        var tool = new OpenClawStatusTool();
         tool.Name.Should().Be("openclaw_status");
     }
 
     [Fact]
     public void ListChannelsTool_HasCorrectName()
     {
-        var tool = new OpenClawTools.OpenClawListChannelsTool();
+        var tool = new OpenClawListChannelsTool();
         tool.Name.Should().Be("openclaw_list_channels");
     }
 
     [Fact]
     public void NodeListTool_HasCorrectName()
     {
-        var tool = new OpenClawTools.OpenClawNodeListTool();
+        var tool = new OpenClawNodeListTool();
         tool.Name.Should().Be("openclaw_node_list");
     }
 
     [Fact]
     public void SendMessageTool_HasCorrectName()
     {
-        var tool = new OpenClawTools.OpenClawSendMessageTool();
+        var tool = new OpenClawSendMessageTool();
         tool.Name.Should().Be("openclaw_send_message");
     }
 
     [Fact]
     public void NodeInvokeTool_HasCorrectName()
     {
-        var tool = new OpenClawTools.OpenClawNodeInvokeTool();
+        var tool = new OpenClawNodeInvokeTool();
         tool.Name.Should().Be("openclaw_node_invoke");
     }
 
@@ -98,7 +98,7 @@ public class OpenClawToolsTests : IDisposable
     [Fact]
     public async Task StatusTool_WhenNotConnected_ReturnsFailure()
     {
-        var tool = new OpenClawTools.OpenClawStatusTool();
+        var tool = new OpenClawStatusTool();
         var result = await tool.InvokeAsync("", CancellationToken.None);
 
         result.IsSuccess.Should().BeFalse();
@@ -108,7 +108,7 @@ public class OpenClawToolsTests : IDisposable
     [Fact]
     public async Task ListChannelsTool_WhenNotConnected_ReturnsFailure()
     {
-        var tool = new OpenClawTools.OpenClawListChannelsTool();
+        var tool = new OpenClawListChannelsTool();
         var result = await tool.InvokeAsync("", CancellationToken.None);
 
         result.IsSuccess.Should().BeFalse();
@@ -117,7 +117,7 @@ public class OpenClawToolsTests : IDisposable
     [Fact]
     public async Task NodeListTool_WhenNotConnected_ReturnsFailure()
     {
-        var tool = new OpenClawTools.OpenClawNodeListTool();
+        var tool = new OpenClawNodeListTool();
         var result = await tool.InvokeAsync("", CancellationToken.None);
 
         result.IsSuccess.Should().BeFalse();
@@ -126,7 +126,7 @@ public class OpenClawToolsTests : IDisposable
     [Fact]
     public async Task SendMessageTool_WhenNotConnected_ReturnsFailure()
     {
-        var tool = new OpenClawTools.OpenClawSendMessageTool();
+        var tool = new OpenClawSendMessageTool();
         var result = await tool.InvokeAsync("{}", CancellationToken.None);
 
         result.IsSuccess.Should().BeFalse();
@@ -135,7 +135,7 @@ public class OpenClawToolsTests : IDisposable
     [Fact]
     public async Task NodeInvokeTool_WhenNotConnected_ReturnsFailure()
     {
-        var tool = new OpenClawTools.OpenClawNodeInvokeTool();
+        var tool = new OpenClawNodeInvokeTool();
         var result = await tool.InvokeAsync("{}", CancellationToken.None);
 
         result.IsSuccess.Should().BeFalse();
@@ -144,7 +144,7 @@ public class OpenClawToolsTests : IDisposable
     [Fact]
     public async Task SessionsListTool_WhenNotConnected_ReturnsFailure()
     {
-        var tool = new OpenClawTools.OpenClawSessionsListTool();
+        var tool = new OpenClawSessionsListTool();
         var result = await tool.InvokeAsync("", CancellationToken.None);
 
         result.IsSuccess.Should().BeFalse();
@@ -153,7 +153,7 @@ public class OpenClawToolsTests : IDisposable
     [Fact]
     public async Task MemorySearchTool_WhenNotConnected_ReturnsFailure()
     {
-        var tool = new OpenClawTools.OpenClawMemorySearchTool();
+        var tool = new OpenClawMemorySearchTool();
         var result = await tool.InvokeAsync("{}", CancellationToken.None);
 
         result.IsSuccess.Should().BeFalse();
@@ -162,7 +162,7 @@ public class OpenClawToolsTests : IDisposable
     [Fact]
     public async Task MemoryGetTool_WhenNotConnected_ReturnsFailure()
     {
-        var tool = new OpenClawTools.OpenClawMemoryGetTool();
+        var tool = new OpenClawMemoryGetTool();
         var result = await tool.InvokeAsync("{}", CancellationToken.None);
 
         result.IsSuccess.Should().BeFalse();
@@ -171,7 +171,7 @@ public class OpenClawToolsTests : IDisposable
     [Fact]
     public async Task CameraSnapTool_WhenNotConnected_ReturnsFailure()
     {
-        var tool = new OpenClawTools.OpenClawCameraSnapTool();
+        var tool = new OpenClawCameraSnapTool();
         var result = await tool.InvokeAsync("{}", CancellationToken.None);
 
         result.IsSuccess.Should().BeFalse();
@@ -180,7 +180,7 @@ public class OpenClawToolsTests : IDisposable
     [Fact]
     public async Task HealthTool_WhenNotConnected_ReturnsFailure()
     {
-        var tool = new OpenClawTools.OpenClawHealthTool();
+        var tool = new OpenClawHealthTool();
         var result = await tool.InvokeAsync("", CancellationToken.None);
 
         result.IsSuccess.Should().BeFalse();
@@ -191,7 +191,7 @@ public class OpenClawToolsTests : IDisposable
     [Fact]
     public void SendMessageTool_HasJsonSchema()
     {
-        var tool = new OpenClawTools.OpenClawSendMessageTool();
+        var tool = new OpenClawSendMessageTool();
         tool.JsonSchema.Should().NotBeNull();
         tool.JsonSchema.Should().Contain("channel");
         tool.JsonSchema.Should().Contain("message");
@@ -200,7 +200,7 @@ public class OpenClawToolsTests : IDisposable
     [Fact]
     public void NodeInvokeTool_HasJsonSchema()
     {
-        var tool = new OpenClawTools.OpenClawNodeInvokeTool();
+        var tool = new OpenClawNodeInvokeTool();
         tool.JsonSchema.Should().NotBeNull();
         tool.JsonSchema.Should().Contain("node");
         tool.JsonSchema.Should().Contain("command");
@@ -209,7 +209,7 @@ public class OpenClawToolsTests : IDisposable
     [Fact]
     public void StatusTool_HasNoSchema()
     {
-        var tool = new OpenClawTools.OpenClawStatusTool();
+        var tool = new OpenClawStatusTool();
         tool.JsonSchema.Should().BeNull();
     }
 }
