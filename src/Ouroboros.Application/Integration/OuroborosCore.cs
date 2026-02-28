@@ -210,7 +210,7 @@ public sealed class OuroborosCore : IOuroborosCore
             // Step 4: Store execution as episode
             if (config.UseEpisodicMemory && reasoningTrace != null)
             {
-                var context = Pipeline.Memory.ExecutionContext.WithGoal(goal);
+                var context = Pipeline.Memory.PipelineExecutionContext.WithGoal(goal);
                 var outcome = Outcome.Successful(output, stopwatch.Elapsed);
                 var metadata = ImmutableDictionary<string, object>.Empty
                     .Add("execution_config", config)

@@ -41,7 +41,9 @@ internal class EnvironmentTool : ITool
             return action.ToLower() switch
             {
                 "get" => Task.FromResult(Result<string, string>.Success(
-                    Environment.GetEnvironmentVariable(name) ?? $"[{name} not set]")),
+                    IsSecret(name)
+                        ? "[REDACTED]"
+                        : Environment.GetEnvironmentVariable(name) ?? $"[{name} not set]")),
                 "set" when args.TryGetProperty("value", out var valEl) =>
                     SetEnvVar(name, valEl.GetString() ?? ""),
                 "list" => Task.FromResult(ListEnvironmentVariables()),

@@ -23,6 +23,7 @@ public static class AgentToolExecutor
         "shell",
         "start_process",
         "environment",
+        "read_file",
     };
 
     /// <summary>
@@ -30,7 +31,7 @@ public static class AgentToolExecutor
     /// <see cref="OnPermissionRequired"/> before executing. If the callback denies
     /// permission, the tool call is blocked with an error message.
     /// </summary>
-    public static bool RequireConfirmation { get; set; } = true;
+    public static volatile bool RequireConfirmation = true;
 
     /// <summary>
     /// Optional callback invoked before executing a dangerous tool.
@@ -38,7 +39,7 @@ public static class AgentToolExecutor
     /// When <c>null</c> and <see cref="RequireConfirmation"/> is <c>true</c>, dangerous
     /// tool calls are blocked by default (fail-closed).
     /// </summary>
-    public static Func<string, string, Task<bool>>? OnPermissionRequired { get; set; }
+    public static volatile Func<string, string, Task<bool>>? OnPermissionRequired;
 
     /// <summary>
     /// Executes the named tool with the given arguments.

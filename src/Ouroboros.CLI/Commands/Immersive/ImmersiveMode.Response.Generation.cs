@@ -457,7 +457,7 @@ User: goodbye
             var store = new Ouroboros.Domain.Vectors.TrackedVectorStore();
             var dataSource = LangChain.DocumentLoaders.DataSource.FromPath(Environment.CurrentDirectory);
             var branch = new Ouroboros.Pipeline.Branches.PipelineBranch("conversation", store, dataSource);
-            var context = Ouroboros.Pipeline.Memory.ExecutionContext.WithGoal(
+            var context = Ouroboros.Pipeline.Memory.PipelineExecutionContext.WithGoal(
                 $"{personaName}: {input[..Math.Min(80, input.Length)]}");
             var outcome = Ouroboros.Pipeline.Memory.Outcome.Successful(
                 "Conversation turn", TimeSpan.Zero);

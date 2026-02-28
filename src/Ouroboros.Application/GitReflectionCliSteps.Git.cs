@@ -137,14 +137,14 @@ public static partial class GitReflectionCliSteps
                 }
 
                 GitReflectionService service = GetService();
-                IReadOnlyList<(string Hash, string Message, DateTime Date)> commits = await service.GetRecentCommitsAsync(count);
+                var commits = await service.GetRecentCommitsAsync(count);
 
                 StringBuilder sb = new();
                 sb.AppendLine($"📜 Recent Commits ({commits.Count}):");
 
-                foreach ((string hash, string message, DateTime date) in commits)
+                foreach (var commit in commits)
                 {
-                    sb.AppendLine($"   {hash} - {message} ({date:yyyy-MM-dd})");
+                    sb.AppendLine($"   {commit.Hash} - {commit.Message} ({commit.Timestamp:yyyy-MM-dd})");
                 }
 
                 Console.WriteLine(sb.ToString());

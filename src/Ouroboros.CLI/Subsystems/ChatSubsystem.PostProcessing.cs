@@ -196,7 +196,7 @@ public sealed partial class ChatSubsystem
             var store = new Ouroboros.Domain.Vectors.TrackedVectorStore();
             var dataSource = LangChain.DocumentLoaders.DataSource.FromPath(System.Environment.CurrentDirectory);
             var branch = new Ouroboros.Pipeline.Branches.PipelineBranch("agent_chat", store, dataSource);
-            var ctx = Ouroboros.Pipeline.Memory.ExecutionContext.WithGoal(
+            var ctx = Ouroboros.Pipeline.Memory.PipelineExecutionContext.WithGoal(
                 $"{_voiceService.ActivePersona.Name}: {input[..Math.Min(80, input.Length)]}");
             var outcome = Ouroboros.Pipeline.Memory.Outcome.Successful("Agent chat turn", TimeSpan.Zero);
             var metadata = System.Collections.Immutable.ImmutableDictionary<string, object>.Empty

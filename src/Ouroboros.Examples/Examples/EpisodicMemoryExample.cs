@@ -202,7 +202,7 @@ public static class EpisodicMemoryExample
         var dataSource = DataSource.FromPath(Environment.CurrentDirectory);
         var branch = new PipelineBranch("demo", store, dataSource);
 
-        var context = ExecutionContext.WithGoal(goal);
+        var context = PipelineExecutionContext.WithGoal(goal);
         var outcome = Outcome.Successful("Completed successfully", TimeSpan.FromMinutes(5));
         var metadata = ImmutableDictionary<string, object>.Empty
             .Add("example", true)
@@ -229,7 +229,7 @@ public static class EpisodicMemoryExample
         var dataSource = DataSource.FromPath(Environment.CurrentDirectory);
         var branch = new PipelineBranch("demo", store, dataSource);
 
-        var context = ExecutionContext.WithGoal(goal);
+        var context = PipelineExecutionContext.WithGoal(goal);
         var errors = ImmutableList<string>.Empty
             .Add("Configuration error")
             .Add("Missing dependencies");

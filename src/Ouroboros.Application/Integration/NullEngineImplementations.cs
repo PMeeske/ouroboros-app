@@ -18,7 +18,7 @@ using Ouroboros.Tools.MeTTa;
 using MetaAIPlan = Ouroboros.Agent.MetaAI.Plan;
 using VerificationPlan = Ouroboros.Pipeline.Verification.Plan;
 using EmbodiedPlan = Ouroboros.Domain.Embodied.Plan;
-using MemoryExecutionContext = Ouroboros.Pipeline.Memory.ExecutionContext;
+using MemoryExecutionContext = Ouroboros.Pipeline.Memory.PipelineExecutionContext;
 using MetaAIExecutionTrace = Ouroboros.Agent.MetaAI.ExecutionTrace;
 using MetaAIHypothesis = Ouroboros.Tools.MeTTa.Hypothesis;
 using MetaAIPlanExecutionResult = Ouroboros.Agent.MetaAI.PlanExecutionResult;

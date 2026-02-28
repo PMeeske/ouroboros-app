@@ -2,6 +2,8 @@
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
+using System.Collections.Concurrent;
+
 namespace Ouroboros.Application.Tools.SystemTools;
 
 /// <summary>
@@ -10,14 +12,22 @@ namespace Ouroboros.Application.Tools.SystemTools;
 /// </summary>
 public static class PathSanitizer
 {
-    private static readonly HashSet<string> AllowedBaseDirectories = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, byte> AllowedBaseDirectories = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Static initializer adds the current working directory as a default jail.
+    /// </summary>
+    static PathSanitizer()
+    {
+        AllowedBaseDirectories.TryAdd(Path.GetFullPath(Environment.CurrentDirectory), 0);
+    }
 
     /// <summary>
     /// Registers a directory that tools are allowed to access.
     /// When at least one directory is registered, all path access is restricted
     /// to registered directories only (jail mode).
     /// </summary>
-    public static void AddAllowedDirectory(string path) => AllowedBaseDirectories.Add(Path.GetFullPath(path));
+    public static void AddAllowedDirectory(string path) => AllowedBaseDirectories.TryAdd(Path.GetFullPath(path), 0);
 
     /// <summary>
     /// Expands environment variables, canonicalizes the path, and checks it
@@ -39,7 +49,7 @@ public static class PathSanitizer
             throw new UnauthorizedAccessException($"Access denied: {path}");
 
         // If allowed dirs configured, enforce jail
-        if (AllowedBaseDirectories.Count > 0 && !AllowedBaseDirectories.Any(b => fullPath.StartsWith(b, StringComparison.OrdinalIgnoreCase)))
+        if (!AllowedBaseDirectories.IsEmpty && !AllowedBaseDirectories.Keys.Any(b => fullPath.StartsWith(b, StringComparison.OrdinalIgnoreCase)))
             throw new UnauthorizedAccessException($"Path outside allowed directories: {path}");
 
         return fullPath;

@@ -361,6 +361,12 @@ public partial class DynamicToolFactory
                     return $"Fetch failed: Only http and https URLs are supported. Got: {parsedUri.Scheme}";
                 }
 
+                // SSRF protection: block private/internal IPs
+                if (!await UrlValidator.IsUrlSafeAsync(url))
+                {
+                    return $"Fetch failed: URL '{url}' resolves to a private or internal IP address.";
+                }
+
                 // Simulate human-like delay before fetch
                 await SimulateHumanDelayAsync(200, 500);
 

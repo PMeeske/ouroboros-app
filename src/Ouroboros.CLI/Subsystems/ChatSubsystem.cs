@@ -90,7 +90,7 @@ public sealed partial class ChatSubsystem : IChatSubsystem
                         var store      = new Ouroboros.Domain.Vectors.TrackedVectorStore();
                         var dataSource = LangChain.DocumentLoaders.DataSource.FromPath(System.Environment.CurrentDirectory);
                         var branch     = new Ouroboros.Pipeline.Branches.PipelineBranch("episodic_tool", store, dataSource);
-                        var execCtx    = Ouroboros.Pipeline.Memory.ExecutionContext.WithGoal(content[..Math.Min(80, content.Length)]);
+                        var execCtx    = Ouroboros.Pipeline.Memory.PipelineExecutionContext.WithGoal(content[..Math.Min(80, content.Length)]);
                         var outcome    = Ouroboros.Pipeline.Memory.Outcome.Successful("episodic_memory tool", TimeSpan.Zero);
                         var metadata   = System.Collections.Immutable.ImmutableDictionary<string, object>.Empty
                             .Add("summary",      content[..Math.Min(200, content.Length)])

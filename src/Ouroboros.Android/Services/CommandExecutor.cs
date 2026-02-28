@@ -32,12 +32,13 @@ public class CommandExecutor
             var processInfo = new ProcessStartInfo
             {
                 FileName = _requiresRoot ? "su" : "sh",
-                Arguments = _requiresRoot ? $"-c \"{command}\"" : $"-c \"{command}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
+            processInfo.ArgumentList.Add("-c");
+            processInfo.ArgumentList.Add(command);
 
             using var process = new Process { StartInfo = processInfo };
             var output = new StringBuilder();
@@ -102,12 +103,13 @@ public class CommandExecutor
             var processInfo = new ProcessStartInfo
             {
                 FileName = _requiresRoot ? "su" : "sh",
-                Arguments = _requiresRoot ? $"-c \"{command}\"" : $"-c \"{command}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
+            processInfo.ArgumentList.Add("-c");
+            processInfo.ArgumentList.Add(command);
 
             using var process = new Process { StartInfo = processInfo };
             var output = new StringBuilder();

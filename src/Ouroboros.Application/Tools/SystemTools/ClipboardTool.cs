@@ -131,12 +131,14 @@ internal class ClipboardTool : ITool
         {
             psi = new ProcessStartInfo
             {
-                FileName = "cmd.exe",
-                Arguments = "/C powershell -NoProfile -Command Get-Clipboard",
+                FileName = "powershell.exe",
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
+            psi.ArgumentList.Add("-NoProfile");
+            psi.ArgumentList.Add("-Command");
+            psi.ArgumentList.Add("Get-Clipboard");
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
