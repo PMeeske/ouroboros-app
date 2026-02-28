@@ -201,7 +201,7 @@ public sealed class AgentEventBridge : IDisposable
         {
             await _mediator.Publish(notification);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             System.Diagnostics.Debug.WriteLine($"[AgentEventBridge] Failed to publish {typeof(T).Name}: {ex.Message}");
         }

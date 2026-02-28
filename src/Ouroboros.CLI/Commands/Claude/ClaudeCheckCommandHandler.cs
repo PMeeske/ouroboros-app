@@ -133,7 +133,13 @@ public sealed partial class ClaudeCheckCommandHandler
                         points.ToString("N0"),
                         issueList.Count > 0 ? string.Join(", ", issueList) : "[green]none[/]");
                 }
-                catch (Exception ex)
+                catch (InvalidOperationException ex)
+                {
+                    _logger.LogWarning(ex, "Failed to get info for collection {Name}", name);
+                    table.AddRow(Markup.Escape(name), "[red]ERROR[/]", "-", "-", Markup.Escape(ex.Message));
+                    issues++;
+                }
+                catch (System.Net.Http.HttpRequestException ex)
                 {
                     _logger.LogWarning(ex, "Failed to get info for collection {Name}", name);
                     table.AddRow(Markup.Escape(name), "[red]ERROR[/]", "-", "-", Markup.Escape(ex.Message));
@@ -145,7 +151,13 @@ public sealed partial class ClaudeCheckCommandHandler
             _console.MarkupLine($"[dim]{collections.Count} collection(s) on local Qdrant.[/]\n");
             return issues;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Failed to query local Qdrant");
+            _console.MarkupLine($"[red]Failed to query Qdrant:[/] {Markup.Escape(ex.Message)}\n");
+            return 1;
+        }
+        catch (System.Net.Http.HttpRequestException ex)
         {
             _logger.LogError(ex, "Failed to query local Qdrant");
             _console.MarkupLine($"[red]Failed to query Qdrant:[/] {Markup.Escape(ex.Message)}\n");
@@ -238,7 +250,13 @@ public sealed partial class ClaudeCheckCommandHandler
             _console.MarkupLine("[dim]Set Ouroboros:Qdrant:Cloud:Endpoint, ApiKey, and Enabled=true.[/]\n");
             return 0; // Not an error if intentionally unconfigured
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Failed to check cloud sync");
+            _console.MarkupLine($"[red]Cloud check failed:[/] {Markup.Escape(ex.Message)}\n");
+            return 1;
+        }
+        catch (System.Net.Http.HttpRequestException ex)
         {
             _logger.LogError(ex, "Failed to check cloud sync");
             _console.MarkupLine($"[red]Cloud check failed:[/] {Markup.Escape(ex.Message)}\n");

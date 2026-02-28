@@ -59,7 +59,7 @@ public class VoiceIntegrationService : IVoiceIntegrationService
                 _console.MarkupLine("[yellow]No speech recognized. Using original arguments.[/]");
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             _logger.LogError(ex, "Error handling voice command");
             _console.MarkupLine($"[red]Voice command failed: {ex.Message}[/]");
@@ -73,7 +73,7 @@ public class VoiceIntegrationService : IVoiceIntegrationService
             await _voiceModeService.InitializeAsync();
             return _voiceModeService.HasStt;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             _logger.LogWarning(ex, "Voice recognition check failed");
             return false;
@@ -97,7 +97,7 @@ public class VoiceIntegrationService : IVoiceIntegrationService
             
             return Array.Empty<string>();
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             _logger.LogError(ex, "Speech recognition failed");
             return Array.Empty<string>();

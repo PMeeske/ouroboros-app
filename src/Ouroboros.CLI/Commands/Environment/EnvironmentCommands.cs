@@ -211,7 +211,11 @@ public static class EnvironmentCommands
                 }
             }
         }
-        catch (Exception ex)
+        catch (IOException ex)
+        {
+            PrintError($"Error replaying episode: {ex.Message}");
+        }
+        catch (System.Text.Json.JsonException ex)
         {
             PrintError($"Error replaying episode: {ex.Message}");
         }

@@ -51,7 +51,7 @@ public sealed partial class AutonomySubsystem
                 }
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             System.Diagnostics.Debug.WriteLine($"[SelfEval] Error: {ex.Message}");
         }
@@ -100,7 +100,7 @@ public sealed partial class AutonomySubsystem
                 await ExecuteAutonomousActionAsync("SelfEvaluate", "periodic_introspection");
             }
         }
-        catch
+        catch (InvalidOperationException)
         {
             // Silent failure for background improvement checks
         }
@@ -169,7 +169,11 @@ Example: [Learn] I should consolidate my understanding of the recent coding task
                     DateTime.UtcNow);
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[AutonomousThought] Error: {ex.Message}");
+        }
+        catch (System.Net.Http.HttpRequestException ex)
         {
             System.Diagnostics.Debug.WriteLine($"[AutonomousThought] Error: {ex.Message}");
         }
@@ -300,7 +304,7 @@ Example: [Learn] I should consolidate my understanding of the recent coding task
                 AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok($"[autonomous] Completed: {result[..Math.Min(100, result.Length)]}...")}");
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             System.Diagnostics.Debug.WriteLine($"[AutonomousAction] Error executing {actionType}: {ex.Message}");
         }

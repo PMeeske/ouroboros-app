@@ -189,7 +189,7 @@ public static partial class OuroborosCliIntegration
             {
                 await InitializeAsync(args);
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 AnsiConsole.MarkupLine(OuroborosTheme.Warn($"[WARN] Could not initialize Ouroboros system: {Markup.Escape(ex.Message)}"));
                 AnsiConsole.MarkupLine(OuroborosTheme.Dim("[INFO] Commands will run in standalone mode"));

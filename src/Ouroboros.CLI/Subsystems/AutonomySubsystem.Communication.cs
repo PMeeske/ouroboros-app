@@ -222,7 +222,7 @@ public sealed partial class AutonomySubsystem
             Output.RecordInit("Coordinator", true, "neural network active");
             await Task.CompletedTask;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ Autonomous Coordinator initialization failed: {ex.Message}")}");
         }
@@ -269,7 +269,7 @@ public sealed partial class AutonomySubsystem
                 var voicePersona = args.Source == "user_persona" ? "User" : null;
                 await SayAndWaitAsyncFunc(args.Message, voicePersona);
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[Autonomy] Voice error: {ex.Message}");
             }
@@ -312,7 +312,7 @@ public sealed partial class AutonomySubsystem
             {
                 break;
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 Output.WriteWarning($"[push] {ex.Message}");
                 await Task.Delay(5000, ct);

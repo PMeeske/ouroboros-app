@@ -71,7 +71,13 @@ public sealed class SkillsCommandHandler
 
             return 0;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Error executing skills command");
+            _console.MarkupLine($"[red]Error:[/] {ex.Message}");
+            return 1;
+        }
+        catch (System.Net.Http.HttpRequestException ex)
         {
             _logger.LogError(ex, "Error executing skills command");
             _console.MarkupLine($"[red]Error:[/] {ex.Message}");

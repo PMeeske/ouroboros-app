@@ -35,7 +35,7 @@ public static partial class PolicyCommands
                 _ => PrintErrorAsync($"Unknown policy command: {options.Command}. Valid commands: list, create, simulate, enforce, audit, approve")
             });
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             PrintError($"Policy operation failed: {ex.Message}");
             if (options.Verbose)

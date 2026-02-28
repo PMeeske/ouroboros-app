@@ -245,7 +245,13 @@ public static class ConsolidatedMindCli
                 Console.WriteLine(response);
                 Console.WriteLine();
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Error: {ex.Message}");
+                Console.ResetColor();
+            }
+            catch (System.Net.Http.HttpRequestException ex)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"Error: {ex.Message}");
@@ -386,7 +392,13 @@ public static class ConsolidatedMindCli
                 Console.ResetColor();
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"NanoAtom error: {ex.Message}");
+            Console.ResetColor();
+        }
+        catch (System.Net.Http.HttpRequestException ex)
         {
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine($"NanoAtom error: {ex.Message}");

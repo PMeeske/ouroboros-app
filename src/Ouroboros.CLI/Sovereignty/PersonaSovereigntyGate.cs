@@ -91,7 +91,11 @@ public sealed class PersonaSovereigntyGate
             var response = await _model.GenerateTextAsync(prompt, ct).ConfigureAwait(false);
             return ParseModificationVerdict(response);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            return SovereigntyVerdict.DenyOnError(ex.Message);
+        }
+        catch (System.Net.Http.HttpRequestException ex)
         {
             return SovereigntyVerdict.DenyOnError(ex.Message);
         }
@@ -132,7 +136,11 @@ public sealed class PersonaSovereigntyGate
             var response = await _model.GenerateTextAsync(prompt, ct).ConfigureAwait(false);
             return ParseModificationVerdict(response);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            return SovereigntyVerdict.DenyOnError(ex.Message);
+        }
+        catch (System.Net.Http.HttpRequestException ex)
         {
             return SovereigntyVerdict.DenyOnError(ex.Message);
         }

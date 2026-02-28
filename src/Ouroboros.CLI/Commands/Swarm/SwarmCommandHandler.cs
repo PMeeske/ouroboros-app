@@ -33,7 +33,7 @@ public static class SwarmCommandHandler
                 _ => $"Unknown swarm subcommand: {subcommand}. Use 'swarm help' for available commands.",
             };
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return $"Swarm error: {ex.Message}";
         }

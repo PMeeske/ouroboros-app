@@ -102,7 +102,18 @@ public static class OrchestratorCommands
             AnsiConsole.MarkupLine(OuroborosTheme.Dim("   Run: ollama serve"));
             Environment.Exit(1);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            AnsiConsole.WriteLine();
+            AnsiConsole.Write(OuroborosTheme.ThemedRule("Orchestrator Failed"));
+            AnsiConsole.MarkupLine($"  [red]Error: {Markup.Escape(ex.Message)}[/]");
+            if (o.Debug)
+            {
+                AnsiConsole.WriteException(ex);
+            }
+            Environment.Exit(1);
+        }
+        catch (System.Net.Http.HttpRequestException ex)
         {
             AnsiConsole.WriteLine();
             AnsiConsole.Write(OuroborosTheme.ThemedRule("Orchestrator Failed"));
@@ -276,7 +287,11 @@ public static class OrchestratorCommands
                 var response = await orchestrator.GenerateTextAsync(o.Goal);
                 await voiceService.SayAsync(response);
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
+            {
+                await voiceService.SayAsync($"Something went wrong: {ex.Message}");
+            }
+            catch (System.Net.Http.HttpRequestException ex)
             {
                 await voiceService.SayAsync($"Something went wrong: {ex.Message}");
             }
@@ -321,7 +336,11 @@ public static class OrchestratorCommands
                 var response = await orchestrator.GenerateTextAsync(input);
                 await voiceService.SayAsync(response);
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
+            {
+                await voiceService.SayAsync($"Hmm, that didn't work: {ex.Message}");
+            }
+            catch (System.Net.Http.HttpRequestException ex)
             {
                 await voiceService.SayAsync($"Hmm, that didn't work: {ex.Message}");
             }

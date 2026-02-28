@@ -64,7 +64,7 @@ public static class NetworkCommands
                 AnsiConsole.MarkupLine(OuroborosTheme.Dim("Please specify a command. Use --help for options."));
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             PrintError($"Error: {ex.Message}");
         }

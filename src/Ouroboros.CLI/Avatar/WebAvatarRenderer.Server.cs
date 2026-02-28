@@ -41,7 +41,7 @@ public sealed partial class WebAvatarRenderer
             {
                 break;
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 Console.Error.WriteLine($"  [Avatar] Server error: {ex.Message}");
             }

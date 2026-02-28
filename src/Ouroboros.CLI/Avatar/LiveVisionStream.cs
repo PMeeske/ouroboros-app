@@ -153,7 +153,11 @@ public sealed class LiveVisionStream : IAsyncDisposable
             {
                 break;
             }
-            catch (Exception ex)
+            catch (System.Net.Http.HttpRequestException ex)
+            {
+                _logger?.LogWarning(ex, "Error in live vision stream loop");
+            }
+            catch (InvalidOperationException ex)
             {
                 _logger?.LogWarning(ex, "Error in live vision stream loop");
             }

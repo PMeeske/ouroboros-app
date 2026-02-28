@@ -172,7 +172,11 @@ public sealed class ModelSubsystem : IModelSubsystem
             bool isLocal = endpoint.Contains("localhost", StringComparison.OrdinalIgnoreCase) || endpoint.Contains("127.0.0.1");
             await InitializeMultiModelCoreAsync(ctx, settings, endpoint, apiKey, isLocal);
         }
-        catch (Exception ex)
+        catch (System.Net.Http.HttpRequestException ex)
+        {
+            AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ LLM unavailable: {Markup.Escape(ex.Message)}"));
+        }
+        catch (InvalidOperationException ex)
         {
             AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ LLM unavailable: {Markup.Escape(ex.Message)}"));
         }
@@ -240,7 +244,7 @@ public sealed class ModelSubsystem : IModelSubsystem
 
             await Task.CompletedTask;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Multi-model orchestration failed: {Markup.Escape(ex.Message)}"));
         }
@@ -268,7 +272,13 @@ public sealed class ModelSubsystem : IModelSubsystem
                 ctx.Output.RecordInit("Embeddings", true, $"{modelName} @ {embedEndpoint} (dim={testEmbed.Length})");
                 return;
             }
-            catch (Exception ex)
+            catch (System.Net.Http.HttpRequestException ex)
+            {
+                if (modelName == ctx.Config.EmbedModel)
+                    AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ {Markup.Escape(modelName)}: {Markup.Escape(ex.Message.Split('\n')[0])}"));
+                Embedding = null;
+            }
+            catch (InvalidOperationException ex)
             {
                 if (modelName == ctx.Config.EmbedModel)
                     AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ {Markup.Escape(modelName)}: {Markup.Escape(ex.Message.Split('\n')[0])}"));

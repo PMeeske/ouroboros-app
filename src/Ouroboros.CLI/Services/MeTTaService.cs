@@ -171,7 +171,16 @@ public sealed class MeTTaService : IMeTTaService
             _console.MarkupLine("[dim]  Install from: https://github.com/trueagi-io/hyperon-experimental[/]");
             _console.MarkupLine("[dim]  Ensure 'metta' executable is in your PATH[/]");
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "MeTTa orchestrator failed");
+            _console.MarkupLine($"[red]MeTTa Orchestrator Failed:[/] {Markup.Escape(ex.Message)}");
+            if (config.Debug)
+            {
+                _console.MarkupLine($"[dim]{Markup.Escape(ex.StackTrace ?? "")}[/]");
+            }
+        }
+        catch (System.Net.Http.HttpRequestException ex)
         {
             _logger.LogError(ex, "MeTTa orchestrator failed");
             _console.MarkupLine($"[red]MeTTa Orchestrator Failed:[/] {Markup.Escape(ex.Message)}");
@@ -291,7 +300,11 @@ public sealed class MeTTaService : IMeTTaService
             if (execSummary != null) await voiceService.SayAsync(execSummary);
             if (execError != null) await voiceService.SayAsync($"Execution failed: {execError}");
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            await voiceService.SayAsync($"Something went wrong: {ex.Message}");
+        }
+        catch (System.Net.Http.HttpRequestException ex)
         {
             await voiceService.SayAsync($"Something went wrong: {ex.Message}");
         }

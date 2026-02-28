@@ -54,7 +54,7 @@ public static class AffectCommands
                 _ => PrintErrorAsync($"Unknown affect command: {options.Command}. Valid commands: show, policy, tune, signal, reset")
             });
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             PrintError($"Affect operation failed: {ex.Message}");
             if (options.Verbose)

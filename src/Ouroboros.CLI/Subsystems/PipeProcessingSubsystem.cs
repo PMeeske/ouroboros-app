@@ -67,7 +67,7 @@ public sealed partial class PipeProcessingSubsystem : IPipeProcessingSubsystem
                 lastOutput = await ProcessInputFunc(commandToRun);
                 allOutputs.Add($"[Step {i + 1}: {segment[..Math.Min(30, segment.Length)]}...]\n{lastOutput}");
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 allOutputs.Add($"[Step {i + 1} ERROR: {ex.Message}]");
                 break;
@@ -134,7 +134,7 @@ public sealed partial class PipeProcessingSubsystem : IPipeProcessingSubsystem
                     lastOutput = response;
                     OutputResponse(commandToRun, response);
                 }
-                catch (Exception ex)
+                catch (InvalidOperationException ex)
                 {
                     OutputError($"Error processing '{commandToRun}': {ex.Message}");
                     if (_config.ExitOnError)
@@ -166,7 +166,7 @@ public sealed partial class PipeProcessingSubsystem : IPipeProcessingSubsystem
                 var pipeResult = await ProcessInputWithPipingAsync(pipeCommand.Trim(), maxDepth - 1);
                 result = result.Replace(match.Value, $"\n📤 Pipe Result:\n{pipeResult}\n");
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 result = result.Replace(match.Value, $"\n❌ Pipe Error: {ex.Message}\n");
             }
