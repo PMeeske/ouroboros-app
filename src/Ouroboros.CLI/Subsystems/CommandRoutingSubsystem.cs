@@ -1,4 +1,4 @@
-// Copyright (c) Ouroboros. All rights reserved.
+﻿// Copyright (c) Ouroboros. All rights reserved.
 namespace Ouroboros.CLI.Subsystems;
 
 using System.Text;
@@ -205,6 +205,7 @@ public sealed partial class CommandRoutingSubsystem : ICommandRoutingSubsystem
         {
             return PipelineDsl.Explain(dsl);
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             return $"Could not explain DSL: {ex.Message}";

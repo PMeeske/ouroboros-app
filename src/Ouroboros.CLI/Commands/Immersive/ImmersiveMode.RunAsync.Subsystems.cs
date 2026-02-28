@@ -1,4 +1,4 @@
-// <copyright file="ImmersiveMode.RunAsync.Subsystems.cs" company="Ouroboros">
+﻿// <copyright file="ImmersiveMode.RunAsync.Subsystems.cs" company="Ouroboros">
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
@@ -82,6 +82,7 @@ public sealed partial class ImmersiveMode
                 await _networkStateProjector.InitializeAsync(ct);
                 AnsiConsole.MarkupLine($"[rgb(148,103,189)]{Markup.Escape($"  [NetworkState] Epoch {_networkStateProjector.CurrentEpoch}, {_networkStateProjector.RecentLearnings.Count} learnings loaded")}[/]");
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex)
             {
                 AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  [!] Network state persistence unavailable: {ex.Message}"));
@@ -113,6 +114,7 @@ public sealed partial class ImmersiveMode
             _currentDistinctionState = DistinctionState.Initial();
             AnsiConsole.MarkupLine($"[rgb(148,103,189)]{Markup.Escape("  [DistinctionLearning] Ready to learn from consciousness cycles")}[/]");
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  [!] Distinction learning unavailable: {ex.Message}"));
@@ -139,6 +141,7 @@ public sealed partial class ImmersiveMode
                 await _selfPersistence.InitializeAsync(ct);
                 AnsiConsole.MarkupLine($"[rgb(148,103,189)]{Markup.Escape("  [SelfPersistence] Qdrant collection 'ouroboros_self' ready for mind state storage")}[/]");
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex)
             {
                 AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  [!] Self-persistence unavailable: {ex.Message}"));

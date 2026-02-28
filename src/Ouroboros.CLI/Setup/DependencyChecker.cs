@@ -1,4 +1,4 @@
-// <copyright file="DependencyChecker.cs" company="Ouroboros">
+﻿// <copyright file="DependencyChecker.cs" company="Ouroboros">
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
@@ -34,6 +34,7 @@ namespace Ouroboros.CLI.Setup
 
                 return true;
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex) when (ex.Message.Contains("Connection refused") || ex.Message.Contains("ECONNREFUSED") || ex is System.Threading.Tasks.TaskCanceledException || ex is System.OperationCanceledException)
             {
                 Console.Error.WriteLine("⚠ Error: Ollama is not running or not reachable.");
@@ -61,6 +62,7 @@ namespace Ouroboros.CLI.Setup
                 // For now, we'll let the specific command handle it, but this is where you'd centralize.
                 await Task.CompletedTask;
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex) when (ex.Message.Contains("metta") && (ex.Message.Contains("not found") || ex.Message.Contains("No such file")))
             {
                 Console.Error.WriteLine("⚠ Error: MeTTa engine not found.");

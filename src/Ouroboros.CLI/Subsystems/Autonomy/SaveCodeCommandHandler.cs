@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Ouroboros contributors. Licensed under the MIT License.
+﻿// Copyright (c) 2025 Ouroboros contributors. Licensed under the MIT License.
 namespace Ouroboros.CLI.Subsystems.Autonomy;
 
 using System.Text;
@@ -59,6 +59,7 @@ internal sealed class SaveCodeCommandHandler
                 ? $"Code Modified Successfully\n\n{result.Value}"
                 : $"Modification Failed\n\n{result.Error}";
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             return $"SaveCode command failed: {ex.Message}";

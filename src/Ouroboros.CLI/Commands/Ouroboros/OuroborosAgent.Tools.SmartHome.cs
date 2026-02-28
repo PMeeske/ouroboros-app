@@ -1,4 +1,4 @@
-// <copyright file="OuroborosAgent.Tools.SmartHome.cs" company="Ouroboros">
+﻿// <copyright file="OuroborosAgent.Tools.SmartHome.cs" company="Ouroboros">
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
@@ -89,6 +89,7 @@ public sealed partial class OuroborosAgent
                             $"[PTZ] {result.Direction}: {result.Message} (duration: {result.Duration.TotalMilliseconds:F0}ms)"),
                         error => Result<string, string>.Failure(error));
                 }
+                catch (OperationCanceledException) { throw; }
                 catch (Exception ex)
                 {
                     return Result<string, string>.Failure($"PTZ error: {ex.Message}");
@@ -235,6 +236,7 @@ public sealed partial class OuroborosAgent
                                 $"Unknown action '{action}'. Use: turn_on, turn_off, set_brightness, set_color, list_devices, device_info");
                     }
                 }
+                catch (OperationCanceledException) { throw; }
                 catch (Exception ex)
                 {
                     return Result<string, string>.Failure($"Smart home error: {ex.Message}");

@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Ouroboros contributors. Licensed under the MIT License.
+﻿// Copyright (c) 2025 Ouroboros contributors. Licensed under the MIT License.
 namespace Ouroboros.CLI.Subsystems.Autonomy;
 
 using Ouroboros.Agent.MetaAI;
@@ -53,6 +53,7 @@ internal sealed class SelfModelManager
             var capCount = (await CapabilityRegistry.GetCapabilitiesAsync()).Count;
             ctx.Output.RecordInit("Self-Model", true, $"identity graph ({capCount} capabilities)");
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"SelfModel initialization failed: {ex.Message}")}");

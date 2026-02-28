@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using MediatR;
 using Ouroboros.CLI.Commands;
 
@@ -40,6 +40,7 @@ public sealed class EnvironmentCommandHandler : IRequestHandler<EnvironmentComma
                 Console.SetOut(originalOut);
             }
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             return $"Environment command error: {ex.Message}";

@@ -1,4 +1,4 @@
-// <copyright file="ImmersiveMode.RunAsync.Shutdown.cs" company="Ouroboros">
+﻿// <copyright file="ImmersiveMode.RunAsync.Shutdown.cs" company="Ouroboros">
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
@@ -41,6 +41,7 @@ public sealed partial class ImmersiveMode
                 AnsiConsole.MarkupLine(OuroborosTheme.Ok($"  [OK] State saved (epoch {_networkStateProjector.CurrentEpoch}, {_networkStateProjector.RecentLearnings.Count} learnings)"));
                 await _networkStateProjector.DisposeAsync();
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex)
             {
                 AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  [!] Failed to persist state: {ex.Message}"));

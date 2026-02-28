@@ -1,4 +1,4 @@
-// <copyright file="OuroborosAgent.Tools.cs" company="Ouroboros">
+﻿// <copyright file="OuroborosAgent.Tools.cs" company="Ouroboros">
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
@@ -206,6 +206,7 @@ public sealed partial class OuroborosAgent
                         error => Result<string, string>.Failure(
                             $"Vision analysis failed: {error}"));
                 }
+                catch (OperationCanceledException) { throw; }
                 catch (Exception ex)
                 {
                     return Result<string, string>.Failure(

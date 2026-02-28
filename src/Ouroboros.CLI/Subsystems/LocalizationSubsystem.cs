@@ -1,4 +1,4 @@
-// Copyright (c) Ouroboros. All rights reserved.
+﻿// Copyright (c) Ouroboros. All rights reserved.
 namespace Ouroboros.CLI.Subsystems;
 
 using Ouroboros.Application.Tools;
@@ -197,6 +197,7 @@ OUTPUT (translation only, no explanations, no JSON, no metadata):";
 
             return string.IsNullOrEmpty(result) ? thought : result;
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[Thought Translation] Error: {ex.Message}");

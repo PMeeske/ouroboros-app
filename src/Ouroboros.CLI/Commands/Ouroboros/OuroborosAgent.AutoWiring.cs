@@ -1,4 +1,4 @@
-// <copyright file="OuroborosAgent.AutoWiring.cs" company="Ouroboros">
+﻿// <copyright file="OuroborosAgent.AutoWiring.cs" company="Ouroboros">
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
@@ -104,6 +104,7 @@ public sealed partial class OuroborosAgent
         _autonomousMind.ExecutePipeCommandFunction = async (pipeCommand, token) =>
         {
             try { return await ProcessInputWithPipingAsync(pipeCommand); }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex) { return $"Pipe execution failed: {ex.Message}"; }
         };
 
@@ -214,6 +215,7 @@ public sealed partial class OuroborosAgent
             {
                 await InitializeAutonomousCoordinatorAsync();
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex)
             {
                 AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Autonomous Coordinator wiring failed: {ex.Message}"));
@@ -254,6 +256,7 @@ public sealed partial class OuroborosAgent
             var yoloPart = _config.YoloMode ? ", YOLO" : "";
             _output.RecordInit("Push Mode", true, $"interval: {_config.IntentionIntervalSeconds}s{yoloPart}");
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             _output.WriteWarning($"Push Mode start failed: {ex.Message}");
@@ -290,6 +293,7 @@ public sealed partial class OuroborosAgent
         _actionEngine.ExecuteFunc = async (command, ct) =>
         {
             try { return await ProcessInputWithPipingAsync(command); }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex) { return $"[Pipeline error: {ex.Message}]"; }
         };
 

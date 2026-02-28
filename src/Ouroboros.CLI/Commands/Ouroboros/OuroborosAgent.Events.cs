@@ -1,4 +1,4 @@
-// Copyright (c) Ouroboros. All rights reserved.
+﻿// Copyright (c) Ouroboros. All rights reserved.
 
 using System.Threading.Channels;
 using Ouroboros.CLI.Avatar;
@@ -197,6 +197,7 @@ public sealed partial class OuroborosAgent : IAgentEventSink
         {
             await engine.AddFactAsync(fact, ct);
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[AgentEvents] Hyperon record failed: {ex.Message}");

@@ -1,4 +1,4 @@
-// Copyright (c) Ouroboros. All rights reserved.
+﻿// Copyright (c) Ouroboros. All rights reserved.
 namespace Ouroboros.CLI.Subsystems;
 
 using System.Text;
@@ -47,6 +47,7 @@ public sealed partial class AutonomySubsystem
                             result = await ExecuteGoalAutonomouslyAsync(goal);
                         }
                     }
+                    catch (OperationCanceledException) { throw; }
                     catch (Exception ex)
                     {
                         success = false;

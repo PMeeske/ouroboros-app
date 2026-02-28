@@ -1,4 +1,4 @@
-// <copyright file="ImmersiveMode.Skills.cs" company="Ouroboros">
+﻿// <copyright file="ImmersiveMode.Skills.cs" company="Ouroboros">
 // Copyright (c) 2025 Ouroboros contributors. Licensed under the MIT License.
 // </copyright>
 
@@ -133,6 +133,7 @@ public sealed partial class ImmersiveMode
                     _dynamicTools = _dynamicTools.WithOpenClawTools();
                     AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok($"[OK] OpenClaw gateway {gw} (5 tools)")}");
                 }
+                catch (OperationCanceledException) { throw; }
                 catch (Exception ex)
                 {
                     AnsiConsole.MarkupLine(OuroborosTheme.Warn(
@@ -251,6 +252,7 @@ public sealed partial class ImmersiveMode
                 AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok($"[OK] Self-indexer ready ({indexStats.IndexedFiles} files, {indexStats.TotalVectors} vectors)")}");
             }
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);

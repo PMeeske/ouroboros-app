@@ -1,4 +1,4 @@
-using MediatR;
+﻿using MediatR;
 using Ouroboros.CLI.Commands;
 
 namespace Ouroboros.CLI.Mediator;
@@ -30,6 +30,7 @@ public sealed class UseToolHandler : IRequestHandler<UseToolRequest, string>
             var result = await tool.InvokeAsync(input ?? "");
             return $"Result: {result}";
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             return $"The tool ran into an issue: {ex.Message}";

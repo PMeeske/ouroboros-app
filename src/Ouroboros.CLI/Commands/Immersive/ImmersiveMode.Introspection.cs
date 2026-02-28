@@ -1,4 +1,4 @@
-// <copyright file="ImmersiveMode.Introspection.cs" company="Ouroboros">
+﻿// <copyright file="ImmersiveMode.Introspection.cs" company="Ouroboros">
 // Copyright (c) 2025 Ouroboros contributors. Licensed under the MIT License.
 // </copyright>
 
@@ -220,6 +220,7 @@ public sealed partial class ImmersiveMode
                     ct);
             }
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             // Log the error but don't disrupt the interaction

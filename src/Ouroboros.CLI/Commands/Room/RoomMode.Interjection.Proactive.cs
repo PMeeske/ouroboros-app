@@ -1,4 +1,4 @@
-// Copyright (c) Ouroboros. All rights reserved.
+﻿// Copyright (c) Ouroboros. All rights reserved.
 namespace Ouroboros.CLI.Commands;
 
 using Ouroboros.Application.Personality;
@@ -153,6 +153,7 @@ Reply ONLY with the sentence, nothing else.";
 
             immersive.SetPresenceState("Listening", "attentive");
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception) { /* LLM/TTS failure — stay silent */ }
     }
 
@@ -222,6 +223,7 @@ Reply ONLY with the sentence.";
 
             immersive.SetPresenceState("Listening", "attentive");
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception) { /* LLM/TTS failure — stay silent */ }
     }
 
@@ -269,6 +271,7 @@ Reply ONLY with the greeting.";
 
             immersive.SetPresenceState("Listening", "attentive");
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception) { /* LLM/TTS failure — stay silent */ }
     }
 
@@ -317,6 +320,7 @@ Reply ONLY with the sentence.";
                 finally { listener.NotifySelfSpeechEnded(); }
             }
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception) { /* LLM/TTS failure — stay silent */ }
     }
 }

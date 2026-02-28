@@ -1,4 +1,4 @@
-// Copyright (c) Ouroboros. All rights reserved.
+﻿// Copyright (c) Ouroboros. All rights reserved.
 namespace Ouroboros.CLI.Subsystems;
 
 using Ouroboros.Agent.MetaAI;
@@ -77,6 +77,7 @@ public sealed class SelfAssemblySubsystem : ISelfAssemblySubsystem
 
             return blueprints;
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[SelfAssembly] Analysis failed: {ex.Message}");

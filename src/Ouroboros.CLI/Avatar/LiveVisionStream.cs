@@ -1,4 +1,4 @@
-// <copyright file="LiveVisionStream.cs" company="Ouroboros">
+﻿// <copyright file="LiveVisionStream.cs" company="Ouroboros">
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
@@ -243,6 +243,7 @@ public sealed class LiveVisionStream : IAsyncDisposable
             {
                 await renderer.BroadcastVisionTextAsync(text, isNewFrame);
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception)
             {
                 // Individual renderer failures shouldn't crash the stream

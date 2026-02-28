@@ -1,4 +1,4 @@
-// <copyright file="OuroborosAgent.EventWiring.cs" company="Ouroboros">
+﻿// <copyright file="OuroborosAgent.EventWiring.cs" company="Ouroboros">
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
@@ -325,6 +325,7 @@ public sealed partial class OuroborosAgent
                 Console.SetOut(originalOut);
             }
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             _output.WriteWarning($"Policy enforcement: {ex.Message}");

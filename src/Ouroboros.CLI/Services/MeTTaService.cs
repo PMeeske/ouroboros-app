@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using LangChain.Providers.Ollama;
 using Microsoft.Extensions.Logging;
 using Ouroboros.Agent.MetaAI;
@@ -160,6 +160,7 @@ public sealed class MeTTaService : IMeTTaService
 
             _console.MarkupLine("\n[green]✓[/] MeTTa orchestrator execution completed successfully");
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex) when (ex.Message.Contains("Connection refused") || ex.Message.Contains("ECONNREFUSED"))
         {
             _console.MarkupLine("[red]Error:[/] Ollama is not running. Please start Ollama before using the MeTTa orchestrator.");

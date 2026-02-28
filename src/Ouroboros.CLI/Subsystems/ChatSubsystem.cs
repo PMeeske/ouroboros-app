@@ -1,4 +1,4 @@
-// Copyright (c) Ouroboros. All rights reserved.
+﻿// Copyright (c) Ouroboros. All rights reserved.
 namespace Ouroboros.CLI.Subsystems;
 
 using System.Text;
@@ -219,6 +219,7 @@ public sealed partial class ChatSubsystem : IChatSubsystem
 
             return await ProcessLlmResponseAsync(input, response, tools);
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             return $"I had trouble processing that: {ex.Message}";

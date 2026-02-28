@@ -1,4 +1,4 @@
-// Copyright (c) Ouroboros. All rights reserved.
+﻿// Copyright (c) Ouroboros. All rights reserved.
 namespace Ouroboros.CLI.Commands;
 
 using Ouroboros.Application.Personality;
@@ -113,6 +113,7 @@ public sealed partial class RoomMode
                         episodicNote = $"[Prior context with {speaker}: {s}]";
                 }
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception) { /* episodic recall failed — non-critical */ }
         }
 
@@ -130,6 +131,7 @@ public sealed partial class RoomMode
                 if (hybrid.IsSuccess && !string.IsNullOrEmpty(hybrid.Value.Answer))
                     hybridNote = $"[Symbolic: {hybrid.Value.Answer[..Math.Min(120, hybrid.Value.Answer.Length)]}]";
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception) { /* hybrid reasoning failed — non-critical */ }
         }
 
@@ -147,6 +149,7 @@ public sealed partial class RoomMode
                 if (explanation.IsSuccess && !string.IsNullOrEmpty(explanation.Value.NarrativeExplanation))
                     causalNote = $"[Causal: {explanation.Value.NarrativeExplanation[..Math.Min(120, explanation.Value.NarrativeExplanation.Length)]}]";
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception) { /* causal reasoning failed — non-critical */ }
         }
 

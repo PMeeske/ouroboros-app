@@ -1,4 +1,4 @@
-// Copyright (c) Ouroboros. All rights reserved.
+﻿// Copyright (c) Ouroboros. All rights reserved.
 namespace Ouroboros.CLI.Subsystems;
 
 using System.Collections.Concurrent;
@@ -68,6 +68,7 @@ public sealed class VoiceSubsystem : IVoiceSubsystem
                 };
                 ctx.Output.RecordInit("Voice Side Channel", true, $"{ctx.Config.Persona} (parallel playback)");
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex)
             {
                 ctx.Output.RecordInit("Voice Side Channel", false, $"{ex.GetType().Name}: {ex.Message}");

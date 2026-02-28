@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Ouroboros.CLI.Abstractions;
 using Ouroboros.CLI.Commands.Options;
@@ -48,6 +48,7 @@ public sealed class OuroborosCommandHandler : ICommandHandler<OuroborosConfig>
             await _agentService.RunAgentAsync(config, cancellationToken);
             return 0;
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error running Ouroboros agent");

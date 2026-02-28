@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using MediatR;
 using Ouroboros.CLI.Commands;
 
@@ -40,6 +40,7 @@ public sealed class AffectCommandHandler : IRequestHandler<AffectCommandRequest,
                 Console.SetOut(originalOut);
             }
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             return $"Affect command error: {ex.Message}";

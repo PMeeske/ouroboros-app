@@ -1,4 +1,4 @@
-using MediatR;
+﻿using MediatR;
 using Ouroboros.Abstractions.Monads;
 using Ouroboros.CLI.Commands;
 
@@ -42,6 +42,7 @@ public sealed class RunPipelineResultHandler : IRequestHandler<RunPipelineResult
                 await action();
                 return Result<string, string>.Success(writer.ToString());
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex)
             {
                 return Result<string, string>.Failure(ex.Message);

@@ -1,4 +1,4 @@
-// Copyright (c) 2025 Ouroboros contributors. Licensed under the MIT License.
+﻿// Copyright (c) 2025 Ouroboros contributors. Licensed under the MIT License.
 namespace Ouroboros.CLI.Subsystems.Autonomy;
 
 using System.Collections.Concurrent;
@@ -49,6 +49,7 @@ internal sealed class SubAgentOrchestrationManager
             ctx.Output.RecordInit("Sub-Agents", true, "distributed orchestration (1 agent)");
             await Task.CompletedTask;
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"SubAgent orchestration failed: {ex.Message}")}");

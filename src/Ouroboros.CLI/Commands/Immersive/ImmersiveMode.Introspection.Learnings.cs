@@ -1,4 +1,4 @@
-// <copyright file="ImmersiveMode.Introspection.Learnings.cs" company="Ouroboros">
+﻿// <copyright file="ImmersiveMode.Introspection.Learnings.cs" company="Ouroboros">
 // Copyright (c) 2025 Ouroboros contributors. Licensed under the MIT License.
 // </copyright>
 
@@ -90,6 +90,7 @@ public sealed partial class ImmersiveMode
                     ct);
             }
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             // Don't fail the interaction just because learning persistence failed

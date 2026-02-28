@@ -1,4 +1,4 @@
-using System.Net.Http;
+﻿using System.Net.Http;
 using LangChain.DocumentLoaders;
 using LangChain.Providers.Ollama;
 using Ouroboros.Application.Configuration;
@@ -100,6 +100,7 @@ public static class PipelineCommands
             {
                 chatModel = ServiceFactory.CreateRemoteChatModel(endpoint, apiKey, modelName, settings, endpointType);
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex) when (pipelineOpts is not null && !pipelineOpts.StrictModel && ex.Message.Contains("Invalid model", StringComparison.OrdinalIgnoreCase))
             {
                 AnsiConsole.MarkupLine(OuroborosTheme.Warn($"[WARN] Remote model '{modelName}' invalid. Falling back to local 'llama3'. Use --strict-model to disable fallback."));

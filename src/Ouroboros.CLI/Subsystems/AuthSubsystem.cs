@@ -1,4 +1,4 @@
-// Copyright (c) Ouroboros. All rights reserved.
+﻿// Copyright (c) Ouroboros. All rights reserved.
 namespace Ouroboros.CLI.Subsystems;
 
 using Ouroboros.Application.Auth;
@@ -37,6 +37,7 @@ public sealed class AuthSubsystem : IAuthSubsystem
             ctx.Output.RecordInit("Auth", true,
                 $"device {_deviceAuth.DeviceId[..12]}... ({Environment.MachineName})");
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             IsInitialized = true; // non-fatal — agent can run without auth

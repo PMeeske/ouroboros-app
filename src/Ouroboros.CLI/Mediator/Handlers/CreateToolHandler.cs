@@ -1,4 +1,4 @@
-using MediatR;
+﻿using MediatR;
 using Ouroboros.CLI.Commands;
 
 namespace Ouroboros.CLI.Mediator;
@@ -36,6 +36,7 @@ public sealed class CreateToolHandler : IRequestHandler<CreateToolRequest, strin
                 },
                 error => $"I couldn't create that tool: {error}");
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             return $"I couldn't create that tool: {ex.Message}";

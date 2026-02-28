@@ -1,4 +1,4 @@
-// <copyright file="ImmersiveMode.Pipeline.cs" company="Ouroboros">
+﻿// <copyright file="ImmersiveMode.Pipeline.cs" company="Ouroboros">
 // Copyright (c) 2025 Ouroboros contributors. Licensed under the MIT License.
 // </copyright>
 
@@ -152,6 +152,7 @@ public sealed partial class ImmersiveMode
                             AnsiConsole.MarkupLine($"         [red]{Markup.Escape($"[!] Step returned unexpected type: {stepInstance?.GetType().Name ?? "null"}")}[/]");
                         }
                     }
+                    catch (OperationCanceledException) { throw; }
                     catch (Exception ex)
                     {
                         var innerEx = ex.InnerException ?? ex;
@@ -189,6 +190,7 @@ public sealed partial class ImmersiveMode
 
             return $"I ran your {steps.Count}-step pipeline successfully.";
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             AnsiConsole.MarkupLine($"  [red]{Markup.Escape($"[!] Pipeline error: {ex.Message}")}[/]");
@@ -255,6 +257,7 @@ public sealed partial class ImmersiveMode
 
             return $"I executed {tokenName} successfully.";
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             var innerEx = ex.InnerException ?? ex;

@@ -400,6 +400,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
             {
                 await _allSubsystems[i].DisposeAsync();
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine(
@@ -432,6 +433,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
                 await _memorySub.SavePersonalitySnapshotAsync(_voice.ActivePersona.Name);
                 _output.WriteDebug("Personality snapshot saved");
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex)
             {
                 AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Failed to save personality snapshot: {ex.Message}"));

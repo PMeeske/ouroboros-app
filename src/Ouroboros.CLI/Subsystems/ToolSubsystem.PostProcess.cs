@@ -1,4 +1,4 @@
-// Copyright (c) Ouroboros. All rights reserved.
+﻿// Copyright (c) Ouroboros. All rights reserved.
 namespace Ouroboros.CLI.Subsystems;
 
 using System.Text.RegularExpressions;
@@ -125,6 +125,7 @@ public sealed partial class ToolSubsystem
                 }
             }
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[Post-Process] Error: {ex.Message}");

@@ -1,4 +1,4 @@
-// Copyright (c) Ouroboros. All rights reserved.
+﻿// Copyright (c) Ouroboros. All rights reserved.
 namespace Ouroboros.CLI.Subsystems;
 
 using System.Text;
@@ -168,6 +168,7 @@ Use this actual code information to answer the user's question accurately.
                 if (detectionResult.IsNewPerson && detectionResult.Person.Name != null)
                     System.Diagnostics.Debug.WriteLine($"[PersonDetection] New person detected: {detectionResult.Person.Name}");
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[PersonDetection] Error: {ex.Message}");
@@ -246,6 +247,7 @@ Use this actual code information to answer the user's question accurately.
                 return (selectionResult.Value.SelectedTools.ToList(), selectionResult.Value.Reasoning);
             }
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[SmartToolSelector] Error: {ex.Message}");

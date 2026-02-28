@@ -1,4 +1,4 @@
-// <copyright file="ImmersiveMode.Response.cs" company="Ouroboros">
+﻿// <copyright file="ImmersiveMode.Response.cs" company="Ouroboros">
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
@@ -165,6 +165,7 @@ public sealed partial class ImmersiveMode
 
             await Task.CompletedTask;
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  [!] Multi-model orchestration unavailable: {Markup.Escape(ex.Message)}"));

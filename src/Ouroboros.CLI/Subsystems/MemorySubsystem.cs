@@ -68,6 +68,7 @@ public sealed partial class MemorySubsystem : IMemorySubsystem
                 MeTTaEngine ??= new InMemoryMeTTaEngine();
                 ctx.Output.RecordInit("MeTTa", true, "symbolic reasoning engine");
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex) { AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ MeTTa unavailable: {ex.Message}")}"); }
         }
         else
@@ -138,6 +139,7 @@ public sealed partial class MemorySubsystem : IMemorySubsystem
             AnsiConsole.MarkupLine($"    {OuroborosTheme.Warn("→ Qdrant may be overloaded or starting up")}");
             NeuralMemory = null;
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ Neural Memory: {ex.GetType().Name} - {ex.Message}")}");
@@ -175,6 +177,7 @@ public sealed partial class MemorySubsystem : IMemorySubsystem
                     Skills = new SkillRegistry(embedding);
                     ctx.Output.RecordInit("Skills", true, "in-memory with embeddings");
                 }
+                catch (OperationCanceledException) { throw; }
                 catch (Exception qdrantEx)
                 {
                     AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ Qdrant skills failed: {qdrantEx.GetType().Name} - {qdrantEx.Message}")}");
@@ -188,6 +191,7 @@ public sealed partial class MemorySubsystem : IMemorySubsystem
                 ctx.Output.RecordInit("Skills", true, "in-memory basic");
             }
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);

@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using LangChain.Providers.Ollama;
 using Ouroboros.Application.Configuration;
 using Ouroboros.Application.Services;
@@ -95,6 +95,7 @@ public static class OrchestratorCommands
 
             await ExecuteOrchestratorAsync(orchestrator, builder, o);
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex) when (ex.Message.Contains("Connection refused") || ex.Message.Contains("ECONNREFUSED"))
         {
             var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);

@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Net.Http;
 using LangChain.Databases;
 using LangChain.DocumentLoaders;
@@ -189,6 +189,7 @@ public sealed class AskQueryHandler : IRequestHandler<AskQuery, string>
             {
                 return ServiceFactory.CreateRemoteChatModel(endpoint, apiKey, r.ModelName, settings, endpointType);
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex) when (!r.StrictModel && ex.Message.Contains("Invalid model", StringComparison.OrdinalIgnoreCase))
             {
                 AnsiConsole.MarkupLine(OuroborosTheme.Warn($"[WARN] Remote model '{Markup.Escape(r.ModelName)}' invalid. Falling back to local 'deepseek-v3.1:671b-cloud'. Use --strict-model to disable fallback."));

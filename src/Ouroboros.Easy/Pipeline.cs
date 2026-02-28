@@ -1,4 +1,4 @@
-using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
+﻿using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 using Ouroboros.Abstractions.Monads;
 
 namespace Ouroboros.Easy;
@@ -222,6 +222,7 @@ public sealed class Pipeline
                 return PipelineResult.Failure(result.Error);
             }
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             return PipelineResult.Failure($"Pipeline execution failed: {ex.Message}");

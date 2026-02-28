@@ -1,4 +1,4 @@
-using MediatR;
+﻿using MediatR;
 using Ouroboros.Application.Personality;
 using Ouroboros.CLI.Commands;
 
@@ -43,6 +43,7 @@ public sealed class PersistThoughtHandler : IRequestHandler<PersistThoughtReques
                 _agent.MemorySub.PersistentThoughts.RemoveAt(0);
             }
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[ThoughtPersistence] Failed to save: {ex.Message}");

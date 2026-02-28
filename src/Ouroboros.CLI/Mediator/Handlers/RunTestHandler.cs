@@ -1,4 +1,4 @@
-using MediatR;
+﻿using MediatR;
 using Ouroboros.CLI.Commands;
 
 namespace Ouroboros.CLI.Mediator;
@@ -46,6 +46,7 @@ public sealed class RunTestHandler : IRequestHandler<RunTestRequest, string>
                 var response = await chatModel.GenerateTextAsync("Say OK");
                 return $"✓ LLM: {config.Model} responds correctly";
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex)
             {
                 return $"✗ LLM: {ex.Message}";
@@ -69,6 +70,7 @@ public sealed class RunTestHandler : IRequestHandler<RunTestRequest, string>
                 var vec = await embedding.CreateEmbeddingsAsync("test");
                 return $"✓ Embedding: {config.EmbedModel} (dim={vec.Length})";
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex)
             {
                 return $"✗ Embedding: {ex.Message}";

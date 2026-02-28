@@ -1,4 +1,4 @@
-using MediatR;
+﻿using MediatR;
 using Ouroboros.CLI.Commands;
 
 namespace Ouroboros.CLI.Mediator;
@@ -36,6 +36,7 @@ public sealed class PersistThoughtResultHandler : IRequestHandler<PersistThought
 
             await neuroStore.SaveResultAsync(sessionId, result);
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[ThoughtResult] Failed to save: {ex.Message}");
