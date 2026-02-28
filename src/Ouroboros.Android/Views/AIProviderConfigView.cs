@@ -407,11 +407,17 @@ public class AIProviderConfigView : ContentPage
                 await DisplayAlert("Connection Failed", testResult.Message, "OK");
             }
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
             _statusLabel.Text = $"✗ Test failed: {ex.Message}";
             _statusLabel.TextColor = Color.FromRgb(255, 0, 0); // Red
             await DisplayAlert("Error", $"Connection test failed: {ex.Message}", "OK");
+        }
+        catch (TaskCanceledException ex)
+        {
+            _statusLabel.Text = $"✗ Test failed: {ex.Message}";
+            _statusLabel.TextColor = Color.FromRgb(255, 0, 0); // Red
+            await DisplayAlert("Error", $"Connection test timed out: {ex.Message}", "OK");
         }
     }
 
@@ -528,40 +534,48 @@ public class AIProviderConfigView : ContentPage
         {
             client.DefaultRequestHeaders.Clear();
             client.DefaultRequestHeaders.Add("Authorization", $"Bearer {config.ApiKey}");
-            
+
             var response = await client.GetAsync($"{config.Endpoint}/models");
-            
+
             if (response.IsSuccessStatusCode)
             {
-                return new TestConnectionResult 
-                { 
-                    Success = true, 
-                    Message = "Successfully authenticated with OpenAI" 
+                return new TestConnectionResult
+                {
+                    Success = true,
+                    Message = "Successfully authenticated with OpenAI"
                 };
             }
             else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {
-                return new TestConnectionResult 
-                { 
-                    Success = false, 
-                    Message = "Authentication failed - check API key" 
+                return new TestConnectionResult
+                {
+                    Success = false,
+                    Message = "Authentication failed - check API key"
                 };
             }
             else
             {
-                return new TestConnectionResult 
-                { 
-                    Success = false, 
-                    Message = $"Connection failed: {response.StatusCode}" 
+                return new TestConnectionResult
+                {
+                    Success = false,
+                    Message = $"Connection failed: {response.StatusCode}"
                 };
             }
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
-            return new TestConnectionResult 
-            { 
-                Success = false, 
-                Message = $"Error: {ex.Message}" 
+            return new TestConnectionResult
+            {
+                Success = false,
+                Message = $"Error: {ex.Message}"
+            };
+        }
+        catch (TaskCanceledException)
+        {
+            return new TestConnectionResult
+            {
+                Success = false,
+                Message = "Connection timeout - check endpoint and network"
             };
         }
     }
@@ -573,29 +587,29 @@ public class AIProviderConfigView : ContentPage
             client.DefaultRequestHeaders.Clear();
             client.DefaultRequestHeaders.Add("x-api-key", config.ApiKey);
             client.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
-            
+
             // Anthropic doesn't have a simple health check endpoint, so we verify the key format
             if (string.IsNullOrEmpty(config.ApiKey) || !config.ApiKey.StartsWith("sk-ant-"))
             {
-                return new TestConnectionResult 
-                { 
-                    Success = false, 
-                    Message = "Invalid API key format - should start with 'sk-ant-'" 
+                return new TestConnectionResult
+                {
+                    Success = false,
+                    Message = "Invalid API key format - should start with 'sk-ant-'"
                 };
             }
-            
-            return new TestConnectionResult 
-            { 
-                Success = true, 
-                Message = "API key format is valid. Configuration saved." 
+
+            return new TestConnectionResult
+            {
+                Success = true,
+                Message = "API key format is valid. Configuration saved."
             };
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
-            return new TestConnectionResult 
-            { 
-                Success = false, 
-                Message = $"Error: {ex.Message}" 
+            return new TestConnectionResult
+            {
+                Success = false,
+                Message = $"Error: {ex.Message}"
             };
         }
     }
@@ -607,39 +621,47 @@ public class AIProviderConfigView : ContentPage
             // Test with a simple models list request
             var url = $"{config.Endpoint}/models?key={config.ApiKey}";
             var response = await client.GetAsync(url);
-            
+
             if (response.IsSuccessStatusCode)
             {
-                return new TestConnectionResult 
-                { 
-                    Success = true, 
-                    Message = "Successfully authenticated with Google AI" 
+                return new TestConnectionResult
+                {
+                    Success = true,
+                    Message = "Successfully authenticated with Google AI"
                 };
             }
-            else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized || 
+            else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized ||
                      response.StatusCode == System.Net.HttpStatusCode.Forbidden)
             {
-                return new TestConnectionResult 
-                { 
-                    Success = false, 
-                    Message = "Authentication failed - check API key and project ID" 
+                return new TestConnectionResult
+                {
+                    Success = false,
+                    Message = "Authentication failed - check API key and project ID"
                 };
             }
             else
             {
-                return new TestConnectionResult 
-                { 
-                    Success = false, 
-                    Message = $"Connection failed: {response.StatusCode}" 
+                return new TestConnectionResult
+                {
+                    Success = false,
+                    Message = $"Connection failed: {response.StatusCode}"
                 };
             }
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
-            return new TestConnectionResult 
-            { 
-                Success = false, 
-                Message = $"Error: {ex.Message}" 
+            return new TestConnectionResult
+            {
+                Success = false,
+                Message = $"Error: {ex.Message}"
+            };
+        }
+        catch (TaskCanceledException)
+        {
+            return new TestConnectionResult
+            {
+                Success = false,
+                Message = "Connection timeout - check endpoint and network"
             };
         }
     }
@@ -650,32 +672,40 @@ public class AIProviderConfigView : ContentPage
         {
             client.DefaultRequestHeaders.Clear();
             client.DefaultRequestHeaders.Add("Authorization", $"Bearer {config.ApiKey}");
-            
+
             var response = await client.GetAsync($"{config.Endpoint}/models");
-            
+
             if (response.IsSuccessStatusCode)
             {
-                return new TestConnectionResult 
-                { 
-                    Success = true, 
-                    Message = $"Successfully connected to {config.Provider}" 
+                return new TestConnectionResult
+                {
+                    Success = true,
+                    Message = $"Successfully connected to {config.Provider}"
                 };
             }
             else
             {
-                return new TestConnectionResult 
-                { 
-                    Success = false, 
-                    Message = $"Connection failed: {response.StatusCode}" 
+                return new TestConnectionResult
+                {
+                    Success = false,
+                    Message = $"Connection failed: {response.StatusCode}"
                 };
             }
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
-            return new TestConnectionResult 
-            { 
-                Success = false, 
-                Message = $"Error: {ex.Message}" 
+            return new TestConnectionResult
+            {
+                Success = false,
+                Message = $"Error: {ex.Message}"
+            };
+        }
+        catch (TaskCanceledException)
+        {
+            return new TestConnectionResult
+            {
+                Success = false,
+                Message = "Connection timeout - check endpoint and network"
             };
         }
     }
@@ -686,33 +716,41 @@ public class AIProviderConfigView : ContentPage
         {
             client.DefaultRequestHeaders.Clear();
             client.DefaultRequestHeaders.Add("Authorization", $"Bearer {config.ApiKey}");
-            
+
             // Cohere has a check-api-key endpoint
             var response = await client.GetAsync($"{config.Endpoint}/check-api-key");
-            
+
             if (response.IsSuccessStatusCode)
             {
-                return new TestConnectionResult 
-                { 
-                    Success = true, 
-                    Message = "Successfully authenticated with Cohere" 
+                return new TestConnectionResult
+                {
+                    Success = true,
+                    Message = "Successfully authenticated with Cohere"
                 };
             }
             else
             {
-                return new TestConnectionResult 
-                { 
-                    Success = false, 
-                    Message = $"Authentication failed: {response.StatusCode}" 
+                return new TestConnectionResult
+                {
+                    Success = false,
+                    Message = $"Authentication failed: {response.StatusCode}"
                 };
             }
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
-            return new TestConnectionResult 
-            { 
-                Success = false, 
-                Message = $"Error: {ex.Message}" 
+            return new TestConnectionResult
+            {
+                Success = false,
+                Message = $"Error: {ex.Message}"
+            };
+        }
+        catch (TaskCanceledException)
+        {
+            return new TestConnectionResult
+            {
+                Success = false,
+                Message = "Connection timeout - check endpoint and network"
             };
         }
     }
@@ -723,29 +761,29 @@ public class AIProviderConfigView : ContentPage
         {
             client.DefaultRequestHeaders.Clear();
             client.DefaultRequestHeaders.Add("Authorization", $"Bearer {config.ApiKey}");
-            
+
             // Verify API key format and endpoint
             if (string.IsNullOrEmpty(config.ApiKey) || !config.ApiKey.StartsWith("hf_"))
             {
-                return new TestConnectionResult 
-                { 
-                    Success = false, 
-                    Message = "Invalid API key format - should start with 'hf_'" 
+                return new TestConnectionResult
+                {
+                    Success = false,
+                    Message = "Invalid API key format - should start with 'hf_'"
                 };
             }
-            
-            return new TestConnectionResult 
-            { 
-                Success = true, 
-                Message = "API key format is valid. Configuration saved." 
+
+            return new TestConnectionResult
+            {
+                Success = true,
+                Message = "API key format is valid. Configuration saved."
             };
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
-            return new TestConnectionResult 
-            { 
-                Success = false, 
-                Message = $"Error: {ex.Message}" 
+            return new TestConnectionResult
+            {
+                Success = false,
+                Message = $"Error: {ex.Message}"
             };
         }
     }

@@ -74,7 +74,7 @@ public sealed class ConsciousnessScaffold : IConsciousnessScaffold
 
             return Task.FromResult(Result<WorkspaceItem, string>.Success(item));
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return Task.FromResult(Result<WorkspaceItem, string>.Failure($"Failed to broadcast: {ex.Message}"));
         }
@@ -100,7 +100,7 @@ public sealed class ConsciousnessScaffold : IConsciousnessScaffold
 
             return Task.FromResult(Result<List<WorkspaceItem>, string>.Success(focusedItems));
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return Task.FromResult(Result<List<WorkspaceItem>, string>.Failure($"Failed to get focus: {ex.Message}"));
         }
@@ -139,7 +139,7 @@ public sealed class ConsciousnessScaffold : IConsciousnessScaffold
 
             return Task.FromResult(Result<MetacognitiveInsights, string>.Success(insights));
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return Task.FromResult(Result<MetacognitiveInsights, string>.Failure($"Metacognition failed: {ex.Message}"));
         }
@@ -170,7 +170,7 @@ public sealed class ConsciousnessScaffold : IConsciousnessScaffold
 
             return Task.FromResult(Result<Abstractions.Unit, string>.Success(Unit.Value));
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return Task.FromResult(Result<Abstractions.Unit, string>.Failure($"Integration failed: {ex.Message}"));
         }

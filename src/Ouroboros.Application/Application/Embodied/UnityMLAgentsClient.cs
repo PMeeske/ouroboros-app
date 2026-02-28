@@ -70,7 +70,7 @@ public sealed class UnityMLAgentsClient : IAsyncDisposable
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to connect to Unity ML-Agents");
             return Result<Unit, string>.Failure($"Connection failed: {ex.Message}");
@@ -116,7 +116,7 @@ public sealed class UnityMLAgentsClient : IAsyncDisposable
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to send action to Unity ML-Agents");
             return Result<ActionResult, string>.Failure($"Action send failed: {ex.Message}");
@@ -153,7 +153,7 @@ public sealed class UnityMLAgentsClient : IAsyncDisposable
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to get sensor state from Unity ML-Agents");
             return Result<SensorState, string>.Failure($"Sensor state retrieval failed: {ex.Message}");
@@ -185,7 +185,7 @@ public sealed class UnityMLAgentsClient : IAsyncDisposable
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to reset Unity environment");
             return Result<Unit, string>.Failure($"Reset failed: {ex.Message}");
@@ -216,7 +216,7 @@ public sealed class UnityMLAgentsClient : IAsyncDisposable
             this.isConnected = false;
             this.logger.LogInformation("Disconnected from Unity ML-Agents");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Error during disconnect");
         }

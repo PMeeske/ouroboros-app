@@ -54,7 +54,11 @@ public static partial class GitReflectionCliSteps
 
                 s.Context = proposal.Id;
             }
-            catch (Exception ex)
+            catch (ArgumentException ex)
+            {
+                Console.WriteLine($"[git] Proposal failed: {ex.Message}");
+            }
+            catch (InvalidOperationException ex)
             {
                 Console.WriteLine($"[git] Proposal failed: {ex.Message}");
             }
@@ -94,7 +98,7 @@ public static partial class GitReflectionCliSteps
 
                 s.Context = proposalId;
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 Console.WriteLine($"[git] Approval failed: {ex.Message}");
             }
@@ -137,7 +141,12 @@ public static partial class GitReflectionCliSteps
 
                 s.Output = result.Message;
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (InvalidOperationException ex)
+            {
+                Console.WriteLine($"[git] Apply failed: {ex.Message}");
+            }
+            catch (IOException ex)
             {
                 Console.WriteLine($"[git] Apply failed: {ex.Message}");
             }
@@ -208,7 +217,12 @@ public static partial class GitReflectionCliSteps
 
                 s.Output = result.Message;
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (InvalidOperationException ex)
+            {
+                Console.WriteLine($"[git] Self-modification failed: {ex.Message}");
+            }
+            catch (IOException ex)
             {
                 Console.WriteLine($"[git] Self-modification failed: {ex.Message}");
             }
@@ -284,7 +298,12 @@ public static partial class GitReflectionCliSteps
                 s.Output = $"Reflected on {analysis.FilePath}";
                 s.Context = args.Trim();
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (IOException ex)
+            {
+                Console.WriteLine($"[git] Reflection failed: {ex.Message}");
+            }
+            catch (InvalidOperationException ex)
             {
                 Console.WriteLine($"[git] Reflection failed: {ex.Message}");
             }

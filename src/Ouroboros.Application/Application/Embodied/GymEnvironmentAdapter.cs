@@ -69,7 +69,7 @@ public sealed class GymEnvironmentAdapter : IAsyncDisposable
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to connect to Gym environment");
             return Result<Unit, string>.Failure($"Connection failed: {ex.Message}");
@@ -106,7 +106,7 @@ public sealed class GymEnvironmentAdapter : IAsyncDisposable
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to reset Gym environment");
             return Result<SensorState, string>.Failure($"Reset failed: {ex.Message}");
@@ -159,7 +159,7 @@ public sealed class GymEnvironmentAdapter : IAsyncDisposable
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to step Gym environment");
             return Result<ActionResult, string>.Failure($"Step failed: {ex.Message}");
@@ -190,7 +190,7 @@ public sealed class GymEnvironmentAdapter : IAsyncDisposable
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to observe Gym environment");
             return Result<SensorState, string>.Failure($"Observation failed: {ex.Message}");
@@ -223,7 +223,7 @@ public sealed class GymEnvironmentAdapter : IAsyncDisposable
             this.currentState = null;
             this.logger.LogInformation("Disconnected from Gym environment");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Error during disconnect from Gym environment");
         }

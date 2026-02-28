@@ -79,7 +79,7 @@ public sealed class ReflectionEngine : IReflectionEngine
         {
             return Result<PerformanceReport, string>.Failure("Performance analysis was cancelled");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return Result<PerformanceReport, string>.Failure($"Performance analysis failed: {ex.Message}");
         }
@@ -152,7 +152,7 @@ public sealed class ReflectionEngine : IReflectionEngine
         {
             return Result<IReadOnlyList<ErrorPattern>, string>.Failure("Error pattern detection was cancelled");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return Result<IReadOnlyList<ErrorPattern>, string>.Failure($"Error pattern detection failed: {ex.Message}");
         }
@@ -222,7 +222,7 @@ public sealed class ReflectionEngine : IReflectionEngine
         {
             return Result<CapabilityMap, string>.Failure("Capability assessment was cancelled");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return Result<CapabilityMap, string>.Failure($"Capability assessment failed: {ex.Message}");
         }
@@ -298,7 +298,7 @@ public sealed class ReflectionEngine : IReflectionEngine
         {
             return Result<IReadOnlyList<ImprovementSuggestion>, string>.Failure("Improvement suggestion generation was cancelled");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return Result<IReadOnlyList<ImprovementSuggestion>, string>.Failure($"Improvement suggestion generation failed: {ex.Message}");
         }
@@ -360,7 +360,7 @@ public sealed class ReflectionEngine : IReflectionEngine
         {
             return Result<Form, string>.Failure("Certainty assessment was cancelled");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return Result<Form, string>.Failure($"Certainty assessment failed: {ex.Message}");
         }

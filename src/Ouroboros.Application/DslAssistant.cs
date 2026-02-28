@@ -64,7 +64,12 @@ Example format:
 
             return Result<List<DslSuggestion>, string>.Success(suggestions);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
+        {
+            return Result<List<DslSuggestion>, string>.Failure($"Failed to generate suggestions: {ex.Message}");
+        }
+        catch (InvalidOperationException ex)
         {
             return Result<List<DslSuggestion>, string>.Failure($"Failed to generate suggestions: {ex.Message}");
         }
@@ -93,7 +98,7 @@ Example format:
 
             return Result<List<string>, string>.Success(completions);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return Result<List<string>, string>.Failure($"Failed to complete token: {ex.Message}");
         }
@@ -159,7 +164,12 @@ Respond with only the corrected DSL, no explanation.";
 
             return Result<DslValidationResult, string>.Success(result);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
+        {
+            return Result<DslValidationResult, string>.Failure($"Validation failed: {ex.Message}");
+        }
+        catch (InvalidOperationException ex)
         {
             return Result<DslValidationResult, string>.Failure($"Validation failed: {ex.Message}");
         }
@@ -190,7 +200,12 @@ Focus on the high-level purpose and flow, not implementation details.";
 
             return Result<string, string>.Success(response.Trim());
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
+        {
+            return Result<string, string>.Failure($"Failed to explain DSL: {ex.Message}");
+        }
+        catch (InvalidOperationException ex)
         {
             return Result<string, string>.Failure($"Failed to explain DSL: {ex.Message}");
         }
@@ -221,7 +236,12 @@ Be brief but informative (3-5 sentences).";
 
             return Result<string, string>.Success(response.Trim());
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
+        {
+            return Result<string, string>.Failure($"Failed to explain code: {ex.Message}");
+        }
+        catch (InvalidOperationException ex)
         {
             return Result<string, string>.Failure($"Failed to explain code: {ex.Message}");
         }
@@ -260,7 +280,12 @@ Example format: SetTopic('AI Ethics') | UseDraft | UseCritique | UseImprove";
 
             return Result<string, string>.Success(response.Trim());
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
+        {
+            return Result<string, string>.Failure($"Failed to build DSL: {ex.Message}");
+        }
+        catch (InvalidOperationException ex)
         {
             return Result<string, string>.Failure($"Failed to build DSL: {ex.Message}");
         }

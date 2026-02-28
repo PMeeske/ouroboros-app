@@ -132,7 +132,11 @@ public sealed partial class QdrantSelfIndexer
                     Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
                         .Where(ShouldIndexFile));
             }
-            catch (Exception ex)
+            catch (IOException ex)
+            {
+                Console.WriteLine($"[DiscoverError] {root}: {ex.Message}");
+            }
+            catch (UnauthorizedAccessException ex)
             {
                 Console.WriteLine($"[DiscoverError] {root}: {ex.Message}");
             }
@@ -211,7 +215,11 @@ public sealed partial class QdrantSelfIndexer
                     exists = false;
                 }
             }
-            catch (Exception ex)
+            catch (Grpc.Core.RpcException ex)
+            {
+                Console.WriteLine($"[CollectionInfoError] {collectionName}: {ex.Message}");
+            }
+            catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[CollectionInfoError] {collectionName}: {ex.Message}");
             }
@@ -270,7 +278,12 @@ public sealed partial class QdrantSelfIndexer
                 offset = scrollResult.Result.Last().Id;
             }
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (Grpc.Core.RpcException ex)
+        {
+            Console.WriteLine($"[LoadHashesError] {ex.Message}");
+        }
+        catch (HttpRequestException ex)
         {
             Console.WriteLine($"[LoadHashesError] {ex.Message}");
         }
@@ -310,7 +323,7 @@ public sealed partial class QdrantSelfIndexer
                 await _client.UpsertAsync(_config.HashCollectionName, new[] { point }, cancellationToken: ct);
                 Console.WriteLine($"[HashCollectionFix] Successfully recreated and stored hash.");
             }
-            catch (Exception innerEx)
+            catch (Grpc.Core.RpcException innerEx)
             {
                 Console.WriteLine($"[HashCollectionFixError] {innerEx.Message}");
             }

@@ -1,5 +1,6 @@
 // Copyright (c) Ouroboros. All rights reserved.
 
+using System.Net.Http;
 using Ouroboros.Abstractions.Monads;
 
 namespace Ouroboros.CLI.Commands;
@@ -54,7 +55,11 @@ public sealed partial class OuroborosAgent
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
+            {
+                return Result<string, string>.Failure(ex.Message);
+            }
+            catch (HttpRequestException ex)
             {
                 return Result<string, string>.Failure(ex.Message);
             }
@@ -75,7 +80,11 @@ public sealed partial class OuroborosAgent
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
+            {
+                return Result<string, string>.Failure(ex.Message);
+            }
+            catch (HttpRequestException ex)
             {
                 return Result<string, string>.Failure(ex.Message);
             }
@@ -96,7 +105,11 @@ public sealed partial class OuroborosAgent
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
+            {
+                return Result<string, string>.Failure(ex.Message);
+            }
+            catch (HttpRequestException ex)
             {
                 return Result<string, string>.Failure(ex.Message);
             }
@@ -117,7 +130,11 @@ public sealed partial class OuroborosAgent
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
+            {
+                return Result<string, string>.Failure(ex.Message);
+            }
+            catch (HttpRequestException ex)
             {
                 return Result<string, string>.Failure(ex.Message);
             }
@@ -138,7 +155,11 @@ public sealed partial class OuroborosAgent
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
+            {
+                return Result<string, string>.Failure(ex.Message);
+            }
+            catch (HttpRequestException ex)
             {
                 return Result<string, string>.Failure(ex.Message);
             }
@@ -159,7 +180,11 @@ public sealed partial class OuroborosAgent
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
+            {
+                return Result<string, string>.Failure(ex.Message);
+            }
+            catch (HttpRequestException ex)
             {
                 return Result<string, string>.Failure(ex.Message);
             }
@@ -180,7 +205,11 @@ public sealed partial class OuroborosAgent
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
+            {
+                return Result<string, string>.Failure(ex.Message);
+            }
+            catch (HttpRequestException ex)
             {
                 return Result<string, string>.Failure(ex.Message);
             }
@@ -201,7 +230,11 @@ public sealed partial class OuroborosAgent
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
+            {
+                return Result<string, string>.Failure(ex.Message);
+            }
+            catch (HttpRequestException ex)
             {
                 return Result<string, string>.Failure(ex.Message);
             }
@@ -226,7 +259,11 @@ public sealed partial class OuroborosAgent
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
+            {
+                return Result<string, string>.Failure(ex.Message);
+            }
+            catch (HttpRequestException ex)
             {
                 return Result<string, string>.Failure(ex.Message);
             }

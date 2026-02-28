@@ -67,7 +67,18 @@ public sealed partial class IntelligentToolLearner
 
             return null;
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (Grpc.Core.RpcException ex)
+        {
+            Console.Error.WriteLine($"[WARN] Pattern search failed: {ex.Message}");
+            return null;
+        }
+        catch (HttpRequestException ex)
+        {
+            Console.Error.WriteLine($"[WARN] Pattern search failed: {ex.Message}");
+            return null;
+        }
+        catch (JsonException ex)
         {
             Console.Error.WriteLine($"[WARN] Pattern search failed: {ex.Message}");
             return null;
@@ -118,7 +129,12 @@ public sealed partial class IntelligentToolLearner
 
             await _qdrantClient.UpsertAsync(_collectionName, new[] { point }, cancellationToken: ct);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (Grpc.Core.RpcException ex)
+        {
+            Console.Error.WriteLine($"[WARN] Failed to persist pattern: {ex.Message}");
+        }
+        catch (HttpRequestException ex)
         {
             Console.Error.WriteLine($"[WARN] Failed to persist pattern: {ex.Message}");
         }
@@ -164,7 +180,12 @@ public sealed partial class IntelligentToolLearner
                 await _qdrantClient.UpsertAsync(_collectionName, new[] { point }, cancellationToken: ct);
             }
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (Grpc.Core.RpcException ex)
+        {
+            Console.Error.WriteLine($"[WARN] Failed to record pattern usage: {ex.Message}");
+        }
+        catch (HttpRequestException ex)
         {
             Console.Error.WriteLine($"[WARN] Failed to record pattern usage: {ex.Message}");
         }
@@ -240,7 +261,12 @@ public sealed partial class IntelligentToolLearner
                     cancellationToken: ct);
             }
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (Grpc.Core.RpcException ex)
+        {
+            Console.Error.WriteLine($"[WARN] Qdrant collection setup failed: {ex.Message}");
+        }
+        catch (HttpRequestException ex)
         {
             Console.Error.WriteLine($"[WARN] Qdrant collection setup failed: {ex.Message}");
         }
@@ -273,7 +299,16 @@ public sealed partial class IntelligentToolLearner
                 }
             }
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (Grpc.Core.RpcException ex)
+        {
+            Console.Error.WriteLine($"[WARN] Failed to load patterns from Qdrant: {ex.Message}");
+        }
+        catch (HttpRequestException ex)
+        {
+            Console.Error.WriteLine($"[WARN] Failed to load patterns from Qdrant: {ex.Message}");
+        }
+        catch (JsonException ex)
         {
             Console.Error.WriteLine($"[WARN] Failed to load patterns from Qdrant: {ex.Message}");
         }

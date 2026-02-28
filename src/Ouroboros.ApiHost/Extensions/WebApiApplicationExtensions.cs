@@ -131,7 +131,11 @@ public static class WebApiApplicationExtensions
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
+            {
+                return Results.BadRequest(ApiResponse<AskResponse>.Fail($"Error: {ex.Message}"));
+            }
+            catch (InvalidOperationException ex)
             {
                 return Results.BadRequest(ApiResponse<AskResponse>.Fail($"Error: {ex.Message}"));
             }
@@ -166,7 +170,11 @@ public static class WebApiApplicationExtensions
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
+            {
+                return Results.BadRequest(ApiResponse<PipelineResponse>.Fail($"Error: {ex.Message}"));
+            }
+            catch (InvalidOperationException ex)
             {
                 return Results.BadRequest(ApiResponse<PipelineResponse>.Fail($"Error: {ex.Message}"));
             }
@@ -197,7 +205,11 @@ public static class WebApiApplicationExtensions
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
+            {
+                return Results.BadRequest(ApiResponse<SelfStateResponse>.Fail($"Error: {ex.Message}"));
+            }
+            catch (InvalidOperationException ex)
             {
                 return Results.BadRequest(ApiResponse<SelfStateResponse>.Fail($"Error: {ex.Message}"));
             }
@@ -226,7 +238,11 @@ public static class WebApiApplicationExtensions
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
+            {
+                return Results.BadRequest(ApiResponse<SelfForecastResponse>.Fail($"Error: {ex.Message}"));
+            }
+            catch (InvalidOperationException ex)
             {
                 return Results.BadRequest(ApiResponse<SelfForecastResponse>.Fail($"Error: {ex.Message}"));
             }
@@ -255,7 +271,11 @@ public static class WebApiApplicationExtensions
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
+            {
+                return Results.BadRequest(ApiResponse<List<CommitmentDto>>.Fail($"Error: {ex.Message}"));
+            }
+            catch (InvalidOperationException ex)
             {
                 return Results.BadRequest(ApiResponse<List<CommitmentDto>>.Fail($"Error: {ex.Message}"));
             }
@@ -284,7 +304,11 @@ public static class WebApiApplicationExtensions
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
+            {
+                return Results.BadRequest(ApiResponse<SelfExplainResponse>.Fail($"Error: {ex.Message}"));
+            }
+            catch (InvalidOperationException ex)
             {
                 return Results.BadRequest(ApiResponse<SelfExplainResponse>.Fail($"Error: {ex.Message}"));
             }
@@ -315,7 +339,11 @@ public static class WebApiApplicationExtensions
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
+            {
+                return Results.BadRequest(ApiResponse<SyncStatusResponse>.Fail($"Error: {ex.Message}"));
+            }
+            catch (InvalidOperationException ex)
             {
                 return Results.BadRequest(ApiResponse<SyncStatusResponse>.Fail($"Error: {ex.Message}"));
             }
@@ -344,7 +372,11 @@ public static class WebApiApplicationExtensions
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
+            {
+                return Results.BadRequest(ApiResponse<SyncDiffResponse>.Fail($"Error: {ex.Message}"));
+            }
+            catch (InvalidOperationException ex)
             {
                 return Results.BadRequest(ApiResponse<SyncDiffResponse>.Fail($"Error: {ex.Message}"));
             }
@@ -373,7 +405,11 @@ public static class WebApiApplicationExtensions
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
+            {
+                return Results.BadRequest(ApiResponse<SyncResultResponse>.Fail($"Error: {ex.Message}"));
+            }
+            catch (InvalidOperationException ex)
             {
                 return Results.BadRequest(ApiResponse<SyncResultResponse>.Fail($"Error: {ex.Message}"));
             }
@@ -402,7 +438,11 @@ public static class WebApiApplicationExtensions
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
+            {
+                return Results.BadRequest(ApiResponse<SyncVerifyResponse>.Fail($"Error: {ex.Message}"));
+            }
+            catch (InvalidOperationException ex)
             {
                 return Results.BadRequest(ApiResponse<SyncVerifyResponse>.Fail($"Error: {ex.Message}"));
             }
@@ -431,7 +471,11 @@ public static class WebApiApplicationExtensions
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
+            {
+                return Results.BadRequest(ApiResponse<SyncCollectionsResponse>.Fail($"Error: {ex.Message}"));
+            }
+            catch (InvalidOperationException ex)
             {
                 return Results.BadRequest(ApiResponse<SyncCollectionsResponse>.Fail($"Error: {ex.Message}"));
             }

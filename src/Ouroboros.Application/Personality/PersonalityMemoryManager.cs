@@ -109,7 +109,12 @@ public sealed class PersonalityMemoryManager
                 await RecreateCollectionIfDimensionMismatchAsync(_personCollectionName, ct);
             }
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (Grpc.Core.RpcException ex)
+        {
+            Console.WriteLine($"  [!] Qdrant collection init warning: {ex.Message}");
+        }
+        catch (HttpRequestException ex)
         {
             Console.WriteLine($"  [!] Qdrant collection init warning: {ex.Message}");
         }
@@ -177,7 +182,12 @@ public sealed class PersonalityMemoryManager
 
             await _qdrantClient.UpsertAsync(_conversationCollectionName, new[] { point }, cancellationToken: ct);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (Grpc.Core.RpcException ex)
+        {
+            Console.WriteLine($"  [!] Failed to store conversation memory: {ex.Message}");
+        }
+        catch (HttpRequestException ex)
         {
             Console.WriteLine($"  [!] Failed to store conversation memory: {ex.Message}");
         }
@@ -240,7 +250,13 @@ public sealed class PersonalityMemoryManager
                     Timestamp: payload.TryGetValue("timestamp", out var ts) && DateTime.TryParse(ts.StringValue, out var dt) ? dt : DateTime.UtcNow);
             }).ToList();
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (Grpc.Core.RpcException ex)
+        {
+            Console.WriteLine($"  [!] Failed to recall conversations: {ex.Message}");
+            return new List<ConversationMemory>();
+        }
+        catch (HttpRequestException ex)
         {
             Console.WriteLine($"  [!] Failed to recall conversations: {ex.Message}");
             return new List<ConversationMemory>();
@@ -291,7 +307,12 @@ public sealed class PersonalityMemoryManager
 
             await _qdrantClient.UpsertAsync(_personalityCollectionName, new[] { point }, cancellationToken: ct);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (Grpc.Core.RpcException ex)
+        {
+            Console.WriteLine($"  [!] Failed to save personality snapshot: {ex.Message}");
+        }
+        catch (HttpRequestException ex)
         {
             Console.WriteLine($"  [!] Failed to save personality snapshot: {ex.Message}");
         }
@@ -357,7 +378,18 @@ public sealed class PersonalityMemoryManager
                 InteractionCount: p.TryGetValue("interaction_count", out var ic) ? (int)ic.IntegerValue : 0,
                 Timestamp: latestResult.Timestamp);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (Grpc.Core.RpcException ex)
+        {
+            Console.WriteLine($"  [!] Failed to load personality snapshot: {ex.Message}");
+            return null;
+        }
+        catch (HttpRequestException ex)
+        {
+            Console.WriteLine($"  [!] Failed to load personality snapshot: {ex.Message}");
+            return null;
+        }
+        catch (System.Text.Json.JsonException ex)
         {
             Console.WriteLine($"  [!] Failed to load personality snapshot: {ex.Message}");
             return null;
@@ -414,7 +446,12 @@ public sealed class PersonalityMemoryManager
                     cancellationToken: ct);
             }
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (Grpc.Core.RpcException ex)
+        {
+            Console.WriteLine($"  [~] Could not check collection dimension: {ex.Message}");
+        }
+        catch (HttpRequestException ex)
         {
             Console.WriteLine($"  [~] Could not check collection dimension: {ex.Message}");
         }

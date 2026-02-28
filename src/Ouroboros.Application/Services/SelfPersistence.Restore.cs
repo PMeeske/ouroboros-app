@@ -55,7 +55,13 @@ public partial class SelfPersistence
 
             return response.IsSuccessStatusCode;
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Fact persistence failed: {ex.Message}");
+            return false;
+        }
+        catch (JsonException ex)
         {
             System.Diagnostics.Debug.WriteLine($"Fact persistence failed: {ex.Message}");
             return false;
@@ -120,7 +126,18 @@ public partial class SelfPersistence
 
             return null;
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Mind state restore failed: {ex.Message}");
+            return null;
+        }
+        catch (JsonException ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Mind state restore failed: {ex.Message}");
+            return null;
+        }
+        catch (IOException ex)
         {
             System.Diagnostics.Debug.WriteLine($"Mind state restore failed: {ex.Message}");
             return null;
@@ -179,7 +196,12 @@ public partial class SelfPersistence
                 }
             }
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Thought search failed: {ex.Message}");
+        }
+        catch (JsonException ex)
         {
             System.Diagnostics.Debug.WriteLine($"Thought search failed: {ex.Message}");
         }
@@ -234,7 +256,12 @@ public partial class SelfPersistence
                 }
             }
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Fact search failed: {ex.Message}");
+        }
+        catch (JsonException ex)
         {
             System.Diagnostics.Debug.WriteLine($"Fact search failed: {ex.Message}");
         }

@@ -1,6 +1,8 @@
 // Copyright (c) Ouroboros. All rights reserved.
 namespace Ouroboros.CLI.Subsystems;
 
+using System.IO;
+using System.Net.Http;
 using System.Text;
 using Ouroboros.Abstractions.Monads;
 using Ouroboros.Abstractions.Agent;
@@ -67,7 +69,11 @@ Examples:
                 return $"❌ Failed to read file: {result.Error}";
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            return $"❌ ReadMyCode command failed: {ex.Message}";
+        }
+        catch (IOException ex)
         {
             return $"❌ ReadMyCode command failed: {ex.Message}";
         }
@@ -113,7 +119,7 @@ Examples:
                 return $"❌ Search failed: {result.Error}";
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return $"❌ SearchMyCode command failed: {ex.Message}";
         }
@@ -231,7 +237,7 @@ Examples:
 
             return sb.ToString();
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return $"❌ Code analysis failed: {ex.Message}";
         }
@@ -261,7 +267,11 @@ Examples:
             sb.AppendLine($"  • Duration: {result.Elapsed.TotalSeconds:F1}s");
             return sb.ToString();
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            return $"❌ Reindex failed: {ex.Message}";
+        }
+        catch (InvalidOperationException ex)
         {
             return $"❌ Reindex failed: {ex.Message}";
         }
@@ -285,7 +295,11 @@ Examples:
             sb.AppendLine($"  • Duration: {result.Elapsed.TotalSeconds:F1}s");
             return sb.ToString();
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            return $"❌ Incremental reindex failed: {ex.Message}";
+        }
+        catch (InvalidOperationException ex)
         {
             return $"❌ Incremental reindex failed: {ex.Message}";
         }
@@ -332,7 +346,11 @@ Examples:
 
             return sb.ToString();
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            return $"❌ Index search failed: {ex.Message}";
+        }
+        catch (InvalidOperationException ex)
         {
             return $"❌ Index search failed: {ex.Message}";
         }
@@ -355,7 +373,11 @@ Examples:
             sb.AppendLine($"  • Vector size: {stats.VectorSize}");
             return sb.ToString();
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            return $"❌ Failed to get index stats: {ex.Message}";
+        }
+        catch (InvalidOperationException ex)
         {
             return $"❌ Failed to get index stats: {ex.Message}";
         }

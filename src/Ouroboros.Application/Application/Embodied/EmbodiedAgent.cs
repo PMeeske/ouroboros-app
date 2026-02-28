@@ -104,7 +104,7 @@ public sealed class EmbodiedAgent : IEmbodiedAgent
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to initialize agent in environment");
             return Result<Unit, string>.Failure($"Initialization failed: {ex.Message}");
@@ -147,7 +147,7 @@ public sealed class EmbodiedAgent : IEmbodiedAgent
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to perceive sensor state");
             return Result<SensorState, string>.Failure($"Perception failed: {ex.Message}");
@@ -299,7 +299,7 @@ public sealed class EmbodiedAgent : IEmbodiedAgent
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to execute action");
             return Result<ActionResult, string>.Failure($"Action execution failed: {ex.Message}");
@@ -358,7 +358,7 @@ public sealed class EmbodiedAgent : IEmbodiedAgent
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to learn from experience");
             return Result<Unit, string>.Failure($"Learning failed: {ex.Message}");
@@ -398,7 +398,7 @@ public sealed class EmbodiedAgent : IEmbodiedAgent
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to plan embodied actions");
             return Result<Domain.Embodied.Plan, string>.Failure($"Planning failed: {ex.Message}");

@@ -1,6 +1,8 @@
 // Copyright (c) Ouroboros. All rights reserved.
 namespace Ouroboros.CLI.Subsystems;
 
+using System.IO;
+using System.Net.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Ouroboros.Agent.MetaAI;
 using Ouroboros.Agent.MetaAI.Affect;
@@ -75,7 +77,11 @@ public sealed partial class MemorySubsystem
                         $"restored from {snapshot.Timestamp:g} ({snapshot.InteractionCount} interactions)");
                 }
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
+            {
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ Personality restore: {Markup.Escape(ex.Message)}")}");
+            }
+            catch (IOException ex)
             {
                 AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ Personality restore: {Markup.Escape(ex.Message)}")}");
             }
@@ -91,7 +97,7 @@ public sealed partial class MemorySubsystem
         {
             AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ Personality engine state error: {opEx.Message}")}");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ Personality engine failed: {ex.GetType().Name} - {ex.Message}")}");
             if (ctx.Config.Debug)
@@ -127,7 +133,13 @@ public sealed partial class MemorySubsystem
                         sessionId, ctx.Config.QdrantEndpoint, embeddingFunc);
                 ctx.Output.RecordInit("Persistent Memory", true, "Qdrant-backed thought map");
             }
-            catch (Exception qdrantEx)
+            catch (HttpRequestException qdrantEx)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ThoughtPersistence] Qdrant unavailable: {qdrantEx.Message}, using file storage");
+                ThoughtPersistence = ThoughtPersistenceService.CreateWithFilePersistence(sessionId, thoughtsDir);
+                ctx.Output.RecordInit("Persistent Memory", true, "file-based (Qdrant unavailable)");
+            }
+            catch (InvalidOperationException qdrantEx)
             {
                 System.Diagnostics.Debug.WriteLine($"[ThoughtPersistence] Qdrant unavailable: {qdrantEx.Message}, using file storage");
                 ThoughtPersistence = ThoughtPersistenceService.CreateWithFilePersistence(sessionId, thoughtsDir);
@@ -149,7 +161,11 @@ public sealed partial class MemorySubsystem
                 ctx.Output.RecordInit("Persistent Memory", true, "ready (first session)");
             }
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ Persistent memory unavailable: {ex.Message}")}");
+        }
+        catch (IOException ex)
         {
             AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ Persistent memory unavailable: {ex.Message}")}");
         }
@@ -183,7 +199,11 @@ public sealed partial class MemorySubsystem
                 ctx.Output.RecordInit("Conversation Memory", true, "first session");
             }
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ Conversation Memory: {ex.Message}")}");
+        }
+        catch (InvalidOperationException ex)
         {
             AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ Conversation Memory: {ex.Message}")}");
         }
@@ -209,7 +229,11 @@ public sealed partial class MemorySubsystem
             await SelfPersistence.InitializeAsync(CancellationToken.None);
             ctx.Output.RecordInit("Self-Persistence", true, "Qdrant mind state storage");
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ Self-Persistence: {ex.Message}")}");
+        }
+        catch (InvalidOperationException ex)
         {
             AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ Self-Persistence: {ex.Message}")}");
         }
@@ -345,7 +369,15 @@ Example: save thought I discovered that monadic composition simplifies error han
             var topicNote = topic != null ? $" (topic: {topic})" : "";
             return $"✅ **Thought Saved**{topicNote}\n\n{typeEmoji} {contentToSave}\n\nType: {thoughtType} | ID: {thought.Id:N}";
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            return $"❌ Failed to save thought: {ex.Message}";
+        }
+        catch (IOException ex)
+        {
+            return $"❌ Failed to save thought: {ex.Message}";
+        }
+        catch (InvalidOperationException ex)
         {
             return $"❌ Failed to save thought: {ex.Message}";
         }

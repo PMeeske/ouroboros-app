@@ -118,7 +118,15 @@ Provide a concise plan with 3-5 actionable steps.";
                 Console.WriteLine($"[ouroboros] Plan generated:\n{planOutput}");
                 cycleOutput.AppendLine($"PLAN:\n{planOutput}\n");
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (HttpRequestException ex)
+            {
+                Console.WriteLine($"[ouroboros] Plan generation failed: {ex.Message}");
+                overallSuccess = false;
+                planOutput = "Planning failed";
+                insights.Add($"Planning error: {ex.Message}");
+            }
+            catch (InvalidOperationException ex)
             {
                 Console.WriteLine($"[ouroboros] Plan generation failed: {ex.Message}");
                 overallSuccess = false;
@@ -144,7 +152,15 @@ Describe the execution results for each step. Be concise.";
                 Console.WriteLine($"[ouroboros] Execution results:\n{executeOutput}");
                 cycleOutput.AppendLine($"EXECUTION:\n{executeOutput}\n");
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (HttpRequestException ex)
+            {
+                Console.WriteLine($"[ouroboros] Execution failed: {ex.Message}");
+                overallSuccess = false;
+                executeOutput = "Execution failed";
+                insights.Add($"Execution error: {ex.Message}");
+            }
+            catch (InvalidOperationException ex)
             {
                 Console.WriteLine($"[ouroboros] Execution failed: {ex.Message}");
                 overallSuccess = false;
@@ -193,7 +209,14 @@ Provide:
                     overallSuccess = false;
                 }
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (HttpRequestException ex)
+            {
+                Console.WriteLine($"[ouroboros] Verification failed: {ex.Message}");
+                verifyOutput = "Verification failed";
+                insights.Add($"Verification error: {ex.Message}");
+            }
+            catch (InvalidOperationException ex)
             {
                 Console.WriteLine($"[ouroboros] Verification failed: {ex.Message}");
                 verifyOutput = "Verification failed";
@@ -229,7 +252,13 @@ Provide bullet points starting with '-':";
                     }
                 }
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (HttpRequestException ex)
+            {
+                Console.WriteLine($"[ouroboros] Learning failed: {ex.Message}");
+                insights.Add($"Learning error: {ex.Message}");
+            }
+            catch (InvalidOperationException ex)
             {
                 Console.WriteLine($"[ouroboros] Learning failed: {ex.Message}");
                 insights.Add($"Learning error: {ex.Message}");
