@@ -80,7 +80,7 @@ internal sealed class NetworkStateManager
             }
             else
             {
-                var qdrantEndpoint = NormalizeEndpoint(ctx.Config.QdrantEndpoint, DefaultEndpoints.QdrantGrpc);
+                var qdrantEndpoint = NormalizeEndpoint(ctx.Config.QdrantEndpoint, Ouroboros.Core.Configuration.DefaultEndpoints.QdrantGrpc);
                 NetworkProjector = new PersistentNetworkStateProjector(
                     dag, qdrantEndpoint, embedFunc);
             }

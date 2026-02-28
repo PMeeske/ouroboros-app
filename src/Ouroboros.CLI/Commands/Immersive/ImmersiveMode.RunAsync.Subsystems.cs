@@ -31,7 +31,7 @@ public sealed partial class ImmersiveMode
         CancellationToken ct)
     {
         // Initialize persistent conversation memory
-        var qdrantEndpoint = NormalizeEndpoint(options.QdrantEndpoint, DefaultEndpoints.QdrantGrpc);
+        var qdrantEndpoint = NormalizeEndpoint(options.QdrantEndpoint, Ouroboros.Core.Configuration.DefaultEndpoints.QdrantGrpc);
         {
             var client = _serviceProvider?.GetService<QdrantClient>();
             var registry = _serviceProvider?.GetService<IQdrantCollectionRegistry>();
@@ -101,7 +101,7 @@ public sealed partial class ImmersiveMode
         InMemoryMeTTaEngine mettaEngine,
         CancellationToken ct)
     {
-        var qdrantEndpoint = NormalizeEndpoint(options.QdrantEndpoint, DefaultEndpoints.QdrantGrpc);
+        var qdrantEndpoint = NormalizeEndpoint(options.QdrantEndpoint, Ouroboros.Core.Configuration.DefaultEndpoints.QdrantGrpc);
 
         // Initialize distinction learning
         try
