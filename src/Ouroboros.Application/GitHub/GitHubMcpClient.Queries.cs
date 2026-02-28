@@ -63,7 +63,11 @@ public sealed partial class GitHubMcpClient
 
             return Result<FileContent, string>.Success(fileContent);
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            return Result<FileContent, string>.Failure($"Exception reading file: {ex.Message}");
+        }
+        catch (JsonException ex)
         {
             return Result<FileContent, string>.Failure($"Exception reading file: {ex.Message}");
         }
@@ -108,7 +112,11 @@ public sealed partial class GitHubMcpClient
 
             return Result<IReadOnlyList<GitHubFileInfo>, string>.Success(fileInfos);
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            return Result<IReadOnlyList<GitHubFileInfo>, string>.Failure($"Exception listing files: {ex.Message}");
+        }
+        catch (JsonException ex)
         {
             return Result<IReadOnlyList<GitHubFileInfo>, string>.Failure($"Exception listing files: {ex.Message}");
         }
@@ -170,7 +178,11 @@ public sealed partial class GitHubMcpClient
 
             return Result<BranchInfo, string>.Success(branchInfo);
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            return Result<BranchInfo, string>.Failure($"Exception creating branch: {ex.Message}");
+        }
+        catch (JsonException ex)
         {
             return Result<BranchInfo, string>.Failure($"Exception creating branch: {ex.Message}");
         }
@@ -211,7 +223,11 @@ public sealed partial class GitHubMcpClient
 
             return Result<PullRequestStatus, string>.Success(status);
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            return Result<PullRequestStatus, string>.Failure($"Exception getting pull request status: {ex.Message}");
+        }
+        catch (JsonException ex)
         {
             return Result<PullRequestStatus, string>.Failure($"Exception getting pull request status: {ex.Message}");
         }
@@ -260,7 +276,11 @@ public sealed partial class GitHubMcpClient
 
             return Result<IReadOnlyList<CodeSearchResult>, string>.Success(results);
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            return Result<IReadOnlyList<CodeSearchResult>, string>.Failure($"Exception searching code: {ex.Message}");
+        }
+        catch (JsonException ex)
         {
             return Result<IReadOnlyList<CodeSearchResult>, string>.Failure($"Exception searching code: {ex.Message}");
         }

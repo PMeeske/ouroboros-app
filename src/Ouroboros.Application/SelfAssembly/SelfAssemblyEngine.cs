@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Ouroboros.Abstractions;
+using Ouroboros.Application.Extensions;
 
 namespace Ouroboros.Application.SelfAssembly;
 
@@ -129,8 +130,8 @@ public sealed partial class SelfAssemblyEngine : IAsyncDisposable
         // Stage 3: Check auto-approval
         if (ShouldAutoApprove(proposal))
         {
-            _ = Task.Run(() => ExecuteAssemblyPipelineAsync(proposalId))
-                .ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
+            Task.Run(() => ExecuteAssemblyPipelineAsync(proposalId))
+                .ObserveExceptions("ExecuteAssemblyPipeline");
         }
 
         return Result<Guid>.Success(proposalId);

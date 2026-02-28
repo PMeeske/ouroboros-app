@@ -59,7 +59,7 @@ internal class ReadMyFileTool : ITool
 
             return Result<string, string>.Success(sb.ToString());
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             return Result<string, string>.Failure($"Failed to read file: {ex.Message}");
         }

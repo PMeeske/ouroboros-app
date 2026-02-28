@@ -67,7 +67,11 @@ internal class RebuildSelfTool : ITool
 
             return Result<string, string>.Success(sb.ToString());
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            return Result<string, string>.Failure($"Build failed: {ex.Message}");
+        }
+        catch (System.ComponentModel.Win32Exception ex)
         {
             return Result<string, string>.Failure($"Build failed: {ex.Message}");
         }

@@ -113,7 +113,11 @@ public class VerifyClaimTool : ITool
 
             return Result<string, string>.Success(sb.ToString());
         }
-        catch (Exception ex)
+        catch (JsonException ex)
+        {
+            return Result<string, string>.Failure($"Verification failed: {ex.Message}");
+        }
+        catch (HttpRequestException ex)
         {
             return Result<string, string>.Failure($"Verification failed: {ex.Message}");
         }

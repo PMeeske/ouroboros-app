@@ -6,6 +6,7 @@ namespace Ouroboros.Application.Tools;
 
 using System.Text;
 using System.Text.Json;
+using Ouroboros.Application.Extensions;
 using Ouroboros.Core.Monads;
 
 public static partial class PerceptionTools
@@ -55,7 +56,7 @@ public static partial class PerceptionTools
                 var activityLog = new List<(DateTime Time, string Activity)>();
                 string lastWindow = "";
 
-                _ = Task.Run(async () =>
+                Task.Run(async () =>
                 {
                     var startTime = DateTime.Now;
                     POINT lastMousePos = default;
@@ -109,7 +110,7 @@ public static partial class PerceptionTools
                         _isWatchingActivity = false;
                     }
                 }, linkedCts.Token)
-                .ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
+                .ObserveExceptions("WatchUserActivity background");
 
                 return Result<string, string>.Success($"👀 Now monitoring user activity for {durationSeconds}s.\n\nTracking: window changes, mouse movement\nLogs saved to: `{CaptureDirectory}`\n\nTo stop: call this tool again.");
             }

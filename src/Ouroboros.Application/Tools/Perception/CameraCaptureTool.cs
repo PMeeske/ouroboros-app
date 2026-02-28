@@ -96,9 +96,13 @@ public static partial class PerceptionTools
 
                 return Result<string, string>.Success($"📷 Camera image captured!\n\nSaved to: `{filepath}`");
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                return Result<string, string>.Failure($"Camera capture failed: {ex.Message}\n\n💡 Make sure ffmpeg is installed and a camera is connected.");
+                return Result<string, string>.Failure($"Camera capture failed: {ex.Message}\n\nMake sure ffmpeg is installed and a camera is connected.");
+            }
+            catch (System.ComponentModel.Win32Exception ex)
+            {
+                return Result<string, string>.Failure($"Camera capture failed: {ex.Message}\n\nMake sure ffmpeg is installed and a camera is connected.");
             }
         }
     }

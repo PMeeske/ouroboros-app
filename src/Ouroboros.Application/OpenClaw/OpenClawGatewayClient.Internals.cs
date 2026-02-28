@@ -6,6 +6,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using Ouroboros.Application.Extensions;
 
 namespace Ouroboros.Application.OpenClaw;
 
@@ -130,8 +131,8 @@ public sealed partial class OpenClawGatewayClient
             && authEl.TryGetProperty("deviceToken", out var dtEl)
             && dtEl.GetString() is { Length: > 0 } newDeviceToken)
         {
-            _ = Task.Run(() => _deviceIdentity.SaveDeviceTokenAsync(newDeviceToken, CancellationToken.None))
-                .ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
+            Task.Run(() => _deviceIdentity.SaveDeviceTokenAsync(newDeviceToken, CancellationToken.None))
+                .ObserveExceptions("SaveDeviceToken");
         }
     }
 

@@ -4,6 +4,7 @@ namespace Ouroboros.CLI.Subsystems;
 using System.Collections.Concurrent;
 using LangChain.DocumentLoaders;
 using Microsoft.Extensions.DependencyInjection;
+using Ouroboros.Application.Extensions;
 using Ouroboros.Abstractions.Monads;
 using Unit = Ouroboros.Abstractions.Unit;
 using PipelineReasoningStep = Ouroboros.Domain.Events.ReasoningStep;
@@ -253,7 +254,7 @@ public sealed partial class AutonomySubsystem : IAutonomySubsystem
             var stats = await SelfIndexer.GetStatsAsync();
             ctx.Output.RecordInit("Self-Index", true, $"{stats.IndexedFiles} files, {stats.TotalVectors} chunks");
 
-            _ = Task.Run(async () =>
+            Task.Run(async () =>
             {
                 try
                 {
@@ -266,7 +267,7 @@ public sealed partial class AutonomySubsystem : IAutonomySubsystem
                     System.Diagnostics.Debug.WriteLine($"[SelfIndex] Incremental failed: {ex.Message}");
                 }
             })
-            .ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
+            .ObserveExceptions("SelfIndex incremental");
         }
         catch (Exception ex)
         {

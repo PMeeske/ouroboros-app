@@ -36,7 +36,7 @@ internal class PersistenceStatsTool : ITool
 
             return Result<string, string>.Success(sb.ToString());
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
             return Result<string, string>.Failure($"Failed to get stats: {ex.Message}");
         }

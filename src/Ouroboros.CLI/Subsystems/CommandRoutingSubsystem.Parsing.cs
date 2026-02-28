@@ -1,6 +1,7 @@
 // Copyright (c) Ouroboros. All rights reserved.
 namespace Ouroboros.CLI.Subsystems;
 
+using Ouroboros.Application.Extensions;
 using Ouroboros.CLI.Commands;
 
 /// <summary>
@@ -19,8 +20,8 @@ public sealed partial class CommandRoutingSubsystem
         {
             var thought = input.TrimStart()[4..].Trim();
             _memorySub.TrackLastThought(thought);
-            _ = Task.Run(async () => await _toolsSub.ExecuteToolsFromThought(thought))
-                .ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
+            Task.Run(async () => await _toolsSub.ExecuteToolsFromThought(thought))
+                .ObserveExceptions("ExecuteToolsFromThought");
             return (ActionType.SaveThought, thought, null);
         }
 

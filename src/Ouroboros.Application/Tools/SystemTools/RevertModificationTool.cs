@@ -53,7 +53,11 @@ internal partial class RevertModificationTool : ITool
             var relativePath = Path.GetRelativePath(Environment.CurrentDirectory, originalPath);
             return Result<string, string>.Success($"Reverted **{relativePath}** from backup.\n\nRun `dotnet build` to compile the reverted code.");
         }
-        catch (Exception ex)
+        catch (IOException ex)
+        {
+            return Result<string, string>.Failure($"Revert failed: {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
         {
             return Result<string, string>.Failure($"Revert failed: {ex.Message}");
         }

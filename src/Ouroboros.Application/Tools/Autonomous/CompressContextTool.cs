@@ -89,7 +89,11 @@ public class CompressContextTool : ITool
 
             return Result<string, string>.Success($"\ud83d\udce6 **Compressed** ({currentTokens} \u2192 ~{compressed2.Length / 4} tokens)\n\n{compressed2}");
         }
-        catch (Exception ex)
+        catch (JsonException ex)
+        {
+            return Result<string, string>.Failure($"Compression failed: {ex.Message}");
+        }
+        catch (HttpRequestException ex)
         {
             return Result<string, string>.Failure($"Compression failed: {ex.Message}");
         }

@@ -83,9 +83,13 @@ public class ParallelToolsTool : ITool
 
             return Result<string, string>.Success(sb.ToString());
         }
-        catch (Exception ex)
+        catch (JsonException ex)
         {
             return Result<string, string>.Failure($"Parallel execution failed: {ex.Message}");
+        }
+        catch (AggregateException ex)
+        {
+            return Result<string, string>.Failure($"Parallel execution failed: {ex.InnerException?.Message ?? ex.Message}");
         }
     }
 }

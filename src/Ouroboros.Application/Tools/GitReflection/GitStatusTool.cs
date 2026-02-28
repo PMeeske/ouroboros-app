@@ -36,7 +36,7 @@ public static partial class GitReflectionTools
 
                 return Result<string, string>.Success($"**Branch:** `{branch}`\n\n{status}");
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 return Result<string, string>.Failure($"Git status failed: {ex.Message}");
             }

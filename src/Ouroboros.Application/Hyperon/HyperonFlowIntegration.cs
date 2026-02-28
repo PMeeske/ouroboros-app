@@ -6,6 +6,7 @@ namespace Ouroboros.Application.Hyperon;
 
 using System.Collections.Concurrent;
 using System.Threading.Channels;
+using Ouroboros.Application.Extensions;
 using Ouroboros.Core.Hyperon;
 using Ouroboros.Core.Hyperon.Parsing;
 
@@ -160,7 +161,7 @@ public sealed class HyperonFlowIntegration : IAsyncDisposable
         var loopCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
         var actualInterval = interval ?? TimeSpan.FromSeconds(5);
 
-        _ = Task.Run(async () =>
+        Task.Run(async () =>
         {
             while (!loopCts.Token.IsCancellationRequested)
             {
@@ -213,7 +214,7 @@ public sealed class HyperonFlowIntegration : IAsyncDisposable
                 }
             }
         }, loopCts.Token)
-        .ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
+        .ObserveExceptions("ConsciousnessLoop background");
 
         return loopCts;
     }

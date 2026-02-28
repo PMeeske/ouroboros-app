@@ -37,7 +37,7 @@ public static partial class GitReflectionTools
                     ? Result<string, string>.Success($"\u2705 {result.Message}\nCommit: `{result.CommitHash}`")
                     : Result<string, string>.Failure(result.Message);
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 return Result<string, string>.Failure($"Commit failed: {ex.Message}");
             }

@@ -150,7 +150,11 @@ public class CliDslTool : ITool
 
             return Result<string, string>.Success(result.ToString().Trim());
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            return Result<string, string>.Failure($"DSL execution failed: {ex.Message}");
+        }
+        catch (KeyNotFoundException ex)
         {
             return Result<string, string>.Failure($"DSL execution failed: {ex.Message}");
         }

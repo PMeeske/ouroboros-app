@@ -3,6 +3,7 @@
 // </copyright>
 
 using MediatR;
+using Ouroboros.Application.Extensions;
 using Ouroboros.CLI.Avatar;
 using Ouroboros.CLI.Infrastructure;
 using Ouroboros.CLI.Mediator;
@@ -133,7 +134,7 @@ public sealed partial class OuroborosAgent
                 // Periodic personality snapshot every 10 interactions
                 if (interactionsSinceSnapshot >= 10 && _personalityEngine != null)
                 {
-                    _ = Task.Run(async () =>
+                    Task.Run(async () =>
                     {
                         try
                         {
@@ -142,7 +143,7 @@ public sealed partial class OuroborosAgent
                         }
                         catch (Exception) { /* Ignore — snapshot is non-critical */ }
                     })
-                    .ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
+                    .ObserveExceptions("PersonalitySnapshot save");
                     interactionsSinceSnapshot = 0;
                 }
             }

@@ -207,7 +207,12 @@ public partial class DynamicToolFactory
                             return $"Search failed. Vision analysis returned an error: {error}";
                         }
                     }
-                    catch (Exception ex)
+                    catch (HttpRequestException ex)
+                    {
+                        // Playwright tool also failed, fall through to the generic error.
+                        return $"Search failed after multiple retries. Vision-based search failed with: {ex.Message}";
+                    }
+                    catch (InvalidOperationException ex)
                     {
                         // Playwright tool also failed, fall through to the generic error.
                         return $"Search failed after multiple retries. Vision-based search failed with: {ex.Message}";
@@ -279,7 +284,11 @@ public partial class DynamicToolFactory
                         ? string.Join("\n\n", results.Take(8))
                         : "No search results found.";
                 }
-                catch (Exception ex)
+                catch (HttpRequestException ex)
+                {
+                    return $"Google search failed: {ex.Message}";
+                }
+                catch (JsonException ex)
                 {
                     return $"Google search failed: {ex.Message}";
                 }
@@ -397,7 +406,7 @@ public partial class DynamicToolFactory
                     // Truncate if too long
                     return content.Length > 5000 ? content[..5000] + "..." : content;
                 }
-                catch (Exception ex)
+                catch (HttpRequestException ex)
                 {
                     return $"Fetch failed: {ex.Message}";
                 }
@@ -434,7 +443,11 @@ public partial class DynamicToolFactory
                     var result = dt.Compute(expression, null);
                     return Task.FromResult(result?.ToString() ?? "undefined");
                 }
-                catch (Exception ex)
+                catch (InvalidOperationException ex)
+                {
+                    return Task.FromResult($"Calculation error: {ex.Message}");
+                }
+                catch (System.Data.SyntaxErrorException ex)
                 {
                     return Task.FromResult($"Calculation error: {ex.Message}");
                 }

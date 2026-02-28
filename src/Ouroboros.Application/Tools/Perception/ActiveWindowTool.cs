@@ -43,7 +43,11 @@ public static partial class PerceptionTools
 
                 return Result<string, string>.Success(result.ToString());
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
+            {
+                return Result<string, string>.Failure($"Failed to get active window: {ex.Message}");
+            }
+            catch (System.ComponentModel.Win32Exception ex)
             {
                 return Result<string, string>.Failure($"Failed to get active window: {ex.Message}");
             }

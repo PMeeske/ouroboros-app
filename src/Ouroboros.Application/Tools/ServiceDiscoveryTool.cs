@@ -161,9 +161,13 @@ public sealed class ServiceDiscoveryTool : ITool
 
             return Result<string, string>.Success(output);
         }
-        catch (Exception ex)
+        catch (TargetInvocationException ex)
         {
             return Result<string, string>.Failure($"Invocation failed: {ex.InnerException?.Message ?? ex.Message}");
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Result<string, string>.Failure($"Invocation failed: {ex.Message}");
         }
     }
 

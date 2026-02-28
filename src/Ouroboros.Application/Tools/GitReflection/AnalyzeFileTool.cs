@@ -72,7 +72,11 @@ public static partial class GitReflectionTools
 
                 return Result<string, string>.Success(sb.ToString());
             }
-            catch (Exception ex)
+            catch (IOException ex)
+            {
+                return Result<string, string>.Failure($"Analysis failed: {ex.Message}");
+            }
+            catch (InvalidOperationException ex)
             {
                 return Result<string, string>.Failure($"Analysis failed: {ex.Message}");
             }

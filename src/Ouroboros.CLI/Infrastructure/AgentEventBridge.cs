@@ -1,6 +1,7 @@
 // Copyright (c) Ouroboros. All rights reserved.
 
 using MediatR;
+using Ouroboros.Application.Extensions;
 using Ouroboros.Application.Integration;
 using Ouroboros.Application.Personality;
 using Ouroboros.Application.Services;
@@ -153,7 +154,7 @@ public sealed class AgentEventBridge : IDisposable
     public void WireAgentEventBroker(EventBroker<AgentEvent> broker, CancellationToken ct)
     {
         var reader = broker.Subscribe(ct);
-        _ = Task.Run(async () =>
+        Task.Run(async () =>
         {
             await foreach (var evt in reader.ReadAllAsync(ct))
             {
@@ -170,7 +171,7 @@ public sealed class AgentEventBridge : IDisposable
                 }
             }
         }, ct)
-        .ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
+        .ObserveExceptions("AgentEventBroker reader");
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

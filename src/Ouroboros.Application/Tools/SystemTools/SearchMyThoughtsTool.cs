@@ -62,7 +62,7 @@ internal class SearchMyThoughtsTool : ITool
 
             return Result<string, string>.Success(sb.ToString());
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
             return Result<string, string>.Failure($"Memory search failed: {ex.Message}");
         }

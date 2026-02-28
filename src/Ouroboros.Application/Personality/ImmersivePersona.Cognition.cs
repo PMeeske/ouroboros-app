@@ -8,6 +8,7 @@
 namespace Ouroboros.Application.Personality;
 
 using System.Text;
+using Ouroboros.Application.Extensions;
 
 /// <summary>
 /// Cognition, memory, replication, and self-description for ImmersivePersona.
@@ -275,7 +276,7 @@ Remember: You are {Identity.Name}. You have a continuous experience. You can ver
         oldCts?.Dispose();
 
         // Poll for autonomous thoughts periodically
-        _ = Task.Run(async () =>
+        Task.Run(async () =>
         {
             while (_isInitialized && !cts.Token.IsCancellationRequested)
             {
@@ -295,6 +296,6 @@ Remember: You are {Identity.Name}. You have a continuous experience. You can ver
                 }
             }
         }, cts.Token)
-        .ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
+        .ObserveExceptions("AutonomousThoughts polling");
     }
 }

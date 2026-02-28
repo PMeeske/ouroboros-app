@@ -42,7 +42,11 @@ public static partial class GitReflectionTools
                     ? Result<string, string>.Success($"\u2705 Proposal `{id}` approved. Use `apply_code_change` to apply it.")
                     : Result<string, string>.Failure($"Proposal `{id}` not found");
             }
-            catch (Exception ex)
+            catch (JsonException ex)
+            {
+                return Result<string, string>.Failure($"Approval failed: {ex.Message}");
+            }
+            catch (InvalidOperationException ex)
             {
                 return Result<string, string>.Failure($"Approval failed: {ex.Message}");
             }

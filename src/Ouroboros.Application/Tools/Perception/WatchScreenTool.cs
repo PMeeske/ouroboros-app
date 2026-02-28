@@ -6,6 +6,7 @@ namespace Ouroboros.Application.Tools;
 
 using System.Drawing;
 using System.Text.Json;
+using Ouroboros.Application.Extensions;
 using Ouroboros.Core.Monads;
 
 public static partial class PerceptionTools
@@ -62,7 +63,7 @@ public static partial class PerceptionTools
                 var screen = System.Windows.Forms.Screen.PrimaryScreen!.Bounds;
 
                 // Start watching in background
-                _ = Task.Run(async () =>
+                Task.Run(async () =>
                 {
                     Bitmap? previousFrame = null;
                     var startTime = DateTime.Now;
@@ -108,7 +109,7 @@ public static partial class PerceptionTools
                         _isWatching = false;
                     }
                 }, linkedCts.Token)
-                .ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
+                .ObserveExceptions("WatchScreen background");
 
                 return Result<string, string>.Success($"👁️ Now watching screen for {durationSeconds}s (interval: {intervalMs}ms, sensitivity: {sensitivity:P0}).\n\nTo stop: call this tool again.\nChanges saved to: `{CaptureDirectory}`");
             }

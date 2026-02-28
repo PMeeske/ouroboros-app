@@ -76,7 +76,11 @@ public static class RoslynAnalyzerTools
                     error => Result<string, string>.Failure(error)
                 );
             }
-            catch (Exception ex)
+            catch (JsonException ex)
+            {
+                return Result<string, string>.Failure($"Failed to analyze code: {ex.Message}");
+            }
+            catch (ArgumentException ex)
             {
                 return Result<string, string>.Failure($"Failed to analyze code: {ex.Message}");
             }
@@ -139,7 +143,11 @@ public static class RoslynAnalyzerTools
 
                 return Task.FromResult(result);
             }
-            catch (Exception ex)
+            catch (JsonException ex)
+            {
+                return Task.FromResult(Result<string, string>.Failure($"Failed to create class: {ex.Message}"));
+            }
+            catch (ArgumentException ex)
             {
                 return Task.FromResult(Result<string, string>.Failure($"Failed to create class: {ex.Message}"));
             }
@@ -181,7 +189,11 @@ public static class RoslynAnalyzerTools
                 Result<string, string> result = _codeTool.AddMethodToClass(code, className, methodSignature, methodBody);
                 return Task.FromResult(result);
             }
-            catch (Exception ex)
+            catch (JsonException ex)
+            {
+                return Task.FromResult(Result<string, string>.Failure($"Failed to add method: {ex.Message}"));
+            }
+            catch (ArgumentException ex)
             {
                 return Task.FromResult(Result<string, string>.Failure($"Failed to add method: {ex.Message}"));
             }
@@ -219,7 +231,11 @@ public static class RoslynAnalyzerTools
                 Result<string, string> result = _codeTool.RenameSymbol(code, oldName, newName);
                 return Task.FromResult(result);
             }
-            catch (Exception ex)
+            catch (JsonException ex)
+            {
+                return Task.FromResult(Result<string, string>.Failure($"Failed to rename symbol: {ex.Message}"));
+            }
+            catch (ArgumentException ex)
             {
                 return Task.FromResult(Result<string, string>.Failure($"Failed to rename symbol: {ex.Message}"));
             }
@@ -259,7 +275,11 @@ public static class RoslynAnalyzerTools
                 Result<string, string> result = _codeTool.ExtractMethod(code, startLine, endLine, newMethodName);
                 return Task.FromResult(result);
             }
-            catch (Exception ex)
+            catch (JsonException ex)
+            {
+                return Task.FromResult(Result<string, string>.Failure($"Failed to extract method: {ex.Message}"));
+            }
+            catch (ArgumentException ex)
             {
                 return Task.FromResult(Result<string, string>.Failure($"Failed to extract method: {ex.Message}"));
             }
@@ -308,7 +328,11 @@ public static class RoslynAnalyzerTools
                     error => Result<string, string>.Failure(error)
                 );
             }
-            catch (Exception ex)
+            catch (JsonException ex)
+            {
+                return Result<string, string>.Failure($"Failed to get code structure: {ex.Message}");
+            }
+            catch (ArgumentException ex)
             {
                 return Result<string, string>.Failure($"Failed to get code structure: {ex.Message}");
             }
@@ -348,7 +372,11 @@ public static class RoslynAnalyzerTools
 
                 return Task.FromResult(Result<string, string>.Success(formatted.ToFullString()));
             }
-            catch (Exception ex)
+            catch (JsonException ex)
+            {
+                return Task.FromResult(Result<string, string>.Failure($"Failed to format code: {ex.Message}"));
+            }
+            catch (ArgumentException ex)
             {
                 return Task.FromResult(Result<string, string>.Failure($"Failed to format code: {ex.Message}"));
             }

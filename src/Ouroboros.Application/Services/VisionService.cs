@@ -76,7 +76,7 @@ public partial class VisionService : IDisposable
 
             return await AnalyzeBase64ImageAsync(base64Image, mimeType, prompt, ct);
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             return VisionResult.Failure($"Failed to read image: {ex.Message}");
         }
@@ -95,7 +95,11 @@ public partial class VisionService : IDisposable
 
             return await AnalyzeBase64ImageAsync(base64Image, "image/png", prompt, ct);
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
+        {
+            return VisionResult.Failure($"Failed to process bitmap: {ex.Message}");
+        }
+        catch (HttpRequestException ex)
         {
             return VisionResult.Failure($"Failed to process bitmap: {ex.Message}");
         }
@@ -119,7 +123,11 @@ public partial class VisionService : IDisposable
             var defaultPrompt = prompt ?? "Describe what you see on this screen. What application is open? What is the user doing? Are there any notable elements?";
             return await AnalyzeBitmapAsync(bitmap, defaultPrompt, ct);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            return VisionResult.Failure($"Screen capture failed: {ex.Message}");
+        }
+        catch (System.ComponentModel.Win32Exception ex)
         {
             return VisionResult.Failure($"Screen capture failed: {ex.Message}");
         }

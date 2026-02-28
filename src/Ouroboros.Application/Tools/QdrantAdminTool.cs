@@ -131,7 +131,11 @@ public sealed partial class QdrantAdminTool : ITool
                 _ => Result<string, string>.Failure($"Unknown command: {command}")
             };
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            return Result<string, string>.Failure($"Qdrant admin error: {ex.Message}");
+        }
+        catch (JsonException ex)
         {
             return Result<string, string>.Failure($"Qdrant admin error: {ex.Message}");
         }

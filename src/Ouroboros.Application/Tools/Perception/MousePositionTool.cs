@@ -25,7 +25,7 @@ public static partial class PerceptionTools
                 GetCursorPos(out POINT point);
                 return Result<string, string>.Success($"🖱️ Mouse position: ({point.X}, {point.Y})");
             }
-            catch (Exception ex)
+            catch (System.ComponentModel.Win32Exception ex)
             {
                 return Result<string, string>.Failure($"Failed to get mouse position: {ex.Message}");
             }

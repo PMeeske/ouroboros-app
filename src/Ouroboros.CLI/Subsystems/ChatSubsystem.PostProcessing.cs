@@ -1,6 +1,7 @@
 // Copyright (c) Ouroboros. All rights reserved.
 namespace Ouroboros.CLI.Subsystems;
 
+using Ouroboros.Application.Extensions;
 using Ouroboros.Application.Services;
 using Ouroboros.Application.Streams;
 using Ouroboros.Application.Tools;
@@ -101,7 +102,7 @@ public sealed partial class ChatSubsystem
 
             if (_memorySub.PersonalityEngine != null && _memorySub.PersonalityEngine.HasMemory)
             {
-                _ = Task.Run(async () =>
+                Task.Run(async () =>
                 {
                     try
                     {
@@ -113,7 +114,7 @@ public sealed partial class ChatSubsystem
                     }
                     catch (HttpRequestException) { }
                 })
-                .ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
+                .ObserveExceptions("StoreConversationMemory");
             }
 
             if (_autonomySub.Coordinator?.IsActive == true && !string.IsNullOrWhiteSpace(input))

@@ -63,7 +63,11 @@ internal class SearchMyCodeTool : ITool
 
             return Result<string, string>.Success(sb.ToString().Trim());
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            return Result<string, string>.Failure($"Code introspection failed: {ex.Message}");
+        }
+        catch (InvalidOperationException ex)
         {
             return Result<string, string>.Failure($"Code introspection failed: {ex.Message}");
         }

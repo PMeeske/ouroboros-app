@@ -56,7 +56,7 @@ internal class DirectoryListTool : ITool
         {
             return Task.FromResult(Result<string, string>.Failure(ex.Message));
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             return Task.FromResult(Result<string, string>.Failure(ex.Message));
         }

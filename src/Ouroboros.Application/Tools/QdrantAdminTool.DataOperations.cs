@@ -92,7 +92,11 @@ public sealed partial class QdrantAdminTool
 
             return Result<string, string>.Success(sb.ToString());
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            return Result<string, string>.Failure($"Fix failed: {ex.Message}");
+        }
+        catch (JsonException ex)
         {
             return Result<string, string>.Failure($"Fix failed: {ex.Message}");
         }
@@ -137,7 +141,11 @@ public sealed partial class QdrantAdminTool
 
             return Result<string, string>.Success(sb.ToString());
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            return Result<string, string>.Failure($"Compact failed: {ex.Message}");
+        }
+        catch (JsonException ex)
         {
             return Result<string, string>.Failure($"Compact failed: {ex.Message}");
         }

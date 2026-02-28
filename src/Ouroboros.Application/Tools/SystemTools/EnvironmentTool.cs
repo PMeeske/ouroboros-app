@@ -48,7 +48,11 @@ internal class EnvironmentTool : ITool
                 _ => Task.FromResult(Result<string, string>.Failure($"Unknown action: {action}"))
             };
         }
-        catch (Exception ex)
+        catch (JsonException ex)
+        {
+            return Task.FromResult(Result<string, string>.Failure(ex.Message));
+        }
+        catch (System.Security.SecurityException ex)
         {
             return Task.FromResult(Result<string, string>.Failure(ex.Message));
         }

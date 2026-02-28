@@ -134,7 +134,7 @@ public partial class FirecrawlResearchTool : ITool
 
             return Result<string, string>.Success($"Search results for '{query}':\n{results}".Trim());
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
             return Result<string, string>.Failure($"DuckDuckGo fallback search failed: {ex.Message}");
         }
@@ -213,7 +213,11 @@ public partial class FirecrawlResearchTool : ITool
 
             return Result<string, string>.Success(results.ToString());
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            return Result<string, string>.Failure($"Firecrawl search failed: {ex.Message}");
+        }
+        catch (JsonException ex)
         {
             return Result<string, string>.Failure($"Firecrawl search failed: {ex.Message}");
         }
@@ -249,7 +253,7 @@ public partial class FirecrawlResearchTool : ITool
 
             return Result<string, string>.Success(content.Length > 20000 ? content[..20000] + "...[truncated]" : content);
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
             return Result<string, string>.Failure($"Failed to fetch URL: {ex.Message}");
         }

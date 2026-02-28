@@ -55,7 +55,11 @@ public class FirecrawlScrapeTool : ITool
             var result = await FirecrawlScrapeInternalAsync(url, apiKey, ct);
             return Result<string, string>.Success(result);
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            return Result<string, string>.Failure($"Firecrawl scrape failed: {ex.Message}");
+        }
+        catch (JsonException ex)
         {
             return Result<string, string>.Failure($"Firecrawl scrape failed: {ex.Message}");
         }

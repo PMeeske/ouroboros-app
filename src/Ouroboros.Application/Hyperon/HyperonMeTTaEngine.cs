@@ -111,7 +111,11 @@ public sealed class HyperonMeTTaEngine : IMeTTaEngine
 
             return Task.FromResult(Result<string, string>.Success(resultStr));
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
+        {
+            return Task.FromResult(Result<string, string>.Failure($"Query failed: {ex.Message}"));
+        }
+        catch (InvalidOperationException ex)
         {
             return Task.FromResult(Result<string, string>.Failure($"Query failed: {ex.Message}"));
         }
@@ -136,7 +140,7 @@ public sealed class HyperonMeTTaEngine : IMeTTaEngine
 
             return Task.FromResult(Result<Unit, string>.Success(Unit.Value));
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
         {
             return Task.FromResult(Result<Unit, string>.Failure($"Failed to add fact: {ex.Message}"));
         }
@@ -231,7 +235,11 @@ public sealed class HyperonMeTTaEngine : IMeTTaEngine
 
             return Task.FromResult(Result<string, string>.Success("Rule added"));
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
+        {
+            return Task.FromResult(Result<string, string>.Failure($"Failed to apply rule: {ex.Message}"));
+        }
+        catch (InvalidOperationException ex)
         {
             return Task.FromResult(Result<string, string>.Failure($"Failed to apply rule: {ex.Message}"));
         }
@@ -262,7 +270,11 @@ public sealed class HyperonMeTTaEngine : IMeTTaEngine
 
             return Task.FromResult(Result<bool, string>.Success(verified));
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
+        {
+            return Task.FromResult(Result<bool, string>.Failure($"Verification failed: {ex.Message}"));
+        }
+        catch (InvalidOperationException ex)
         {
             return Task.FromResult(Result<bool, string>.Failure($"Verification failed: {ex.Message}"));
         }
@@ -313,7 +325,11 @@ public sealed class HyperonMeTTaEngine : IMeTTaEngine
             var results = _interpreter.EvaluateWithBindings(parseResult.Value).ToList();
             return Task.FromResult(Result<IReadOnlyList<(Atom, Substitution)>, string>.Success(results));
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
+        {
+            return Task.FromResult(Result<IReadOnlyList<(Atom, Substitution)>, string>.Failure($"Evaluation failed: {ex.Message}"));
+        }
+        catch (InvalidOperationException ex)
         {
             return Task.FromResult(Result<IReadOnlyList<(Atom, Substitution)>, string>.Failure($"Evaluation failed: {ex.Message}"));
         }

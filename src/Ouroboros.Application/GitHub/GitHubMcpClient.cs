@@ -107,7 +107,11 @@ public sealed partial class GitHubMcpClient : IGitHubMcpClient
 
             return Result<PullRequestInfo, string>.Success(prInfo);
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            return Result<PullRequestInfo, string>.Failure($"Exception creating pull request: {ex.Message}");
+        }
+        catch (JsonException ex)
         {
             return Result<PullRequestInfo, string>.Failure($"Exception creating pull request: {ex.Message}");
         }
@@ -237,7 +241,11 @@ public sealed partial class GitHubMcpClient : IGitHubMcpClient
 
             return Result<CommitInfo, string>.Success(commitInfo);
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            return Result<CommitInfo, string>.Failure($"Exception pushing changes: {ex.Message}");
+        }
+        catch (JsonException ex)
         {
             return Result<CommitInfo, string>.Failure($"Exception pushing changes: {ex.Message}");
         }
@@ -291,7 +299,11 @@ public sealed partial class GitHubMcpClient : IGitHubMcpClient
 
             return Result<IssueInfo, string>.Success(issueInfo);
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            return Result<IssueInfo, string>.Failure($"Exception creating issue: {ex.Message}");
+        }
+        catch (JsonException ex)
         {
             return Result<IssueInfo, string>.Failure($"Exception creating issue: {ex.Message}");
         }

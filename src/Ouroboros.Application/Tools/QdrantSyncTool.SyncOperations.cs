@@ -181,7 +181,12 @@ public sealed partial class QdrantSyncTool
                 totalFailed += failed;
                 sb.AppendLine($"  → Synced {synced} points (encrypted){(failed > 0 ? $" ({failed} failed)" : "")}\n");
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
+            {
+                totalFailed += points;
+                sb.AppendLine($"  → Failed: {ex.Message}\n");
+            }
+            catch (JsonException ex)
             {
                 totalFailed += points;
                 sb.AppendLine($"  → Failed: {ex.Message}\n");

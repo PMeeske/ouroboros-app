@@ -66,7 +66,7 @@ public partial class LocalWebScrapeTool : ITool
         {
             return await ScrapeLocallyAsync(url, includeLinks, maxLength, ct);
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
             return Result<string, string>.Failure($"Scrape failed: {ex.Message}");
         }

@@ -111,7 +111,11 @@ public sealed partial class QdrantSyncTool
                 var status = corrupted > 0 ? "CORRUPTED" : "OK";
                 sb.AppendLine($"  → {status}: {verified} intact, {corrupted} corrupted, {missingHmac} missing HMAC\n");
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
+            {
+                sb.AppendLine($"  → Error: {ex.Message}\n");
+            }
+            catch (JsonException ex)
             {
                 sb.AppendLine($"  → Error: {ex.Message}\n");
             }

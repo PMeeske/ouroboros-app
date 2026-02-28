@@ -4,6 +4,7 @@
 
 using Microsoft.CognitiveServices.Speech;
 using Microsoft.CognitiveServices.Speech.Audio;
+using Ouroboros.Application.Extensions;
 using Ouroboros.CLI.Commands;
 using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Domain.Voice;
@@ -71,8 +72,8 @@ public sealed partial class EnhancedListeningService
             _stream.PublishVoiceInput(text, confidence: 1.0);
 
             // Process asynchronously
-            _ = Task.Run(() => HandleRecognizedTextAsync(text, ct), ct)
-                .ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
+            Task.Run(() => HandleRecognizedTextAsync(text, ct), ct)
+                .ObserveExceptions("HandleRecognizedText Azure");
         };
 
         _recognizer.Canceled += (_, e) =>
@@ -95,11 +96,11 @@ public sealed partial class EnhancedListeningService
             : "Listening (always-on)");
 
         // Keep alive until cancelled — fire-and-forget to avoid sync-over-async in callback
-        ct.Register(() => _ = Task.Run(async () =>
+        ct.Register(() => Task.Run(async () =>
         {
             try { if (_recognizer != null) await _recognizer.StopContinuousRecognitionAsync(); }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Listening] Stop error: {ex.Message}"); }
-        }).ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted));
+        }).ObserveExceptions("StopContinuousRecognition cleanup"));
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -163,8 +164,8 @@ public sealed partial class EnhancedListeningService
                                 if (!string.IsNullOrEmpty(text))
                                 {
                                     _stream.PublishVoiceInput(text, confidence: 0.8);
-                                    _ = Task.Run(() => HandleRecognizedTextAsync(text, ct), ct)
-                                        .ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
+                                    Task.Run(() => HandleRecognizedTextAsync(text, ct), ct)
+                                        .ObserveExceptions("HandleRecognizedText Whisper");
                                 }
                             },
                             error => _output.WriteDebug($"Whisper error: {error}"));

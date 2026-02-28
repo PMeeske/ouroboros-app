@@ -26,7 +26,11 @@ public partial class VisionService
                 _ => await AnalyzeWithOllamaAsync(base64Image, prompt, ct),
             };
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            return VisionResult.Failure($"Vision analysis failed: {ex.Message}");
+        }
+        catch (JsonException ex)
         {
             return VisionResult.Failure($"Vision analysis failed: {ex.Message}");
         }

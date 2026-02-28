@@ -59,7 +59,11 @@ public class EpisodicMemoryTool : ITool
                 _ => Result<string, string>.Failure($"Unknown action: {action}")
             };
         }
-        catch (Exception ex)
+        catch (JsonException ex)
+        {
+            return Result<string, string>.Failure($"Episodic memory error: {ex.Message}");
+        }
+        catch (KeyNotFoundException ex)
         {
             return Result<string, string>.Failure($"Episodic memory error: {ex.Message}");
         }

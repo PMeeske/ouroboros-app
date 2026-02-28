@@ -57,7 +57,7 @@ internal class PersistSelfTool : ITool
 
             return Result<string, string>.Failure("Failed to persist state to Qdrant.");
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
             return Result<string, string>.Failure($"Self-persistence failed: {ex.Message}");
         }

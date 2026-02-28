@@ -43,7 +43,7 @@ internal class SystemInfoTool : ITool
 
             return Task.FromResult(Result<string, string>.Success(sb.ToString()));
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return Task.FromResult(Result<string, string>.Failure(ex.Message));
         }

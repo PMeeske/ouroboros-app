@@ -70,7 +70,7 @@ internal class ModifyMyCodeTool : ITool
         {
             return Result<string, string>.Failure(ex.Message);
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             return Result<string, string>.Failure($"Self-modification failed: {ex.Message}");
         }

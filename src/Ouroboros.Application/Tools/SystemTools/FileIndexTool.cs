@@ -66,7 +66,11 @@ internal class FileIndexTool : ITool
                     $"Indexed directory '{path}' -> {totalChunks} chunks in {elapsed.TotalSeconds:F1}s");
             }
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            return Result<string, string>.Failure($"Indexing failed: {ex.Message}");
+        }
+        catch (IOException ex)
         {
             return Result<string, string>.Failure($"Indexing failed: {ex.Message}");
         }

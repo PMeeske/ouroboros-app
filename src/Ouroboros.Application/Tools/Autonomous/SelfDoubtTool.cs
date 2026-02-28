@@ -70,7 +70,11 @@ If the response seems solid, acknowledge that too.";
 
             return Result<string, string>.Success(sb.ToString());
         }
-        catch (Exception ex)
+        catch (JsonException ex)
+        {
+            return Result<string, string>.Failure($"Self-doubt failed: {ex.Message}");
+        }
+        catch (HttpRequestException ex)
         {
             return Result<string, string>.Failure($"Self-doubt failed: {ex.Message}");
         }

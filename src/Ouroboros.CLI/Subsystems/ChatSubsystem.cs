@@ -4,6 +4,7 @@ namespace Ouroboros.CLI.Subsystems;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
+using Ouroboros.Application.Extensions;
 using Ouroboros.Application.Personality;
 using Ouroboros.Application.Services;
 using Ouroboros.Application.Streams;
@@ -145,7 +146,7 @@ public sealed partial class ChatSubsystem : IChatSubsystem
                 var mind = ctx.Autonomy.AutonomousMind;
                 if (mind != null)
                 {
-                    _ = Task.Run(async () =>
+                    Task.Run(async () =>
                     {
                         try
                         {
@@ -173,7 +174,7 @@ public sealed partial class ChatSubsystem : IChatSubsystem
                         catch (OperationCanceledException) { }
                         catch (HttpRequestException) { }
                     })
-                    .ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
+                    .ObserveExceptions("CuriosityEngine exploration");
                 }
             }
             catch (InvalidOperationException) { /* curiosity system initialization failed */ }

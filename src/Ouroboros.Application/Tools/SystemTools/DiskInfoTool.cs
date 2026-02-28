@@ -44,7 +44,7 @@ internal class DiskInfoTool : ITool
 
             return Task.FromResult(Result<string, string>.Success(sb.ToString()));
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             return Task.FromResult(Result<string, string>.Failure(ex.Message));
         }

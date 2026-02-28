@@ -70,7 +70,11 @@ public static partial class PerceptionTools
 
                 return Result<string, string>.Success($"📸 Screenshot captured!\n\nSaved to: `{filepath}`\nSize: {captureBounds.Width}x{captureBounds.Height}\nMonitor: {monitor}");
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
+            {
+                return Result<string, string>.Failure($"Screen capture failed: {ex.Message}");
+            }
+            catch (System.ComponentModel.Win32Exception ex)
             {
                 return Result<string, string>.Failure($"Screen capture failed: {ex.Message}");
             }

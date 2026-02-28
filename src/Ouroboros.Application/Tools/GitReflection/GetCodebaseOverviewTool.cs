@@ -34,7 +34,11 @@ public static partial class GitReflectionTools
                 string overview = await service.GetCodebaseOverviewAsync(ct);
                 return Result<string, string>.Success(overview);
             }
-            catch (Exception ex)
+            catch (IOException ex)
+            {
+                return Result<string, string>.Failure($"Failed to get codebase overview: {ex.Message}");
+            }
+            catch (InvalidOperationException ex)
             {
                 return Result<string, string>.Failure($"Failed to get codebase overview: {ex.Message}");
             }

@@ -67,7 +67,11 @@ internal class NetworkInfoTool : ITool
 
             return Result<string, string>.Success(output);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            return Result<string, string>.Failure(ex.Message);
+        }
+        catch (System.ComponentModel.Win32Exception ex)
         {
             return Result<string, string>.Failure(ex.Message);
         }

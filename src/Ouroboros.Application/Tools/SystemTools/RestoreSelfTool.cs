@@ -54,7 +54,7 @@ internal class RestoreSelfTool : ITool
 
             return Result<string, string>.Success(sb.ToString());
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
             return Result<string, string>.Failure($"Self-restoration failed: {ex.Message}");
         }

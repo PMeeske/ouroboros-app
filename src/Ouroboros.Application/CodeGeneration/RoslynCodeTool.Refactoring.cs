@@ -98,7 +98,11 @@ public partial class RoslynCodeTool
 
             return Result<string, string>.Success(formatted.ToFullString());
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
+        {
+            return Result<string, string>.Failure($"Extract method failed: {ex.Message}");
+        }
+        catch (InvalidOperationException ex)
         {
             return Result<string, string>.Failure($"Extract method failed: {ex.Message}");
         }
@@ -152,7 +156,11 @@ Respond with only the C# code, no explanations.";
 
             return Result<string, string>.Success(code);
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            return Result<string, string>.Failure($"Code generation failed: {ex.Message}");
+        }
+        catch (InvalidOperationException ex)
         {
             return Result<string, string>.Failure($"Code generation failed: {ex.Message}");
         }
@@ -209,7 +217,7 @@ namespace Ouroboros.SourceGenerators
 
             return Result<string, string>.Success(sourceGeneratorCode);
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
         {
             return Result<string, string>.Failure($"Generator creation failed: {ex.Message}");
         }
@@ -267,7 +275,11 @@ namespace Ouroboros.SourceGenerators
             SyntaxNode? newRoot = await newDocument.GetSyntaxRootAsync();
             return Result<string, string>.Success(newRoot?.ToFullString() ?? code);
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
+        {
+            return Result<string, string>.Failure($"Fix failed: {ex.Message}");
+        }
+        catch (InvalidOperationException ex)
         {
             return Result<string, string>.Failure($"Fix failed: {ex.Message}");
         }

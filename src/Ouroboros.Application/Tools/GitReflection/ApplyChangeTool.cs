@@ -42,7 +42,11 @@ public static partial class GitReflectionTools
                     ? Result<string, string>.Success($"\u2705 {result.Message}\n\n\u26A0\uFE0F Note: Run `dotnet build` to verify changes compile correctly.")
                     : Result<string, string>.Failure(result.Message);
             }
-            catch (Exception ex)
+            catch (JsonException ex)
+            {
+                return Result<string, string>.Failure($"Apply failed: {ex.Message}");
+            }
+            catch (InvalidOperationException ex)
             {
                 return Result<string, string>.Failure($"Apply failed: {ex.Message}");
             }

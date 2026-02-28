@@ -42,7 +42,7 @@ internal class FileWriteTool : ITool
         {
             return Result<string, string>.Failure(ex.Message);
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             return Result<string, string>.Failure(ex.Message);
         }

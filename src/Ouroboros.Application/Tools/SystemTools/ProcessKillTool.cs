@@ -39,7 +39,11 @@ internal class ProcessKillTool : ITool
                 return Task.FromResult(Result<string, string>.Success($"Killed {processes.Length} process(es) named '{trimmed}'"));
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            return Task.FromResult(Result<string, string>.Failure(ex.Message));
+        }
+        catch (System.ComponentModel.Win32Exception ex)
         {
             return Task.FromResult(Result<string, string>.Failure(ex.Message));
         }

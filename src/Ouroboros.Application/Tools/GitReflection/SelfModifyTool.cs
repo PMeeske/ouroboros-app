@@ -74,7 +74,11 @@ public static partial class GitReflectionTools
                     return Result<string, string>.Failure(result.Message);
                 }
             }
-            catch (Exception ex)
+            catch (JsonException ex)
+            {
+                return Result<string, string>.Failure($"Self-modification failed: {ex.Message}");
+            }
+            catch (InvalidOperationException ex)
             {
                 return Result<string, string>.Failure($"Self-modification failed: {ex.Message}");
             }

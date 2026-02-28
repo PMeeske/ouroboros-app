@@ -57,7 +57,11 @@ public static partial class PerceptionTools
 
                 return Result<string, string>.Success(info.ToString());
             }
-            catch (Exception ex)
+            catch (IOException ex)
+            {
+                return Result<string, string>.Failure($"Image analysis failed: {ex.Message}");
+            }
+            catch (HttpRequestException ex)
             {
                 return Result<string, string>.Failure($"Image analysis failed: {ex.Message}");
             }

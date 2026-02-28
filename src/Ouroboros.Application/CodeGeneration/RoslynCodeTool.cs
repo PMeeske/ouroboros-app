@@ -84,7 +84,7 @@ public partial class RoslynCodeTool
 
             return Result<CodeAnalysisResult, string>.Success(result);
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
         {
             return Result<CodeAnalysisResult, string>.Failure($"Code analysis failed: {ex.Message}");
         }
@@ -186,7 +186,7 @@ public partial class RoslynCodeTool
 
             return Result<string, string>.Success(code);
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
         {
             return Result<string, string>.Failure($"Class creation failed: {ex.Message}");
         }
@@ -228,7 +228,7 @@ public partial class RoslynCodeTool
 
             return Result<string, string>.Success(formatted.ToFullString());
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
         {
             return Result<string, string>.Failure($"Failed to add method: {ex.Message}");
         }
@@ -265,7 +265,7 @@ public partial class RoslynCodeTool
             SyntaxNode formatted = Formatter.Format(currentRoot, _workspace);
             return Result<string, string>.Success(formatted.ToFullString());
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
         {
             return Result<string, string>.Failure($"Rename failed: {ex.Message}");
         }

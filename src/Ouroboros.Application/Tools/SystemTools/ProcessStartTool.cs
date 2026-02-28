@@ -70,7 +70,11 @@ internal class ProcessStartTool : ITool
 
             return Result<string, string>.Success($"Started {program} (PID: {process.Id})");
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            return Result<string, string>.Failure(ex.Message);
+        }
+        catch (System.ComponentModel.Win32Exception ex)
         {
             return Result<string, string>.Failure(ex.Message);
         }

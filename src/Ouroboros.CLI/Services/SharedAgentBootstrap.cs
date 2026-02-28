@@ -3,6 +3,7 @@ namespace Ouroboros.CLI.Services;
 
 using LangChain.Providers.Ollama;
 using Ouroboros.Agent.MetaAI;
+using Ouroboros.Application.Extensions;
 using Ouroboros.Agent.NeuralSymbolic;
 using Ouroboros.Application.Personality;
 using Ouroboros.Application.Services;
@@ -143,7 +144,7 @@ public static partial class SharedAgentBootstrap
 
             if (mind != null)
             {
-                _ = Task.Run(async () =>
+                Task.Run(async () =>
                 {
                     try
                     {
@@ -178,7 +179,7 @@ public static partial class SharedAgentBootstrap
                         // exploration loop ended (transient failure)
                     }
                 }, ct)
-                .ContinueWith(t => System.Diagnostics.Debug.WriteLine($"Fire-and-forget fault: {t.Exception}"), TaskContinuationOptions.OnlyOnFaulted);
+                .ObserveExceptions("CuriosityEngine exploration");
             }
         }
         catch (InvalidOperationException)

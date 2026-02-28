@@ -85,7 +85,11 @@ To use this tool:
 {code.Substring(0, Math.Min(500, code.Length))}...
 ```");
         }
-        catch (Exception ex)
+        catch (IOException ex)
+        {
+            return Result<string, string>.Failure($"Tool creation failed: {ex.Message}");
+        }
+        catch (JsonException ex)
         {
             return Result<string, string>.Failure($"Tool creation failed: {ex.Message}");
         }

@@ -49,7 +49,7 @@ public static partial class PerceptionTools
 
                 return Result<string, string>.Success(sb.ToString());
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 return Result<string, string>.Failure($"Vision failed: {ex.Message}");
             }
@@ -105,7 +105,11 @@ public static partial class PerceptionTools
 
                 return Result<string, string>.Success(sb.ToString());
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
+            {
+                return Result<string, string>.Failure($"Image analysis failed: {ex.Message}");
+            }
+            catch (IOException ex)
             {
                 return Result<string, string>.Failure($"Image analysis failed: {ex.Message}");
             }
@@ -145,7 +149,7 @@ public static partial class PerceptionTools
 
                 return Result<string, string>.Success(sb.ToString());
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 return Result<string, string>.Failure($"OCR failed: {ex.Message}");
             }
@@ -183,7 +187,7 @@ public static partial class PerceptionTools
 
                 return Result<string, string>.Success(sb.ToString());
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 return Result<string, string>.Failure($"Activity analysis failed: {ex.Message}");
             }
@@ -228,7 +232,7 @@ public static partial class PerceptionTools
 
                 return Result<string, string>.Success(sb.ToString());
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 return Result<string, string>.Failure($"Detection failed: {ex.Message}");
             }

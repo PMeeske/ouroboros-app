@@ -88,7 +88,12 @@ public sealed partial class QdrantAdminTool
                     var testEmbed = await _embedFunc("test", ct);
                     currentDim = testEmbed.Length;
                 }
-                catch (Exception ex)
+                catch (HttpRequestException ex)
+                {
+                    issues.Add($"Embedding function error: {ex.Message}");
+                    recommendations.Add("Check embedding model configuration");
+                }
+                catch (InvalidOperationException ex)
                 {
                     issues.Add($"Embedding function error: {ex.Message}");
                     recommendations.Add("Check embedding model configuration");
