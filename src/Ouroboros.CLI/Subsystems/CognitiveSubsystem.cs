@@ -145,7 +145,7 @@ public sealed partial class CognitiveSubsystem : ICognitiveSubsystem
 
             ImmersivePersona.ConsciousnessShift += (_, e) =>
             {
-                AnsiConsole.MarkupLine($"\n[rgb(128,0,180)]  [consciousness] Emotional shift: {Markup.Escape(e.NewEmotion ?? "?")} (Δ arousal: {e.ArousalChange:+0.00;-0.00})[/]");
+                AnsiConsole.MarkupLine($"\n[rgb(128,0,180)]  [[consciousness]] Emotional shift: {Markup.Escape(e.NewEmotion ?? "?")} (Δ arousal: {e.ArousalChange:+0.00;-0.00})[/]");
             };
 
             await ImmersivePersona.AwakenAsync();
