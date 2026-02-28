@@ -128,7 +128,7 @@ public sealed partial class RoomMode
         // RoomMode always creates its own model instance — it must NOT share the ImmersiveMode
         // model instance because concurrent calls on the same object corrupt the conversation state.
         // Both will call the same Ollama endpoint; the endpoint handles concurrency correctly.
-        var settings = new ChatRuntimeSettings(0.8, 256, 60, false);
+        var settings = new ChatRuntimeSettings(0.8, 0, 60, false);
         IChatCompletionModel chatModel = new OllamaCloudChatModel(endpoint, "ollama", model, settings);
 
         // ─── 9. CognitivePhysics & Phi (via SharedAgentBootstrap) ──────────────

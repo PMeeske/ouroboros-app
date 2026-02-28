@@ -23,7 +23,7 @@ public sealed class ModelOptions : IComposableOptions
     public Option<int> MaxTokensOption { get; } = new("--max-tokens")
     {
         Description = "Max tokens for completion",
-        DefaultValueFactory = _ => 2048
+        DefaultValueFactory = _ => 0
     };
 
     public Option<int> TimeoutSecondsOption { get; } = new("--timeout")

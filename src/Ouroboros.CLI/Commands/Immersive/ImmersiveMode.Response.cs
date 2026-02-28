@@ -30,7 +30,7 @@ public sealed partial class ImmersiveMode
             }
         }
 
-        var settings = new ChatRuntimeSettings(0.8, 1024, 120, false);
+        var settings = new ChatRuntimeSettings(0.8, 0, 120, false);
 
         // Try remote CHAT_ENDPOINT if configured
         string? endpoint = Environment.GetEnvironmentVariable("CHAT_ENDPOINT");

@@ -30,7 +30,7 @@ public sealed record OuroborosConfig(
     bool Debug = false,
     OutputVerbosity Verbosity = OutputVerbosity.Normal,
     double Temperature = 0.7,
-    int MaxTokens = 2048,
+    int MaxTokens = 0,
     string? Culture = null,
     // Feature toggles - all enabled by default
     bool EnableSkills = true,
