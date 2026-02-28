@@ -177,7 +177,8 @@ public static partial class SkillCliSteps
                 s.Context = string.Join("\n", entries.Select(e =>
                     e.Element(atom + "title")?.Value?.Trim() ?? "Untitled"));
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (InvalidOperationException ex)
             {
                 Console.WriteLine($"[FetchSkill] ⚠ Failed: {ex.Message}");
                 s.Output = $"Failed to fetch research: {ex.Message}";
@@ -298,7 +299,8 @@ public static partial class SkillCliSteps
                 s.Output = result;
                 s.Context = $"[{skill.Name}] {result}";
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (InvalidOperationException ex)
             {
                 _registry.Value.RecordSkillExecution(skill.Name, false, 0L);
                 Console.WriteLine($"[UseSkill_{skill.Name}] ⚠ Failed: {ex.Message}");

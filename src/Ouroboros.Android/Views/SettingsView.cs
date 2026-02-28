@@ -243,7 +243,7 @@ public class SettingsView : ContentPage
                 await historyService.ClearHistoryAsync();
                 await DisplayAlert("Success", "Command history cleared successfully.", "OK");
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 await DisplayAlert("Error", $"Failed to clear history: {ex.Message}", "OK");
             }

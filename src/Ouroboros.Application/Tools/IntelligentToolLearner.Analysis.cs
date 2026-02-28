@@ -83,7 +83,12 @@ Respond in JSON format:
 
             return (safeName + "_tool", $"Tool to accomplish: {goal}");
         }
-        catch (Exception)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException)
+        {
+            return ("dynamic_tool", goal);
+        }
+        catch (InvalidOperationException)
         {
             return ("dynamic_tool", goal);
         }
@@ -180,7 +185,8 @@ Respond in JSON format:
 ";
             await _mettaEngine.AddFactAsync(rules, ct);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
         {
             Console.Error.WriteLine($"[WARN] MeTTa initialization failed: {ex.Message}");
         }

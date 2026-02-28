@@ -190,7 +190,8 @@ public static partial class MeTTaCliSteps
 
                 if (s.Trace) Console.WriteLine($"[file] Loaded {fileName} ({content.Length} chars)");
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (InvalidOperationException ex)
             {
                 Console.WriteLine($"[file] Error reading file: {ex.Message}");
             }

@@ -31,7 +31,11 @@ public sealed class GlobalExceptionMiddleware
         {
             await _next(context);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             var correlationId = context.Items["CorrelationId"]?.ToString();
             _logger.LogError(ex, "Unhandled exception processing {Method} {Path} (CorrelationId: {CorrelationId})",

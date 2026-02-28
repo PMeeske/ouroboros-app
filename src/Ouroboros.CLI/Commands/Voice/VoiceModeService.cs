@@ -2,6 +2,7 @@
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
+using System.Net.Http;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using Ouroboros.CLI.Avatar;
@@ -168,7 +169,7 @@ public sealed partial class VoiceModeService : IDisposable
                 _ttsService = _azureTts;
                 AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok("[OK]")} TTS initialized (Azure Neural - Jenny/Cortana-like)");
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
                 AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} ✗ Azure TTS failed: {Markup.Escape(ex.Message)}[/]");
@@ -185,7 +186,7 @@ public sealed partial class VoiceModeService : IDisposable
             _edgeTts = new EdgeTtsService(edgeVoice);
             AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok("[OK]")} Edge TTS fallback ready (Microsoft Neural - free, no rate limits)");
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             var face0 = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
             AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face0)} ✗ Edge TTS init failed: {Markup.Escape(ex.Message)}[/]");
@@ -208,7 +209,7 @@ public sealed partial class VoiceModeService : IDisposable
                     AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok("[OK]")} Local TTS fallback ready (Windows SAPI - Microsoft Zira)");
                 }
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 var face1 = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
                 AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face1)} ✗ Local TTS failed: {Markup.Escape(ex.Message)}[/]");
@@ -223,7 +224,12 @@ public sealed partial class VoiceModeService : IDisposable
                 _ttsService = new OpenAiTextToSpeechService(openAiKey!);
                 AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok("[OK]")} TTS initialized (OpenAI - voice: {Markup.Escape(_persona.Voice)})");
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
+            {
+                var face2 = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+                AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face2)} ✗ Cloud TTS failed: {Markup.Escape(ex.Message)}[/]");
+            }
+            catch (InvalidOperationException ex)
             {
                 var face2 = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
                 AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face2)} ✗ Cloud TTS failed: {Markup.Escape(ex.Message)}[/]");
@@ -280,7 +286,7 @@ public sealed partial class VoiceModeService : IDisposable
                 }
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             var face3 = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
             AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face3)} ✗ STT init failed: {Markup.Escape(ex.Message)}[/]");

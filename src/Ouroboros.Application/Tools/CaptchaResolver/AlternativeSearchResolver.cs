@@ -97,7 +97,8 @@ public class AlternativeSearchResolver : ICaptchaResolverStrategy
 
                 errors.Add($"{engineName}: No results extracted");
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
             {
                 errors.Add($"{GetEngineName(engineTemplate)}: {ex.Message}");
             }

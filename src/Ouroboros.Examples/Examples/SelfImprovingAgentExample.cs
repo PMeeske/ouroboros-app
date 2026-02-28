@@ -262,7 +262,7 @@ public static class SelfImprovingAgentExample
             orchestrator.LearnFromExecution(verification);
             Console.WriteLine($"✓ Learning completed (skill extraction triggered if quality > 80%)");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Console.WriteLine($"✗ Error: {ex.Message}");
         }

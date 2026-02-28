@@ -160,7 +160,7 @@ public sealed partial class ImmersivePersona
                 result.EnrichedInput = $"[Symbolic context: {string.Join(", ", result.SymbolicThoughts.Take(3))}]\n{input}";
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             // Symbolic processing failures are non-fatal
             result.SymbolicThoughts.Add($"symbolic-processing-note: {ex.Message}");

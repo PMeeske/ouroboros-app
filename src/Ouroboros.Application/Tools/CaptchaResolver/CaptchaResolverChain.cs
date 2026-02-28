@@ -97,7 +97,7 @@ public class CaptchaResolverChain
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 errors.Add($"{strategy.Name}: Exception - {ex.Message}");
             }

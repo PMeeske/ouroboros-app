@@ -102,7 +102,7 @@ public sealed class AvatarVideoStream(
             {
                 break;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 logger?.LogWarning(ex, "Error in avatar perception loop");
             }

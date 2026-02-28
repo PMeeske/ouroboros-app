@@ -33,9 +33,5 @@ public sealed class OpenClawCronListTool : ITool
         {
             return Result<string, string>.Failure($"Gateway error: {ex.Message}");
         }
-        catch (Exception ex)
-        {
-            return Result<string, string>.Failure($"Failed to list cron jobs: {ex.Message}");
-        }
     }
 }

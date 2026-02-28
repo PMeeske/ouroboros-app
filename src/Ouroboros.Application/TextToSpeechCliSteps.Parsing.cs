@@ -53,7 +53,8 @@ public static partial class TextToSpeechCliSteps
                 response = await s.Llm.InnerModel.GenerateTextAsync(config.Text);
                 Console.WriteLine($"[LLM] {TruncateText(response, 200)}");
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[tts] LLM error: {ex.Message}");
                 return s;

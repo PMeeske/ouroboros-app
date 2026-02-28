@@ -73,7 +73,8 @@ public static class AgentCliSteps
                     Console.WriteLine($"[AutoAgent] LLM responded: {agentResponse.Length} chars");
                     if (s.Trace) Console.WriteLine($"[AutoAgent] Response: {StringHelpers.TruncateForDisplay(agentResponse, 300)}");
                 }
-                catch (Exception ex)
+                catch (OperationCanceledException) { throw; }
+            catch (HttpRequestException ex)
                 {
                     Console.WriteLine($"[AutoAgent] LLM error: {ex.Message}");
                     if (s.Trace) Console.WriteLine($"[AutoAgent] Stack: {ex.StackTrace}");

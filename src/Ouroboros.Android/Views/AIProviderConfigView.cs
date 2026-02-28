@@ -794,41 +794,49 @@ public class AIProviderConfigView : ContentPage
         {
             client.DefaultRequestHeaders.Clear();
             client.DefaultRequestHeaders.Add("api-key", config.ApiKey);
-            
+
             var url = $"{config.Endpoint}/openai/deployments?api-version=2023-05-15";
             var response = await client.GetAsync(url);
-            
+
             if (response.IsSuccessStatusCode)
             {
-                return new TestConnectionResult 
-                { 
-                    Success = true, 
-                    Message = "Successfully connected to Azure OpenAI" 
+                return new TestConnectionResult
+                {
+                    Success = true,
+                    Message = "Successfully connected to Azure OpenAI"
                 };
             }
             else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {
-                return new TestConnectionResult 
-                { 
-                    Success = false, 
-                    Message = "Authentication failed - check API key" 
+                return new TestConnectionResult
+                {
+                    Success = false,
+                    Message = "Authentication failed - check API key"
                 };
             }
             else
             {
-                return new TestConnectionResult 
-                { 
-                    Success = false, 
-                    Message = $"Connection failed: {response.StatusCode}" 
+                return new TestConnectionResult
+                {
+                    Success = false,
+                    Message = $"Connection failed: {response.StatusCode}"
                 };
             }
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
-            return new TestConnectionResult 
-            { 
-                Success = false, 
-                Message = $"Error: {ex.Message}" 
+            return new TestConnectionResult
+            {
+                Success = false,
+                Message = $"Error: {ex.Message}"
+            };
+        }
+        catch (TaskCanceledException)
+        {
+            return new TestConnectionResult
+            {
+                Success = false,
+                Message = "Connection timeout - check endpoint and network"
             };
         }
     }

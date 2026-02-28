@@ -118,7 +118,8 @@ public static partial class SkillCliSteps
                     }
                 }
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (InvalidOperationException ex)
             {
                 Console.WriteLine($"[ReorganizeKnowledge] ❌ Error: {ex.Message}");
                 s.Output = $"Reorganization failed: {ex.Message}";

@@ -33,7 +33,12 @@ public static partial class GitReflectionCliSteps
                 s.Output = $"Branch: {branch}\n{status}";
                 s.Context = $"On branch {branch}";
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (InvalidOperationException ex)
+            {
+                Console.WriteLine($"[git] Status failed: {ex.Message}");
+            }
+            catch (System.ComponentModel.Win32Exception ex)
             {
                 Console.WriteLine($"[git] Status failed: {ex.Message}");
             }
@@ -72,7 +77,12 @@ public static partial class GitReflectionCliSteps
 
                 s.Output = result.Message;
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (InvalidOperationException ex)
+            {
+                Console.WriteLine($"[git] Branch creation failed: {ex.Message}");
+            }
+            catch (System.ComponentModel.Win32Exception ex)
             {
                 Console.WriteLine($"[git] Branch creation failed: {ex.Message}");
             }
@@ -111,7 +121,12 @@ public static partial class GitReflectionCliSteps
 
                 s.Output = result.Message;
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (InvalidOperationException ex)
+            {
+                Console.WriteLine($"[git] Commit failed: {ex.Message}");
+            }
+            catch (System.ComponentModel.Win32Exception ex)
             {
                 Console.WriteLine($"[git] Commit failed: {ex.Message}");
             }
@@ -150,7 +165,12 @@ public static partial class GitReflectionCliSteps
                 Console.WriteLine(sb.ToString());
                 s.Output = sb.ToString();
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (InvalidOperationException ex)
+            {
+                Console.WriteLine($"[git] Log failed: {ex.Message}");
+            }
+            catch (System.ComponentModel.Win32Exception ex)
             {
                 Console.WriteLine($"[git] Log failed: {ex.Message}");
             }

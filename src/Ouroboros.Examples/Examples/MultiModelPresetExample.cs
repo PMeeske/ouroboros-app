@@ -121,7 +121,7 @@ public static class MultiModelPresetExample
                     string response = await orchestrator.GenerateTextAsync(prompt);
                     Console.WriteLine($"Response: {response[..Math.Min(200, response.Length)]}...\n");
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     if (ex.Message.Contains("Connection refused"))
                     {

@@ -1,3 +1,4 @@
+using System.Net.Http;
 using System.Text;
 using MediatR;
 using Ouroboros.CLI.Commands;
@@ -44,7 +45,11 @@ public sealed class LearnTopicHandler : IRequestHandler<LearnTopicRequest, strin
                 research = response;
                 sb.AppendLine($"\n\ud83d\udcda Research Summary:\n{response[..Math.Min(500, response.Length)]}...");
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
+            {
+                sb.AppendLine($"\u26a0 Research phase had issues: {ex.Message}");
+            }
+            catch (InvalidOperationException ex)
             {
                 sb.AppendLine($"\u26a0 Research phase had issues: {ex.Message}");
             }
@@ -64,7 +69,7 @@ public sealed class LearnTopicHandler : IRequestHandler<LearnTopicRequest, strin
                     },
                     error => sb.AppendLine($"\u26a0 Tool creation: {error}"));
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 sb.AppendLine($"\u26a0 Tool learner: {ex.Message}");
             }
@@ -106,7 +111,7 @@ public sealed class LearnTopicHandler : IRequestHandler<LearnTopicRequest, strin
                     sb.AppendLine($"\n\u21ba Updated existing skill: '{skillName}'");
                 }
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 sb.AppendLine($"\u26a0 Skill registration: {ex.Message}");
             }
@@ -129,7 +134,7 @@ public sealed class LearnTopicHandler : IRequestHandler<LearnTopicRequest, strin
 
                 sb.AppendLine($"\n\ud83e\udde0 Added to MeTTa knowledge base: {atomName}");
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 sb.AppendLine($"\u26a0 MeTTa: {ex.Message}");
             }

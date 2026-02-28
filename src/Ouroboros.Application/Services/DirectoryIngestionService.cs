@@ -54,7 +54,8 @@ public static class DirectoryIngestionService
                 Stats = stats
             });
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (IOException ex)
         {
             return Result<DirectoryIngestionResult>.Failure(
                 $"Directory ingestion failed: {ex.Message}");

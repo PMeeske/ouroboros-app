@@ -52,7 +52,7 @@ public sealed class BrowserOpenHandler : IPcNodeCapabilityHandler
             Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
             return Task.FromResult(PcNodeResult.Ok($"Opened URL: {url}"));
         }
-        catch (Exception ex)
+        catch (System.ComponentModel.Win32Exception ex)
         {
             return Task.FromResult(PcNodeResult.Fail($"Failed to open URL: {ex.Message}"));
         }

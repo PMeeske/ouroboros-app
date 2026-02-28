@@ -134,7 +134,7 @@ public class VisionCaptchaResolver : ICaptchaResolverStrategy
                 },
                 error => new CaptchaResolutionResult(false, ErrorMessage: $"Vision analysis failed: {error}"));
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return new CaptchaResolutionResult(false, ErrorMessage: $"Vision resolver error: {ex.Message}");
         }

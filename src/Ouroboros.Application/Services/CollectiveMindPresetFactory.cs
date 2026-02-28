@@ -54,7 +54,7 @@ public static class CollectiveMindPresetFactory
             {
                 mind.AddPathway(pathwayName, endpointType, slot.ModelName, endpoint, apiKey, slotSettings);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 Console.WriteLine($"  [preset] Could not add pathway '{pathwayName}' ({slot.ProviderType}:{slot.ModelName}): {ex.Message}");
             }

@@ -251,7 +251,7 @@ public sealed class OuroborosCore : IOuroborosCore
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             stopwatch.Stop();
 
@@ -345,7 +345,7 @@ public sealed class OuroborosCore : IOuroborosCore
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return Result<LearningResult, string>.Failure(
                 $"Learning failed: {ex.Message}");
@@ -460,7 +460,7 @@ public sealed class OuroborosCore : IOuroborosCore
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return Result<ReasoningResult, string>.Failure(
                 $"Reasoning failed: {ex.Message}");

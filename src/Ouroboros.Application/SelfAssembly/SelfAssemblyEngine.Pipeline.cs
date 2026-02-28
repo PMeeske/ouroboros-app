@@ -122,7 +122,7 @@ public sealed partial class SelfAssemblyEngine
 
             NeuronAssembled?.Invoke(this, new NeuronAssembledEvent(proposalId, proposal.Blueprint.Name, compileResult.Value!, DateTime.UtcNow));
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _proposals[proposalId] = proposal with { Status = AssemblyProposalStatus.Failed };
             RecordState(proposalId, AssemblyProposalStatus.Failed, $"Unexpected error: {ex.Message}");
@@ -195,7 +195,7 @@ public sealed partial class SelfAssemblyEngine
         {
             return Result<Unit>.Failure("Sandbox test timed out");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return Result<Unit>.Failure($"Sandbox test failed: {ex.Message}");
         }

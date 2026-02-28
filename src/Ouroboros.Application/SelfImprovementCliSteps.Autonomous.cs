@@ -107,7 +107,8 @@ Each step should be clear and actionable.";
                             s = await step(s);
                             results.AppendLine($"✓ {dsl}");
                         }
-                        catch (Exception ex)
+                        catch (OperationCanceledException) { throw; }
+            catch (HttpRequestException ex)
                         {
                             results.AppendLine($"✗ {dsl}: {ex.Message}");
                         }

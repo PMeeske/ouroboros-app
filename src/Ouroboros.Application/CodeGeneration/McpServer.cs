@@ -251,7 +251,7 @@ public partial class McpServer
                 Content = $"HTTP request failed: {ex.Message}"
             };
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return new McpToolResult
             {

@@ -1,3 +1,4 @@
+using System.Net.Http;
 using LangChain.DocumentLoaders;
 using LangChain.Providers.Ollama;
 using Ouroboros.Application.Configuration;
@@ -83,7 +84,7 @@ public static class PipelineCommands
                         m.Settings = OllamaPresets.Phi3MiniGeneral;
                     }
                 }
-                catch (Exception) { /* non-fatal: fall back to provider defaults */ }
+                catch (InvalidOperationException) { /* non-fatal: fall back to provider defaults */ }
                 return new OllamaChatAdapter(m, settings?.Culture);
             }
             string general = pipelineOpts.GeneralModel ?? modelName;
@@ -126,7 +127,7 @@ public static class PipelineCommands
                 else if (n.StartsWith("qwen2.5") || n.Contains("qwen")) chat.Settings = OllamaPresets.Qwen25_7B_General;
                 else if (n.StartsWith("phi3") || n.Contains("phi-3")) chat.Settings = OllamaPresets.Phi3MiniGeneral;
             }
-            catch (Exception) { /* ignore and use defaults */ }
+            catch (InvalidOperationException) { /* ignore and use defaults */ }
             chatModel = new OllamaChatAdapter(chat, settings?.Culture); // adapter added below
         }
         IEmbeddingModel embed = ServiceFactory.CreateEmbeddingModel(endpoint, apiKey, endpointType, embedName, provider);
@@ -187,7 +188,11 @@ public static class PipelineCommands
             }
             Telemetry.PrintSummary();
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            AnsiConsole.MarkupLine($"  [red]Pipeline failed: {Markup.Escape(ex.Message)}[/]");
+        }
+        catch (HttpRequestException ex)
         {
             AnsiConsole.MarkupLine($"  [red]Pipeline failed: {Markup.Escape(ex.Message)}[/]");
         }
@@ -268,7 +273,11 @@ public static class PipelineCommands
                     await RunPipelineDslAsync(input, o.Model, o.Embed, o.Source, o.K, o.Trace, settings, o);
                     await voiceService.SayAsync("Pipeline complete!");
                 }
-                catch (Exception ex)
+                catch (InvalidOperationException ex)
+                {
+                    await voiceService.SayAsync($"Pipeline error: {ex.Message}");
+                }
+                catch (HttpRequestException ex)
                 {
                     await voiceService.SayAsync($"Pipeline error: {ex.Message}");
                 }

@@ -115,7 +115,7 @@ public sealed class VisualProcessor
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Feature extraction failed");
             return Result<float[], string>.Failure($"Feature extraction failed: {ex.Message}");
@@ -167,7 +167,7 @@ public sealed class VisualProcessor
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Object detection failed");
             return Result<List<DetectedObject>, string>.Failure($"Object detection failed: {ex.Message}");

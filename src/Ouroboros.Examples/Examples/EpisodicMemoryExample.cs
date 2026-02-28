@@ -263,7 +263,7 @@ public static class EpisodicMemoryExample
             Console.WriteLine("\n" + new string('=', 60) + "\n");
             await DemonstrateIntegration();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Console.WriteLine($"\n❌ Error running examples: {ex.Message}");
             Console.WriteLine("\nNote: These examples require Qdrant to be running on localhost:6333");

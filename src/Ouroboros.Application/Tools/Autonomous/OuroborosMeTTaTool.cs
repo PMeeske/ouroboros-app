@@ -113,7 +113,8 @@ public class OuroborosMeTTaTool : ITool
         {
             return Result<string, string>.Failure("Invalid JSON input. Expected: {\"mode\":\"...\", \"concept\":\"...\"}");
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (InvalidOperationException ex)
         {
             return Result<string, string>.Failure($"Ouroboros operation failed: {ex.Message}");
         }

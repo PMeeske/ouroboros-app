@@ -348,7 +348,7 @@ public static class HierarchicalPlanningExample
 
             Console.WriteLine("\n✓ All hierarchical planning examples completed successfully!\n");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Console.WriteLine($"\n✗ Example execution failed: {ex.Message}\n");
             Console.WriteLine($"Stack Trace:\n{ex.StackTrace}");

@@ -212,7 +212,8 @@ public class ClaimVerificationService : IClaimVerificationService
                 ClaimType = "unknown"
             };
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
         {
             return new ClaimVerification
             {
@@ -303,7 +304,8 @@ public class ClaimVerificationService : IClaimVerificationService
         {
             verification = verification with { Error = $"Invalid JSON in modification request: {jex.Message}" };
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
         {
             verification = verification with { Error = $"Modification failed: {ex.Message}" };
         }

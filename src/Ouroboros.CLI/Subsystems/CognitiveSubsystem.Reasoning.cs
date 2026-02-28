@@ -84,7 +84,7 @@ public sealed partial class CognitiveSubsystem
                     Ouroboros.Pipeline.WorldModel.Observation.Create($"User: {TruncateText(input, 50)}", 1.0));
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             System.Diagnostics.Debug.WriteLine($"[AGI:Learning] Error recording interaction: {ex.Message}");
         }
@@ -129,7 +129,7 @@ public sealed partial class CognitiveSubsystem
                 UpdateSelfAssessment(input, response, tools);
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             System.Diagnostics.Debug.WriteLine($"[AGI:Cognitive] Error recording cognitive event: {ex.Message}");
         }
@@ -346,7 +346,7 @@ Examples:
 
             return sb.ToString();
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return $"❌ Council debate failed: {ex.Message}";
         }
@@ -429,7 +429,7 @@ Examples:
 
             return sb.ToString();
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return $"❌ Coordination failed: {ex.Message}";
         }

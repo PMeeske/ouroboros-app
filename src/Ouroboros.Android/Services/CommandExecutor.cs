@@ -74,7 +74,17 @@ public class CommandExecutor
                 Success = process.ExitCode == 0
             };
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            return new CommandResult
+            {
+                ExitCode = -1,
+                Output = string.Empty,
+                Error = $"Failed to execute command: {ex.Message}",
+                Success = false
+            };
+        }
+        catch (System.ComponentModel.Win32Exception ex)
         {
             return new CommandResult
             {
@@ -147,7 +157,17 @@ public class CommandExecutor
                 Success = process.ExitCode == 0
             };
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            return new CommandResult
+            {
+                ExitCode = -1,
+                Output = string.Empty,
+                Error = $"Failed to execute command: {ex.Message}",
+                Success = false
+            };
+        }
+        catch (System.ComponentModel.Win32Exception ex)
         {
             return new CommandResult
             {

@@ -120,7 +120,7 @@ public sealed class CognitiveLoop : ICognitiveLoop
 
             return Result<Abstractions.Unit, string>.Success(Unit.Value);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return Result<Abstractions.Unit, string>.Failure($"Failed to stop loop: {ex.Message}");
         }
@@ -222,7 +222,7 @@ public sealed class CognitiveLoop : ICognitiveLoop
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             stopwatch.Stop();
 

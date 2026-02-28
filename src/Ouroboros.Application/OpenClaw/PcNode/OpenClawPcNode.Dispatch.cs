@@ -128,7 +128,8 @@ public sealed partial class OpenClawPcNode
                 await SendResponseAsync(requestId, false, null, result.Error);
             }
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (System.Net.WebSockets.WebSocketException ex)
         {
             _logger.LogError(ex, "[OpenClaw PC Node] Error handling invoke for {Capability}", capability ?? "?");
             await SendResponseAsync(requestId, false, null, $"Internal error: {ex.Message}");

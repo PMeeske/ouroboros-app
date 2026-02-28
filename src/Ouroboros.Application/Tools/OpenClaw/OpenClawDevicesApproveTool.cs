@@ -39,7 +39,8 @@ public sealed class OpenClawDevicesApproveTool : ITool
         {
             return Result<string, string>.Failure($"Gateway error: {ex.Message}");
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
         {
             return Result<string, string>.Failure($"Failed to approve device: {ex.Message}");
         }

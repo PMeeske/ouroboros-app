@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net.Http;
 using LangChain.Databases;
 using LangChain.DocumentLoaders;
 using LangChain.Providers.Ollama;
@@ -47,7 +48,12 @@ public sealed class AskQueryHandler : IRequestHandler<AskQuery, string>
                 ? await HandleAgentModeAsync(r, settings, sw)
                 : await HandlePipelineModeAsync(r, settings, sw);
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "AskQueryHandler failed for question: {Question}", r.Question);
+            return $"Error: {ex.Message}";
+        }
+        catch (InvalidOperationException ex)
         {
             _logger.LogError(ex, "AskQueryHandler failed for question: {Question}", r.Question);
             return $"Error: {ex.Message}";
@@ -103,7 +109,7 @@ public sealed class AskQueryHandler : IRequestHandler<AskQuery, string>
                     questionForAgent = $"Context:\n- {ctx}\n\nQuestion: {r.Question}";
                 }
             }
-            catch (Exception) { /* vector search fallback silently */ }
+            catch (InvalidOperationException) { /* vector search fallback silently */ }
         }
 
         string answer = await agentInstance.RunAsync(questionForAgent);

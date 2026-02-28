@@ -2,6 +2,7 @@
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
+using System.Net.Http;
 using System.Reactive.Linq;
 using Ouroboros.CLI.Avatar;
 using Ouroboros.CLI.Infrastructure;
@@ -121,7 +122,7 @@ public sealed partial class VoiceModeService
                     await _azureTts.SpeakAsync(sanitized, isWhisper);
                     ttsSucceeded = true;
                 }
-                catch (Exception ex)
+                catch (InvalidOperationException ex)
                 {
                     var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
                     AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} ✗ Azure TTS failed: {Markup.Escape(ex.Message)}, trying fallback...[/]");
@@ -148,7 +149,12 @@ public sealed partial class VoiceModeService
                         AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} ✗ Edge TTS failed: {Markup.Escape(edgeResult.Error)}[/]");
                     }
                 }
-                catch (Exception ex)
+                catch (HttpRequestException ex)
+                {
+                    var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+                    AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} ✗ Edge TTS failed: {Markup.Escape(ex.Message)}[/]");
+                }
+                catch (InvalidOperationException ex)
                 {
                     var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
                     AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} ✗ Edge TTS failed: {Markup.Escape(ex.Message)}[/]");
@@ -164,7 +170,7 @@ public sealed partial class VoiceModeService
                     await SpeakWithLocalTtsAsync(sanitized, isWhisper);
                     ttsSucceeded = true;
                 }
-                catch (Exception ex)
+                catch (InvalidOperationException ex)
                 {
                     var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
                     AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} ✗ Local TTS failed: {Markup.Escape(ex.Message)}[/]");
@@ -180,7 +186,12 @@ public sealed partial class VoiceModeService
                     await SpeakWithCloudTtsAsync(sanitized);
                     ttsSucceeded = true;
                 }
-                catch (Exception ex)
+                catch (HttpRequestException ex)
+                {
+                    var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+                    AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} ✗ Cloud TTS failed: {Markup.Escape(ex.Message)}[/]");
+                }
+                catch (InvalidOperationException ex)
                 {
                     var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
                     AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} ✗ Cloud TTS failed: {Markup.Escape(ex.Message)}[/]");
@@ -278,7 +289,7 @@ public sealed partial class VoiceModeService
                 await wordStream.LastOrDefaultAsync();
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
             AnsiConsole.MarkupLine($"\n  [red]{Markup.Escape(face)} ✗ TTS error: {Markup.Escape(ex.Message)}[/]");
@@ -321,7 +332,13 @@ public sealed partial class VoiceModeService
                     return Task.CompletedTask;
                 });
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            if (!_config.VoiceOnly) AnsiConsole.MarkupLine(Markup.Escape(text));
+            var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+            AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} ✗ TTS error: {Markup.Escape(ex.Message)}[/]");
+        }
+        catch (InvalidOperationException ex)
         {
             if (!_config.VoiceOnly) AnsiConsole.MarkupLine(Markup.Escape(text));
             var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);

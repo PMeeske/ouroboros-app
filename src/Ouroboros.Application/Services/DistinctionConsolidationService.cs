@@ -58,7 +58,7 @@ public sealed class DistinctionConsolidationService : BackgroundService
             {
                 break;
             }
-            catch (Exception ex)
+        catch (IOException ex)
             {
                 _logger.LogError(ex, "Consolidation cycle failed");
                 await Task.Delay(_errorRecoveryDelay, stoppingToken);
@@ -86,7 +86,8 @@ public sealed class DistinctionConsolidationService : BackgroundService
                 listResult = await _storage.ListWeightsAsync(ct);
                 break;
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+        catch (IOException ex)
             {
                 if (attempt == maxRetries - 1)
                 {
@@ -140,7 +141,8 @@ public sealed class DistinctionConsolidationService : BackgroundService
                     _logger.LogDebug("Cleaned up old dissolved distinction {Id}", w.Id);
                 }
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+        catch (IOException ex)
             {
                 _logger.LogWarning(ex, "Failed to delete old dissolved file {Path}", w.Path);
             }

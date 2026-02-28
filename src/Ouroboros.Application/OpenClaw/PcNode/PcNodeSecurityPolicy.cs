@@ -146,7 +146,7 @@ public sealed partial class PcNodeSecurityPolicy
 
             return PolicyVerdict.Allow();
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             // Fail-closed on any path resolution error
             return PolicyVerdict.Deny($"Path validation failed: {ex.Message}");

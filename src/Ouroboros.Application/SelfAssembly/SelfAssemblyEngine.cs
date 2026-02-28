@@ -224,7 +224,7 @@ public sealed partial class SelfAssemblyEngine : IAsyncDisposable
                 ? Result<Neuron>.Success(instance)
                 : Result<Neuron>.Failure($"Failed to create instance of {name}");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return Result<Neuron>.Failure($"Failed to instantiate {name}: {ex.Message}");
         }
@@ -270,7 +270,7 @@ public sealed partial class SelfAssemblyEngine : IAsyncDisposable
                 var code = await _codeGenerator(blueprint);
                 return Result<string>.Success(code);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 return Result<string>.Failure($"Code generator error: {ex.Message}");
             }

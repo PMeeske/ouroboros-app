@@ -113,7 +113,7 @@ public static partial class PerceptionTools
 
                 return Result<string, string>.Success($"👁️ Now watching screen for {durationSeconds}s (interval: {intervalMs}ms, sensitivity: {sensitivity:P0}).\n\nTo stop: call this tool again.\nChanges saved to: `{CaptureDirectory}`");
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 return Result<string, string>.Failure($"Screen watch failed: {ex.Message}");
             }

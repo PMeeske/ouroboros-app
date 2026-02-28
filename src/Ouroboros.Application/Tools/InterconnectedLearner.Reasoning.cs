@@ -126,7 +126,8 @@ Be concise and actionable.";
             var response = await _llm.InnerModel.GenerateTextAsync(prompt, ct);
             return response;
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
         {
             return $"Pattern analysis failed: {ex.Message}";
         }
@@ -175,7 +176,8 @@ What single action should be taken? Respond in JSON:
                 return (match.Groups[1].Value, match.Groups[2].Value, match.Groups[3].Value);
             }
         }
-        catch (Exception)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException)
         {
             // Fallback
         }

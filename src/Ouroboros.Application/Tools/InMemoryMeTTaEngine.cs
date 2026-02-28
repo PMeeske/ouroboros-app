@@ -54,7 +54,7 @@ public sealed partial class InMemoryMeTTaEngine : IMeTTaEngine
 
             return Task.FromResult(Result<string, string>.Success("[]"));
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return Task.FromResult(Result<string, string>.Failure($"Query failed: {ex.Message}"));
         }
@@ -113,7 +113,7 @@ public sealed partial class InMemoryMeTTaEngine : IMeTTaEngine
 
             return Task.FromResult(Result<Unit, string>.Success(Unit.Value));
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return Task.FromResult(Result<Unit, string>.Failure($"Failed to add fact: {ex.Message}"));
         }

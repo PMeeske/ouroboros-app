@@ -208,7 +208,7 @@ public sealed class HyperonFlow : IAsyncDisposable
                         break;
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 return Result<IReadOnlyList<Atom>, string>.Failure($"Step {step.StepType} failed: {ex.Message}");
             }

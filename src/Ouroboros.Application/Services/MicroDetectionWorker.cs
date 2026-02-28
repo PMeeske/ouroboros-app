@@ -146,7 +146,7 @@ public sealed class MicroDetectionWorker : IAsyncDisposable
                 {
                     return;
                 }
-                catch (Exception ex)
+        catch (IOException ex)
                 {
                     _logger.LogWarning(
                         "[MicroDetection] Module '{Module}' error: {Message}",
@@ -178,7 +178,7 @@ public sealed class MicroDetectionWorker : IAsyncDisposable
         foreach (var module in _modules)
         {
             try { module.Dispose(); }
-            catch (Exception ex)
+        catch (IOException ex)
             {
                 _logger.LogWarning("[MicroDetection] Error disposing module '{Module}': {Message}",
                     module.Name, ex.Message);

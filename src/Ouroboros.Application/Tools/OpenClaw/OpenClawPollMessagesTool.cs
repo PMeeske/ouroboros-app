@@ -53,7 +53,7 @@ public sealed class OpenClawPollMessagesTool : ITool
         {
             return Result<string, string>.Failure($"Gateway error: {ex.Message}");
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
             return Result<string, string>.Failure($"Failed to poll messages: {ex.Message}");
         }

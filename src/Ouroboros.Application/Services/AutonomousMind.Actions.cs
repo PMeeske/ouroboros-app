@@ -65,7 +65,7 @@ public partial class AutonomousMind
             {
                 break;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 System.Diagnostics.Debug.WriteLine($"Action error: {ex.Message}");
             }
@@ -403,7 +403,7 @@ public partial class AutonomousMind
             {
                 break;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 System.Diagnostics.Debug.WriteLine($"Persistence error: {ex.Message}");
             }

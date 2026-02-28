@@ -71,7 +71,7 @@ public sealed class EnvironmentManager : IEnvironmentManager
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to create environment");
             return Result<EnvironmentHandle, string>.Failure($"Environment creation failed: {ex.Message}");
@@ -102,7 +102,7 @@ public sealed class EnvironmentManager : IEnvironmentManager
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to reset environment");
             return Result<Unit, string>.Failure($"Environment reset failed: {ex.Message}");
@@ -139,7 +139,7 @@ public sealed class EnvironmentManager : IEnvironmentManager
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to destroy environment");
             return Result<Unit, string>.Failure($"Environment destruction failed: {ex.Message}");
@@ -169,7 +169,7 @@ public sealed class EnvironmentManager : IEnvironmentManager
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to list available environments");
             return Result<IReadOnlyList<EnvironmentInfo>, string>.Failure($"Environment listing failed: {ex.Message}");

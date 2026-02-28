@@ -1,3 +1,4 @@
+using System.Net.Http;
 using Microsoft.Maui.Controls;
 using Ouroboros.Android.Services;
 
@@ -136,7 +137,12 @@ public class ModelManagerView : ContentPage
             _modelListView.ItemsSource = models;
             _statusLabel.Text = $"Found {models.Count} model(s)";
         }
-        catch (Exception ex)
+        catch (ModelManagerException ex)
+        {
+            _statusLabel.Text = $"Error: {ex.Message}";
+            await DisplayAlert("Error", $"Failed to load models: {ex.Message}", "OK");
+        }
+        catch (HttpRequestException ex)
         {
             _statusLabel.Text = $"Error: {ex.Message}";
             await DisplayAlert("Error", $"Failed to load models: {ex.Message}", "OK");
@@ -203,7 +209,11 @@ public class ModelManagerView : ContentPage
             await DisplayAlert("Success", $"Model '{modelName}' deleted successfully", "OK");
             await LoadModelsAsync();
         }
-        catch (Exception ex)
+        catch (ModelManagerException ex)
+        {
+            await DisplayAlert("Error", $"Failed to delete model: {ex.Message}", "OK");
+        }
+        catch (HttpRequestException ex)
         {
             await DisplayAlert("Error", $"Failed to delete model: {ex.Message}", "OK");
         }

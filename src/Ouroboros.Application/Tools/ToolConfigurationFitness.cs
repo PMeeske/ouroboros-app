@@ -40,7 +40,8 @@ Just respond with a number 0-100.";
                 return llmScore / 100.0;
             }
         }
-        catch (Exception)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException)
         {
             // LLM evaluation failed — fall through to heuristic
         }

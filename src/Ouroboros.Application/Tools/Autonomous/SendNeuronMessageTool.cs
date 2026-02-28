@@ -49,7 +49,7 @@ public class SendNeuronMessageTool : ITool
             return Task.FromResult(Result<string, string>.Success(
                 $"\ud83d\udce4 Message sent to `{neuronId}` on topic `{topic}`"));
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return Task.FromResult(Result<string, string>.Failure($"Failed to send: {ex.Message}"));
         }

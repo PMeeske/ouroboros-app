@@ -42,7 +42,8 @@ public static partial class StreamingCliSteps
                 }
                 observer.OnCompleted();
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+        catch (IOException ex)
             {
                 observer.OnError(ex);
             }

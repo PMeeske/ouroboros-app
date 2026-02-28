@@ -114,7 +114,7 @@ public static partial class PerceptionTools
 
                 return Result<string, string>.Success($"👀 Now monitoring user activity for {durationSeconds}s.\n\nTracking: window changes, mouse movement\nLogs saved to: `{CaptureDirectory}`\n\nTo stop: call this tool again.");
             }
-            catch (Exception ex)
+        catch (IOException ex)
             {
                 return Result<string, string>.Failure($"Activity monitoring failed: {ex.Message}");
             }

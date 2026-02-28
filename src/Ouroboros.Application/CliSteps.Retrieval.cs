@@ -38,7 +38,8 @@ public static partial class CliSteps
                     s.Branch = s.Branch.WithIngestEvent($"retrieve:{amount}:{query.Replace('|', ':').Replace('\n', ' ')}", Enumerable.Range(0, s.Retrieved.Count).Select(i => $"doc:{i}"));
                 }
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (InvalidOperationException ex)
             {
                 s.Branch = s.Branch.WithIngestEvent($"retrieve:error:{ex.GetType().Name}:{ex.Message.Replace('|', ':')}", Array.Empty<string>());
             }
@@ -143,7 +144,8 @@ public static partial class CliSteps
                 s.Branch = s.Branch.WithReasoning(new FinalSpec(text), s.Prompt, toolCalls);
                 if (s.Trace) Console.WriteLine("[trace] LLM output length=" + text.Length);
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (InvalidOperationException ex)
             {
                 s.Branch = s.Branch.WithIngestEvent($"llm:error:{ex.GetType().Name}:{ex.Message.Replace('|', ':')}", Array.Empty<string>());
             }

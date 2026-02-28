@@ -202,7 +202,7 @@ public static class OrchestratorV3Example
             Console.WriteLine("║  Orchestrator v3.0 example completed successfully!    ║");
             Console.WriteLine("╚═══════════════════════════════════════════════════════╝\n");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             if (ex.Message.Contains("metta") || ex.Message.Contains("not found"))
             {

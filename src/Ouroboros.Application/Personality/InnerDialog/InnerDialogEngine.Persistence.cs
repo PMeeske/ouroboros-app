@@ -20,7 +20,8 @@ public sealed partial class InnerDialogEngine
         {
             await _persistenceService.SaveManyAsync(thoughts, topic, ct);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (IOException ex)
         {
             // Log but don't fail - persistence is non-critical
             Console.WriteLine($"[ThoughtPersistence] Failed to save thoughts: {ex.Message}");

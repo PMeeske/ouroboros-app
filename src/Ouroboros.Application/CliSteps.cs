@@ -81,7 +81,8 @@ public static partial class CliSteps
                 File.Delete(testFile);
                 accessible = true;
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+        catch (IOException ex)
             {
                 s.Branch = s.Branch.WithIngestEvent($"source:error:{ex.GetType().Name}:{full}", Array.Empty<string>());
             }
@@ -93,7 +94,11 @@ public static partial class CliSteps
                     Directory.CreateDirectory(fallback);
                     finalPath = fallback;
                 }
-                catch (Exception ex2)
+                catch (IOException ex2)
+                {
+                    s.Branch = s.Branch.WithIngestEvent($"source:fallback-error:{ex2.GetType().Name}:{fallback}", Array.Empty<string>());
+                }
+                catch (UnauthorizedAccessException ex2)
                 {
                     s.Branch = s.Branch.WithIngestEvent($"source:fallback-error:{ex2.GetType().Name}:{fallback}", Array.Empty<string>());
                 }
@@ -194,7 +199,8 @@ public static partial class CliSteps
                     }
                     await s.Branch.Store.AddAsync(vectors);
                 }
-                catch (Exception ex)
+                catch (OperationCanceledException) { throw; }
+        catch (IOException ex)
                 {
                     foreach (string? id in batch)
                         s.Branch = s.Branch.WithIngestEvent($"zipembed:error:{id}:{ex.GetType().Name}", Array.Empty<string>());

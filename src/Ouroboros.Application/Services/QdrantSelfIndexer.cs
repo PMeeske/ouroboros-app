@@ -147,7 +147,8 @@ public sealed partial class QdrantSelfIndexer : IAsyncDisposable
                         stats.SkippedFiles++;
                     }
                 }
-                catch (Exception ex)
+                catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
                 {
                     stats.ErrorFiles++;
                     Console.WriteLine($"[IndexError] {file}: {ex.Message}");
@@ -229,7 +230,8 @@ public sealed partial class QdrantSelfIndexer : IAsyncDisposable
                         stats.SkippedFiles++;
                     }
                 }
-                catch (Exception ex)
+                catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
                 {
                     stats.ErrorFiles++;
                     Console.WriteLine($"[IndexError] {file}: {ex.Message}");

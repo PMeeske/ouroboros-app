@@ -58,7 +58,7 @@ public static class TrackedStep
                 var updatedBranch = UpdateLastStepEvent(result.Branch, startEvent.Id, completedEvent);
                 return result.WithBranch(updatedBranch);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 stopwatch.Stop();
 

@@ -233,7 +233,7 @@ public partial class AutonomousMind
             {
                 break;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 // Log but don't crash
                 System.Diagnostics.Debug.WriteLine($"Thinking error: {ex.Message}");

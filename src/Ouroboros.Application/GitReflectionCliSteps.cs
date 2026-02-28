@@ -53,7 +53,12 @@ public static partial class GitReflectionCliSteps
                 s.Output = overview;
                 s.Context = "Codebase overview generated";
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (IOException ex)
+            {
+                Console.WriteLine($"[git] Failed to get codebase overview: {ex.Message}");
+            }
+            catch (InvalidOperationException ex)
             {
                 Console.WriteLine($"[git] Failed to get codebase overview: {ex.Message}");
             }
@@ -108,7 +113,12 @@ public static partial class GitReflectionCliSteps
                 s.Output = sb.ToString();
                 s.Context = $"Analyzed {analysis.FilePath}";
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (IOException ex)
+            {
+                Console.WriteLine($"[git] Analysis failed: {ex.Message}");
+            }
+            catch (InvalidOperationException ex)
             {
                 Console.WriteLine($"[git] Analysis failed: {ex.Message}");
             }
@@ -157,7 +167,12 @@ public static partial class GitReflectionCliSteps
                 s.Output = sb.ToString();
                 s.Context = $"Found {results.Count} matches for '{pattern}'";
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (IOException ex)
+            {
+                Console.WriteLine($"[git] Search failed: {ex.Message}");
+            }
+            catch (InvalidOperationException ex)
             {
                 Console.WriteLine($"[git] Search failed: {ex.Message}");
             }
@@ -196,7 +211,12 @@ public static partial class GitReflectionCliSteps
                 Console.WriteLine(sb.ToString());
                 s.Output = sb.ToString();
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (IOException ex)
+            {
+                Console.WriteLine($"[git] Failed to list files: {ex.Message}");
+            }
+            catch (InvalidOperationException ex)
             {
                 Console.WriteLine($"[git] Failed to list files: {ex.Message}");
             }

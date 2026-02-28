@@ -45,7 +45,8 @@ public static partial class TextToSpeechCliSteps
                     Console.WriteLine($"[tts] Initialized {currentService.ProviderName}");
                 }
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (InvalidOperationException ex)
             {
                 Console.WriteLine($"[tts] Failed to initialize: {ex.Message}");
             }
@@ -173,7 +174,8 @@ public static partial class TextToSpeechCliSteps
                 response = await s.Llm.InnerModel.GenerateTextAsync(config.Text);
                 Console.WriteLine($"[LLM] {TruncateText(response, 200)}");
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (InvalidOperationException ex)
             {
                 Console.WriteLine($"[tts] LLM error: {ex.Message}");
                 return s;

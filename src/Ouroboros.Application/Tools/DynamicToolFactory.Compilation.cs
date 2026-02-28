@@ -69,7 +69,7 @@ namespace Ouroboros.DynamicTools
                 // Your implementation here
                 return Result<string, string>.Success(""Result"");
             }}
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {{
                 return Result<string, string>.Failure(ex.Message);
             }}
@@ -131,7 +131,8 @@ Generate ONLY the complete C# code, no explanations.";
                 ? Result<ITool?, string>.Success(tool)
                 : Result<ITool?, string>.Failure("Failed to create tool instance");
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (InvalidOperationException ex)
         {
             return Result<ITool?, string>.Failure($"Compilation error: {ex.Message}");
         }

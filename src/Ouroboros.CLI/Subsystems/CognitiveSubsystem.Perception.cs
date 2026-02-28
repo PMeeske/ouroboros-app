@@ -1,6 +1,7 @@
 // Copyright (c) Ouroboros. All rights reserved.
 namespace Ouroboros.CLI.Subsystems;
 
+using System.Net.Http;
 using System.Text;
 using Ouroboros.Application.Personality.Consciousness;
 using Spectre.Console;
@@ -118,7 +119,7 @@ public sealed partial class CognitiveSubsystem
                     }
                 }
             }
-            catch (Exception) { /* MeTTa may not be initialized */ }
+            catch (InvalidOperationException) { /* MeTTa may not be initialized */ }
         }
 
         // Check conversation pattern emergence
@@ -169,7 +170,11 @@ Be creative and philosophical but grounded. 2-3 sentences max.";
                 sb.AppendLine("   [Model not available for insight generation]");
             }
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            sb.AppendLine($"   [Could not generate insight: {ex.Message}]");
+        }
+        catch (InvalidOperationException ex)
         {
             sb.AppendLine($"   [Could not generate insight: {ex.Message}]");
         }
@@ -241,7 +246,7 @@ Be creative and philosophical but grounded. 2-3 sentences max.";
                     dreamMaterial.AddRange(facts);
                 }
             }
-            catch (Exception) { /* MeTTa dream query failed */ }
+            catch (InvalidOperationException) { /* MeTTa dream query failed */ }
         }
 
         // Generate dream content
@@ -293,7 +298,11 @@ What emergent meaning or connection does it reveal?";
                 sb.AppendLine("   [Model not available for dream generation]");
             }
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            sb.AppendLine($"   [Dream interrupted: {ex.Message}]");
+        }
+        catch (InvalidOperationException ex)
         {
             sb.AppendLine($"   [Dream interrupted: {ex.Message}]");
         }
@@ -412,7 +421,11 @@ What patterns do you notice in your own behavior? What are you becoming?";
                 sb.AppendLine("   [Model not available for reflection]");
             }
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            sb.AppendLine($"   [Reflection interrupted: {ex.Message}]");
+        }
+        catch (InvalidOperationException ex)
         {
             sb.AppendLine($"   [Reflection interrupted: {ex.Message}]");
         }

@@ -24,7 +24,7 @@ public static class ConfigParser
             Dictionary<string, string> dict = ParseKeyValueArgs(raw);
             return builder(dict, defaults);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return Result<TConfig>.Failure($"Configuration parse error: {ex.Message}");
         }

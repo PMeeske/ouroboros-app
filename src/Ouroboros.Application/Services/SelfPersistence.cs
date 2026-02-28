@@ -119,7 +119,8 @@ public partial class SelfPersistence : IDisposable
 
             _isInitialized = true;
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
         {
             System.Diagnostics.Debug.WriteLine($"Self-persistence init failed: {ex.Message}");
         }
@@ -197,7 +198,8 @@ public partial class SelfPersistence : IDisposable
 
             return false;
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
         {
             System.Diagnostics.Debug.WriteLine($"Mind state persistence failed: {ex.Message}");
             // Try file fallback
@@ -249,7 +251,8 @@ public partial class SelfPersistence : IDisposable
 
             return response.IsSuccessStatusCode;
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
         {
             System.Diagnostics.Debug.WriteLine($"Thought persistence failed: {ex.Message}");
             return false;

@@ -59,7 +59,7 @@ public sealed class OuroborosHealthCheck : IHealthCheck
             data["status"] = "All engines operational";
             return HealthCheckResult.Healthy("Ouroboros system operational", data);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return HealthCheckResult.Unhealthy(
                 "Ouroboros system health check failed",

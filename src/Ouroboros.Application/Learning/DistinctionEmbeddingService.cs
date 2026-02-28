@@ -70,7 +70,8 @@ public sealed class DistinctionEmbeddingService
 
             return Result<float[]>.Success(embedding);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
         {
             return Result<float[]>.Failure($"Failed to create distinction embedding: {ex.Message}");
         }
@@ -115,7 +116,8 @@ public sealed class DistinctionEmbeddingService
 
             return Result<DreamEmbedding>.Success(dreamEmbedding);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
         {
             return Result<DreamEmbedding>.Failure($"Failed to create dream cycle embedding: {ex.Message}");
         }

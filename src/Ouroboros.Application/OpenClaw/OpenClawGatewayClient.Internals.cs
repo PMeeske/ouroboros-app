@@ -322,7 +322,8 @@ public sealed partial class OpenClawGatewayClient
             _receiveCts = new CancellationTokenSource();
             _receiveLoop = Task.Run(() => ReceiveLoopAsync(_receiveCts.Token), _receiveCts.Token);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (System.Net.WebSockets.WebSocketException ex)
         {
             _logger.LogError("[OpenClaw] Reconnection failed: {Message}", ex.Message);
             LastReconnectError = ex;

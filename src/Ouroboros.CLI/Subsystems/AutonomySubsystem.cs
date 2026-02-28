@@ -2,6 +2,7 @@
 namespace Ouroboros.CLI.Subsystems;
 
 using System.Collections.Concurrent;
+using System.Net.Http;
 using LangChain.DocumentLoaders;
 using Microsoft.Extensions.DependencyInjection;
 using Ouroboros.Application.Extensions;
@@ -262,14 +263,23 @@ public sealed partial class AutonomySubsystem : IAutonomySubsystem
                     if (progress.ProcessedFiles > 0)
                         System.Diagnostics.Debug.WriteLine($"[SelfIndex] Incremental: {progress.ProcessedFiles} files, {progress.IndexedChunks} chunks");
                 }
-                catch (Exception ex)
+                catch (HttpRequestException ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[SelfIndex] Incremental failed: {ex.Message}");
+                }
+                catch (InvalidOperationException ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"[SelfIndex] Incremental failed: {ex.Message}");
                 }
             })
             .ObserveExceptions("SelfIndex incremental");
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ SelfIndex: {ex.Message}")}");
+            SelfIndexer = null;
+        }
+        catch (InvalidOperationException ex)
         {
             AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ SelfIndex: {ex.Message}")}");
             SelfIndexer = null;
@@ -306,7 +316,7 @@ public sealed partial class AutonomySubsystem : IAutonomySubsystem
                         var result = await ctx.Memory.MeTTaEngine.ExecuteQueryAsync(expr, ct);
                         return result.Match(s => s, e => "False");
                     }
-                    catch (Exception) { return "False"; }
+                    catch (InvalidOperationException) { return "False"; }
                 };
             }
 
@@ -328,7 +338,7 @@ public sealed partial class AutonomySubsystem : IAutonomySubsystem
 
             ctx.Output.RecordInit("Self-Assembly", true, $"YOLO={ctx.Config.YoloMode}, max {config.MaxAssembledNeurons} neurons");
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             AnsiConsole.MarkupLine($"  {OuroborosTheme.Warn($"⚠ SelfAssembly: {ex.Message}")}");
             SelfAssemblyEngine = null;

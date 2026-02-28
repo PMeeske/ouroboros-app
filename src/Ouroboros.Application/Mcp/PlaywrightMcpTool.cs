@@ -255,7 +255,8 @@ public partial class PlaywrightMcpTool : ITool, IAsyncDisposable
             _initialized = false;
             return Result<string, string>.Failure($"Playwright MCP server disconnected. Please retry the action. ({ex.Message})");
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (InvalidOperationException ex)
         {
             string connectionStatus = _client.IsConnected ? "connected" : "disconnected";
             return Result<string, string>.Failure($"Playwright error ({connectionStatus}): {ex.Message}");

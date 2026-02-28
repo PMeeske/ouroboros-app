@@ -367,7 +367,7 @@ public static class ConvenienceLayerExamples
 
             await ComparePresets();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             if (ex.Message.Contains("Connection refused") || ex.Message.Contains("No connection"))
             {

@@ -37,7 +37,8 @@ public sealed class OpenClawMemoryGetTool : ITool
         {
             return Result<string, string>.Failure($"Gateway error: {ex.Message}");
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
         {
             return Result<string, string>.Failure($"Failed to get memory entry: {ex.Message}");
         }

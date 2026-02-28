@@ -1,6 +1,7 @@
 // Copyright (c) Ouroboros. All rights reserved.
 namespace Ouroboros.CLI.Subsystems;
 
+using System.IO;
 using Ouroboros.Application.Personality.Consciousness;
 using Ouroboros.CLI.Avatar;
 using Ouroboros.CLI.Commands;
@@ -126,7 +127,7 @@ public sealed partial class CognitiveSubsystem : ICognitiveSubsystem
 
             await Task.CompletedTask;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Orchestrator unavailable: {Markup.Escape(ex.Message)}"));
         }
@@ -157,7 +158,7 @@ public sealed partial class CognitiveSubsystem : ICognitiveSubsystem
             AnsiConsole.MarkupLine(OuroborosTheme.Dim($"    Self-awareness: {Markup.Escape(sa.Name)} - {Markup.Escape(sa.CurrentMood)}"));
             AnsiConsole.MarkupLine(OuroborosTheme.Dim($"    Identity: {Markup.Escape(ImmersivePersona.Identity.Name)} (uptime: {ImmersivePersona.Uptime:hh\\:mm\\:ss})"));
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Consciousness unavailable: {Markup.Escape(ex.Message)}"));
         }
@@ -234,7 +235,7 @@ public sealed partial class CognitiveSubsystem : ICognitiveSubsystem
 
             await Task.CompletedTask;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ AGI Subsystems: {Markup.Escape(ex.Message)}"));
         }
@@ -251,7 +252,11 @@ public sealed partial class CognitiveSubsystem : ICognitiveSubsystem
             CurrentDistinctionState = DistinctionState.Initial();
             ctx.Output.RecordInit("Distinction Learning", true, "consciousness cycle learning");
         }
-        catch (Exception ex)
+        catch (IOException ex)
+        {
+            AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Distinction Learning: {Markup.Escape(ex.Message)}"));
+        }
+        catch (InvalidOperationException ex)
         {
             AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Distinction Learning: {Markup.Escape(ex.Message)}"));
         }
@@ -274,7 +279,7 @@ public sealed partial class CognitiveSubsystem : ICognitiveSubsystem
                 ctx.Output.RecordInit("Interconnected Learning", true, "tool-skill bridging");
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Interconnected Learning: {Markup.Escape(ex.Message)}"));
         }

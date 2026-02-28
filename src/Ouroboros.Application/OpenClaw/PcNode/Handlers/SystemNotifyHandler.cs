@@ -71,7 +71,7 @@ public sealed class SystemNotifyHandler : IPcNodeCapabilityHandler
 
             return Task.FromResult(PcNodeResult.Ok($"Notification shown: {title}"));
         }
-        catch (Exception ex)
+        catch (System.ComponentModel.Win32Exception ex)
         {
             return Task.FromResult(PcNodeResult.Fail($"Failed to show notification: {ex.Message}"));
         }

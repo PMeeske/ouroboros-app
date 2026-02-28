@@ -179,7 +179,8 @@ public class ParallelMeTTaThinkTool : ITool
 
             return Result<string, string>.Success(sb.ToString());
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (InvalidOperationException ex)
         {
             return Result<string, string>.Failure($"Parallel MeTTa thinking failed: {ex.Message}");
         }

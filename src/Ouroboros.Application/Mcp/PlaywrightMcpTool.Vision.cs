@@ -55,7 +55,8 @@ public partial class PlaywrightMcpTool
                 ? visionResult.Description ?? "No description available"
                 : $"Vision analysis unavailable: {visionResult.ErrorMessage}";
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (InvalidOperationException ex)
         {
             visionDescription = $"Vision analysis failed: {ex.Message}";
         }
@@ -218,7 +219,8 @@ public partial class PlaywrightMcpTool
                 ? Result<string, string>.Success(visionResult.Description ?? "No description available")
                 : Result<string, string>.Failure(visionResult.ErrorMessage ?? "Vision analysis failed for an unknown reason.");
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (InvalidOperationException ex)
         {
             return Result<string, string>.Failure($"Vision analysis failed: {ex.Message}");
         }

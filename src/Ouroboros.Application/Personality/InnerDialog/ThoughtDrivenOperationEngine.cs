@@ -93,7 +93,7 @@ public sealed class ThoughtDrivenOperationEngine
                         }
                     }
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     results.Add(new BackgroundOperationResult(
                         "error", executor.Name, false, ex.Message, null,

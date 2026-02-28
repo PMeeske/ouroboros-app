@@ -469,7 +469,7 @@ public static class MetaAIv2EnhancementsExample
         {
             await DemonstrateParallelExecution();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Console.WriteLine($"Parallel execution demo skipped: {ex.Message}\n");
         }
@@ -478,7 +478,7 @@ public static class MetaAIv2EnhancementsExample
         {
             await DemonstrateHierarchicalPlanning();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Console.WriteLine($"Hierarchical planning demo skipped: {ex.Message}\n");
         }
@@ -487,7 +487,7 @@ public static class MetaAIv2EnhancementsExample
         {
             await DemonstrateExperienceReplay();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Console.WriteLine($"Experience replay demo skipped: {ex.Message}\n");
         }
@@ -499,7 +499,7 @@ public static class MetaAIv2EnhancementsExample
         {
             await DemonstrateAdaptivePlanning();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Console.WriteLine($"Adaptive planning demo skipped: {ex.Message}\n");
         }
@@ -508,7 +508,7 @@ public static class MetaAIv2EnhancementsExample
         {
             await DemonstrateCostAwareRouting();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Console.WriteLine($"Cost-aware routing demo skipped: {ex.Message}\n");
         }
@@ -517,7 +517,7 @@ public static class MetaAIv2EnhancementsExample
         {
             await DemonstrateHumanInTheLoop();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Console.WriteLine($"Human-in-the-loop demo skipped: {ex.Message}\n");
         }

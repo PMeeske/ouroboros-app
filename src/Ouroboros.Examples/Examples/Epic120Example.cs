@@ -224,7 +224,7 @@ public static class Epic120Example
 
             await RunParallelSubIssuesAsync();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Console.WriteLine($"\n❌ Error: {ex.Message}");
             Console.WriteLine($"Stack trace: {ex.StackTrace}");

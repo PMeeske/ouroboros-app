@@ -42,7 +42,7 @@ public class RejectIntentionTool : ITool
                 ? Result<string, string>.Success($"\u274c Intention `{id}` rejected.")
                 : Result<string, string>.Failure($"Could not find pending intention with ID starting with: {id}"));
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return Task.FromResult(Result<string, string>.Failure($"Failed to reject: {ex.Message}"));
         }

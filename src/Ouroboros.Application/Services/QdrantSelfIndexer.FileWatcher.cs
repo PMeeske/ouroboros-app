@@ -41,7 +41,8 @@ public sealed partial class QdrantSelfIndexer
 
             _watchers.Add(watcher);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
         {
             Console.WriteLine($"[WatcherError] {path}: {ex.Message}");
         }
@@ -115,7 +116,7 @@ public sealed partial class QdrantSelfIndexer
             {
                 break;
             }
-            catch (Exception ex)
+        catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[PendingChangesError] {ex.Message}");
             }

@@ -200,7 +200,7 @@ Keep it to 1-2 sentences.";
             steps.Add("⚠ Warmup cancelled");
             result.Success = false;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             steps.Add($"✗ Warmup error: {ex.Message}");
             result.Success = false;
@@ -403,7 +403,7 @@ Keep it to 1-2 sentences.";
                 failedTools.Add($"{toolName}: timeout");
                 result.ToolWarmupResults[toolName] = false;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 failedTools.Add($"{toolName}: {ex.Message}");
                 result.ToolWarmupResults[toolName] = false;

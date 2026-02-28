@@ -44,7 +44,8 @@ public sealed class OpenClawGetMessagesTool : ITool
         {
             return Result<string, string>.Failure($"Gateway error: {ex.Message}");
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
         {
             return Result<string, string>.Failure($"Failed to get messages: {ex.Message}");
         }

@@ -229,7 +229,7 @@ public static class MeTTaIntegrationExample
             engine.Dispose();
             Console.WriteLine("\n✓ Orchestrator integration example completed!\n");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             if (ex.Message.Contains("Connection refused") || ex.Message.Contains("No connection"))
             {
@@ -288,7 +288,7 @@ public static class MeTTaIntegrationExample
             engine.Dispose();
             Console.WriteLine("\n✓ Memory bridge example completed!\n");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             if (ex.Message.Contains("Connection refused") || ex.Message.Contains("No connection"))
             {

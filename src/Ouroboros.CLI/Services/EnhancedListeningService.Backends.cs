@@ -2,6 +2,7 @@
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
+using System.Net.Http;
 using Microsoft.CognitiveServices.Speech;
 using Microsoft.CognitiveServices.Speech.Audio;
 using Ouroboros.Application.Extensions;
@@ -99,7 +100,7 @@ public sealed partial class EnhancedListeningService
         ct.Register(() => Task.Run(async () =>
         {
             try { if (_recognizer != null) await _recognizer.StopContinuousRecognitionAsync(); }
-            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Listening] Stop error: {ex.Message}"); }
+            catch (InvalidOperationException ex) { System.Diagnostics.Debug.WriteLine($"[Listening] Stop error: {ex.Message}"); }
         }).ObserveExceptions("StopContinuousRecognition cleanup"));
     }
 
@@ -121,7 +122,7 @@ public sealed partial class EnhancedListeningService
                 "base",
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".whisper"));
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             _output.WriteError($"Failed to initialize Whisper: {ex.Message}");
             return;
@@ -181,7 +182,7 @@ public sealed partial class EnhancedListeningService
             {
                 break;
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 _output.WriteDebug($"Whisper loop error: {ex.Message}");
                 await Task.Delay(1000, ct);
@@ -287,7 +288,11 @@ public sealed partial class EnhancedListeningService
             // Reset wake state after timeout (auto-sleep)
             ResetWakeWordTimeout();
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            _output.WriteDebug($"Processing error: {ex.Message}");
+        }
+        catch (HttpRequestException ex)
         {
             _output.WriteDebug($"Processing error: {ex.Message}");
         }

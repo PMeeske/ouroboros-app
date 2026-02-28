@@ -4,6 +4,7 @@
 
 namespace Ouroboros.CLI.Commands;
 
+using System.Net.Http;
 using System.Text;
 using Ouroboros.Application.Personality;
 using Ouroboros.Application.Services;
@@ -97,7 +98,11 @@ public sealed partial class ImmersiveMode
                 indexTable.AddRow(Markup.Escape("Vector dimensions"), Markup.Escape($"{stats.VectorSize}"));
                 indexTable.AddRow(Markup.Escape("File watcher"), Markup.Escape("active"));
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
+            {
+                indexTable.AddRow(Markup.Escape("Index status"), Markup.Escape($"error - {ex.Message}"));
+            }
+            catch (InvalidOperationException ex)
             {
                 indexTable.AddRow(Markup.Escape("Index status"), Markup.Escape($"error - {ex.Message}"));
             }
@@ -168,7 +173,11 @@ public sealed partial class ImmersiveMode
             var recall = await _conversationMemory.RecallAboutAsync(topic, ct);
             return recall;
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            return $"Memory search failed: {ex.Message}";
+        }
+        catch (InvalidOperationException ex)
         {
             return $"Memory search failed: {ex.Message}";
         }
@@ -275,7 +284,11 @@ public sealed partial class ImmersiveMode
             var result = await _selfIndexer.FullReindexAsync(clearExisting: true, progress, ct);
             return $"Full reindex complete! Processed {result.ProcessedFiles} files, indexed {result.IndexedChunks} chunks in {result.Elapsed.TotalSeconds:F1}s. ({result.SkippedFiles} skipped, {result.ErrorFiles} errors)";
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            return $"Reindex failed: {ex.Message}";
+        }
+        catch (InvalidOperationException ex)
         {
             return $"Reindex failed: {ex.Message}";
         }
@@ -307,7 +320,11 @@ public sealed partial class ImmersiveMode
             }
             return $"Incremental reindex complete! Updated {result.ProcessedFiles} files, indexed {result.IndexedChunks} chunks in {result.Elapsed.TotalSeconds:F1}s.";
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            return $"Incremental reindex failed: {ex.Message}";
+        }
+        catch (InvalidOperationException ex)
         {
             return $"Incremental reindex failed: {ex.Message}";
         }
@@ -343,7 +360,11 @@ public sealed partial class ImmersiveMode
 
             return sb.ToString();
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            return $"Index search failed: {ex.Message}";
+        }
+        catch (InvalidOperationException ex)
         {
             return $"Index search failed: {ex.Message}";
         }
@@ -365,7 +386,11 @@ public sealed partial class ImmersiveMode
                    $"  Total vectors: {stats.TotalVectors}\n" +
                    $"  Vector dimensions: {stats.VectorSize}";
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            return $"Failed to get index stats: {ex.Message}";
+        }
+        catch (InvalidOperationException ex)
         {
             return $"Failed to get index stats: {ex.Message}";
         }

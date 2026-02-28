@@ -53,7 +53,7 @@ public sealed class EpisodicMemoryHealthCheck : IHealthCheck
                     $"Episodic memory degraded: {error}",
                     data: new Dictionary<string, object> { ["error"] = error }));
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return HealthCheckResult.Unhealthy("Episodic memory health check failed", ex);
         }

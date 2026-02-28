@@ -82,7 +82,11 @@ public class CliExecutor
                 _ => await HandleUnknownCommandAsync(cmd)
             };
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            return $"Error executing command: {ex.Message}";
+        }
+        catch (HttpRequestException ex)
         {
             return $"Error executing command: {ex.Message}";
         }
@@ -263,7 +267,7 @@ Troubleshooting:
         {
             return "Request timed out. The server may be busy — try again.";
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return $"Error: {ex.Message}";
         }
@@ -292,7 +296,7 @@ Troubleshooting:
         {
             return $"Could not reach WebAPI: {ex.Message}\n\nCheck connection with: ping";
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return $"Pipeline error: {ex.Message}";
         }
@@ -345,9 +349,13 @@ Troubleshooting:
                 ? $"✓ Connected to Ouroboros WebAPI at {ApiEndpoint}"
                 : $"✗ Cannot reach WebAPI at {ApiEndpoint}\n\nCheck endpoint with: config";
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
             return $"✗ Connection test failed: {ex.Message}";
+        }
+        catch (TaskCanceledException ex)
+        {
+            return $"✗ Connection test timed out: {ex.Message}";
         }
     }
 
@@ -382,7 +390,7 @@ Troubleshooting:
 
             return sb.ToString();
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return $"Error getting suggestions: {ex.Message}";
         }
@@ -416,7 +424,7 @@ Troubleshooting:
 
             return sb.ToString();
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return $"Error retrieving history: {ex.Message}";
         }
@@ -461,7 +469,11 @@ Examples:
 
             return sb.ToString();
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            return $"Error executing shell command: {ex.Message}";
+        }
+        catch (System.ComponentModel.Win32Exception ex)
         {
             return $"Error executing shell command: {ex.Message}";
         }

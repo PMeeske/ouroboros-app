@@ -107,7 +107,7 @@ public sealed class PipelineStepTool : ITool
 
             return Result<string, string>.Success(resultMessage);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return Result<string, string>.Failure($"Pipeline step '{_stepName}' failed: {ex.Message}");
         }

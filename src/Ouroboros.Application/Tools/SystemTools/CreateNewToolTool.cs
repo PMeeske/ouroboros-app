@@ -58,7 +58,7 @@ public class {className} : ITool
         {{
             {implementation}
         }}
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {{
             return Result<string, string>.Failure($""Tool execution failed: {{ex.Message}}"");
         }}

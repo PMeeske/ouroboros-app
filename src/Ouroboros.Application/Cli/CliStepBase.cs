@@ -124,7 +124,8 @@ public static class CliStepBase
             {
                 return await action(s);
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (InvalidOperationException ex)
             {
                 s.Branch = s.Branch.WithIngestEvent($"error:{name}:{ex.GetType().Name}", Array.Empty<string>());
                 Trace(s, $"Error in {name}: {ex.Message}");

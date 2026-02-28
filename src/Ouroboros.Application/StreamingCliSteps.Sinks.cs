@@ -119,7 +119,7 @@ public static partial class StreamingCliSteps
                 Console.WriteLine(); // Newline at end
                 Console.WriteLine("[stream] Reasoning pipeline completed.");
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 Console.WriteLine($"[stream:error] {ex.Message}");
             }

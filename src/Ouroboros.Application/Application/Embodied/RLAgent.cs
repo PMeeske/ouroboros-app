@@ -132,7 +132,7 @@ public sealed class RLAgent
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to select action");
             return Result<EmbodiedAction, string>.Failure($"Action selection failed: {ex.Message}");
@@ -252,7 +252,7 @@ public sealed class RLAgent
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Training failed");
             return Result<TrainingMetrics, string>.Failure($"Training failed: {ex.Message}");
@@ -284,7 +284,7 @@ public sealed class RLAgent
         {
             throw;
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             this.logger.LogError(ex, "Failed to save checkpoint");
             return Result<Unit, string>.Failure($"Checkpoint save failed: {ex.Message}");
@@ -316,7 +316,7 @@ public sealed class RLAgent
         {
             throw;
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             this.logger.LogError(ex, "Failed to load checkpoint");
             return Result<Unit, string>.Failure($"Checkpoint load failed: {ex.Message}");

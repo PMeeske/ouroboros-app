@@ -63,7 +63,7 @@ public class ProposeIntentionTool : ITool
                 $"ID: `{intention.Id.ToString()[..8]}`\n" +
                 $"Awaiting user approval."));
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return Task.FromResult(Result<string, string>.Failure($"Failed to propose: {ex.Message}"));
         }

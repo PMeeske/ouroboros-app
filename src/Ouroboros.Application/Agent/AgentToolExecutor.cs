@@ -67,7 +67,7 @@ public static class AgentToolExecutor
                 {
                     allowed = await OnPermissionRequired(toolName, args);
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     return $"Error: Permission check failed for '{toolName}': {ex.Message}";
                 }
@@ -86,7 +86,7 @@ public static class AgentToolExecutor
         {
             return await tool(args, state);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return $"Error executing {toolName}: {ex.Message}";
         }

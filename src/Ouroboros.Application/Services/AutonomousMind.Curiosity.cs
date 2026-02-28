@@ -140,7 +140,7 @@ public partial class AutonomousMind
             {
                 break;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 System.Diagnostics.Debug.WriteLine($"Curiosity error: {ex.Message}");
             }

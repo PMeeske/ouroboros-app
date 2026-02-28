@@ -1,6 +1,7 @@
 // Copyright (c) 2025 Ouroboros contributors. Licensed under the MIT License.
 namespace Ouroboros.CLI.Subsystems.Autonomy;
 
+using System.Net.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Ouroboros.Application.Configuration;
 using Ouroboros.CLI.Infrastructure;
@@ -47,7 +48,7 @@ internal sealed class NetworkStateManager
 
             await Task.CompletedTask;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             AnsiConsole.MarkupLine(
                 $"  {OuroborosTheme.Warn($"NetworkState initialization failed: {ex.Message}")}");
@@ -88,7 +89,12 @@ internal sealed class NetworkStateManager
             ctx.Output.RecordInit("Network Projector", true,
                 $"epoch {NetworkProjector.CurrentEpoch}, {NetworkProjector.RecentLearnings.Count} learnings");
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            AnsiConsole.MarkupLine(
+                $"  {OuroborosTheme.Warn($"Network Projector: {ex.Message}")}");
+        }
+        catch (InvalidOperationException ex)
         {
             AnsiConsole.MarkupLine(
                 $"  {OuroborosTheme.Warn($"Network Projector: {ex.Message}")}");
@@ -148,7 +154,13 @@ internal sealed class NetworkStateManager
             NetworkTracker!.ConfigureQdrantPersistence(dagStore, autoPersist: true);
             ctx.Output.RecordInit("Network State", true, "Merkle-DAG with Qdrant persistence (DI)");
         }
-        catch (Exception qdrantEx)
+        catch (HttpRequestException qdrantEx)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"[NetworkState] Qdrant DAG storage unavailable: {qdrantEx.Message}");
+            ctx.Output.RecordInit("Network State", true, "Merkle-DAG (in-memory)");
+        }
+        catch (InvalidOperationException qdrantEx)
         {
             System.Diagnostics.Debug.WriteLine(
                 $"[NetworkState] Qdrant DAG storage unavailable: {qdrantEx.Message}");
@@ -174,7 +186,13 @@ internal sealed class NetworkStateManager
             NetworkTracker!.ConfigureQdrantPersistence(dagStore, autoPersist: true);
             ctx.Output.RecordInit("Network State", true, "Merkle-DAG with Qdrant persistence");
         }
-        catch (Exception qdrantEx)
+        catch (HttpRequestException qdrantEx)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"[NetworkState] Qdrant DAG storage unavailable: {qdrantEx.Message}");
+            ctx.Output.RecordInit("Network State", true, "Merkle-DAG (in-memory)");
+        }
+        catch (InvalidOperationException qdrantEx)
         {
             System.Diagnostics.Debug.WriteLine(
                 $"[NetworkState] Qdrant DAG storage unavailable: {qdrantEx.Message}");

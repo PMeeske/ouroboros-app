@@ -88,7 +88,8 @@ public static partial class SpeechToTextCliSteps
                     Console.WriteLine($"[stt] Initialized {currentService.ProviderName}");
                 }
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (InvalidOperationException ex)
             {
                 Console.WriteLine($"[stt] Failed to initialize: {ex.Message}");
             }
@@ -285,7 +286,8 @@ public static partial class SpeechToTextCliSteps
                 s.Output = response;
                 Console.WriteLine($"\n[LLM Response]\n{response}\n");
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (InvalidOperationException ex)
             {
                 Console.WriteLine($"[stt] LLM error: {ex.Message}");
             }

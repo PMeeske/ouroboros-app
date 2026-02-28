@@ -208,7 +208,7 @@ public static class MetaLearningExample
 
             Console.WriteLine("=== All Examples Completed ===");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Console.WriteLine($"Error: {ex.Message}");
             Console.WriteLine(ex.StackTrace);

@@ -146,7 +146,7 @@ def process_user_data(user_id):
             Console.WriteLine("   • Achieved comprehensive review through intelligent orchestration");
             Console.WriteLine("   • Cost-effective and faster than using a single large model");
         }
-        catch (Exception ex) when (ex.Message.Contains("Connection refused") || ex.Message.Contains("ECONNREFUSED"))
+        catch (Exception ex) when (ex is not OperationCanceledException && ex.Message.Contains("Connection refused") || ex.Message.Contains("ECONNREFUSED"))
         {
             Console.WriteLine("\n⚠️  Error: Ollama is not running or models are not installed.");
             Console.WriteLine("\nTo run this example:");
@@ -158,7 +158,7 @@ def process_user_data(user_id):
             Console.WriteLine("\nOr run the guided setup:");
             Console.WriteLine("   dotnet run -- setup --all");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Console.WriteLine($"\n❌ Error: {ex.Message}");
             if (Environment.GetEnvironmentVariable("DEBUG") == "1")
@@ -233,7 +233,7 @@ def process_user_data(user_id):
 
             Console.WriteLine("✨ Research orchestration complete!\n");
         }
-        catch (Exception ex) when (ex.Message.Contains("Connection refused"))
+        catch (Exception ex) when (ex is not OperationCanceledException && ex.Message.Contains("Connection refused"))
         {
             Console.WriteLine("\n⚠️  Ollama not running. Run 'dotnet run -- setup --ollama' for installation help.");
         }

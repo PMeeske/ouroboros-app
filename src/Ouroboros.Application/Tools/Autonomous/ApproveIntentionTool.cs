@@ -42,7 +42,7 @@ public class ApproveIntentionTool : ITool
                 ? Result<string, string>.Success($"\u2705 Intention `{id}` approved and queued for execution.")
                 : Result<string, string>.Failure($"Could not find pending intention with ID starting with: {id}"));
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return Task.FromResult(Result<string, string>.Failure($"Failed to approve: {ex.Message}"));
         }

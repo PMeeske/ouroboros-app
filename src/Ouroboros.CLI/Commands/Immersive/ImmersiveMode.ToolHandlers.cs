@@ -4,6 +4,7 @@
 
 namespace Ouroboros.CLI.Commands;
 
+using System.Net.Http;
 using System.Text;
 using System.Text.RegularExpressions;
 using Ouroboros.CLI.Avatar;
@@ -64,7 +65,7 @@ public sealed partial class ImmersiveMode
                 return $"I couldn't create a '{toolName}' tool. Error: {createResult.Error}";
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             AnsiConsole.MarkupLine($"  [red]{Markup.Escape($"[!] Tool creation failed: {ex.Message}")}[/]");
         }
@@ -107,7 +108,7 @@ public sealed partial class ImmersiveMode
                 return $"I couldn't create that tool. Error: {createResult.Error}";
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             AnsiConsole.MarkupLine($"  [red]{Markup.Escape($"[!] Tool creation failed: {ex.Message}")}[/]");
             return $"Tool creation failed: {ex.Message}";
@@ -143,7 +144,7 @@ public sealed partial class ImmersiveMode
                 return $"I couldn't create that tool. {createResult.Error}";
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             AnsiConsole.MarkupLine($"  [red]{Markup.Escape($"[!] Tool creation failed: {ex.Message}")}[/]");
             return $"Tool creation failed: {ex.Message}";
@@ -184,7 +185,7 @@ public sealed partial class ImmersiveMode
             }
             return $"I couldn't find a suitable tool for '{goal}'. {result.Error}";
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return $"Smart tool search failed: {ex.Message}";
         }
@@ -290,7 +291,13 @@ public sealed partial class ImmersiveMode
 
             return $"I found results for '{query}'. The search returned information about it.";
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+            AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} \\[!] Search failed: {Markup.Escape(ex.Message)}[/]");
+            return $"I couldn't complete the search. Error: {ex.Message}";
+        }
+        catch (InvalidOperationException ex)
         {
             var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
             AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} \\[!] Search failed: {Markup.Escape(ex.Message)}[/]");
@@ -339,7 +346,7 @@ public sealed partial class ImmersiveMode
                 error => $"**{toolName} failed:**\n\n{error}"
             );
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return $"Tool execution error: {ex.Message}";
         }

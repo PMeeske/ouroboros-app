@@ -68,7 +68,7 @@ public sealed class FileDeleteHandler : IPcNodeCapabilityHandler
                 return Task.FromResult(PcNodeResult.Ok($"File deleted: {path}"));
             }
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             return Task.FromResult(PcNodeResult.Fail($"Failed to delete file: {ex.Message}"));
         }

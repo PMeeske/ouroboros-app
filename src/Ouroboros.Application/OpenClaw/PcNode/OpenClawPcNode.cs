@@ -118,7 +118,8 @@ public sealed partial class OpenClawPcNode : IAsyncDisposable
             {
                 await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "PC Node disconnecting", CancellationToken.None);
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+        catch (System.Net.WebSockets.WebSocketException ex)
             {
                 _logger.LogDebug("[OpenClaw PC Node] Close error (non-fatal): {Message}", ex.Message);
             }

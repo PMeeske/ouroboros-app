@@ -208,7 +208,7 @@ AI: ";
                 string? response = result.GetProperty<string>("text");
                 Console.WriteLine($"Input: '{input}' -> Response: '{response}'");
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 Console.WriteLine($"Error for '{input}': {ex.Message}");
             }

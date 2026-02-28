@@ -178,7 +178,8 @@ CODE:
 
             return Result<ITool, string>.Success(tool);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
         {
             return Result<ITool, string>.Failure($"Tool creation failed: {ex.Message}");
         }

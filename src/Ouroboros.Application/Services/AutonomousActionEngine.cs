@@ -98,7 +98,7 @@ public sealed class AutonomousActionEngine : IDisposable
                         {
                             executionResult = await ExecuteFunc(command, ct).ConfigureAwait(false);
                         }
-                        catch (Exception ex)
+                        catch (Exception ex) when (ex is not OperationCanceledException)
                         {
                             executionResult = $"[Error: {ex.Message}]";
                         }
@@ -109,7 +109,7 @@ public sealed class AutonomousActionEngine : IDisposable
                 }
             }
             catch (OperationCanceledException) { break; }
-            catch (Exception) { /* individual cycle failures are non-fatal */ }
+            catch (Exception ex) when (ex is not OperationCanceledException) { /* individual cycle failures are non-fatal */ }
 
             await Task.Delay(Interval, ct).ConfigureAwait(false);
         }

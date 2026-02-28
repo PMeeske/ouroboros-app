@@ -203,7 +203,7 @@ public sealed class HyperonFlowIntegration : IAsyncDisposable
                 {
                     break;
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     // Log error but continue loop
                     var errorAtom = Atom.Expr(
@@ -246,7 +246,7 @@ public sealed class HyperonFlowIntegration : IAsyncDisposable
                     _engine.AddAtom(updatedIntention);
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 var errorAtom = Atom.Expr(
                     Atom.Sym("intention-error"),

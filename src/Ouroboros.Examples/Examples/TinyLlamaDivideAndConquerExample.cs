@@ -171,7 +171,7 @@ effort can we ensure that AI benefits all of humanity while minimizing potential
             Console.WriteLine("   • Near-linear speedup with parallelism");
             Console.WriteLine("   • Optimal for processing large documents with small models");
         }
-        catch (Exception ex) when (ex.Message.Contains("Connection refused") || ex.Message.Contains("ECONNREFUSED"))
+        catch (Exception ex) when (ex is not OperationCanceledException && ex.Message.Contains("Connection refused") || ex.Message.Contains("ECONNREFUSED"))
         {
             Console.WriteLine("\n⚠️  Error: Ollama is not running or TinyLlama is not installed.");
             Console.WriteLine("\nTo run this example:");
@@ -180,7 +180,7 @@ effort can we ensure that AI benefits all of humanity while minimizing potential
             Console.WriteLine("\nOr run the guided setup:");
             Console.WriteLine("   dotnet run -- setup --all");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Console.WriteLine($"\n❌ Error: {ex.Message}");
             if (Environment.GetEnvironmentVariable("DEBUG") == "1")
@@ -245,7 +245,7 @@ effort can we ensure that AI benefits all of humanity while minimizing potential
 
             Console.WriteLine("\n✨ Parallel analysis complete!");
         }
-        catch (Exception ex) when (ex.Message.Contains("Connection refused"))
+        catch (Exception ex) when (ex is not OperationCanceledException && ex.Message.Contains("Connection refused"))
         {
             Console.WriteLine("\n⚠️  Ollama not running. Run 'dotnet run -- setup --ollama' for help.");
         }

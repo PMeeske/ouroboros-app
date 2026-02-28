@@ -57,7 +57,8 @@ public static partial class SkillCliSteps
                 s.Output = result.Length > 50000 ? result[..50000] + "\n...[truncated]" : result;
                 s.Context = $"[Firecrawl scraped from {targetUrl}]\n{s.Output}";
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[Firecrawl] ⚠ Failed: {ex.Message}, falling back to basic Fetch");
                 return await Fetch(targetUrl)(s);
@@ -102,7 +103,8 @@ public static partial class SkillCliSteps
                 s.Output = result;
                 s.Context = $"[Firecrawl extracted from {targetUrl}]\n{s.Output}";
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[FirecrawlExtract] ⚠ Failed: {ex.Message}");
                 s.Output = $"FirecrawlExtract failed: {ex.Message}";
@@ -145,7 +147,8 @@ public static partial class SkillCliSteps
                 s.Output = result.Length > 100000 ? result[..100000] + "\n...[truncated]" : result;
                 s.Context = $"[Firecrawl crawled from {targetUrl}]\n{s.Output}";
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[FirecrawlCrawl] ⚠ Failed: {ex.Message}");
                 s.Output = $"FirecrawlCrawl failed: {ex.Message}";

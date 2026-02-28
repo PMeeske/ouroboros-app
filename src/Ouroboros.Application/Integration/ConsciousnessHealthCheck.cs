@@ -49,7 +49,7 @@ public sealed class ConsciousnessHealthCheck : IHealthCheck
                     ["high_priority_items"] = highPriority.Count
                 });
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return HealthCheckResult.Unhealthy("Consciousness health check failed", ex);
         }

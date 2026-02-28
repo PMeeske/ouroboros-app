@@ -20,7 +20,7 @@ internal static class ChannelExtensions
                 }
                 observer.OnCompleted();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 observer.OnError(ex);
             }

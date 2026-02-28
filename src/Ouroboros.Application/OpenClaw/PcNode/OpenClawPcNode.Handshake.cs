@@ -167,7 +167,8 @@ public sealed partial class OpenClawPcNode
                 proc.ExitCode, error.Trim());
             return false;
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (System.Net.WebSockets.WebSocketException ex)
         {
             _logger.LogWarning("[OpenClaw PC Node] Auto-approve failed: {Message}", ex.Message);
             return false;
@@ -233,7 +234,8 @@ public sealed partial class OpenClawPcNode
             _receiveCts = new CancellationTokenSource();
             _receiveLoop = Task.Run(() => ReceiveLoopAsync(_receiveCts.Token), _receiveCts.Token);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (System.Net.WebSockets.WebSocketException ex)
         {
             _logger.LogError("[OpenClaw PC Node] Reconnection failed: {Message}", ex.Message);
         }

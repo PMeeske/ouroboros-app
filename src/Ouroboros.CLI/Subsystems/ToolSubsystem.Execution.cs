@@ -1,6 +1,8 @@
 // Copyright (c) Ouroboros. All rights reserved.
 namespace Ouroboros.CLI.Subsystems;
 
+using System.IO;
+using System.Net.Http;
 using System.Text.RegularExpressions;
 using Ouroboros.Application.Tools;
 using Ouroboros.CLI.Infrastructure;
@@ -47,7 +49,11 @@ public sealed partial class ToolSubsystem
                     var ptzOutput = ptzInvoke.Value.Match(ok => ok, err => $"[PTZ error: {err}]");
                     return $"PTZ MOVEMENT RESULT:\n{ptzOutput}\n\nReport the camera movement result to the user. If it succeeded, let them know. If it failed, explain the error honestly.";
                 }
-                catch (Exception ex)
+                catch (InvalidOperationException ex)
+                {
+                    return $"PTZ MOVEMENT ATTEMPTED BUT FAILED:\n{ex.Message}\n\nReport this error honestly to the user.";
+                }
+                catch (HttpRequestException ex)
                 {
                     return $"PTZ MOVEMENT ATTEMPTED BUT FAILED:\n{ex.Message}\n\nReport this error honestly to the user.";
                 }
@@ -72,7 +78,11 @@ public sealed partial class ToolSubsystem
                     var captureOutput = captureInvoke.Value.Match(ok => ok, err => $"[Camera error: {err}]");
                     return $"LIVE CAMERA FEED:\n{captureOutput}\n\nDescribe what the camera captured above. Do NOT make up or hallucinate any visual details - only report what appears in the camera output. If it shows an error, explain the error honestly.";
                 }
-                catch (Exception ex)
+                catch (InvalidOperationException ex)
+                {
+                    return $"CAMERA CAPTURE ATTEMPTED BUT FAILED:\n{ex.Message}\n\nReport this error honestly to the user. Do NOT make up or hallucinate any visual details.";
+                }
+                catch (HttpRequestException ex)
                 {
                     return $"CAMERA CAPTURE ATTEMPTED BUT FAILED:\n{ex.Message}\n\nReport this error honestly to the user. Do NOT make up or hallucinate any visual details.";
                 }
@@ -100,7 +110,11 @@ public sealed partial class ToolSubsystem
                     var smartOutput = smartInvoke.Value.Match(ok => ok, err => $"[Smart home error: {err}]");
                     return $"SMART HOME RESULT:\n{smartOutput}\n\nReport the smart home action result to the user.";
                 }
-                catch (Exception ex)
+                catch (InvalidOperationException ex)
+                {
+                    return $"SMART HOME ATTEMPTED BUT FAILED:\n{ex.Message}\n\nReport this error honestly to the user.";
+                }
+                catch (HttpRequestException ex)
                 {
                     return $"SMART HOME ATTEMPTED BUT FAILED:\n{ex.Message}\n\nReport this error honestly to the user.";
                 }
@@ -175,12 +189,17 @@ public sealed partial class ToolSubsystem
                                     results.Add($"File content ({fileMatch.Value}):\n{fileContent}");
                                 }
                             }
-                            catch (Exception) { /* file read failed — non-critical */ }
+                            catch (IOException) { /* file read failed — non-critical */ }
+                            catch (InvalidOperationException) { /* file read failed — non-critical */ }
                         }
                     }
                 }
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Auto-Tool] Error: {ex.Message}");
+            }
+            catch (HttpRequestException ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[Auto-Tool] Error: {ex.Message}");
             }
@@ -308,7 +327,11 @@ public sealed partial class ToolSubsystem
                 }
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Thought→Action] Error: {ex.Message}");
+        }
+        catch (HttpRequestException ex)
         {
             System.Diagnostics.Debug.WriteLine($"[Thought→Action] Error: {ex.Message}");
         }

@@ -114,7 +114,8 @@ public sealed partial class AvatarVideoGenerator
                 if (_logger == null) Console.Error.WriteLine($"[AvatarVideoGenerator] {msg}");
             }
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
         {
             _logger?.LogWarning(ex, "Failed to set SD checkpoint");
             if (_logger == null) Console.Error.WriteLine($"[AvatarVideoGenerator] Failed to set SD checkpoint: {ex.Message}");
@@ -271,7 +272,8 @@ public sealed partial class AvatarVideoGenerator
         {
             return null;
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
         {
             _logger?.LogWarning(ex, "Failed to generate avatar frame");
             if (_logger == null) Console.Error.WriteLine($"[AvatarVideoGenerator] Frame generation failed: {ex.Message}");

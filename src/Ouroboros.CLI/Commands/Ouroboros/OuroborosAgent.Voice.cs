@@ -179,7 +179,7 @@ public sealed partial class OuroborosAgent
                     {
                         await SpeakResponseWithAzureTtsAsync(response, speechKey, speechRegion, ct);
                     }
-                    catch (Exception ex)
+                    catch (InvalidOperationException ex)
                     {
                         if (_config.Debug)
                         {
@@ -226,7 +226,7 @@ public sealed partial class OuroborosAgent
             ct.Register(() =>
             {
                 try { _ = speechSynthesizer.StopSpeakingAsync(); }
-                catch (Exception) { /* Best effort barge-in stop */ }
+                catch (InvalidOperationException) { /* Best effort barge-in stop */ }
             });
 
             // Detect the response language via LanguageSubsystem (Ollama LLM → heuristic fallback).
@@ -256,7 +256,7 @@ public sealed partial class OuroborosAgent
         {
             // Expected during barge-in
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             if (_config.Debug)
             {
@@ -380,7 +380,7 @@ public sealed partial class OuroborosAgent
 
             return false;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             AnsiConsole.MarkupLine($"[red]{Markup.Escape($"  [Azure TTS Exception] {ex.Message}")}[/]");
             return false; // Fall back to SAPI
@@ -466,7 +466,11 @@ $synth.Dispose()
                 // Remove from tracking (best effort - ConcurrentBag doesn't have Remove)
             }
         }
-        catch (Exception)
+        catch (InvalidOperationException)
+        {
+            // Silently fail if SAPI not available
+        }
+        catch (System.ComponentModel.Win32Exception)
         {
             // Silently fail if SAPI not available
         }

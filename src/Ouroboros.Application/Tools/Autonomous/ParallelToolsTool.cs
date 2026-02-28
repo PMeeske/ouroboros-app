@@ -63,7 +63,8 @@ public class ParallelToolsTool : ITool
                     var result = await _ctx.ExecuteToolFunction(tc.name, tc.input, ct);
                     return (tc.name, success: true, result);
                 }
-                catch (Exception ex)
+                catch (OperationCanceledException) { throw; }
+                catch (InvalidOperationException ex)
                 {
                     return (tc.name, success: false, result: ex.Message);
                 }

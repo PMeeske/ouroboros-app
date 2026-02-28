@@ -1,6 +1,8 @@
 // Copyright (c) Ouroboros. All rights reserved.
 namespace Ouroboros.CLI.Subsystems;
 
+using System.IO;
+using System.Net.Http;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
 using Ouroboros.Application.Mcp;
@@ -121,7 +123,11 @@ public sealed partial class ToolSubsystem : IToolSubsystem
                         Tools = Tools.WithTool(PlaywrightTool);
                         ctx.Output.RecordInit("Playwright", true, $"browser automation ({PlaywrightTool.AvailableTools.Count} tools)");
                     }
-                    catch (Exception ex)
+                    catch (InvalidOperationException ex)
+                    {
+                        AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Playwright: Not available ({Markup.Escape(ex.Message)})"));
+                    }
+                    catch (IOException ex)
                     {
                         AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Playwright: Not available ({Markup.Escape(ex.Message)})"));
                     }
@@ -133,7 +139,7 @@ public sealed partial class ToolSubsystem : IToolSubsystem
 
                 // Register camera capture tool (cross-cutting - provided by agent)
                 try { ctx.RegisterCameraCaptureAction?.Invoke(); }
-                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Tools] capture_camera registration failed: {ex.Message}"); }
+                catch (InvalidOperationException ex) { System.Diagnostics.Debug.WriteLine($"[Tools] capture_camera registration failed: {ex.Message}"); }
 
                 // Create final ToolAwareChatModel with ALL tools
                 var effectiveModel = ctx.Models.OrchestratedModel as Ouroboros.Abstractions.Core.IChatCompletionModel ?? chatModel;
@@ -185,7 +191,13 @@ public sealed partial class ToolSubsystem : IToolSubsystem
                         ctx.Output.RecordInit("OpenClaw", true,
                             $"gateway {gw} ({OpenClawTools.GetAllTools().Count()} tools)");
                     }
-                    catch (Exception ex)
+                    catch (HttpRequestException ex)
+                    {
+                        AnsiConsole.MarkupLine(OuroborosTheme.Warn(
+                            $"  [!] OpenClaw: {Markup.Escape(ex.Message)}"));
+                        ctx.Output.RecordInit("OpenClaw", false, ex.Message);
+                    }
+                    catch (InvalidOperationException ex)
                     {
                         AnsiConsole.MarkupLine(OuroborosTheme.Warn(
                             $"  [!] OpenClaw: {Markup.Escape(ex.Message)}"));
@@ -216,7 +228,13 @@ public sealed partial class ToolSubsystem : IToolSubsystem
                             ctx.Output.RecordInit("PcNode", true,
                                 $"{enabledCount} capabilities enabled ({OpenClawPcNodeTools.GetAllTools().Count()} tools)");
                         }
-                        catch (Exception ex)
+                        catch (HttpRequestException ex)
+                        {
+                            AnsiConsole.MarkupLine(OuroborosTheme.Warn(
+                                $"  [!] PC Node: {Markup.Escape(ex.Message)}"));
+                            ctx.Output.RecordInit("PcNode", false, ex.Message);
+                        }
+                        catch (InvalidOperationException ex)
                         {
                             AnsiConsole.MarkupLine(OuroborosTheme.Warn(
                                 $"  [!] PC Node: {Markup.Escape(ex.Message)}"));
@@ -241,7 +259,11 @@ public sealed partial class ToolSubsystem : IToolSubsystem
                 ctx.Output.RecordInit("Tools", true, $"{Tools.Count} (static only)");
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Tool factory failed: {Markup.Escape(ex.Message)}"));
+        }
+        catch (HttpRequestException ex)
         {
             AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Tool factory failed: {Markup.Escape(ex.Message)}"));
         }
@@ -252,7 +274,7 @@ public sealed partial class ToolSubsystem : IToolSubsystem
             AllPipelineTokens = SkillCliSteps.GetAllPipelineTokens();
             ctx.Output.RecordInit("Pipeline Tokens", true, $"{AllPipelineTokens.Count} tokens");
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Pipeline tokens: {Markup.Escape(ex.Message)}"));
         }

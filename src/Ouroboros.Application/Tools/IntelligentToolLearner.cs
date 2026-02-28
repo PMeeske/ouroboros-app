@@ -207,7 +207,8 @@ public sealed partial class IntelligentToolLearner : IAsyncDisposable
 
             return Result<(ITool, bool), string>.Success((newTool, true));
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
         {
             return Result<(ITool, bool), string>.Failure($"Intelligent tool creation failed: {ex.Message}");
         }
@@ -250,7 +251,8 @@ public sealed partial class IntelligentToolLearner : IAsyncDisposable
             // Fall back to default configuration
             return ToolConfiguration.Default(toolName, description);
         }
-        catch (Exception)
+        catch (OperationCanceledException) { throw; }
+        catch (InvalidOperationException)
         {
             // Fall back to default configuration on any error
             return ToolConfiguration.Default(toolName, description);

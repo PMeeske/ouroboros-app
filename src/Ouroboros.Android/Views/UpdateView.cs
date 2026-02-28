@@ -1,3 +1,5 @@
+using System.IO;
+using System.Net.Http;
 using Microsoft.Maui.Controls;
 using Ouroboros.Android.Services;
 
@@ -241,7 +243,13 @@ public class UpdateView : ContentPage
                 HideUpdateInfo();
             }
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            _statusLabel.Text = $"Error checking for updates: {ex.Message}";
+            _statusLabel.TextColor = Color.FromRgb(255, 100, 100);
+            HideUpdateInfo();
+        }
+        catch (TaskCanceledException ex)
         {
             _statusLabel.Text = $"Error checking for updates: {ex.Message}";
             _statusLabel.TextColor = Color.FromRgb(255, 100, 100);
@@ -335,7 +343,17 @@ public class UpdateView : ContentPage
                 "Please follow the on-screen instructions to install the update.",
                 "OK");
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            await DisplayAlert(
+                "Download Failed",
+                $"Failed to download update: {ex.Message}",
+                "OK");
+
+            _progressBar.IsVisible = false;
+            _progressLabel.IsVisible = false;
+        }
+        catch (IOException ex)
         {
             await DisplayAlert(
                 "Download Failed",
@@ -361,7 +379,7 @@ public class UpdateView : ContentPage
         {
             await Browser.Default.OpenAsync(_currentUpdateInfo.ReleaseUrl, BrowserLaunchMode.SystemPreferred);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             await DisplayAlert("Error", $"Failed to open browser: {ex.Message}", "OK");
         }

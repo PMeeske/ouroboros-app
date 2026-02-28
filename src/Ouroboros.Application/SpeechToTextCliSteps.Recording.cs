@@ -294,7 +294,8 @@ public static partial class SpeechToTextCliSteps
                 s.Output = response;
                 Console.WriteLine($"\n[LLM] {response}\n");
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (InvalidOperationException ex)
             {
                 Console.WriteLine($"[stt] LLM error: {ex.Message}");
             }

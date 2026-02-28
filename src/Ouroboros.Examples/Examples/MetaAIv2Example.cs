@@ -148,7 +148,7 @@ public static class MetaAIv2Example
                 Console.WriteLine($"  Avg Latency: {metric.AverageLatencyMs:F0}ms");
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             if (ex.Message.Contains("Connection refused") || ex.Message.Contains("No connection"))
             {
@@ -227,7 +227,7 @@ public static class MetaAIv2Example
 
             Console.WriteLine("\n✓ Skill acquisition example completed");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             if (ex.Message.Contains("Connection refused") || ex.Message.Contains("No connection"))
             {
@@ -284,7 +284,7 @@ public static class MetaAIv2Example
 
             Console.WriteLine("\n✓ Evaluation completed");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             if (ex.Message.Contains("Connection refused") || ex.Message.Contains("No connection"))
             {

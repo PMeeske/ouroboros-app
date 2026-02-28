@@ -198,7 +198,7 @@ namespace Ouroboros.SourceGenerators
                 // Example: Add generated source
                 context.AddSource(""{generatorName}Generated.cs"", SourceText.From(generatedCode, Encoding.UTF8));
             }}
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {{
                 // Report diagnostic
                 context.ReportDiagnostic(Diagnostic.Create(

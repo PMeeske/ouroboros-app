@@ -146,7 +146,8 @@ public sealed partial class OpenClawGatewayClient : IAsyncDisposable
             {
                 await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Ouroboros disconnecting", CancellationToken.None);
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+        catch (System.Net.WebSockets.WebSocketException ex)
             {
                 _logger.LogDebug("[OpenClaw] Close error (non-fatal): {Message}", ex.Message);
             }

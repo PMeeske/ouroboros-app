@@ -46,7 +46,7 @@ public class InjectGoalTool : ITool
                 $"\ud83c\udfaf Goal injected: {goal}\n" +
                 $"I will propose actions to work towards this goal."));
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return Task.FromResult(Result<string, string>.Failure($"Failed to set goal: {ex.Message}"));
         }

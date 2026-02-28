@@ -192,7 +192,12 @@ public sealed class QdrantSyncService : IQdrantSyncService, IDisposable
                 totalFailed += failed;
                 results.Add(new CollectionSyncResult { Name = name, Points = points, Dimension = dim, Synced = synced, Failed = failed });
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
+            {
+                totalFailed += points;
+                results.Add(new CollectionSyncResult { Name = name, Points = points, Dimension = dim, Synced = 0, Failed = points, Error = ex.Message });
+            }
+            catch (JsonException ex)
             {
                 totalFailed += points;
                 results.Add(new CollectionSyncResult { Name = name, Points = points, Dimension = dim, Synced = 0, Failed = points, Error = ex.Message });
@@ -284,7 +289,11 @@ public sealed class QdrantSyncService : IQdrantSyncService, IDisposable
                 totalMissing += missingHmac;
                 results.Add(new CollectionVerifyResult { Name = name, Points = points, Intact = intact, Corrupted = corrupted, MissingHmac = missingHmac });
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
+            {
+                results.Add(new CollectionVerifyResult { Name = name, Points = points, Intact = 0, Corrupted = 0, MissingHmac = 0, Error = ex.Message });
+            }
+            catch (JsonException ex)
             {
                 results.Add(new CollectionVerifyResult { Name = name, Points = points, Intact = 0, Corrupted = 0, MissingHmac = 0, Error = ex.Message });
             }
