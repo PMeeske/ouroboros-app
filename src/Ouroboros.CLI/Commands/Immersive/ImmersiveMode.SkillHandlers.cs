@@ -15,12 +15,13 @@ using Spectre.Console;
 /// </summary>
 public sealed partial class ImmersiveMode
 {
-    private async Task<string> HandleListSkillsAsync(string personaName)
+    private async Task<string> HandleListSkillsAsync(string _personaName)
     {
         if (_tools.SkillRegistry == null)
             return "I don't have any skills loaded right now.";
 
-        var skills = _tools.SkillRegistry.GetAllSkills().ToList();
+        var allSkillsResult = await _tools.SkillRegistry.GetAllSkillsAsync();
+        var skills = allSkillsResult.IsSuccess ? allSkillsResult.Value.ToList() : [];
         if (skills.Count == 0)
             return "I haven't learned any skills yet. Say 'learn about' something to teach me.";
 
@@ -39,15 +40,17 @@ public sealed partial class ImmersiveMode
 
     private async Task<string> HandleRunSkillAsync(
         string skillName,
-        string personaName,
-        IVoiceOptions options,
+        string _personaName,
+        IVoiceOptions _options,
         CancellationToken ct)
     {
         if (_tools.SkillRegistry == null)
             return "Skills are not available.";
 
-        var skill = _tools.SkillRegistry.GetAllSkills()
-            .FirstOrDefault(s => s.Name.Contains(skillName, StringComparison.OrdinalIgnoreCase));
+        var runSkillsResult = await _tools.SkillRegistry.GetAllSkillsAsync();
+        var skill = runSkillsResult.IsSuccess
+            ? runSkillsResult.Value.FirstOrDefault(s => s.Name.Contains(skillName, StringComparison.OrdinalIgnoreCase))
+            : null;
 
         if (skill == null)
             return $"I don't know a skill called '{skillName}'. Say 'list skills' to see what I know.";
@@ -80,8 +83,8 @@ public sealed partial class ImmersiveMode
 
     private async Task<string> HandleLearnAboutAsync(
         string topic,
-        string personaName,
-        IVoiceOptions options,
+        string _personaName,
+        IVoiceOptions _options,
         CancellationToken ct)
     {
         AnsiConsole.MarkupLine($"\n  {OuroborosTheme.GoldText($"[~] Researching: {topic}...")}");

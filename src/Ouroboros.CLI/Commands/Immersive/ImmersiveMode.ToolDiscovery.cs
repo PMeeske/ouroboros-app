@@ -14,7 +14,7 @@ using Spectre.Console;
 /// </summary>
 public sealed partial class ImmersiveMode
 {
-    private string HandleListTools(string personaName)
+    private string HandleListTools(string _personaName)
     {
         if (_tools.DynamicTools == null)
             return "I don't have any tools loaded.";
@@ -66,7 +66,7 @@ public sealed partial class ImmersiveMode
         return $"I have {tools.Count} tools available. Key ones: {string.Join(", ", selfTools.Select(t => t.Name))}";
     }
 
-    private string HandleSelfModificationHelp(string personaName)
+    private static string HandleSelfModificationHelp(string _personaName)
     {
         var sb = new StringBuilder();
         sb.AppendLine("\n  \U0001f9ec **Self-Modification Capabilities**\n");
@@ -150,7 +150,7 @@ public sealed partial class ImmersiveMode
     /// <summary>
     /// Extracts a meaningful topic name from a description.
     /// </summary>
-    private string ExtractTopicFromDescription(string description)
+    private static string ExtractTopicFromDescription(string description)
     {
         // Try to find meaningful words
         var words = description.Split(' ', StringSplitOptions.RemoveEmptyEntries)

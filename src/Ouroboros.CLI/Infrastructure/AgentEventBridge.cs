@@ -175,6 +175,42 @@ public sealed class AgentEventBridge : IDisposable
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // Exception routing — all exceptions pass through Iaret's kernel
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Wires global exception handlers so every exception — fire-and-forget faults,
+    /// unhandled domain exceptions, and unobserved task exceptions — routes through
+    /// Iaret's consciousness via <see cref="ExceptionSink"/>.
+    /// Call once during agent initialization.
+    /// </summary>
+    public void WireExceptionRouting(IAgentEventSink sink)
+    {
+        ExceptionSink.SetSink(sink);
+
+        // Fire-and-forget task faults (via ObserveExceptions)
+        Application.Extensions.TaskExtensions.ExceptionObserved += (ex, context) =>
+            ExceptionSink.Publish(ex, context ?? "fire-and-forget", isFatal: false);
+
+        // Unhandled exceptions on any thread
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        {
+            if (args.ExceptionObject is Exception ex)
+                ExceptionSink.Publish(ex, "unhandled", isFatal: args.IsTerminating);
+        };
+
+        // Unobserved task exceptions (tasks that faulted without anyone awaiting)
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+        {
+            if (args.Exception != null)
+            {
+                ExceptionSink.Publish(args.Exception, "unobserved-task", isFatal: false);
+                args.SetObserved(); // Prevent process crash
+            }
+        };
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // Device events (Tapo cameras, generic IoT)
     // ═══════════════════════════════════════════════════════════════════════════
 
@@ -221,5 +257,7 @@ public sealed class AgentEventBridge : IDisposable
         foreach (var sub in _subscriptions)
             sub.Dispose();
         _subscriptions.Clear();
+
+        ExceptionSink.Clear();
     }
 }

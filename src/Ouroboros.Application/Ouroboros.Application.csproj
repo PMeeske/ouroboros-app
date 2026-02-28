@@ -33,10 +33,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Override vulnerable transitive dependencies from Microsoft.CodeAnalysis -->
     <PackageReference Include="MediatR" Version="12.*" />
-    <PackageReference Include="Microsoft.Build.Tasks.Core" Version="18.3.3" />
-    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="18.3.3" />
 
     <PackageReference Include="LangChain" Version="0.17.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.3" />
@@ -57,8 +54,5 @@
     <PackageReference Include="Microsoft.Extensions.Resilience" Version="9.6.0" />
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.19.0.132793" PrivateAssets="all" />
-  </ItemGroup>
 
 </Project>

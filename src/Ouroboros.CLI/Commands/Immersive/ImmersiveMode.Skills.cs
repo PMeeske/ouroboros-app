@@ -72,8 +72,9 @@ public sealed partial class ImmersiveMode
                 }
                 await qdrantRegistry.InitializeAsync();
                 _tools.SkillRegistry = qdrantRegistry;
-                var skills = _tools.SkillRegistry.GetAllSkills();
-                AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok($"[OK] Loaded {skills.Count()} skills from Qdrant")}");
+                var allSkillsResult = await _tools.SkillRegistry.GetAllSkillsAsync();
+                var skillCount = allSkillsResult.IsSuccess ? allSkillsResult.Value.Count : 0;
+                AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok($"[OK] Loaded {skillCount} skills from Qdrant")}");
             }
             else
             {

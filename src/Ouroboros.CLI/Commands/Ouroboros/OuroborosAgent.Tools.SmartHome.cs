@@ -34,7 +34,7 @@ public sealed partial class OuroborosAgent
         Ouroboros.Providers.Tapo.TapoCameraPtzClient? ptzClient = null;
         if (hasCredentials && tapoDevices.Count > 0)
         {
-            var firstCamera = tapoDevices.First();
+            var firstCamera = tapoDevices[0];
             ptzClient = new Ouroboros.Providers.Tapo.TapoCameraPtzClient(
                 firstCamera.IpAddress, tapoUsername!, tapoPassword!);
         }

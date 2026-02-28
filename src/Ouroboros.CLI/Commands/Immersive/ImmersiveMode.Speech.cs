@@ -59,7 +59,7 @@ public sealed partial class ImmersiveMode
         return (tts, stt, detector);
     }
 
-    private async Task SpeakAsync(ITextToSpeechService tts, string text, string personaName)
+    private async Task SpeakAsync(ITextToSpeechService tts, string text, string _personaName)
     {
         // Suppress room microphone pickup of Iaret's own voice during and briefly after TTS.
         IsSpeaking = true;
@@ -102,9 +102,9 @@ public sealed partial class ImmersiveMode
     }
 
     private async Task<string?> ListenWithVADAsync(
-        ISpeechToTextService stt,
-        AdaptiveSpeechDetector detector,
-        CancellationToken ct)
+        ISpeechToTextService _stt,
+        AdaptiveSpeechDetector _detector,
+        CancellationToken _ct)
     {
         // For now, use text input - VAD requires microphone setup
         return await Task.FromResult(Console.ReadLine());

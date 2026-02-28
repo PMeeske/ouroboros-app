@@ -19,7 +19,7 @@ public sealed partial class ImmersiveMode
 {
     private async Task<string> HandleAddToolAsync(
         string toolName,
-        string personaName,
+        string _personaName,
         CancellationToken ct)
     {
         if (_tools.DynamicToolFactory == null)
@@ -75,7 +75,7 @@ public sealed partial class ImmersiveMode
 
     private async Task<string> HandleCreateToolFromDescriptionAsync(
         string description,
-        string personaName,
+        string _personaName,
         CancellationToken ct)
     {
         if (_tools.DynamicToolFactory == null)
@@ -118,7 +118,7 @@ public sealed partial class ImmersiveMode
     private async Task<string> HandleCreateToolFromContextAsync(
         string topic,
         string description,
-        string personaName,
+        string _personaName,
         CancellationToken ct)
     {
         if (_tools.DynamicToolFactory == null)
@@ -153,7 +153,7 @@ public sealed partial class ImmersiveMode
 
     private async Task<string> HandleSmartToolAsync(
         string goal,
-        string personaName,
+        string _personaName,
         CancellationToken ct)
     {
         if (_tools.ToolLearner == null)
@@ -191,7 +191,7 @@ public sealed partial class ImmersiveMode
         }
     }
 
-    private string HandleToolStats(string personaName)
+    private string HandleToolStats(string _personaName)
     {
         if (_tools.ToolLearner == null)
             return "Tool learning is not available in this session.";
@@ -207,7 +207,7 @@ public sealed partial class ImmersiveMode
         return $"I've learned {stats.TotalPatterns} patterns with a {stats.AvgSuccessRate:P0} success rate. Total usage: {stats.TotalUsage}.";
     }
 
-    private async Task<string> HandleConnectionsAsync(string personaName, CancellationToken ct)
+    private async Task<string> HandleConnectionsAsync(string _personaName, CancellationToken ct)
     {
         if (_tools.InterconnectedLearner == null)
             return "Interconnected learning is not available in this session.";
@@ -245,7 +245,7 @@ public sealed partial class ImmersiveMode
 
     private async Task<string> HandleGoogleSearchAsync(
         string query,
-        string personaName,
+        string _personaName,
         CancellationToken ct)
     {
         AnsiConsole.MarkupLine($"\n  {OuroborosTheme.Accent($"[~] Searching Google for: {query}...")}");
@@ -305,7 +305,7 @@ public sealed partial class ImmersiveMode
         }
     }
 
-    private async Task<string> HandleUseToolAsync(string toolName, string toolInput, string personaName, CancellationToken ct)
+    private async Task<string> HandleUseToolAsync(string toolName, string toolInput, string _personaName, CancellationToken ct)
     {
         if (_tools.DynamicTools == null)
             return "I don't have any tools loaded right now.";

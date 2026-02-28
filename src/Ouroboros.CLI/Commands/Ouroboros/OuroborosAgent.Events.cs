@@ -139,6 +139,10 @@ public sealed partial class OuroborosAgent : IAgentEventSink
                 OnGoalExecuted(goal);
                 break;
 
+            case ExceptionOccurredNotification exception:
+                await OnExceptionOccurredAsync(exception, ct);
+                break;
+
             // Other events are recorded in Hyperon but don't require
             // additional proactive behaviour by default.
         }
@@ -190,6 +194,9 @@ public sealed partial class OuroborosAgent : IAgentEventSink
 
             ReasoningCompletedNotification rc =>
                 $"(AgentEvent reasoning \"{Sanitize(rc.Query)}\" {rc.Confidence:F2} {ticks})",
+
+            ExceptionOccurredNotification ex =>
+                $"(AgentEvent exception \"{Sanitize(ex.Context)}\" \"{Sanitize(ex.ExceptionType)}\" \"{Sanitize(ex.Message)}\" {(ex.IsFatal ? "fatal" : "recoverable")} {ticks})",
 
             _ => $"(AgentEvent unknown \"{evt.Source}\" {ticks})"
         };
@@ -284,5 +291,24 @@ public sealed partial class OuroborosAgent : IAgentEventSink
     {
         System.Diagnostics.Debug.WriteLine(
             $"[AgentEvents] Goal executed: {n.Goal} (success={n.Success}, duration={n.Duration})");
+    }
+
+    private async Task OnExceptionOccurredAsync(ExceptionOccurredNotification n, CancellationToken ct)
+    {
+        System.Diagnostics.Debug.WriteLine(
+            $"[AgentEvents] Exception [{n.Context}] {n.ExceptionType}: {n.Message} (fatal={n.IsFatal})");
+
+        // Let the autonomous mind think about the problem
+        _immersivePersona?.UpdateInnerDialogContext(
+            $"An error occurred in {n.Context}: {n.ExceptionType} — {n.Message}");
+
+        // For fatal exceptions, emit a visible warning
+        if (n.IsFatal && _config.Verbosity != OutputVerbosity.Quiet)
+        {
+            Spectre.Console.AnsiConsole.MarkupLine(
+                OuroborosTheme.Warn($"\n  [FATAL] {Markup.Escape(n.ExceptionType)} in {Markup.Escape(n.Context)}: {Markup.Escape(n.Message)}"));
+        }
+
+        await Task.CompletedTask;
     }
 }

@@ -203,14 +203,14 @@ public sealed partial class ImmersiveMode
                     if (sttService != null && speechDetector != null)
                     {
                         // Claim the microphone — room listener yields until we're done.
-                        Ouroboros.CLI.Services.RoomPresence.AmbientRoomListener.ImmersiveListeningActive = true;
+                        SetImmersiveListeningActive(true);
                         try
                         {
                             input = await ListenWithVADAsync(sttService, speechDetector, ct);
                         }
                         finally
                         {
-                            Ouroboros.CLI.Services.RoomPresence.AmbientRoomListener.ImmersiveListeningActive = false;
+                            SetImmersiveListeningActive(false);
                         }
                         if (!string.IsNullOrEmpty(input))
                         {
@@ -266,7 +266,8 @@ public sealed partial class ImmersiveMode
 
                     // Update conversation context for context-aware thoughts
                     var toolNames = _tools.DynamicTools?.All.Select(t => t.Name).ToList() ?? [];
-                    var skillNames = _tools.SkillRegistry?.GetAllSkills().Select(s => s.Name).ToList() ?? [];
+                    var skillNamesResult = _tools.SkillRegistry != null ? await _tools.SkillRegistry.GetAllSkillsAsync() : default;
+                    var skillNames = skillNamesResult.IsSuccess ? skillNamesResult.Value.Select(s => s.Name).ToList() : [];
                     persona.UpdateInnerDialogContext(input, toolNames, skillNames);
 
                     // Add user input to persistent memory
@@ -389,4 +390,11 @@ public sealed partial class ImmersiveMode
             }
         }
     }
+
+    /// <summary>
+    /// Sets the static <see cref="Ouroboros.CLI.Services.RoomPresence.AmbientRoomListener.ImmersiveListeningActive"/>
+    /// flag from a static context to avoid S2696 (instance method writing to static field).
+    /// </summary>
+    private static void SetImmersiveListeningActive(bool active) =>
+        Ouroboros.CLI.Services.RoomPresence.AmbientRoomListener.ImmersiveListeningActive = active;
 }

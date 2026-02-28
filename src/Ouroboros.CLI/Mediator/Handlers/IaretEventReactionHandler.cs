@@ -27,7 +27,8 @@ public sealed class IaretEventReactionHandler :
     INotificationHandler<ToolCompletedNotification>,
     INotificationHandler<GoalExecutedNotification>,
     INotificationHandler<LearningCompletedNotification>,
-    INotificationHandler<ReasoningCompletedNotification>
+    INotificationHandler<ReasoningCompletedNotification>,
+    INotificationHandler<ExceptionOccurredNotification>
 {
     private readonly OuroborosAgent _agent;
 
@@ -51,4 +52,5 @@ public sealed class IaretEventReactionHandler :
     public Task Handle(GoalExecutedNotification n, CancellationToken ct) => Forward(n);
     public Task Handle(LearningCompletedNotification n, CancellationToken ct) => Forward(n);
     public Task Handle(ReasoningCompletedNotification n, CancellationToken ct) => Forward(n);
+    public Task Handle(ExceptionOccurredNotification n, CancellationToken ct) => Forward(n);
 }

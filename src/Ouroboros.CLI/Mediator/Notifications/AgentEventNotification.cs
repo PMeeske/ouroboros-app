@@ -136,3 +136,19 @@ public sealed record ReasoningCompletedNotification(
     string Answer,
     double Confidence)
     : AgentEventNotification(DateTime.UtcNow, "reasoning");
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Exceptions / Errors
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// <summary>
+/// An exception occurred somewhere in the system.  Routed through the kernel
+/// so Iaret is aware of every problem and can reason about it.
+/// </summary>
+public sealed record ExceptionOccurredNotification(
+    string Context,
+    string ExceptionType,
+    string Message,
+    string? StackTrace,
+    bool IsFatal)
+    : AgentEventNotification(DateTime.UtcNow, $"exception:{Context}");
