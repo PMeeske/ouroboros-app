@@ -68,6 +68,7 @@ public sealed class AskCommandHandler
             _console.MarkupLine("[dim]  Try again, or increase the timeout in appsettings.json (Pipeline:LlmProvider:RequestTimeoutSeconds).[/]");
             return 1;
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error executing ask command");
