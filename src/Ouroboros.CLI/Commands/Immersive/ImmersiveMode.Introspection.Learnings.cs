@@ -19,7 +19,7 @@ public sealed partial class ImmersiveMode
         ImmersivePersona persona,
         CancellationToken ct)
     {
-        if (_networkStateProjector == null)
+        if (_tools.NetworkStateProjector == null)
         {
             return;
         }
@@ -30,12 +30,12 @@ public sealed partial class ImmersiveMode
             var lowerResponse = response.ToLowerInvariant();
 
             // Record skill usage
-            if (_skillRegistry != null)
+            if (_tools.SkillRegistry != null)
             {
-                var matchedSkills = await _skillRegistry.FindMatchingSkillsAsync(userInput);
+                var matchedSkills = await _tools.SkillRegistry.FindMatchingSkillsAsync(userInput);
                 foreach (var skill in matchedSkills.Take(3))
                 {
-                    await _networkStateProjector.RecordLearningAsync(
+                    await _tools.NetworkStateProjector.RecordLearningAsync(
                         "skill_usage",
                         $"Used skill '{skill.Name}' for: {userInput.Substring(0, Math.Min(100, userInput.Length))}",
                         userInput,
@@ -47,7 +47,7 @@ public sealed partial class ImmersiveMode
             // Record tool usage
             if (lowerResponse.Contains("tool") || lowerResponse.Contains("search") || lowerResponse.Contains("executed"))
             {
-                await _networkStateProjector.RecordLearningAsync(
+                await _tools.NetworkStateProjector.RecordLearningAsync(
                     "tool_usage",
                     $"Tool interaction: {response.Substring(0, Math.Min(200, response.Length))}",
                     userInput,
@@ -60,7 +60,7 @@ public sealed partial class ImmersiveMode
                 lowerResponse.Contains("found out") || lowerResponse.Contains("interesting") ||
                 lowerResponse.Contains("realized"))
             {
-                await _networkStateProjector.RecordLearningAsync(
+                await _tools.NetworkStateProjector.RecordLearningAsync(
                     "insight",
                     response.Substring(0, Math.Min(300, response.Length)),
                     userInput,
@@ -72,7 +72,7 @@ public sealed partial class ImmersiveMode
             var consciousnessState = persona.Consciousness;
             if (consciousnessState.Arousal > 0.6 || consciousnessState.Valence < -0.3)
             {
-                await _networkStateProjector.RecordLearningAsync(
+                await _tools.NetworkStateProjector.RecordLearningAsync(
                     "emotional_context",
                     $"Emotional state during '{userInput.Substring(0, Math.Min(50, userInput.Length))}': arousal={consciousnessState.Arousal:F2}, valence={consciousnessState.Valence:F2}, emotion={consciousnessState.DominantEmotion}",
                     userInput,
@@ -81,9 +81,9 @@ public sealed partial class ImmersiveMode
             }
 
             // Periodically save network state snapshot (every 10 interactions based on epoch)
-            if (_networkStateProjector.CurrentEpoch % 10 == 0)
+            if (_tools.NetworkStateProjector.CurrentEpoch % 10 == 0)
             {
-                await _networkStateProjector.ProjectAndPersistAsync(
+                await _tools.NetworkStateProjector.ProjectAndPersistAsync(
                     System.Collections.Immutable.ImmutableDictionary<string, string>.Empty
                         .Add("trigger", "periodic")
                         .Add("last_input", userInput.Substring(0, Math.Min(50, userInput.Length))),

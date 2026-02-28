@@ -17,10 +17,10 @@ public sealed partial class ImmersiveMode
 {
     private async Task<string> HandleListSkillsAsync(string personaName)
     {
-        if (_skillRegistry == null)
+        if (_tools.SkillRegistry == null)
             return "I don't have any skills loaded right now.";
 
-        var skills = _skillRegistry.GetAllSkills().ToList();
+        var skills = _tools.SkillRegistry.GetAllSkills().ToList();
         if (skills.Count == 0)
             return "I haven't learned any skills yet. Say 'learn about' something to teach me.";
 
@@ -43,10 +43,10 @@ public sealed partial class ImmersiveMode
         IVoiceOptions options,
         CancellationToken ct)
     {
-        if (_skillRegistry == null)
+        if (_tools.SkillRegistry == null)
             return "Skills are not available.";
 
-        var skill = _skillRegistry.GetAllSkills()
+        var skill = _tools.SkillRegistry.GetAllSkills()
             .FirstOrDefault(s => s.Name.Contains(skillName, StringComparison.OrdinalIgnoreCase));
 
         if (skill == null)
@@ -65,9 +65,9 @@ public sealed partial class ImmersiveMode
         AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok("[OK] Skill complete")}");
 
         // Learn from skill execution (interconnected learning)
-        if (_interconnectedLearner != null)
+        if (_tools.InterconnectedLearner != null)
         {
-            await _interconnectedLearner.RecordSkillExecutionAsync(
+            await _tools.InterconnectedLearner.RecordSkillExecutionAsync(
                 skill.Name,
                 string.Join(", ", skill.ToSkill().Steps.Select(s => s.Action)),
                 string.Join("\n", results),
@@ -95,7 +95,7 @@ public sealed partial class ImmersiveMode
         }
 
         // Create a simple skill from the topic
-        if (_skillRegistry != null)
+        if (_tools.SkillRegistry != null)
         {
             var stepParams = new Dictionary<string, object> { ["query"] = topic };
             var skill = new Skill(
@@ -107,7 +107,7 @@ public sealed partial class ImmersiveMode
                 0,
                 DateTime.UtcNow,
                 DateTime.UtcNow);
-            await _skillRegistry.RegisterSkillAsync(skill.ToAgentSkill());
+            await _tools.SkillRegistry.RegisterSkillAsync(skill.ToAgentSkill());
             return $"I learned about {topic} and created a research skill for it.";
         }
 

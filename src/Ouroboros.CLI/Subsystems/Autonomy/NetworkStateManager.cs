@@ -67,8 +67,8 @@ internal sealed class NetworkStateManager
         try
         {
             var dag = new Ouroboros.Network.MerkleDag();
-            Func<string, Task<float[]>> embedFunc = async text =>
-                await embedding.CreateEmbeddingsAsync(text);
+            Func<string, CancellationToken, Task<float[]>> embedFunc = async (text, ct) =>
+                await embedding.CreateEmbeddingsAsync(text, ct);
 
             var npClient = ctx.Services?.GetService<QdrantClient>();
             var npRegistry = ctx.Services?.GetService<IQdrantCollectionRegistry>();

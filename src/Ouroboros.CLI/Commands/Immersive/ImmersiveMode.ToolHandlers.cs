@@ -22,7 +22,7 @@ public sealed partial class ImmersiveMode
         string personaName,
         CancellationToken ct)
     {
-        if (_dynamicToolFactory == null)
+        if (_tools.DynamicToolFactory == null)
             return "Tool creation is not available.";
 
         AnsiConsole.MarkupLine($"\n  {OuroborosTheme.Accent($"[~] Creating tool: {toolName}...")}");
@@ -33,17 +33,17 @@ public sealed partial class ImmersiveMode
             ITool? newTool = toolName.ToLowerInvariant() switch
             {
                 var n when n.Contains("search") || n.Contains("google") || n.Contains("web") =>
-                    _dynamicToolFactory.CreateWebSearchTool("duckduckgo"),
+                    _tools.DynamicToolFactory.CreateWebSearchTool("duckduckgo"),
                 var n when n.Contains("fetch") || n.Contains("url") || n.Contains("http") =>
-                    _dynamicToolFactory.CreateUrlFetchTool(),
+                    _tools.DynamicToolFactory.CreateUrlFetchTool(),
                 var n when n.Contains("calc") || n.Contains("math") =>
-                    _dynamicToolFactory.CreateCalculatorTool(),
+                    _tools.DynamicToolFactory.CreateCalculatorTool(),
                 _ => null // Unknown type - will try LLM generation
             };
 
             if (newTool != null)
             {
-                _dynamicTools = _dynamicTools.WithTool(newTool);
+                _tools.DynamicTools = _tools.DynamicTools.WithTool(newTool);
                 AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok($"[OK] Created tool: {newTool.Name}")}");
                 return $"I created a new {newTool.Name} tool. It's ready to use.";
             }
@@ -51,11 +51,11 @@ public sealed partial class ImmersiveMode
             // Unknown tool type - use LLM to generate it
             AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim("[~] Using AI to generate custom tool...")}");
             var description = $"A tool named {toolName} that performs operations related to {toolName}";
-            var createResult = await _dynamicToolFactory.CreateToolAsync(toolName, description, ct);
+            var createResult = await _tools.DynamicToolFactory.CreateToolAsync(toolName, description, ct);
 
             if (createResult.IsSuccess)
             {
-                _dynamicTools = _dynamicTools.WithTool(createResult.Value);
+                _tools.DynamicTools = _tools.DynamicTools.WithTool(createResult.Value);
                 AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok($"[OK] Created custom tool: {createResult.Value.Name}")}");
                 return $"I created a custom '{createResult.Value.Name}' tool using AI. It's ready to use.";
             }
@@ -78,7 +78,7 @@ public sealed partial class ImmersiveMode
         string personaName,
         CancellationToken ct)
     {
-        if (_dynamicToolFactory == null)
+        if (_tools.DynamicToolFactory == null)
             return "Tool creation is not available.";
 
         AnsiConsole.MarkupLine($"\n  [rgb(128,0,180)]\\[~] Creating custom tool from description...[/]");
@@ -94,11 +94,11 @@ public sealed partial class ImmersiveMode
             var toolName = string.Join("", words) + "Tool";
             if (toolName.Length < 6) toolName = "CustomTool";
 
-            var createResult = await _dynamicToolFactory.CreateToolAsync(toolName, description, ct);
+            var createResult = await _tools.DynamicToolFactory.CreateToolAsync(toolName, description, ct);
 
             if (createResult.IsSuccess)
             {
-                _dynamicTools = _dynamicTools.WithTool(createResult.Value);
+                _tools.DynamicTools = _tools.DynamicTools.WithTool(createResult.Value);
                 AnsiConsole.MarkupLine(OuroborosTheme.Ok($"  [OK] Created tool: {createResult.Value.Name}"));
                 return $"Done! I created a '{createResult.Value.Name}' tool that {description}. It's ready to use.";
             }
@@ -121,7 +121,7 @@ public sealed partial class ImmersiveMode
         string personaName,
         CancellationToken ct)
     {
-        if (_dynamicToolFactory == null)
+        if (_tools.DynamicToolFactory == null)
             return "Tool creation is not available.";
 
         AnsiConsole.MarkupLine($"\n  [rgb(128,0,180)]\\[~] Creating tool based on our conversation...[/]");
@@ -130,11 +130,11 @@ public sealed partial class ImmersiveMode
         try
         {
             var toolName = topic.Replace(" ", "") + "Tool";
-            var createResult = await _dynamicToolFactory.CreateToolAsync(toolName, description, ct);
+            var createResult = await _tools.DynamicToolFactory.CreateToolAsync(toolName, description, ct);
 
             if (createResult.IsSuccess)
             {
-                _dynamicTools = _dynamicTools.WithTool(createResult.Value);
+                _tools.DynamicTools = _tools.DynamicTools.WithTool(createResult.Value);
                 AnsiConsole.MarkupLine(OuroborosTheme.Ok($"  [OK] Created tool: {createResult.Value.Name}"));
                 return $"Done! I created '{createResult.Value.Name}'. It's ready to use.";
             }
@@ -156,23 +156,23 @@ public sealed partial class ImmersiveMode
         string personaName,
         CancellationToken ct)
     {
-        if (_toolLearner == null)
+        if (_tools.ToolLearner == null)
             return "Intelligent tool discovery is not available.";
 
         AnsiConsole.MarkupLine($"\n  [rgb(128,0,180)]\\[~] Finding best tool for: {Markup.Escape(goal)}...[/]");
 
         try
         {
-            var result = await _toolLearner.FindOrCreateToolAsync(goal, _dynamicTools, ct);
+            var result = await _tools.ToolLearner.FindOrCreateToolAsync(goal, _tools.DynamicTools, ct);
             if (result.IsSuccess)
             {
                 var (tool, wasCreated) = result.Value;
                 AnsiConsole.MarkupLine(OuroborosTheme.Ok($"  [OK] {(wasCreated ? "Created" : "Found")} tool: {tool.Name}"));
 
                 // Learn from tool usage (interconnected learning)
-                if (_interconnectedLearner != null)
+                if (_tools.InterconnectedLearner != null)
                 {
-                    await _interconnectedLearner.RecordToolExecutionAsync(
+                    await _tools.InterconnectedLearner.RecordToolExecutionAsync(
                         tool.Name,
                         goal,
                         $"Tool found for: {goal}",
@@ -193,10 +193,10 @@ public sealed partial class ImmersiveMode
 
     private string HandleToolStats(string personaName)
     {
-        if (_toolLearner == null)
+        if (_tools.ToolLearner == null)
             return "Tool learning is not available in this session.";
 
-        var stats = _toolLearner.GetStats();
+        var stats = _tools.ToolLearner.GetStats();
         AnsiConsole.WriteLine();
         var statsTable = OuroborosTheme.ThemedTable("Metric", "Value");
         statsTable.AddRow(Markup.Escape("Total patterns"), Markup.Escape($"{stats.TotalPatterns}"));
@@ -209,13 +209,13 @@ public sealed partial class ImmersiveMode
 
     private async Task<string> HandleConnectionsAsync(string personaName, CancellationToken ct)
     {
-        if (_interconnectedLearner == null)
+        if (_tools.InterconnectedLearner == null)
             return "Interconnected learning is not available in this session.";
 
         AnsiConsole.WriteLine();
 
         // Show stats from the learner
-        var stats = _interconnectedLearner.GetStats();
+        var stats = _tools.InterconnectedLearner.GetStats();
         int totalExecutions = stats.TotalToolExecutions + stats.TotalSkillExecutions + stats.TotalPipelineExecutions;
         double successRate = totalExecutions > 0 ? (double)stats.SuccessfulExecutions / totalExecutions : 0;
         var connTable = OuroborosTheme.ThemedTable("Metric", "Value");
@@ -230,7 +230,7 @@ public sealed partial class ImmersiveMode
         var sampleGoals = new[] { "search", "analyze", "summarize" };
         foreach (var goal in sampleGoals)
         {
-            var suggestion = await _interconnectedLearner.SuggestForGoalAsync(goal, _dynamicTools, ct);
+            var suggestion = await _tools.InterconnectedLearner.SuggestForGoalAsync(goal, _tools.DynamicTools, ct);
             var actions = suggestion.MeTTaSuggestions.Concat(suggestion.RelatedConcepts).Take(3).ToList();
             if (actions.Count > 0)
             {
@@ -251,7 +251,7 @@ public sealed partial class ImmersiveMode
         AnsiConsole.MarkupLine($"\n  {OuroborosTheme.Accent($"[~] Searching Google for: {query}...")}");
 
         // Find the Google search tool
-        var googleTool = _dynamicTools.All
+        var googleTool = _tools.DynamicTools.All
             .FirstOrDefault(t => t.Name.Contains("google", StringComparison.OrdinalIgnoreCase) ||
                                  t.Name.Contains("search", StringComparison.OrdinalIgnoreCase));
 
@@ -278,9 +278,9 @@ public sealed partial class ImmersiveMode
             AnsiConsole.MarkupLine($"  {Markup.Escape(output.Replace("\n", "\n  "))}");
 
             // Learn from the search (interconnected learning)
-            if (_interconnectedLearner != null)
+            if (_tools.InterconnectedLearner != null)
             {
-                await _interconnectedLearner.RecordToolExecutionAsync(
+                await _tools.InterconnectedLearner.RecordToolExecutionAsync(
                     googleTool.Name,
                     query,
                     output,
@@ -307,14 +307,14 @@ public sealed partial class ImmersiveMode
 
     private async Task<string> HandleUseToolAsync(string toolName, string toolInput, string personaName, CancellationToken ct)
     {
-        if (_dynamicTools == null)
+        if (_tools.DynamicTools == null)
             return "I don't have any tools loaded right now.";
 
-        var tool = _dynamicTools.Get(toolName);
+        var tool = _tools.DynamicTools.Get(toolName);
         if (tool == null)
         {
             // Try to find a close match
-            var availableTools = _dynamicTools.All.Select(t => t.Name).ToList();
+            var availableTools = _tools.DynamicTools.All.Select(t => t.Name).ToList();
             var closestMatch = availableTools
                 .OrderBy(t => LevenshteinDistance(t.ToLower(), toolName.ToLower()))
                 .FirstOrDefault();

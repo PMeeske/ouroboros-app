@@ -47,9 +47,9 @@ public sealed partial class ImmersiveMode
         // Wire up state persistence functions
         _autonomousMind.PersistLearningFunction = async (category, content, confidence, token) =>
         {
-            if (_networkStateProjector != null)
+            if (_tools.NetworkStateProjector != null)
             {
-                await _networkStateProjector.RecordLearningAsync(
+                await _tools.NetworkStateProjector.RecordLearningAsync(
                     category,
                     content,
                     "autonomous_mind",
@@ -60,9 +60,9 @@ public sealed partial class ImmersiveMode
 
         _autonomousMind.PersistEmotionFunction = async (emotion, token) =>
         {
-            if (_networkStateProjector != null)
+            if (_tools.NetworkStateProjector != null)
             {
-                await _networkStateProjector.RecordLearningAsync(
+                await _tools.NetworkStateProjector.RecordLearningAsync(
                     "emotional_state",
                     $"Emotion: {emotion.DominantEmotion} (arousal={emotion.Arousal:F2}, valence={emotion.Valence:F2}) - {emotion.Description}",
                     "autonomous_mind",
@@ -73,7 +73,7 @@ public sealed partial class ImmersiveMode
 
         _autonomousMind.SearchFunction = async (query, token) =>
         {
-            var searchTool = _dynamicToolFactory?.CreateWebSearchTool("duckduckgo");
+            var searchTool = _tools.DynamicToolFactory?.CreateWebSearchTool("duckduckgo");
             if (searchTool != null)
             {
                 var result = await searchTool.InvokeAsync(query, token);
@@ -83,7 +83,7 @@ public sealed partial class ImmersiveMode
         };
         _autonomousMind.ExecuteToolFunction = async (toolName, input, token) =>
         {
-            var tool = _dynamicTools.Get(toolName);
+            var tool = _tools.DynamicTools.Get(toolName);
             if (tool != null)
             {
                 var result = await tool.InvokeAsync(input, token);
@@ -95,7 +95,7 @@ public sealed partial class ImmersiveMode
         // Sanitize raw outputs through LLM for natural language
         _autonomousMind.SanitizeOutputFunction = async (rawOutput, token) =>
         {
-            var model = _orchestratedModel ?? _baseModel;
+            var model = _learning.OrchestratedModel ?? _learning.BaseModel;
             if (model == null || string.IsNullOrWhiteSpace(rawOutput))
                 return rawOutput;
 
@@ -123,33 +123,33 @@ public sealed partial class ImmersiveMode
         VerifyClaimTool.SearchFunction = _autonomousMind!.SearchFunction;
         VerifyClaimTool.EvaluateFunction = async (prompt, token) =>
         {
-            var model = _orchestratedModel ?? _baseModel;
+            var model = _learning.OrchestratedModel ?? _learning.BaseModel;
             return model != null ? await model.GenerateTextAsync(prompt, token) : "";
         };
         ReasoningChainTool.ReasonFunction = async (prompt, token) =>
         {
-            var model = _orchestratedModel ?? _baseModel;
+            var model = _learning.OrchestratedModel ?? _learning.BaseModel;
             return model != null ? await model.GenerateTextAsync(prompt, token) : "";
         };
         ParallelToolsTool.ExecuteToolFunction = _autonomousMind.ExecuteToolFunction;
         CompressContextTool.SummarizeFunction = async (prompt, token) =>
         {
-            var model = _orchestratedModel ?? _baseModel;
+            var model = _learning.OrchestratedModel ?? _learning.BaseModel;
             return model != null ? await model.GenerateTextAsync(prompt, token) : "";
         };
         SelfDoubtTool.CritiqueFunction = async (prompt, token) =>
         {
-            var model = _orchestratedModel ?? _baseModel;
+            var model = _learning.OrchestratedModel ?? _learning.BaseModel;
             return model != null ? await model.GenerateTextAsync(prompt, token) : "";
         };
         ParallelMeTTaThinkTool.OllamaFunction = async (prompt, token) =>
         {
-            var model = _orchestratedModel ?? _baseModel;
+            var model = _learning.OrchestratedModel ?? _learning.BaseModel;
             return model != null ? await model.GenerateTextAsync(prompt, token) : "";
         };
         OuroborosMeTTaTool.OllamaFunction = async (prompt, token) =>
         {
-            var model = _orchestratedModel ?? _baseModel;
+            var model = _learning.OrchestratedModel ?? _learning.BaseModel;
             return model != null ? await model.GenerateTextAsync(prompt, token) : "";
         };
     }

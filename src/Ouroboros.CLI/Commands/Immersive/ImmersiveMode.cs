@@ -79,17 +79,14 @@ public sealed partial class ImmersiveMode
     // DI service provider for resolving cross-cutting services (Qdrant, etc.)
     private readonly IServiceProvider? _serviceProvider;
 
-    // Skill registry for this session
-    private ISkillRegistry? _skillRegistry;
-    private DynamicToolFactory? _dynamicToolFactory;
-    private IntelligentToolLearner? _toolLearner;
-    private InterconnectedLearner? _interconnectedLearner;
-    private QdrantSelfIndexer? _selfIndexer;
-    private PersistentConversationMemory? _conversationMemory;
-    private PersistentNetworkStateProjector? _networkStateProjector;
+    // ── Composable context objects ──────────────────────────────────────────
+    private readonly ImmersiveCognitiveContext _cognitive = new();
+    private readonly ImmersiveLearningContext _learning = new();
+    private readonly ImmersiveToolContext _tools = new();
+
+    // ── Remaining ImmersiveMode-owned fields ────────────────────────────────
     private AutonomousMind? _autonomousMind;
     private SelfPersistence? _selfPersistence;
-    private ToolRegistry _dynamicTools = new();
     private StringBuilder _currentInputBuffer = new();
     private readonly object _inputLock = new();
     private string _currentPromptPrefix = "  You: ";
@@ -98,33 +95,8 @@ public sealed partial class ImmersiveMode
     private string? _lastPipelineContext; // Track recent pipeline interactions
     private (string Topic, string Description)? _pendingToolRequest; // Track pending tool creation context
 
-    // Distinction learning
-    private IDistinctionLearner? _distinctionLearner;
-    private ConsciousnessDream? _dream;
-    private DistinctionState _currentDistinctionState = DistinctionState.Initial();
-
-    // Multi-model orchestration and divide-and-conquer
-    private OrchestratedChatModel? _orchestratedModel;
-    private DivideAndConquerOrchestrator? _divideAndConquer;
-    private IChatCompletionModel? _baseModel;
-
     // Avatar + persona event wiring (owned by ImmersiveSubsystem)
     private Subsystems.ImmersiveSubsystem? _immersive;
-
-    // Ethics + CognitivePhysics + Phi — integrated into every response turn
-    private Ouroboros.Core.Ethics.IEthicsFramework? _immersiveEthics;
-    private Ouroboros.Core.CognitivePhysics.CognitivePhysicsEngine? _immersiveCogPhysics;
-    private Ouroboros.Core.CognitivePhysics.CognitiveState _immersiveCogState
-        = Ouroboros.Core.CognitivePhysics.CognitiveState.Create("general");
-    private Ouroboros.Providers.IITPhiCalculator _immersivePhiCalc = new();
-    private string _immersiveLastTopic = "general";
-    private Ouroboros.Pipeline.Memory.IEpisodicMemoryEngine? _episodicMemory;
-    private readonly Ouroboros.Pipeline.Metacognition.MetacognitiveReasoner _metacognition = new();
-    private Ouroboros.Agent.NeuralSymbolic.INeuralSymbolicBridge? _neuralSymbolicBridge;
-    private Ouroboros.Core.Reasoning.ICausalReasoningEngine _causalReasoning = new Ouroboros.Core.Reasoning.CausalReasoningEngine();
-    private Ouroboros.Agent.MetaAI.ICuriosityEngine? _curiosityEngine;
-    private int _immersiveResponseCount;
-    private Ouroboros.CLI.Sovereignty.PersonaSovereigntyGate? _sovereigntyGate;
 
     // ── Constructors ────────────────────────────────────────────────────────
 
@@ -166,15 +138,15 @@ public sealed partial class ImmersiveMode
         _serviceProvider = serviceProvider;
 
         // Wire shared instances from subsystems
-        _orchestratedModel = models.OrchestratedModel;
-        _divideAndConquer = models.DivideAndConquer;
-        _baseModel = models.ChatModel;
-        _skillRegistry = memory.Skills;
-        _dynamicToolFactory = tools.ToolFactory;
-        _toolLearner = tools.ToolLearner;
-        _selfIndexer = autonomy.SelfIndexer;
+        _learning.OrchestratedModel = models.OrchestratedModel;
+        _learning.DivideAndConquer = models.DivideAndConquer;
+        _learning.BaseModel = models.ChatModel;
+        _tools.SkillRegistry = memory.Skills;
+        _tools.DynamicToolFactory = tools.ToolFactory;
+        _tools.ToolLearner = tools.ToolLearner;
+        _tools.SelfIndexer = autonomy.SelfIndexer;
         _autonomousMind = autonomy.AutonomousMind;
-        if (tools.Tools.Count > 0) _dynamicTools = tools.Tools;
+        if (tools.Tools.Count > 0) _tools.DynamicTools = tools.Tools;
     }
 
     // ── Room mode hooks ─────────────────────────────────────────────────────

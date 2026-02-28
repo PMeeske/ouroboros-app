@@ -71,14 +71,14 @@ public sealed partial class ImmersiveMode
                     qdrantRegistry = new QdrantSkillRegistry(embeddingModel, config);
                 }
                 await qdrantRegistry.InitializeAsync();
-                _skillRegistry = qdrantRegistry;
-                var skills = _skillRegistry.GetAllSkills();
+                _tools.SkillRegistry = qdrantRegistry;
+                var skills = _tools.SkillRegistry.GetAllSkills();
                 AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok($"[OK] Loaded {skills.Count()} skills from Qdrant")}");
             }
             else
             {
                 // Use a simple in-memory implementation
-                _skillRegistry = new SimpleInMemorySkillRegistry();
+                _tools.SkillRegistry = new SimpleInMemorySkillRegistry();
                 AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim("[~] Using in-memory skill storage (no embeddings)")}");
             }
 
@@ -91,34 +91,34 @@ public sealed partial class ImmersiveMode
             var chatModel = new OllamaChatModel(provider, options.Model);
             var toolsRegistry = new ToolRegistry();
             var toolAwareLlm = new ToolAwareChatModel(new OllamaChatAdapter(chatModel), toolsRegistry);
-            _dynamicToolFactory = new DynamicToolFactory(toolAwareLlm);
+            _tools.DynamicToolFactory = new DynamicToolFactory(toolAwareLlm);
 
             // Register built-in tools including Google Search
-            _dynamicTools = _dynamicTools
-                .WithTool(_dynamicToolFactory.CreateWebSearchTool("duckduckgo"))
-                .WithTool(_dynamicToolFactory.CreateUrlFetchTool())
-                .WithTool(_dynamicToolFactory.CreateCalculatorTool())
-                .WithTool(_dynamicToolFactory.CreateGoogleSearchTool());
+            _tools.DynamicTools = _tools.DynamicTools
+                .WithTool(_tools.DynamicToolFactory.CreateWebSearchTool("duckduckgo"))
+                .WithTool(_tools.DynamicToolFactory.CreateUrlFetchTool())
+                .WithTool(_tools.DynamicToolFactory.CreateCalculatorTool())
+                .WithTool(_tools.DynamicToolFactory.CreateGoogleSearchTool());
 
-            AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"[DEBUG] After factory tools: {_dynamicTools.Count} tools")}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"[DEBUG] After factory tools: {_tools.DynamicTools.Count} tools")}");
 
             // Register comprehensive system access tools for PC control
             var systemTools = SystemAccessTools.CreateAllTools().ToList();
             AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"[DEBUG] SystemAccessTools.CreateAllTools returned {systemTools.Count} tools")}");
             foreach (var tool in systemTools)
             {
-                _dynamicTools = _dynamicTools.WithTool(tool);
+                _tools.DynamicTools = _tools.DynamicTools.WithTool(tool);
             }
-            AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"[DEBUG] After system tools: {_dynamicTools.Count} tools")}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"[DEBUG] After system tools: {_tools.DynamicTools.Count} tools")}");
 
             // Register perception tools for proactive screen/camera monitoring
             var perceptionTools = PerceptionTools.CreateAllTools().ToList();
             AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"[DEBUG] PerceptionTools returned {perceptionTools.Count} tools")}");
             foreach (var tool in perceptionTools)
             {
-                _dynamicTools = _dynamicTools.WithTool(tool);
+                _tools.DynamicTools = _tools.DynamicTools.WithTool(tool);
             }
-            AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"[DEBUG] After perception tools: {_dynamicTools.Count} tools")}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"[DEBUG] After perception tools: {_tools.DynamicTools.Count} tools")}");
 
             // OpenClaw Gateway integration (CLI options -> env vars -> defaults)
             var openClawOpts = options as ImmersiveCommandVoiceOptions;
@@ -130,7 +130,7 @@ public sealed partial class ImmersiveMode
                     var gw = await OpenClawTools.ConnectGatewayAsync(
                         openClawOpts?.OpenClawGateway,
                         openClawOpts?.OpenClawToken);
-                    _dynamicTools = _dynamicTools.WithOpenClawTools();
+                    _tools.DynamicTools = _tools.DynamicTools.WithOpenClawTools();
                     AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok($"[OK] OpenClaw gateway {gw} (5 tools)")}");
                 }
                 catch (OperationCanceledException) { throw; }
@@ -141,7 +141,7 @@ public sealed partial class ImmersiveMode
                 }
             }
 
-            AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"[DEBUG] Final tool count: {_dynamicTools.Count} tools")}");
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"[DEBUG] Final tool count: {_tools.DynamicTools.Count} tools")}");
 
             // Initialize vision service for AI-powered visual understanding
             var visionService = new VisionService(new VisionConfig
@@ -189,8 +189,8 @@ public sealed partial class ImmersiveMode
                 var tlRegistry = _serviceProvider?.GetService<IQdrantCollectionRegistry>();
                 if (tlClient != null && tlRegistry != null)
                 {
-                    _toolLearner = new IntelligentToolLearner(
-                        _dynamicToolFactory,
+                    _tools.ToolLearner = new IntelligentToolLearner(
+                        _tools.DynamicToolFactory,
                         mettaEngine,
                         embeddingModel,
                         toolAwareLlm,
@@ -199,21 +199,21 @@ public sealed partial class ImmersiveMode
                 }
                 else
                 {
-                    _toolLearner = new IntelligentToolLearner(
-                        _dynamicToolFactory,
+                    _tools.ToolLearner = new IntelligentToolLearner(
+                        _tools.DynamicToolFactory,
                         mettaEngine,
                         embeddingModel,
                         toolAwareLlm,
                         options.QdrantEndpoint);
                 }
-                await _toolLearner.InitializeAsync();
-                var stats = _toolLearner.GetStats();
+                await _tools.ToolLearner.InitializeAsync();
+                var stats = _tools.ToolLearner.GetStats();
                 AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok($"[OK] Intelligent Tool Learner ready ({stats.TotalPatterns} patterns)")}");
 
                 // Initialize interconnected learner for tool-skill bridging
-                _interconnectedLearner = new InterconnectedLearner(
-                    _dynamicToolFactory,
-                    _skillRegistry!,
+                _tools.InterconnectedLearner = new InterconnectedLearner(
+                    _tools.DynamicToolFactory,
+                    _tools.SkillRegistry!,
                     mettaEngine,
                     embeddingModel,
                     toolAwareLlm);
@@ -229,7 +229,7 @@ public sealed partial class ImmersiveMode
                         RootPaths = new List<string> { Environment.CurrentDirectory },
                         EnableFileWatcher = true
                     };
-                    _selfIndexer = new QdrantSelfIndexer(siClient, siRegistry, embeddingModel, indexerConfig);
+                    _tools.SelfIndexer = new QdrantSelfIndexer(siClient, siRegistry, embeddingModel, indexerConfig);
                 }
                 else
                 {
@@ -239,16 +239,16 @@ public sealed partial class ImmersiveMode
                         RootPaths = new List<string> { Environment.CurrentDirectory },
                         EnableFileWatcher = true
                     };
-                    _selfIndexer = new QdrantSelfIndexer(embeddingModel, indexerConfig);
+                    _tools.SelfIndexer = new QdrantSelfIndexer(embeddingModel, indexerConfig);
                 }
-                _selfIndexer.OnFileIndexed += (file, chunks) =>
+                _tools.SelfIndexer.OnFileIndexed += (file, chunks) =>
                     AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"[Index] {Path.GetFileName(file)} ({chunks} chunks)")}");
-                await _selfIndexer.InitializeAsync();
+                await _tools.SelfIndexer.InitializeAsync();
 
                 // Wire up the shared indexer for system access tools
-                SystemAccessTools.SharedIndexer = _selfIndexer;
+                SystemAccessTools.SharedIndexer = _tools.SelfIndexer;
 
-                var indexStats = await _selfIndexer.GetStatsAsync();
+                var indexStats = await _tools.SelfIndexer.GetStatsAsync();
                 AnsiConsole.MarkupLine($"  {OuroborosTheme.Ok($"[OK] Self-indexer ready ({indexStats.IndexedFiles} files, {indexStats.TotalVectors} vectors)")}");
             }
         }
@@ -257,7 +257,7 @@ public sealed partial class ImmersiveMode
         {
             var face = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
             AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face)} [!] Skills initialization error: {Markup.Escape(ex.Message)}[/]");
-            _skillRegistry = new SimpleInMemorySkillRegistry();
+            _tools.SkillRegistry = new SimpleInMemorySkillRegistry();
         }
     }
 

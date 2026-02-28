@@ -56,11 +56,11 @@ public sealed partial class ImmersiveMode
 
         // ── Episodic retrieval ────────────────────────────────────────────────
         string? episodicContext = null;
-        if (_episodicMemory != null)
+        if (_cognitive.EpisodicMemory != null)
         {
             try
             {
-                var eps = await _episodicMemory.RetrieveSimilarEpisodesAsync(
+                var eps = await _cognitive.EpisodicMemory.RetrieveSimilarEpisodesAsync(
                     input, topK: 3, minSimilarity: 0.65, ct).ConfigureAwait(false);
                 if (eps.IsSuccess && eps.Value.Count > 0)
                 {
@@ -76,19 +76,19 @@ public sealed partial class ImmersiveMode
         }
 
         // ── Metacognitive trace ───────────────────────────────────────────────
-        _metacognition.StartTrace();
-        _metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Observation,
+        _cognitive.Metacognition.StartTrace();
+        _cognitive.Metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Observation,
             $"Input: {input[..Math.Min(80, input.Length)]}", "User query received");
 
         // ── Ethics gate ──────────────────────────────────────────────────────
         // Evaluate the user query before generating a response.
         // Void → refuse; Imaginary (requires approval) → add a caution note.
         string? ethicsCautionNote = null;
-        if (_immersiveEthics != null)
+        if (_cognitive.Ethics != null)
         {
             try
             {
-                var ethicsCheck = await _immersiveEthics.EvaluateActionAsync(
+                var ethicsCheck = await _cognitive.Ethics.EvaluateActionAsync(
                     new Ouroboros.Core.Ethics.ProposedAction
                     {
                         ActionType   = "generate_response",
@@ -118,50 +118,50 @@ public sealed partial class ImmersiveMode
             catch (HttpRequestException) { /* Non-fatal — ethics check failure does not block response */ }
         }
 
-        _metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Validation,
+        _cognitive.Metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Validation,
             ethicsCautionNote ?? "Ethics: clear", "MeTTa ethics evaluation");
 
         // ── CognitivePhysics shift ───────────────────────────────────────────
         // Compute context-shift cost when topic changes; surface as awareness in the prompt.
         string? cogPhysicsNote = null;
-        if (_immersiveCogPhysics != null)
+        if (_cognitive.CogPhysics != null)
         {
             try
             {
                 var topic = Subsystems.ImmersiveSubsystem.ClassifyAvatarTopic(input);
-                if (string.IsNullOrEmpty(topic)) topic = _immersiveLastTopic;
+                if (string.IsNullOrEmpty(topic)) topic = _cognitive.LastTopic;
 
-                var shiftResult = await _immersiveCogPhysics.ExecuteTrajectoryAsync(
-                    _immersiveCogState, [topic]).ConfigureAwait(false);
+                var shiftResult = await _cognitive.CogPhysics.ExecuteTrajectoryAsync(
+                    _cognitive.CogState, [topic]).ConfigureAwait(false);
 
                 if (shiftResult.IsSuccess)
                 {
-                    var prevTopic = _immersiveLastTopic;
-                    _immersiveCogState = shiftResult.Value;
-                    _immersiveLastTopic = topic;
+                    var prevTopic = _cognitive.LastTopic;
+                    _cognitive.CogState = shiftResult.Value;
+                    _cognitive.LastTopic = topic;
 
-                    double resourcePct = _immersiveCogState.Resources / 100.0;
-                    if (prevTopic != topic && _immersiveCogState.Compression > 0.3)
+                    double resourcePct = _cognitive.CogState.Resources / 100.0;
+                    if (prevTopic != topic && _cognitive.CogState.Compression > 0.3)
                         cogPhysicsNote = $"(Conceptual leap: {prevTopic} → {topic}, " +
                                          $"resources at {resourcePct:P0}, " +
-                                         $"compression={_immersiveCogState.Compression:F2})";
+                                         $"compression={_cognitive.CogState.Compression:F2})";
                 }
             }
             catch (HttpRequestException) { /* Non-fatal */ }
         }
 
-        _metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Inference,
+        _cognitive.Metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Inference,
             cogPhysicsNote ?? "No shift", "CognitivePhysics shift cost");
 
         // ── Neural-symbolic hybrid reasoning ─────────────────────────────────
         string? hybridNote = null;
         bool isComplexQuery = input.Contains('?') ||
             input.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length > 10;
-        if (_neuralSymbolicBridge != null && isComplexQuery)
+        if (_cognitive.NeuralSymbolicBridge != null && isComplexQuery)
         {
             try
             {
-                var hybrid = await _neuralSymbolicBridge.HybridReasonAsync(
+                var hybrid = await _cognitive.NeuralSymbolicBridge.HybridReasonAsync(
                     input, Ouroboros.Agent.NeuralSymbolic.ReasoningMode.SymbolicFirst, ct)
                     .ConfigureAwait(false);
                 if (hybrid.IsSuccess && !string.IsNullOrEmpty(hybrid.Value.Answer))
@@ -169,7 +169,7 @@ public sealed partial class ImmersiveMode
             }
             catch (HttpRequestException) { }
             if (hybridNote != null)
-                _metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Inference,
+                _cognitive.Metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Inference,
                     hybridNote, "Neural-symbolic bridge");
         }
 
@@ -181,13 +181,13 @@ public sealed partial class ImmersiveMode
             try
             {
                 var graph = Services.SharedAgentBootstrap.BuildMinimalCausalGraph(causalTerms.Value.Cause, causalTerms.Value.Effect);
-                var explanation = await _causalReasoning.ExplainCausallyAsync(
+                var explanation = await _cognitive.CausalReasoning.ExplainCausallyAsync(
                     causalTerms.Value.Effect, [causalTerms.Value.Cause], graph, ct)
                     .ConfigureAwait(false);
                 if (explanation.IsSuccess && !string.IsNullOrEmpty(explanation.Value.NarrativeExplanation))
                 {
                     causalNote = $"[Causal: {explanation.Value.NarrativeExplanation[..Math.Min(150, explanation.Value.NarrativeExplanation.Length)]}]";
-                    _metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Inference,
+                    _cognitive.Metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Inference,
                         causalNote, "Causal reasoning engine");
                 }
             }
@@ -212,12 +212,12 @@ public sealed partial class ImmersiveMode
                     new() { Name = "user",      Synapses = total, Activations = userTurns,      Weight = 1.0 },
                     new() { Name = personaName, Synapses = total, Activations = assistantTurns, Weight = 1.0 },
                 };
-                var phiResult = _immersivePhiCalc.Compute(pathways);
+                var phiResult = _cognitive.PhiCalc.Compute(pathways);
 
-                if (phiResult.Phi >= 0.5 && _orchestratedModel != null)
-                    chatModel = _orchestratedModel; // Upgrade to collective model
-                else if (phiResult.Phi < 0.2 && _baseModel != null)
-                    chatModel = _baseModel;         // Keep single model for simple queries
+                if (phiResult.Phi >= 0.5 && _learning.OrchestratedModel != null)
+                    chatModel = _learning.OrchestratedModel; // Upgrade to collective model
+                else if (phiResult.Phi < 0.2 && _learning.BaseModel != null)
+                    chatModel = _learning.BaseModel;         // Keep single model for simple queries
 
                 phiNote = $"Phi={phiResult.Phi:F2}";
             }
@@ -314,21 +314,21 @@ public sealed partial class ImmersiveMode
             var response = CleanResponse(result, personaName);
 
             // ── End metacognitive trace ───────────────────────────────────────
-            _metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Conclusion,
+            _cognitive.Metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Conclusion,
                 response[..Math.Min(80, response.Length)], "LLM response");
-            var traceResult = _metacognition.EndTrace(response[..Math.Min(40, response.Length)], true);
-            _immersiveResponseCount++;
-            if (_immersiveResponseCount % 5 == 0 && traceResult.IsSuccess)
+            var traceResult = _cognitive.Metacognition.EndTrace(response[..Math.Min(40, response.Length)], true);
+            _cognitive.ResponseCount++;
+            if (_cognitive.ResponseCount % 5 == 0 && traceResult.IsSuccess)
             {
-                var reflection = _metacognition.ReflectOn(traceResult.Value);
+                var reflection = _cognitive.Metacognition.ReflectOn(traceResult.Value);
                 var metaMsg = $"  ✧ [[metacognition]] Q={reflection.QualityScore:F2} " +
                     $"| {(reflection.HasIssues ? Markup.Escape(reflection.Improvements.FirstOrDefault() ?? "–") : "Clean")}";
                 AnsiConsole.MarkupLine($"\n[rgb(128,0,180)]{metaMsg}[/]");
             }
 
-            if (_episodicMemory != null)
-                StoreConversationEpisodeAsync(_episodicMemory, input, response,
-                    _immersiveLastTopic, personaName, CancellationToken.None)
+            if (_cognitive.EpisodicMemory != null)
+                StoreConversationEpisodeAsync(_cognitive.EpisodicMemory, input, response,
+                    _cognitive.LastTopic, personaName, CancellationToken.None)
                     .ObserveExceptions("ImmersiveMode.StoreConversationEpisode");
 
             return response;

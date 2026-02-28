@@ -48,7 +48,7 @@ public sealed partial class ToolSubsystem : IToolSubsystem
     // Cross-subsystem context (set during InitializeAsync)
     internal SubsystemInitContext Ctx { get; private set; } = null!;
 
-    //  Runtime cross-subsystem references  
+    //  Runtime cross-subsystem references
     internal OuroborosConfig Config { get; private set; } = null!;
     internal IConsoleOutput Output { get; private set; } = null!;
     internal IModelSubsystem Models { get; private set; } = null!;
@@ -198,6 +198,30 @@ public sealed partial class ToolSubsystem : IToolSubsystem
                         ctx.Output.RecordInit("OpenClaw", false, ex.Message);
                     }
                     catch (InvalidOperationException ex)
+                    {
+                        AnsiConsole.MarkupLine(OuroborosTheme.Warn(
+                            $"  [!] OpenClaw: {Markup.Escape(ex.Message)}"));
+                        ctx.Output.RecordInit("OpenClaw", false, ex.Message);
+                    }
+                    catch (OpenClawException ex)
+                    {
+                        AnsiConsole.MarkupLine(OuroborosTheme.Warn(
+                            $"  [!] OpenClaw: {Markup.Escape(ex.Message)}"));
+                        ctx.Output.RecordInit("OpenClaw", false, ex.Message);
+                    }
+                    catch (TaskCanceledException ex)
+                    {
+                        AnsiConsole.MarkupLine(OuroborosTheme.Warn(
+                            $"  [!] OpenClaw: connection timed out"));
+                        ctx.Output.RecordInit("OpenClaw", false, ex.Message);
+                    }
+                    catch (Exception ex) when (ex.GetType().Name == "TimeoutRejectedException")
+                    {
+                        AnsiConsole.MarkupLine(OuroborosTheme.Warn(
+                            $"  [!] OpenClaw: connection timed out"));
+                        ctx.Output.RecordInit("OpenClaw", false, ex.Message);
+                    }
+                    catch (Exception ex) when (ex is System.Net.WebSockets.WebSocketException or IOException)
                     {
                         AnsiConsole.MarkupLine(OuroborosTheme.Warn(
                             $"  [!] OpenClaw: {Markup.Escape(ex.Message)}"));

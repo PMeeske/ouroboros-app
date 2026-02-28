@@ -49,7 +49,7 @@ public sealed partial class ImmersiveMode
 
         // 3. Tools State
         AnsiConsole.MarkupLine($"\n  {OuroborosTheme.GoldText("TOOLS")}");
-        var tools = _dynamicTools?.All.ToList() ?? new List<Ouroboros.Tools.ITool>();
+        var tools = _tools.DynamicTools?.All.ToList() ?? new List<Ouroboros.Tools.ITool>();
         var toolsTable = OuroborosTheme.ThemedTable("Tool", "Status");
         toolsTable.AddRow(Markup.Escape("Registered tools"), Markup.Escape($"{tools.Count}"));
         foreach (var tool in tools.Take(10))
@@ -65,9 +65,9 @@ public sealed partial class ImmersiveMode
         // 4. Skills State
         AnsiConsole.MarkupLine($"\n  {OuroborosTheme.GoldText("SKILLS")}");
         var skillsTable = OuroborosTheme.ThemedTable("Skill", "Details");
-        if (_skillRegistry != null)
+        if (_tools.SkillRegistry != null)
         {
-            var skills = await _skillRegistry.FindMatchingSkillsAsync("*");
+            var skills = await _tools.SkillRegistry.FindMatchingSkillsAsync("*");
             skillsTable.AddRow(Markup.Escape("Learned skills"), Markup.Escape($"{skills.Count}"));
             foreach (var skill in skills.Take(10))
             {
@@ -87,11 +87,11 @@ public sealed partial class ImmersiveMode
         // 5. Index State
         AnsiConsole.MarkupLine($"\n  {OuroborosTheme.GoldText("KNOWLEDGE INDEX")}");
         var indexTable = OuroborosTheme.ThemedTable("Property", "Value");
-        if (_selfIndexer != null)
+        if (_tools.SelfIndexer != null)
         {
             try
             {
-                var stats = await _selfIndexer.GetStatsAsync();
+                var stats = await _tools.SelfIndexer.GetStatsAsync();
                 indexTable.AddRow(Markup.Escape("Collection"), Markup.Escape(stats.CollectionName));
                 indexTable.AddRow(Markup.Escape("Indexed files"), Markup.Escape($"{stats.IndexedFiles}"));
                 indexTable.AddRow(Markup.Escape("Total vectors"), Markup.Escape($"{stats.TotalVectors}"));
@@ -116,9 +116,9 @@ public sealed partial class ImmersiveMode
         // 6. Learning State
         AnsiConsole.MarkupLine($"\n  {OuroborosTheme.GoldText("LEARNING SYSTEMS")}");
         var learningTable = OuroborosTheme.ThemedTable("Property", "Value");
-        if (_toolLearner != null)
+        if (_tools.ToolLearner != null)
         {
-            var learnerStats = _toolLearner.GetStats();
+            var learnerStats = _tools.ToolLearner.GetStats();
             learningTable.AddRow(Markup.Escape("Tool patterns"), Markup.Escape($"{learnerStats.TotalPatterns}"));
             learningTable.AddRow(Markup.Escape("Avg success rate"), Markup.Escape($"{learnerStats.AvgSuccessRate:P0}"));
             learningTable.AddRow(Markup.Escape("Total usage"), Markup.Escape($"{learnerStats.TotalUsage}"));
@@ -127,7 +127,7 @@ public sealed partial class ImmersiveMode
         {
             learningTable.AddRow(Markup.Escape("Tool learner"), Markup.Escape("not initialized"));
         }
-        if (_interconnectedLearner != null)
+        if (_tools.InterconnectedLearner != null)
         {
             learningTable.AddRow(Markup.Escape("Interconnected learner"), Markup.Escape("active"));
         }
@@ -161,7 +161,7 @@ public sealed partial class ImmersiveMode
 
     private async Task<string> HandleMemoryRecallAsync(string topic, string personaName, CancellationToken ct)
     {
-        if (_conversationMemory == null)
+        if (_tools.ConversationMemory == null)
         {
             return "Conversation memory is not initialized.";
         }
@@ -170,7 +170,7 @@ public sealed partial class ImmersiveMode
 
         try
         {
-            var recall = await _conversationMemory.RecallAboutAsync(topic, ct);
+            var recall = await _tools.ConversationMemory.RecallAboutAsync(topic, ct);
             return recall;
         }
         catch (HttpRequestException ex)
@@ -185,12 +185,12 @@ public sealed partial class ImmersiveMode
 
     private Task<string> HandleMemoryStatsAsync(string personaName, CancellationToken ct)
     {
-        if (_conversationMemory == null)
+        if (_tools.ConversationMemory == null)
         {
             return Task.FromResult("Conversation memory is not initialized.");
         }
 
-        var stats = _conversationMemory.GetStats();
+        var stats = _tools.ConversationMemory.GetStats();
         var sb = new StringBuilder();
         sb.AppendLine("📝 **Conversation Memory Statistics**\n");
         sb.AppendLine($"  Total sessions: {stats.TotalSessions}");
@@ -208,10 +208,10 @@ public sealed partial class ImmersiveMode
         }
 
         // Show recent sessions summary
-        if (_conversationMemory.RecentSessions.Count > 0)
+        if (_tools.ConversationMemory.RecentSessions.Count > 0)
         {
             sb.AppendLine("\n  Recent sessions:");
-            foreach (var session in _conversationMemory.RecentSessions.TakeLast(3))
+            foreach (var session in _tools.ConversationMemory.RecentSessions.TakeLast(3))
             {
                 sb.AppendLine($"    • {session.StartedAt:g}: {session.Turns.Count} turns");
             }
@@ -264,7 +264,7 @@ public sealed partial class ImmersiveMode
 
     private async Task<string> HandleFullReindexAsync(string personaName, CancellationToken ct)
     {
-        if (_selfIndexer == null)
+        if (_tools.SelfIndexer == null)
         {
             return "Self-indexer is not available. Qdrant may not be connected.";
         }
@@ -281,7 +281,7 @@ public sealed partial class ImmersiveMode
 
         try
         {
-            var result = await _selfIndexer.FullReindexAsync(clearExisting: true, progress, ct);
+            var result = await _tools.SelfIndexer.FullReindexAsync(clearExisting: true, progress, ct);
             return $"Full reindex complete! Processed {result.ProcessedFiles} files, indexed {result.IndexedChunks} chunks in {result.Elapsed.TotalSeconds:F1}s. ({result.SkippedFiles} skipped, {result.ErrorFiles} errors)";
         }
         catch (HttpRequestException ex)
@@ -296,7 +296,7 @@ public sealed partial class ImmersiveMode
 
     private async Task<string> HandleIncrementalReindexAsync(string personaName, CancellationToken ct)
     {
-        if (_selfIndexer == null)
+        if (_tools.SelfIndexer == null)
         {
             return "Self-indexer is not available. Qdrant may not be connected.";
         }
@@ -313,7 +313,7 @@ public sealed partial class ImmersiveMode
 
         try
         {
-            var result = await _selfIndexer.IncrementalIndexAsync(progress, ct);
+            var result = await _tools.SelfIndexer.IncrementalIndexAsync(progress, ct);
             if (result.TotalFiles == 0)
             {
                 return "No files have changed since last index. Workspace is up to date!";
@@ -332,7 +332,7 @@ public sealed partial class ImmersiveMode
 
     private async Task<string> HandleIndexSearchAsync(string query, string personaName, CancellationToken ct)
     {
-        if (_selfIndexer == null)
+        if (_tools.SelfIndexer == null)
         {
             return "Self-indexer is not available. Qdrant may not be connected.";
         }
@@ -341,7 +341,7 @@ public sealed partial class ImmersiveMode
 
         try
         {
-            var results = await _selfIndexer.SearchAsync(query, limit: 5, scoreThreshold: 0.3f, ct);
+            var results = await _tools.SelfIndexer.SearchAsync(query, limit: 5, scoreThreshold: 0.3f, ct);
 
             if (results.Count == 0)
             {
@@ -372,14 +372,14 @@ public sealed partial class ImmersiveMode
 
     private async Task<string> HandleIndexStatsAsync(string personaName, CancellationToken ct)
     {
-        if (_selfIndexer == null)
+        if (_tools.SelfIndexer == null)
         {
             return "Self-indexer is not available. Qdrant may not be connected.";
         }
 
         try
         {
-            var stats = await _selfIndexer.GetStatsAsync(ct);
+            var stats = await _tools.SelfIndexer.GetStatsAsync(ct);
             return $"📊 **Index Statistics**\n" +
                    $"  Collection: {stats.CollectionName}\n" +
                    $"  Indexed files: {stats.IndexedFiles}\n" +
