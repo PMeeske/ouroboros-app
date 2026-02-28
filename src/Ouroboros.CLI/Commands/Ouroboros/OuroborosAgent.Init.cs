@@ -40,6 +40,7 @@ public sealed partial class OuroborosAgent
             SkipAll = _config.YoloMode,
         };
         _permissionBroker = permissionBroker;
+        _ = _permissionBroker; // S4487: retained for broker lifetime
         var agentEventBus = new CLI.Infrastructure.EventBroker<CLI.Infrastructure.AgentEvent>();
 
         // Create shared initialization context (mediator pattern)

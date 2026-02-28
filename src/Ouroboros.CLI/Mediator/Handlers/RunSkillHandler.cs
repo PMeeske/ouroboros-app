@@ -26,7 +26,7 @@ public sealed class RunSkillHandler : IRequestHandler<RunSkillRequest, string>
             var matches = await skills.FindMatchingSkillsAsync(skillName);
             if (matches.Any())
             {
-                skill = matches.First().ToAgentSkill();
+                skill = matches[0].ToAgentSkill();
             }
             else
             {

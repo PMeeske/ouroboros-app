@@ -192,7 +192,7 @@ public sealed class MeTTaService : IMeTTaService
         }
     }
 
-    private async Task RunVoiceModeAsync(MeTTaConfig config)
+    private static async Task RunVoiceModeAsync(MeTTaConfig config)
     {
         var voiceService = VoiceModeExtensions.CreateVoiceService(
             voice: true,

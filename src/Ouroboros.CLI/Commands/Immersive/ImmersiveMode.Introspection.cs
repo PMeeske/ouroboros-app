@@ -17,7 +17,7 @@ using Spectre.Console;
 
 public sealed partial class ImmersiveMode
 {
-    private bool IsIntrospectionCommand(string input)
+    private static bool IsIntrospectionCommand(string input)
     {
         var lower = input.ToLowerInvariant();
         return lower.Contains("who are you") ||
@@ -36,7 +36,7 @@ public sealed partial class ImmersiveMode
                lower.Contains("introspect");
     }
 
-    private bool IsReplicationCommand(string input)
+    private static bool IsReplicationCommand(string input)
     {
         var lower = input.ToLowerInvariant();
         return lower.Contains("clone yourself") ||
@@ -160,6 +160,9 @@ public sealed partial class ImmersiveMode
     /// <summary>
     /// Learns from an interaction through the consciousness dream cycle.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Minor Code Smell", "S3267:Loops should be simplified with LINQ expressions",
+        Justification = "await foreach on IAsyncEnumerable with async side-effects cannot be expressed as LINQ")]
     private async Task LearnFromInteractionAsync(
         string userInput,
         string response,
@@ -175,6 +178,7 @@ public sealed partial class ImmersiveMode
             // Learn through dream cycle
             await foreach (var moment in _learning.Dream.WalkTheDream(userInput, ct))
             {
+                var stage = moment.Stage;
                 var observation = new Observation(
                     Content: userInput,
                     Timestamp: DateTime.UtcNow,
@@ -182,13 +186,13 @@ public sealed partial class ImmersiveMode
                     Context: new Dictionary<string, object>
                     {
                         ["response_length"] = response.Length,
-                        ["stage"] = moment.Stage.ToString()
+                        ["stage"] = stage.ToString()
                     });
 
                 var result = await _learning.DistinctionLearner.UpdateFromDistinctionAsync(
                     _learning.CurrentDistinctionState,
                     observation,
-                    moment.Stage.ToString(),
+                    stage.ToString(),
                     ct);
 
                 if (result.IsSuccess)
@@ -197,7 +201,7 @@ public sealed partial class ImmersiveMode
                 }
 
                 // At Recognition stage, apply self-insight
-                if (moment.Stage == DreamStage.Recognition)
+                if (stage == DreamStage.Recognition)
                 {
                     var recognizeResult = await _learning.DistinctionLearner.RecognizeAsync(
                         _learning.CurrentDistinctionState,

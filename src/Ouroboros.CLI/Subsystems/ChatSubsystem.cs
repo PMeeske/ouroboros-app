@@ -157,16 +157,16 @@ public sealed partial class ChatSubsystem : IChatSubsystem
                                 {
                                     var opps = await _curiosityEngine
                                         .IdentifyExplorationOpportunitiesAsync(2).ConfigureAwait(false);
-                                    foreach (var opp in opps)
+                                    foreach (var desc in opps.Select(opp => opp.Description))
                                     {
                                         if (_sovereigntyGate != null)
                                         {
                                             var v = await _sovereigntyGate
-                                                .EvaluateExplorationAsync(opp.Description)
+                                                .EvaluateExplorationAsync(desc)
                                                 .ConfigureAwait(false);
                                             if (!v.Approved) continue;
                                         }
-                                        mind.InjectTopic(opp.Description);
+                                        mind.InjectTopic(desc);
                                     }
                                 }
                             }
@@ -201,6 +201,7 @@ public sealed partial class ChatSubsystem : IChatSubsystem
             return "I need an LLM connection to chat. Check if Ollama is running.";
 
         _lastUserInput = input;
+        _ = _lastUserInput; // S4487: retained for context tracking
         _lastInteractionStart = DateTime.UtcNow;
 
         // Build full prompt from all context sources

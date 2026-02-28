@@ -99,7 +99,7 @@ public sealed partial class CognitiveSubsystem : ICognitiveSubsystem
         MarkInitialized();
     }
 
-    private async Task InitializeOrchestratorCoreAsync(SubsystemInitContext ctx)
+    private static async Task InitializeOrchestratorCoreAsync(SubsystemInitContext ctx)
     {
         try
         {

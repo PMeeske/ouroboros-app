@@ -26,7 +26,6 @@ public sealed partial class ImmersiveMode
 
         try
         {
-            var lowerInput = userInput.ToLowerInvariant();
             var lowerResponse = response.ToLowerInvariant();
 
             // Record skill usage

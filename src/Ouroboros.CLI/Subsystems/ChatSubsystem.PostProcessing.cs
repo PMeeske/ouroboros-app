@@ -25,13 +25,10 @@ public sealed partial class ChatSubsystem
         // === COGNITIVE STREAM: emit interesting tool executions ===
         if (CognitiveStreamEngine != null && tools.Count > 0)
         {
-            foreach (var t in tools)
+            foreach (var t in tools.Where(t => t.ToolName is "verify_claim" or "reasoning_chain" or
+                    "parallel_metta_think" or "ouroboros_metta" or "episodic_memory"))
             {
-                if (t.ToolName is "verify_claim" or "reasoning_chain" or
-                    "parallel_metta_think" or "ouroboros_metta" or "episodic_memory")
-                {
-                    CognitiveStreamEngine.EmitToolExecution(t.ToolName, t.Output);
-                }
+                CognitiveStreamEngine.EmitToolExecution(t.ToolName, t.Output);
             }
         }
 
@@ -47,8 +44,8 @@ public sealed partial class ChatSubsystem
         }
 
         // === RECORD OUTCOME FOR PROMPT OPTIMIZER ===
-        var expectedTools = _toolsSub.PromptOptimizer.DetectExpectedTools(input);
-        var actualToolCalls = _toolsSub.PromptOptimizer.ExtractToolCalls(response);
+        var expectedTools = PromptOptimizer.DetectExpectedTools(input);
+        var actualToolCalls = PromptOptimizer.ExtractToolCalls(response);
         actualToolCalls.AddRange(tools.Select(t => t.ToolName).Where(n => !actualToolCalls.Contains(n)));
 
         var wasSuccessful = expectedTools.Count == 0 || actualToolCalls.Count > 0;

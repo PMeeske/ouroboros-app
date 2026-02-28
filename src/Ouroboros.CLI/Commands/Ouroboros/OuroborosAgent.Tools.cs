@@ -144,7 +144,7 @@ public sealed partial class OuroborosAgent
         _visionModel = new Ouroboros.Providers.OllamaVisionModel(ollamaEndpoint, visionModelName);
 
         // Capture closures for the lambda
-        var defaultCamera = cameraNames.Count > 0 ? cameraNames.First() : "Camera1";
+        var defaultCamera = cameraNames.Count > 0 ? cameraNames[0] : "Camera1";
         var rtspFactory = _tapoRtspFactory;
         var visionModel = _visionModel;
         var availableCameras = cameraNames.Count > 0

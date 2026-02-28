@@ -72,7 +72,7 @@ internal sealed class SaveCodeCommandHandler
     /// </summary>
     internal static string ParseArgument(string argument)
     {
-        if (argument.TrimStart().StartsWith("{"))
+        if (argument.TrimStart().StartsWith('{'))
         {
             return argument;
         }

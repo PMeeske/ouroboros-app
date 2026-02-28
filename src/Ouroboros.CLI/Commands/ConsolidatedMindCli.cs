@@ -207,12 +207,10 @@ public static class ConsolidatedMindCli
             try
             {
                 string response;
-                bool useThinking = false;
 
                 if (input.StartsWith("/think ", StringComparison.OrdinalIgnoreCase))
                 {
                     input = input[7..];
-                    useThinking = true;
                 }
                 else if (input.StartsWith("/code ", StringComparison.OrdinalIgnoreCase))
                 {

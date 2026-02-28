@@ -171,7 +171,7 @@ public partial class OuroborosCommandOptions
         var endpointType  = parseResult.GetValue(EndpointTypeOption);
         var temperature   = parseResult.GetValue(TemperatureOption);
         var maxTokens     = parseResult.GetValue(MaxTokensOption);
-        var timeoutSec    = parseResult.GetValue(TimeoutSecondsOption);
+        _ = parseResult.GetValue(TimeoutSecondsOption);
 
         // Embeddings & Memory
         var embedModel    = parseResult.GetValue(EmbedModelOption) ?? "nomic-embed-text";
@@ -224,7 +224,7 @@ public partial class OuroborosCommandOptions
 
         // Debug & Output
         var debug         = parseResult.GetValue(DebugOption);
-        var stream        = parseResult.GetValue(StreamOption);
+        _ = parseResult.GetValue(StreamOption);
         var verbose       = parseResult.GetValue(VerboseOption);
         var quiet         = parseResult.GetValue(QuietOption);
 

@@ -251,7 +251,6 @@ public static class MeTTaInteractiveMode
 
             if (actionInput.Trim().Equals("done", StringComparison.OrdinalIgnoreCase))
             {
-                enteringActions = false;
                 break;
             }
 

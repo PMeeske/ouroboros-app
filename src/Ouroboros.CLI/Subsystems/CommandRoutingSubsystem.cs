@@ -29,6 +29,7 @@ public sealed partial class CommandRoutingSubsystem : ICommandRoutingSubsystem
     {
         _config = ctx.Config;
         _output = ctx.Output;
+        _ = _output; // S4487: retained for future subsystem use
         _voiceSub = ctx.Voice;
         _modelsSub = ctx.Models;
         _toolsSub = ctx.Tools;
@@ -266,7 +267,7 @@ public sealed partial class CommandRoutingSubsystem : ICommandRoutingSubsystem
     private static string ExtractToolName(string input)
     {
         var match = CreateToolNameRegex().Match(input);
-        return match.Success ? match.Groups[1].Value : input.Split(' ').Last();
+        return match.Success ? match.Groups[1].Value : input.Split(' ')[^1];
     }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;

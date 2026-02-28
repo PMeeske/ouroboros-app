@@ -16,7 +16,7 @@ public sealed partial class ImmersiveMode
     /// <summary>
     /// Generates a context-aware thinking phrase based on the input.
     /// </summary>
-    private string GetDynamicThinkingPhrase(string input, Random random)
+    private static string GetDynamicThinkingPhrase(string input, Random random)
     {
         // Analyze input to pick contextually relevant phrases
         var lowerInput = input.ToLowerInvariant();
@@ -114,7 +114,7 @@ public sealed partial class ImmersiveMode
         return generalPhrases[random.Next(generalPhrases.Length)];
     }
 
-    private void PrintImmersiveBanner(string personaName)
+    private static void PrintImmersiveBanner(string personaName)
     {
         var bannerText = @"
     +===========================================================================+
@@ -147,7 +147,7 @@ public sealed partial class ImmersiveMode
         AnsiConsole.WriteLine();
     }
 
-    private void PrintConsciousnessState(ImmersivePersona persona)
+    private static void PrintConsciousnessState(ImmersivePersona persona)
     {
         var consciousness = persona.Consciousness;
         AnsiConsole.WriteLine();
@@ -158,7 +158,7 @@ public sealed partial class ImmersiveMode
         AnsiConsole.Write(OuroborosTheme.ThemedRule());
     }
 
-    private void PrintResponse(ImmersivePersona persona, string personaName, string response)
+    private static void PrintResponse(ImmersivePersona persona, string personaName, string response)
     {
         var consciousness = persona.Consciousness;
 

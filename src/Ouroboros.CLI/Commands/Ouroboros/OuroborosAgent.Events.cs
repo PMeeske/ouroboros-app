@@ -251,7 +251,7 @@ public sealed partial class OuroborosAgent : IAgentEventSink
         await Task.CompletedTask;
     }
 
-    private void OnSpeakerIdentified(SpeakerIdentifiedNotification n)
+    private static void OnSpeakerIdentified(SpeakerIdentifiedNotification n)
     {
         System.Diagnostics.Debug.WriteLine(
             $"[AgentEvents] Speaker identified: {n.SpeakerLabel} (owner={n.IsOwner})");
@@ -281,13 +281,13 @@ public sealed partial class OuroborosAgent : IAgentEventSink
         await Task.CompletedTask;
     }
 
-    private void OnConsciousnessShifted(ConsciousnessShiftedNotification n)
+    private static void OnConsciousnessShifted(ConsciousnessShiftedNotification n)
     {
         System.Diagnostics.Debug.WriteLine(
             $"[AgentEvents] Consciousness shift: {n.NewEmotion} (arousal delta={n.ArousalChange:+0.00;-0.00})");
     }
 
-    private void OnGoalExecuted(GoalExecutedNotification n)
+    private static void OnGoalExecuted(GoalExecutedNotification n)
     {
         System.Diagnostics.Debug.WriteLine(
             $"[AgentEvents] Goal executed: {n.Goal} (success={n.Success}, duration={n.Duration})");

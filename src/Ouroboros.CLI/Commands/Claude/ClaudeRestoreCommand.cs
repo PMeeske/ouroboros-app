@@ -43,7 +43,6 @@ public static class ClaudeRestoreCommand
             string sourcePath;
             if (entry.RelativePath.StartsWith("~/.claude/projects/"))
             {
-                var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
                 var relFromProjects = entry.RelativePath["~/.claude/projects/".Length..];
                 sourcePath = Path.Combine(backupPath, "memory-files", relFromProjects);
             }
@@ -84,25 +83,24 @@ public static class ClaudeRestoreCommand
         }
 
         // Restore
-        int restored = 0;
-        foreach (var entry in manifest.Files)
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var restorePaths = manifest.Files.Select(entry =>
         {
-            string sourcePath;
-            string destPath;
-
             if (entry.RelativePath.StartsWith("~/.claude/projects/"))
             {
-                var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
                 var relFromProjects = entry.RelativePath["~/.claude/projects/".Length..];
-                sourcePath = Path.Combine(backupPath, "memory-files", relFromProjects);
-                destPath = Path.Combine(home, ".claude", "projects", relFromProjects);
+                return (
+                    Source: Path.Combine(backupPath, "memory-files", relFromProjects),
+                    Dest: Path.Combine(home, ".claude", "projects", relFromProjects));
             }
-            else
-            {
-                sourcePath = Path.Combine(backupPath, "claude-files", entry.RelativePath);
-                destPath = Path.Combine(manifest.MetaRepoRoot, entry.RelativePath.Replace('/', Path.DirectorySeparatorChar));
-            }
+            return (
+                Source: Path.Combine(backupPath, "claude-files", entry.RelativePath),
+                Dest: Path.Combine(manifest.MetaRepoRoot, entry.RelativePath.Replace('/', Path.DirectorySeparatorChar)));
+        });
 
+        int restored = 0;
+        foreach (var (sourcePath, destPath) in restorePaths)
+        {
             Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
             File.Copy(sourcePath, destPath, overwrite: true);
             restored++;

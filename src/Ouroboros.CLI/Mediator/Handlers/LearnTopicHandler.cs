@@ -40,7 +40,7 @@ public sealed class LearnTopicHandler : IRequestHandler<LearnTopicRequest, strin
         {
             try
             {
-                var (response, toolCalls) = await llm.GenerateWithToolsAsync(
+                var (response, _) = await llm.GenerateWithToolsAsync(
                     $"Research and explain key concepts about: {topic}. Include practical applications and how this knowledge could be used.");
                 research = response;
                 sb.AppendLine($"\n\ud83d\udcda Research Summary:\n{response[..Math.Min(500, response.Length)]}...");

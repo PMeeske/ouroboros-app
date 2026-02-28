@@ -13,7 +13,7 @@ using Spectre.Console;
 
 public sealed partial class ImmersiveMode
 {
-    private async Task<(ITextToSpeechService?, ISpeechToTextService?, AdaptiveSpeechDetector?)> InitializeSpeechServicesAsync(IVoiceOptions? options = null)
+    private static async Task<(ITextToSpeechService?, ISpeechToTextService?, AdaptiveSpeechDetector?)> InitializeSpeechServicesAsync(IVoiceOptions? options = null)
     {
         // Extract Azure config from options
         string? azureKey = null;
@@ -101,7 +101,7 @@ public sealed partial class ImmersiveMode
         }
     }
 
-    private async Task<string?> ListenWithVADAsync(
+    private static async Task<string?> ListenWithVADAsync(
         ISpeechToTextService _stt,
         AdaptiveSpeechDetector _detector,
         CancellationToken _ct)

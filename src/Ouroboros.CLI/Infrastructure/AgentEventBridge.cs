@@ -184,7 +184,7 @@ public sealed class AgentEventBridge : IDisposable
     /// Iaret's consciousness via <see cref="ExceptionSink"/>.
     /// Call once during agent initialization.
     /// </summary>
-    public void WireExceptionRouting(IAgentEventSink sink)
+    public static void WireExceptionRouting(IAgentEventSink sink)
     {
         ExceptionSink.SetSink(sink);
 

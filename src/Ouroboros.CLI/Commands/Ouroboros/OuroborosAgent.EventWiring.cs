@@ -202,7 +202,7 @@ public sealed partial class OuroborosAgent
         StartEventLoop();
 
         // Route ALL exceptions through Iaret's kernel
-        _agentEventBridge.WireExceptionRouting(this);
+        AgentEventBridge.WireExceptionRouting(this);
 
         // CLI-level EventBroker<AgentEvent> (needs CTS from event loop)
         if (agentEventBus != null && _eventLoopCts != null)

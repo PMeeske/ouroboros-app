@@ -66,7 +66,7 @@ public sealed partial class ClaudeCheckCommandHandler
 
             var (headOk, head) = await RunGitAsync(fullPath, "rev-parse --short HEAD");
             var (_, porcelain) = await RunGitAsync(fullPath, "status --porcelain");
-            var (branchOk, currentBranch) = await RunGitAsync(fullPath, "rev-parse --abbrev-ref HEAD");
+            var (_, currentBranch) = await RunGitAsync(fullPath, "rev-parse --abbrev-ref HEAD");
 
             bool isDirty = !string.IsNullOrWhiteSpace(porcelain);
             bool isDetached = currentBranch.Trim() == "HEAD";

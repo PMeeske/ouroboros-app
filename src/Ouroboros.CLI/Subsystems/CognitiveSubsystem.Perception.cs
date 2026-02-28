@@ -68,7 +68,7 @@ public sealed partial class CognitiveSubsystem
         sb.AppendLine();
 
         // Check skill interactions
-        var skillList = new List<Skill>();
+        List<Skill> skillList;
         if (Memory.Skills != null)
         {
             var skills = Memory.Skills.GetAllSkills();
@@ -266,12 +266,9 @@ Make it feel like an actual dream - vivid, slightly disjointed, meaningful.";
                 var dream = await Models.ChatModel.GenerateTextAsync(dreamPrompt);
                 sb.AppendLine("「 DREAM CONTENT 」");
                 sb.AppendLine();
-                foreach (var line in dream.Split('\n'))
+                foreach (var line in dream.Split('\n').Where(l => !string.IsNullOrWhiteSpace(l)))
                 {
-                    if (!string.IsNullOrWhiteSpace(line))
-                    {
-                        sb.AppendLine($"   {line.Trim()}");
-                    }
+                    sb.AppendLine($"   {line.Trim()}");
                 }
                 sb.AppendLine();
 
@@ -400,12 +397,9 @@ What patterns do you notice in your own behavior? What are you becoming?";
             if (Models.ChatModel != null)
             {
                 var reflection = await Models.ChatModel.GenerateTextAsync(reflectionPrompt);
-                foreach (var line in reflection.Split('\n'))
+                foreach (var line in reflection.Split('\n').Where(l => !string.IsNullOrWhiteSpace(l)))
                 {
-                    if (!string.IsNullOrWhiteSpace(line))
-                    {
-                        sb.AppendLine($"   {line.Trim()}");
-                    }
+                    sb.AppendLine($"   {line.Trim()}");
                 }
 
                 // Store reflection

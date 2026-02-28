@@ -43,7 +43,7 @@ public sealed class RunTestHandler : IRequestHandler<RunTestRequest, string>
             if (chatModel == null) return "✗ LLM: Not configured";
             try
             {
-                var response = await chatModel.GenerateTextAsync("Say OK");
+                _ = await chatModel.GenerateTextAsync("Say OK");
                 return $"✓ LLM: {config.Model} responds correctly";
             }
             catch (OperationCanceledException) { throw; }

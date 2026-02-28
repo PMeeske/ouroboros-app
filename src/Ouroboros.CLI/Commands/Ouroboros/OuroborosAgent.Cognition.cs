@@ -25,8 +25,8 @@ public sealed partial class OuroborosAgent
 
         // 3. Wire RoomIntentBus → ImmersiveMode (room events appear in the chat pane)
         Ouroboros.CLI.Services.RoomPresence.RoomIntentBus.Reset();
-        Ouroboros.CLI.Services.RoomPresence.RoomIntentBus.OnIaretInterjected   += immersive.ShowRoomInterjection;
-        Ouroboros.CLI.Services.RoomPresence.RoomIntentBus.OnUserAddressedIaret += immersive.ShowRoomAddress;
+        Ouroboros.CLI.Services.RoomPresence.RoomIntentBus.OnIaretInterjected   += ImmersiveMode.ShowRoomInterjection;
+        Ouroboros.CLI.Services.RoomPresence.RoomIntentBus.OnUserAddressedIaret += ImmersiveMode.ShowRoomAddress;
 
         // 4. Build voice/TTS options from agent config
         var opts = new Ouroboros.Options.ImmersiveCommandVoiceOptions

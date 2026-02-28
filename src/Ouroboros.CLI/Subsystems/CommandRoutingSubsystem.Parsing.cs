@@ -52,7 +52,7 @@ public sealed partial class CommandRoutingSubsystem
 
         // Tool creation
         if (lower.StartsWith("create tool ") || lower.StartsWith("add tool "))
-            return (ActionType.CreateTool, input.Split(' ', 3).Last(), null);
+            return (ActionType.CreateTool, input.Split(' ', 3)[^1], null);
         if (lower.StartsWith("make a ") && lower.Contains("tool"))
             return (ActionType.CreateTool, ExtractToolName(input), null);
 
@@ -70,18 +70,18 @@ public sealed partial class CommandRoutingSubsystem
 
         // Run skill
         if (lower.StartsWith("run ") || lower.StartsWith("execute "))
-            return (ActionType.RunSkill, input.Split(' ', 2).Last(), null);
+            return (ActionType.RunSkill, input.Split(' ', 2)[^1], null);
 
         // Suggest
         if (lower.StartsWith("suggest ")) return (ActionType.Suggest, input[8..].Trim(), null);
 
         // Plan
         if (lower.StartsWith("plan ") || lower.StartsWith("how would you "))
-            return (ActionType.Plan, input.Split(' ', 2).Last(), null);
+            return (ActionType.Plan, input.Split(' ', 2)[^1], null);
 
         // Execute with planning
         if (lower.StartsWith("do ") || lower.StartsWith("accomplish "))
-            return (ActionType.Execute, input.Split(' ', 2).Last(), null);
+            return (ActionType.Execute, input.Split(' ', 2)[^1], null);
 
         // Memory
         if (lower.StartsWith("remember ")) return (ActionType.Remember, input[9..].Trim(), null);
@@ -93,7 +93,7 @@ public sealed partial class CommandRoutingSubsystem
 
         // MeTTa query
         if (lower.StartsWith("query ") || lower.StartsWith("metta "))
-            return (ActionType.Query, input.Split(' ', 2).Last(), null);
+            return (ActionType.Query, input.Split(' ', 2)[^1], null);
 
         // Ask - single question mode
         if (lower.StartsWith("ask ")) return (ActionType.Ask, input[4..].Trim(), null);
@@ -106,7 +106,7 @@ public sealed partial class CommandRoutingSubsystem
         }
 
         // MeTTa direct expression
-        if (lower.StartsWith("!(") || lower.StartsWith("(") || lower.StartsWith("metta:"))
+        if (lower.StartsWith("!(") || lower.StartsWith('(') || lower.StartsWith("metta:"))
         {
             var expr = lower.StartsWith("metta:") ? input[6..] : input;
             return (ActionType.Metta, expr.Trim(), null);
@@ -143,7 +143,7 @@ public sealed partial class CommandRoutingSubsystem
 
         // Maintenance
         if (lower.StartsWith("maintenance ") || lower.StartsWith("maintain"))
-            return (ActionType.Maintenance, input.Split(' ', 2).Last(), null);
+            return (ActionType.Maintenance, input.Split(' ', 2)[^1], null);
 
         // Policy
         if (lower.StartsWith("policy ")) return (ActionType.Policy, input[7..].Trim(), null);
@@ -308,7 +308,7 @@ public sealed partial class CommandRoutingSubsystem
             return (ActionType.PromptOptimize, "", null);
 
         // Push mode: route remaining slash commands to coordinator
-        if (lower.StartsWith("/") && _autonomySub.Coordinator != null)
+        if (lower.StartsWith('/') && _autonomySub.Coordinator != null)
             return (ActionType.CoordinatorCommand, input, null);
 
         // Approve/reject intentions

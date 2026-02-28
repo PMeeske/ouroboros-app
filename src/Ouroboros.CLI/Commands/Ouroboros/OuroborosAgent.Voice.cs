@@ -244,12 +244,10 @@ public sealed partial class OuroborosAgent
 
             var result = await speechSynthesizer.SpeakSsmlAsync(ssml);
 
-            if (result.Reason != Microsoft.CognitiveServices.Speech.ResultReason.SynthesizingAudioCompleted)
+            if (result.Reason != Microsoft.CognitiveServices.Speech.ResultReason.SynthesizingAudioCompleted
+                && _config.Debug)
             {
-                if (_config.Debug)
-                {
-                    _output.WriteDebug($"[Azure TTS] Synthesis issue: {result.Reason}");
-                }
+                _output.WriteDebug($"[Azure TTS] Synthesis issue: {result.Reason}");
             }
         }
         catch (OperationCanceledException)
@@ -274,10 +272,10 @@ public sealed partial class OuroborosAgent
         var azureRegion = _staticConfiguration?["Azure:Speech:Region"]
             ?? Environment.GetEnvironmentVariable("AZURE_SPEECH_REGION");
 
-        if (!string.IsNullOrEmpty(azureKey) && !string.IsNullOrEmpty(azureRegion))
+        if (!string.IsNullOrEmpty(azureKey) && !string.IsNullOrEmpty(azureRegion)
+            && await SpeakWithAzureTtsAsync(text, voice, azureKey, azureRegion, ct))
         {
-            if (await SpeakWithAzureTtsAsync(text, voice, azureKey, azureRegion, ct))
-                return;
+            return;
         }
 
         // Fallback to Windows SAPI

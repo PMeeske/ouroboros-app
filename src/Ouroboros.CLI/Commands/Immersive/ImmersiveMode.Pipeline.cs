@@ -12,7 +12,7 @@ using Spectre.Console;
 
 public sealed partial class ImmersiveMode
 {
-    private bool IsPipelineRelatedQuery(string input)
+    private static bool IsPipelineRelatedQuery(string input)
     {
         var lower = input.ToLowerInvariant();
         return lower.Contains("pipeline") ||
@@ -330,7 +330,7 @@ public sealed partial class ImmersiveMode
         return null;
     }
 
-    private async Task<string> HandleEmergenceAsync(
+    private static async Task<string> HandleEmergenceAsync(
         string topic,
         string personaName,
         IVoiceOptions options,

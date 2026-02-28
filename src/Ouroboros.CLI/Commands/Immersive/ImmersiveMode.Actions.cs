@@ -268,13 +268,13 @@ public sealed partial class ImmersiveMode
 
     // ── Small utility methods ───────────────────────────────────────────────
 
-    private bool IsExitCommand(string input)
+    private static bool IsExitCommand(string input)
     {
         var lower = input.ToLowerInvariant().Trim();
         return lower is "exit" or "quit" or "bye" or "goodbye" or "leave" or "stop" or "end";
     }
 
-    private string NormalizeEndpoint(string? rawEndpoint, string fallbackEndpoint)
+    private static string NormalizeEndpoint(string? rawEndpoint, string fallbackEndpoint)
     {
         var endpoint = (rawEndpoint ?? string.Empty).Trim();
         if (string.IsNullOrWhiteSpace(endpoint))
@@ -295,14 +295,14 @@ public sealed partial class ImmersiveMode
         return uri.ToString().TrimEnd('/');
     }
 
-    private string Truncate(string text, int maxLength)
+    private static string Truncate(string text, int maxLength)
     {
         if (string.IsNullOrEmpty(text)) return "";
         if (text.Length <= maxLength) return text;
         return text[..(maxLength - 3)] + "...";
     }
 
-    private int LevenshteinDistance(string s, string t)
+    private static int LevenshteinDistance(string s, string t)
     {
         if (string.IsNullOrEmpty(s)) return t?.Length ?? 0;
         if (string.IsNullOrEmpty(t)) return s.Length;

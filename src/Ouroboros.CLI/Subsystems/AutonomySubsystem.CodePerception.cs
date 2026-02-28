@@ -159,22 +159,20 @@ Examples:
                 if (searchResult.IsSuccess)
                 {
                     // Extract file paths from search results
-                    foreach (string line in searchResult.Value.Split('\n'))
+                    foreach (string line in searchResult.Value.Split('\n')
+                        .Where(l => l.Contains(".cs") && l.Contains("src/")))
                     {
-                        if (line.Contains(".cs") && line.Contains("src/"))
+                        // Extract the file path
+                        int start = line.IndexOf("src/");
+                        if (start >= 0)
                         {
-                            // Extract the file path
-                            int start = line.IndexOf("src/");
-                            if (start >= 0)
+                            int end = line.IndexOf(".cs", start) + 3;
+                            if (end > start)
                             {
-                                int end = line.IndexOf(".cs", start) + 3;
-                                if (end > start)
+                                string filePath = line[start..end];
+                                if (!foundFiles.Contains(filePath))
                                 {
-                                    string filePath = line[start..end];
-                                    if (!foundFiles.Contains(filePath))
-                                    {
-                                        foundFiles.Add(filePath);
-                                    }
+                                    foundFiles.Add(filePath);
                                 }
                             }
                         }

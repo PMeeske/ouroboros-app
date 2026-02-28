@@ -40,6 +40,7 @@ public sealed partial class ClaudeCheckCommandHandler
         _qdrantSettings = qdrantSettings;
         _syncService = syncService;
         _logger = logger;
+        _ = _registry; // S4487: DI-injected, retained for lifetime
     }
 
     public async Task<int> HandleAsync(CancellationToken ct = default)

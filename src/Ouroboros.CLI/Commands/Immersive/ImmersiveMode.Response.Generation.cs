@@ -345,7 +345,7 @@ public sealed partial class ImmersiveMode
         }
     }
 
-    private string CleanResponse(string raw, string personaName)
+    private static string CleanResponse(string raw, string personaName)
     {
         if (string.IsNullOrWhiteSpace(raw))
             return "I'm here. What would you like to talk about?";
@@ -436,7 +436,7 @@ public sealed partial class ImmersiveMode
         return response;
     }
 
-    private async Task<string> GenerateGoodbyeAsync(
+    private static async Task<string> GenerateGoodbyeAsync(
         ImmersivePersona persona,
         IChatCompletionModel chatModel)
     {
@@ -453,7 +453,7 @@ User: goodbye
         return result.Trim();
     }
 
-    private async Task StoreConversationEpisodeAsync(
+    private static async Task StoreConversationEpisodeAsync(
         Ouroboros.Pipeline.Memory.IEpisodicMemoryEngine memory,
         string input, string response, string topic, string personaName, CancellationToken ct)
     {

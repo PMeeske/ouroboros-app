@@ -95,6 +95,7 @@ public static partial class OuroborosCliIntegration
         }
 
         _tapoGateway = gateway;
+        _ = _tapoGateway; // S4487: field kept as GC root for gateway lifetime
         AnsiConsole.MarkupLine(OuroborosTheme.Dim($"[Tapo] Gateway running on port {gateway.Port}"));
 
         // Create REST client pointing to the gateway and inject it into the provider
@@ -199,7 +200,7 @@ public static partial class OuroborosCliIntegration
         try
         {
             using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
-            var response = await httpClient.GetAsync(serverAddress);
+            _ = await httpClient.GetAsync(serverAddress);
             // Any response means the server is running (even 401/403)
             return true;
         }

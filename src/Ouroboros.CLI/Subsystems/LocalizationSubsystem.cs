@@ -188,7 +188,7 @@ OUTPUT (translation only, no explanations, no JSON, no metadata):";
 
             var result = translated?.Trim() ?? thought;
 
-            if (result.StartsWith("\"") && result.EndsWith("\""))
+            if (result.StartsWith('"') && result.EndsWith('"'))
                 result = result[1..^1];
             if (result.Contains("```"))
                 result = result.Split("```")[0].Trim();

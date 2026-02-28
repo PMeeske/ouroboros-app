@@ -83,7 +83,7 @@ public sealed partial class ImmersiveMode
                 var dag = new MerkleDag();
                 var nsClient = _serviceProvider?.GetService<QdrantClient>();
                 var nsRegistry = _serviceProvider?.GetService<IQdrantCollectionRegistry>();
-                var nsSettings = _serviceProvider?.GetService<QdrantSettings>();
+                _ = _serviceProvider?.GetService<QdrantSettings>(); // resolved but unused; retained for DI consistency
                 if (nsClient != null && nsRegistry != null)
                 {
                     _tools.NetworkStateProjector = new PersistentNetworkStateProjector(

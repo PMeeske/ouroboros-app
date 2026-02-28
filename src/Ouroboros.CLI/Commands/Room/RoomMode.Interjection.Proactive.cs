@@ -51,7 +51,7 @@ public sealed partial class RoomMode
     }
 
     /// <summary>Displays the last N transcript lines, clearing the area each time.</summary>
-    private void PrintTranscript(
+    private static void PrintTranscript(
         List<(string Speaker, string Text, DateTime When)> transcript,
         int displayLines,
         string personaName)
@@ -233,7 +233,7 @@ Reply ONLY with the sentence.";
     /// Called when PresenceDetector fires OnPresenceDetected in room mode.
     /// Greets the user who just arrived/returned.
     /// </summary>
-    private async Task GreetOnPresenceAsync(
+    private static async Task GreetOnPresenceAsync(
         IChatCompletionModel llm,
         ITextToSpeechService? tts,
         AmbientRoomListener listener,
@@ -279,7 +279,7 @@ Reply ONLY with the greeting.";
     /// Called when a known speaker returns after a period of silence.
     /// Recalls prior conversation context and greets them personally.
     /// </summary>
-    private async Task GreetReturningPersonAsync(
+    private static async Task GreetReturningPersonAsync(
         DetectedPerson person,
         string speaker,
         PersonIdentifier personIdentifier,

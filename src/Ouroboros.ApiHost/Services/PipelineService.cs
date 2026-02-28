@@ -13,7 +13,6 @@ public sealed class PipelineService : IPipelineService
         string modelName = request.Model ?? "deepseek-v3.1:671b-cloud";
         string embedName = "nomic-embed-text";
         bool withRag = request.UseRag;
-        string sourcePath = request.SourcePath ?? Environment.CurrentDirectory;
         int k = 3;
         string question = request.Question;
 

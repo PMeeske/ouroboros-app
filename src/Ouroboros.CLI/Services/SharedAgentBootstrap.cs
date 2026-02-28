@@ -159,16 +159,16 @@ public static partial class SharedAgentBootstrap
                                 var opps = await curiosity
                                     .IdentifyExplorationOpportunitiesAsync(2, ct)
                                     .ConfigureAwait(false);
-                                foreach (var opp in opps)
+                                foreach (var desc in opps.Select(opp => opp.Description))
                                 {
                                     if (sovereignty != null)
                                     {
                                         var verdict = await sovereignty
-                                            .EvaluateExplorationAsync(opp.Description, ct)
+                                            .EvaluateExplorationAsync(desc, ct)
                                             .ConfigureAwait(false);
                                         if (!verdict.Approved) continue;
                                     }
-                                    mind.InjectTopic(opp.Description);
+                                    mind.InjectTopic(desc);
                                 }
                             }
                         }

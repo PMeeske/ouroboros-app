@@ -16,12 +16,10 @@ public static partial class PolicyCommands
         AnsiConsole.WriteLine();
 
         DateTime? since = null;
-        if (!string.IsNullOrWhiteSpace(options.Since))
+        if (!string.IsNullOrWhiteSpace(options.Since)
+            && DateTime.TryParse(options.Since, out var sinceDate))
         {
-            if (DateTime.TryParse(options.Since, out var sinceDate))
-            {
-                since = sinceDate;
-            }
+            since = sinceDate;
         }
 
         var auditTrail = _policyEngine.GetAuditTrail(options.Limit, since);

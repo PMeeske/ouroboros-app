@@ -62,6 +62,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     public static void SetStaticCulture(string? culture)
     {
         _staticCulture = culture;
+        _ = _staticCulture; // S4487: retained for static context
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

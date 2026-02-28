@@ -108,7 +108,7 @@ public sealed partial class PipeProcessingSubsystem : IPipeProcessingSubsystem
         foreach (var rawCmd in commands)
         {
             var cmd = rawCmd.Trim();
-            if (string.IsNullOrWhiteSpace(cmd) || cmd.StartsWith("#")) continue;
+            if (string.IsNullOrWhiteSpace(cmd) || cmd.StartsWith('#')) continue;
 
             var pipeSegments = ParsePipeSegments(cmd);
 
@@ -122,7 +122,7 @@ public sealed partial class PipeProcessingSubsystem : IPipeProcessingSubsystem
                         .Replace("$PIPE", lastOutput)
                         .Replace("$_", lastOutput);
 
-                    if (segment.TrimStart().StartsWith("|"))
+                    if (segment.TrimStart().StartsWith('|'))
                         commandToRun = $"{lastOutput}\n---\n{commandToRun.TrimStart().TrimStart('|').Trim()}";
                 }
 

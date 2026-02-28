@@ -49,11 +49,12 @@ public sealed class PersonaSovereigntyGate
     {
         // Layer 1: hard architectural block — no LLM involved
         var normalised = filePath.Replace('\\', '/');
-        foreach (var blocked in HardImmutablePaths)
+        var blocked = HardImmutablePaths
+            .FirstOrDefault(b => normalised.Contains(b, StringComparison.OrdinalIgnoreCase));
+        if (blocked != null)
         {
-            if (normalised.Contains(blocked, StringComparison.OrdinalIgnoreCase))
-                return SovereigntyVerdict.Deny(
-                    $"Hard-blocked path: '{blocked}' is constitutionally immutable.");
+            return SovereigntyVerdict.Deny(
+                $"Hard-blocked path: '{blocked}' is constitutionally immutable.");
         }
 
         // Layer 2: Iaret's judgment via LLM

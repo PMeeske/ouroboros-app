@@ -99,12 +99,10 @@ public sealed class StartListeningHandler : IRequestHandler<StartListeningReques
 
             var result = await speechSynthesizer.SpeakSsmlAsync(ssml);
 
-            if (result.Reason != Microsoft.CognitiveServices.Speech.ResultReason.SynthesizingAudioCompleted)
+            if (result.Reason != Microsoft.CognitiveServices.Speech.ResultReason.SynthesizingAudioCompleted
+                && _agent.Config.Debug)
             {
-                if (_agent.Config.Debug)
-                {
-                    _agent.ConsoleOutput.WriteDebug($"[Azure TTS] Synthesis issue: {result.Reason}");
-                }
+                _agent.ConsoleOutput.WriteDebug($"[Azure TTS] Synthesis issue: {result.Reason}");
             }
         }
         catch (OperationCanceledException)

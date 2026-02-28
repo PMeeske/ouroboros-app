@@ -168,10 +168,9 @@ public sealed partial class CognitiveSubsystem
         {
             sb.AppendLine($"  ✓ Status: Active");
             sb.AppendLine($"  • Team size: {AgentCoordinator.Team.Count} agents");
-            var agents = AgentCoordinator.Team.GetAllAgents();
-            foreach (var agent in agents.Take(3))
+            foreach (var id in AgentCoordinator.Team.GetAllAgents().Take(3).Select(a => a.Identity))
             {
-                sb.AppendLine($"    - {agent.Identity.Name} ({agent.Identity.Role})");
+                sb.AppendLine($"    - {id.Name} ({id.Role})");
             }
             sb.AppendLine($"  • Use: `coordinate <goal>` for multi-agent tasks");
         }

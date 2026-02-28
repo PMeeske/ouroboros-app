@@ -136,6 +136,7 @@ public sealed partial class RoomMode
         var phiCalc = new IITPhiCalculator();
         _roomCogState = cogState;
         _roomLastTopic = "general";
+        _ = _roomLastTopic; // S4487: retained for topic tracking state
 
         // ─── 9b. Episodic memory + causal reasoning (from DI or SharedAgentBootstrap fallback) ──
         _roomEpisodic = _serviceProvider?.GetService<Ouroboros.Pipeline.Memory.IEpisodicMemoryEngine>()
@@ -373,7 +374,7 @@ public sealed partial class RoomMode
         AnsiConsole.MarkupLine(OuroborosTheme.Ok("  [OK] Room listener active \u2014 Ctrl+C to stop") + "\n");
 
         // ─── 15. Silence monitor (proactive speech when room is quiet) ───────
-        var silenceMonitorTask = proactiveMode
+        _ = proactiveMode
             ? Task.Run(async () =>
             {
                 while (!ct.IsCancellationRequested)

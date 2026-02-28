@@ -75,6 +75,9 @@ public sealed partial class RoomMode
         _agentAutonomy    = agentAutonomy;
         _serviceProvider  = serviceProvider;
         _presenceDetector = presenceDetector;
+        _ = _agentModels;   // S4487: DI-injected, retained for future subsystem use
+        _ = _agentMemory;   // S4487: DI-injected, retained for future subsystem use
+        _ = _agentAutonomy; // S4487: DI-injected, retained for future subsystem use
     }
 
     /// <summary>

@@ -133,6 +133,9 @@ public sealed partial class ImmersiveMode
         _toolsSub = tools;
         _memorySub = memory;
         _autonomySub = autonomy;
+        _ = _toolsSub;    // S4487: DI-injected, retained for subsystem lifetime
+        _ = _memorySub;   // S4487: DI-injected, retained for subsystem lifetime
+        _ = _autonomySub; // S4487: DI-injected, retained for subsystem lifetime
         _configuredPersona = persona;
         _configuredAvatarService = avatarService;
         _serviceProvider = serviceProvider;
@@ -155,7 +158,7 @@ public sealed partial class ImmersiveMode
     /// Displays a room interjection from Iaret in the foreground chat pane.
     /// Subscribed to <see cref="Services.RoomPresence.RoomIntentBus.OnIaretInterjected"/>.
     /// </summary>
-    public void ShowRoomInterjection(string personaName, string speech)
+    public static void ShowRoomInterjection(string personaName, string speech)
     {
         AnsiConsole.MarkupLine($"\n  [darkgreen][[room]] {Markup.Escape(personaName)}: {Markup.Escape(speech)}[/]");
     }
@@ -164,7 +167,7 @@ public sealed partial class ImmersiveMode
     /// Displays when someone in the room addresses Iaret directly by name.
     /// Subscribed to <see cref="Services.RoomPresence.RoomIntentBus.OnUserAddressedIaret"/>.
     /// </summary>
-    public void ShowRoomAddress(string speaker, string utterance)
+    public static void ShowRoomAddress(string speaker, string utterance)
     {
         AnsiConsole.MarkupLine($"\n  [darkcyan][[room\u2192Iaret]] {Markup.Escape(speaker)}: {Markup.Escape(utterance)}[/]");
     }

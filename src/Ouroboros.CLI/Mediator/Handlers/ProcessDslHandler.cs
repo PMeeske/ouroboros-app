@@ -23,7 +23,7 @@ public sealed class ProcessDslHandler : IRequestHandler<ProcessDslRequest, strin
     {
         var dsl = request.Dsl;
         var config = _agent.Config;
-        var output = _agent.ConsoleOutput;
+        _ = _agent.ConsoleOutput; // retained for future debug use
         var llm = _agent.ModelsSub.Llm;
         var embedding = _agent.ModelsSub.Embedding;
         var tools = _agent.ToolsSub.Tools;
@@ -71,12 +71,10 @@ public sealed class ProcessDslHandler : IRequestHandler<ProcessDslRequest, strin
                 }
                 catch (InvalidOperationException stepEx)
                 {
-                    success = false;
                     throw new InvalidOperationException($"Pipeline step failed: {stepEx.Message}", stepEx);
                 }
                 catch (System.Net.Http.HttpRequestException stepEx)
                 {
-                    success = false;
                     throw new InvalidOperationException($"Pipeline step failed: {stepEx.Message}", stepEx);
                 }
 

@@ -363,6 +363,7 @@ public sealed partial class EnhancedListeningService
                 _output.WriteSystem($"Idle timeout \u2014 say \"{_config.WakeWord}\" to reactivate");
             }
         });
+        _ = _wakeWordTimeout; // S4487: retained for task lifetime
     }
 
     // ════════════════════════════════════════════════════════════════

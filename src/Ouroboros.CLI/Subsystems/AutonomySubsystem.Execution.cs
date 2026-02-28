@@ -186,7 +186,7 @@ public sealed partial class AutonomySubsystem
     /// <summary>
     /// Infers which capabilities were used based on goal description.
     /// </summary>
-    internal List<string> InferCapabilitiesFromGoal(string description)
+    internal static List<string> InferCapabilitiesFromGoal(string description)
     {
         var caps = new List<string> { "natural_language" };
         var lower = description.ToLowerInvariant();

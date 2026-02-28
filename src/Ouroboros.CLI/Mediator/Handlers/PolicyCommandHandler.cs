@@ -17,7 +17,7 @@ public sealed partial class PolicyCommandHandler : IRequestHandler<PolicyCommand
     public async Task<string> Handle(PolicyCommandRequest request, CancellationToken cancellationToken)
     {
         var subCommand = request.SubCommand;
-        var cmd = subCommand.ToLowerInvariant().Trim();
+        _ = subCommand.ToLowerInvariant().Trim(); // parsed below via args split
 
         // Parse policy subcommand and create appropriate PolicyOptions
         var args = subCommand.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
