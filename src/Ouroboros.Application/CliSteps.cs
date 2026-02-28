@@ -1,4 +1,3 @@
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 using System.Text.RegularExpressions;
 using LangChain.Databases; // for Vector, IVectorCollection
 using LangChain.DocumentLoaders; // for DataSource
