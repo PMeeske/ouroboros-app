@@ -41,11 +41,31 @@ public sealed partial class ImmersiveMode
             }
             else
             {
-#pragma warning disable CS0618 // Obsolete endpoint-string constructor
-                _conversationMemory = new PersistentConversationMemory(
-                    embeddingModel,
-                    new ConversationMemoryConfig { QdrantEndpoint = qdrantEndpoint });
-#pragma warning restore CS0618
+                // Create a QdrantClient from the endpoint string to use the non-obsolete constructor
+                QdrantClient? fallbackClient = null;
+                try
+                {
+                    var uri = new Uri(qdrantEndpoint);
+                    fallbackClient = new QdrantClient(uri.Host, uri.Port > 0 ? uri.Port : 6334, uri.Scheme == "https");
+                }
+                catch
+                {
+                    // Qdrant not available, continue without semantic memory
+                }
+
+                if (fallbackClient != null)
+                {
+                    var fallbackRegistry = new Ouroboros.Domain.Vectors.QdrantCollectionRegistry(fallbackClient);
+                    _conversationMemory = new PersistentConversationMemory(
+                        fallbackClient,
+                        fallbackRegistry,
+                        embeddingModel,
+                        new ConversationMemoryConfig { QdrantEndpoint = qdrantEndpoint });
+                }
+                else
+                {
+                    _conversationMemory = new PersistentConversationMemory(embeddingModel);
+                }
             }
         }
         await _conversationMemory.InitializeAsync(personaName, ct);

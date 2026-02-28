@@ -76,24 +76,20 @@ public sealed partial class ImmersiveMode
             var collectionRegistry = _serviceProvider?.GetService<IQdrantCollectionRegistry>();
             if (qdrantClient != null)
             {
-#pragma warning disable CS0618 // DI constructor preferred
                 ownedPersona = new ImmersivePersona(
                     personaName,
                     mettaEngine,
                     embeddingModel,
                     qdrantClient,
                     collectionRegistry);
-#pragma warning restore CS0618
             }
             else
             {
-#pragma warning disable CS0618 // Obsolete endpoint-string constructor
                 ownedPersona = new ImmersivePersona(
                     personaName,
                     mettaEngine,
                     embeddingModel,
                     options.QdrantEndpoint);
-#pragma warning restore CS0618
             }
             persona = ownedPersona;
         }

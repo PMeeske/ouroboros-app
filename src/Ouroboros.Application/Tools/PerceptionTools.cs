@@ -29,9 +29,8 @@ public static partial class PerceptionTools
     /// <summary>
     /// Event fired when screen content changes significantly.
     /// </summary>
-#pragma warning disable CS0067 // Event is used in conditional compilation
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CS0067:Event is never used", Justification = "Event is raised in conditional compilation (WatchScreenTool) and subscribed in ImmersiveMode.Skills")]
     public static event Action<string>? OnScreenChanged;
-#pragma warning restore CS0067
 
     /// <summary>
     /// Event fired when user activity is detected.

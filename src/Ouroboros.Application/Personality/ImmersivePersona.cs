@@ -84,9 +84,9 @@ public sealed partial class ImmersivePersona : IAsyncDisposable
     }
 
     /// <summary>
-    /// Creates a new immersive persona instance.
+    /// Creates a new immersive persona instance without DI-provided Qdrant client.
+    /// If a Qdrant URL is provided, a client is created internally.
     /// </summary>
-    [Obsolete("Use the constructor accepting QdrantClient + IQdrantCollectionRegistry from DI.")]
     public ImmersivePersona(
         string personaName,
         IMeTTaEngine mettaEngine,
@@ -98,11 +98,16 @@ public sealed partial class ImmersivePersona : IAsyncDisposable
         _embeddingModel = embeddingModel;
 
         // Create personality engine with optional memory
-#pragma warning disable CS0618 // Obsolete
-        _personality = embeddingModel != null && !string.IsNullOrEmpty(qdrantUrl)
-            ? new PersonalityEngine(mettaEngine, embeddingModel, qdrantUrl)
-            : new PersonalityEngine(mettaEngine);
-#pragma warning restore CS0618
+        if (embeddingModel != null && !string.IsNullOrEmpty(qdrantUrl))
+        {
+            var uri = new Uri(qdrantUrl);
+            var client = new Qdrant.Client.QdrantClient(uri.Host, uri.Port > 0 ? uri.Port : 6334, uri.Scheme == "https");
+            _personality = new PersonalityEngine(mettaEngine, embeddingModel, client);
+        }
+        else
+        {
+            _personality = new PersonalityEngine(mettaEngine);
+        }
 
         // Initialize identity
         Identity = PersonaIdentity.Create(personaName, _personaId);
