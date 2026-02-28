@@ -64,6 +64,7 @@ public static partial class PerceptionTools
                     psi.ArgumentList.Add("-y");
                     psi.ArgumentList.Add(filepath);
 
+                    // SECURITY: safe — hardcoded "ffmpeg" with ArgumentList for camera capture
                     using var process = Process.Start(psi);
                     if (process == null) continue;
 
@@ -94,6 +95,7 @@ public static partial class PerceptionTools
                     listPsi.ArgumentList.Add("-i");
                     listPsi.ArgumentList.Add("dummy");
 
+                    // SECURITY: safe — hardcoded "ffmpeg" with ArgumentList for device listing
                     using var listProcess = Process.Start(listPsi);
                     if (listProcess != null)
                     {

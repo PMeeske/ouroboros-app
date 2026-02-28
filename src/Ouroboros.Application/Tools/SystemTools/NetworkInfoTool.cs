@@ -47,6 +47,8 @@ internal class NetworkInfoTool : ITool
                 psi.ArgumentList.Add("ip addr 2>/dev/null || ifconfig 2>/dev/null || echo 'No network tools available'");
             }
 
+            // SECURITY: safe — hardcoded "cmd.exe /C ipconfig" or "/bin/sh -c" with
+            // ArgumentList; no external input flows into the command.
             using var process = Process.Start(psi);
             if (process == null)
                 return Result<string, string>.Failure("Failed to get network info");

@@ -310,6 +310,8 @@ public static class AgentToolFactory
                 CreateNoWindow = true,
             };
 
+            // SECURITY: validated — CheckCommandSafety blocks dangerous patterns
+            // before reaching Process.Start. Shell execution is intentional for run_command.
             using var process = Process.Start(psi);
             if (process == null) return "Error: Failed to start process";
 

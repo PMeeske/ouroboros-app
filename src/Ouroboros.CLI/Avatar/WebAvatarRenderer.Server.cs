@@ -233,6 +233,8 @@ public sealed partial class WebAvatarRenderer
 
         try
         {
+            // SECURITY: validated — URL scheme checked (http/https only) before reaching
+            // Process.Start. UseShellExecute = true is intentional for browser launch.
             if (OperatingSystem.IsWindows())
                 Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
             else if (OperatingSystem.IsMacOS())

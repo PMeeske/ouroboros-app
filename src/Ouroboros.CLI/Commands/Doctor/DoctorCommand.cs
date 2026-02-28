@@ -112,6 +112,7 @@ public static class DoctorCommand
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
+            // SECURITY: safe — hardcoded commands with hardcoded args (e.g., "--version")
             using var process = Process.Start(psi);
             if (process == null)
                 return (false, string.Empty);

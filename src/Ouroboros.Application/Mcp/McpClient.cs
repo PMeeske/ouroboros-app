@@ -104,6 +104,8 @@ public class McpClient : IDisposable
                 startInfo.ArgumentList.Add(arg);
         }
 
+        // SECURITY: validated — ArgumentList prevents injection from MCP server
+        // command and arguments. UseShellExecute = false prevents shell interpretation.
         _process = Process.Start(startInfo)
             ?? throw new InvalidOperationException("Failed to start MCP server process");
 

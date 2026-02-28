@@ -49,6 +49,8 @@ public sealed class BrowserOpenHandler : IPcNodeCapabilityHandler
 
         try
         {
+            // SECURITY: validated — URL checked by _policy.ValidateUrl (scheme allowlist,
+            // domain blocklist). UseShellExecute = true is intentional for browser launch.
             Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
             return Task.FromResult(PcNodeResult.Ok($"Opened URL: {url}"));
         }

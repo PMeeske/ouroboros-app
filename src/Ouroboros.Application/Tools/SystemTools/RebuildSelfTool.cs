@@ -33,6 +33,7 @@ internal class RebuildSelfTool : ITool
             psi.ArgumentList.Add("build");
             psi.ArgumentList.Add("--no-restore");
 
+            // SECURITY: safe — hardcoded "dotnet" with ArgumentList ["build", "--no-restore"]
             using var process = System.Diagnostics.Process.Start(psi);
             if (process == null)
             {

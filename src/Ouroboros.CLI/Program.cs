@@ -103,14 +103,14 @@ rootCommand.Add(versionOption);
 
 // --serve: embed the Ouroboros API server in-process alongside the CLI
 var serveOption = new System.CommandLine.Option<bool>("--serve");
-serveOption.Description = "Co-host the Ouroboros Web API server inside this CLI process (accessible at http://localhost:5000 by default)";
+serveOption.Description = $"Co-host the Ouroboros Web API server inside this CLI process (accessible at {DefaultEndpoints.OuroborosApi} by default)";
 serveOption.DefaultValueFactory = _ => false;
 serveOption.Recursive = true;
 rootCommand.Add(serveOption);
 
 // --api-url: use a remote (or co-hosted) Ouroboros API as upstream provider
 var apiUrlOption = new System.CommandLine.Option<string?>("--api-url");
-apiUrlOption.Description = "Base URL of a running Ouroboros Web API to use as upstream provider (e.g. http://localhost:5000). Overrides local pipeline execution.";
+apiUrlOption.Description = $"Base URL of a running Ouroboros Web API to use as upstream provider (e.g. {DefaultEndpoints.OuroborosApi}). Overrides local pipeline execution.";
 apiUrlOption.DefaultValueFactory = _ => null;
 apiUrlOption.Recursive = true;
 rootCommand.Add(apiUrlOption);
