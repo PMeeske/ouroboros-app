@@ -62,7 +62,7 @@ public static partial class VectorCliSteps
                     }
                 }
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[vector] Search failed: {ex.Message}");
             }
@@ -141,7 +141,7 @@ public static partial class VectorCliSteps
                     Console.WriteLine($"[rag] Retrieved {results.Count} documents for context");
                 }
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[rag] Search failed: {ex.Message}");
             }
@@ -334,7 +334,7 @@ public static partial class VectorCliSteps
             // Parse JSON response
             return ParseAnalysisResponse(response);
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
             Console.WriteLine($"[agent] Analysis error: {ex.Message}");
             return new AgentAnalysisResult
@@ -418,7 +418,7 @@ public static partial class VectorCliSteps
                 }
             }
         }
-        catch (Exception ex)
+        catch (System.Text.Json.JsonException ex)
         {
             Console.WriteLine($"[agent] JSON parse warning: {ex.Message}");
 

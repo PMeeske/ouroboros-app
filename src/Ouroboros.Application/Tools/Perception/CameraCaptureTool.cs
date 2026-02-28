@@ -32,16 +32,6 @@ public static partial class PerceptionTools
                 var filepath = Path.Combine(CaptureDirectory, filename);
 
                 // Use ffmpeg for camera capture (cross-platform)
-                var psi = new ProcessStartInfo
-                {
-                    FileName = "ffmpeg",
-                    Arguments = $"-f dshow -i video=\"Integrated Camera\" -frames:v 1 -y \"{filepath}\"",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
-
                 // Try different camera device names
                 var cameraNames = new[]
                 {
@@ -57,7 +47,22 @@ public static partial class PerceptionTools
 
                 foreach (var camName in cameraNames)
                 {
-                    psi.Arguments = $"-f dshow -i video=\"{camName}\" -frames:v 1 -y \"{filepath}\"";
+                    var psi = new ProcessStartInfo
+                    {
+                        FileName = "ffmpeg",
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+                    psi.ArgumentList.Add("-f");
+                    psi.ArgumentList.Add("dshow");
+                    psi.ArgumentList.Add("-i");
+                    psi.ArgumentList.Add($"video={camName}");
+                    psi.ArgumentList.Add("-frames:v");
+                    psi.ArgumentList.Add("1");
+                    psi.ArgumentList.Add("-y");
+                    psi.ArgumentList.Add(filepath);
 
                     using var process = Process.Start(psi);
                     if (process == null) continue;
@@ -78,11 +83,16 @@ public static partial class PerceptionTools
                     var listPsi = new ProcessStartInfo
                     {
                         FileName = "ffmpeg",
-                        Arguments = "-list_devices true -f dshow -i dummy",
                         RedirectStandardError = true,
                         UseShellExecute = false,
                         CreateNoWindow = true
                     };
+                    listPsi.ArgumentList.Add("-list_devices");
+                    listPsi.ArgumentList.Add("true");
+                    listPsi.ArgumentList.Add("-f");
+                    listPsi.ArgumentList.Add("dshow");
+                    listPsi.ArgumentList.Add("-i");
+                    listPsi.ArgumentList.Add("dummy");
 
                     using var listProcess = Process.Start(listPsi);
                     if (listProcess != null)

@@ -438,12 +438,14 @@ $synth.Dispose()
             process.StartInfo = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = "powershell",
-                Arguments = $"-NoProfile -Command \"{script.Replace("\"", "\\\"")}\"",
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true
             };
+            process.StartInfo.ArgumentList.Add("-NoProfile");
+            process.StartInfo.ArgumentList.Add("-Command");
+            process.StartInfo.ArgumentList.Add(script);
             process.Start();
 
             // Track the process so we can kill it on exit

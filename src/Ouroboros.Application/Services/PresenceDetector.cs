@@ -280,11 +280,11 @@ public class PresenceDetector : IDetectionModule
             var psi = new ProcessStartInfo
             {
                 FileName = "arp",
-                Arguments = "-a",
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
+            psi.ArgumentList.Add("-a");
 
             using var process = Process.Start(psi);
             if (process != null)

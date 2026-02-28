@@ -29,7 +29,13 @@ public partial class AutonomousMind
                     action.Success = true;
                     action.ExecutedAt = DateTime.Now;
                 }
-                catch (Exception ex)
+                catch (HttpRequestException ex)
+                {
+                    action.Result = ex.Message;
+                    action.Success = false;
+                    action.ExecutedAt = DateTime.Now;
+                }
+                catch (InvalidOperationException ex)
                 {
                     action.Result = ex.Message;
                     action.Success = false;
@@ -180,7 +186,11 @@ public partial class AutonomousMind
                     }
                     await PersistLearningAsync("pipe_execution", $"Command: {pipeCommand}\nResult: {result[..Math.Min(500, result.Length)]}", 0.75);
                 }
-                catch (Exception ex)
+                catch (HttpRequestException ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Pipe execution failed: {ex.Message}");
+                }
+                catch (InvalidOperationException ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"Pipe execution failed: {ex.Message}");
                 }
@@ -210,7 +220,11 @@ public partial class AutonomousMind
                         }
                         await PersistLearningAsync("tool_execution", $"Tool: {toolName}\nInput: {toolInput}\nResult: {result[..Math.Min(500, result.Length)]}", 0.7);
                     }
-                    catch (Exception ex)
+                    catch (HttpRequestException ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Tool execution failed: {ex.Message}");
+                    }
+                    catch (InvalidOperationException ex)
                     {
                         System.Diagnostics.Debug.WriteLine($"Tool execution failed: {ex.Message}");
                     }
@@ -268,7 +282,11 @@ public partial class AutonomousMind
                     }
                     await PersistLearningAsync("code_save", $"Saved: {saveCmd}\nResult: {result}", 0.85);
                 }
-                catch (Exception ex)
+                catch (HttpRequestException ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Save code failed: {ex.Message}");
+                }
+                catch (InvalidOperationException ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"Save code failed: {ex.Message}");
                 }
@@ -312,7 +330,11 @@ public partial class AutonomousMind
             {
                 await PersistLearningFunction(category, content, confidence, _cts.Token);
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to persist learning: {ex.Message}");
+            }
+            catch (IOException ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Failed to persist learning: {ex.Message}");
             }
@@ -412,7 +434,11 @@ public partial class AutonomousMind
 
             OnStatePersisted?.Invoke($"State persisted ({trigger}): {_thoughtCount} thoughts, emotion={_currentEmotion.DominantEmotion}");
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"State persistence failed: {ex.Message}");
+        }
+        catch (IOException ex)
         {
             System.Diagnostics.Debug.WriteLine($"State persistence failed: {ex.Message}");
         }

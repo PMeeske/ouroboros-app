@@ -53,7 +53,7 @@ public static partial class QdrantCliSteps
                     }
                 }
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[qdrant] Filtered search failed: {ex.Message}");
             }
@@ -90,7 +90,7 @@ public static partial class QdrantCliSteps
                     Console.WriteLine($"[qdrant] Vector count: {count}{filterStr}");
                 }
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[qdrant] Count failed: {ex.Message}");
             }
@@ -135,7 +135,7 @@ public static partial class QdrantCliSteps
                 state.Output = string.Join("\n", lines);
                 Console.WriteLine(state.Output);
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[qdrant] Info failed: {ex.Message}");
             }
@@ -185,7 +185,7 @@ public static partial class QdrantCliSteps
                     Console.WriteLine($"[qdrant] Scrolled {result.Documents.Count} documents, next offset: {result.NextOffset ?? "end"}");
                 }
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[qdrant] Scroll failed: {ex.Message}");
             }
@@ -252,7 +252,7 @@ public static partial class QdrantCliSteps
                     Console.WriteLine($"[qdrant] Batch search: {queries.Length} queries, {state.Retrieved.Count} total results");
                 }
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[qdrant] Batch search failed: {ex.Message}");
             }

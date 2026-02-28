@@ -102,12 +102,19 @@ public sealed class GestureDetector : IAsyncDisposable
             var psi = new ProcessStartInfo
             {
                 FileName = "ffmpeg",
-                Arguments = $"-f dshow -i video=\"{camName}\" -frames:v 1 -y \"{filepath}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
+            psi.ArgumentList.Add("-f");
+            psi.ArgumentList.Add("dshow");
+            psi.ArgumentList.Add("-i");
+            psi.ArgumentList.Add($"video={camName}");
+            psi.ArgumentList.Add("-frames:v");
+            psi.ArgumentList.Add("1");
+            psi.ArgumentList.Add("-y");
+            psi.ArgumentList.Add(filepath);
 
             try
             {

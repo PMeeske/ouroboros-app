@@ -62,7 +62,7 @@ public static partial class VectorCliSteps
 
                 if (s.Trace) Console.WriteLine($"[vector] Stored {chunks.Count} chunks");
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[vector] Failed to add vector: {ex.Message}");
             }
@@ -150,7 +150,7 @@ public static partial class VectorCliSteps
 
                 if (s.Trace) Console.WriteLine($"[vector] Ingested {fileName}: {chunks.Count} chunks");
             }
-            catch (Exception ex)
+            catch (IOException ex)
             {
                 Console.WriteLine($"[vector] Failed to ingest file: {ex.Message}");
             }
@@ -240,7 +240,7 @@ public static partial class VectorCliSteps
                         totalChunks += successChunks;
                         if (s.Trace) Console.WriteLine($"[vector] Ingested {relativePath}: {successChunks} chunks");
                     }
-                    catch (Exception ex)
+                    catch (IOException ex)
                     {
                         if (s.Trace) Console.WriteLine($"[vector] Skipped {file}: {ex.Message}");
                     }
@@ -248,7 +248,7 @@ public static partial class VectorCliSteps
 
                 if (s.Trace) Console.WriteLine($"[vector] Total: {files.Length} files, {totalChunks} chunks");
             }
-            catch (Exception ex)
+            catch (IOException ex)
             {
                 Console.WriteLine($"[vector] Failed to ingest directory: {ex.Message}");
             }

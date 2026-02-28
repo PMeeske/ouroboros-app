@@ -277,15 +277,16 @@ public sealed partial class OuroborosAgent
         // 1. Try PATH (works when installed via npm install -g)
         try
         {
-            using var probe = Process.Start(new ProcessStartInfo
+            var probePsi = new ProcessStartInfo
             {
                 FileName = "claude",
-                Arguments = "--version",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
-            });
+            };
+            probePsi.ArgumentList.Add("--version");
+            using var probe = Process.Start(probePsi);
             probe?.WaitForExit(2000);
             if (probe?.ExitCode == 0) return "claude";
         }

@@ -206,12 +206,12 @@ public sealed partial class VoiceModeService
             var startInfo = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = "whisper",
-                Arguments = "--help",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
+            startInfo.ArgumentList.Add("--help");
             using var process = System.Diagnostics.Process.Start(startInfo);
             return process != null;
         }

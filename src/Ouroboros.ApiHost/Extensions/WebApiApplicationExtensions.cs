@@ -127,6 +127,10 @@ public static class WebApiApplicationExtensions
                     new AskResponse { Answer = answer, Model = request.Model ?? "llama3" },
                     sw.ElapsedMilliseconds));
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 return Results.BadRequest(ApiResponse<AskResponse>.Fail($"Error: {ex.Message}"));
@@ -158,6 +162,10 @@ public static class WebApiApplicationExtensions
                     new PipelineResponse { Result = result, FinalState = "Completed" },
                     sw.ElapsedMilliseconds));
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 return Results.BadRequest(ApiResponse<PipelineResponse>.Fail($"Error: {ex.Message}"));
@@ -185,6 +193,10 @@ public static class WebApiApplicationExtensions
                 sw.Stop();
                 return Results.Ok(ApiResponse<SelfStateResponse>.Ok(state, sw.ElapsedMilliseconds));
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 return Results.BadRequest(ApiResponse<SelfStateResponse>.Fail($"Error: {ex.Message}"));
@@ -209,6 +221,10 @@ public static class WebApiApplicationExtensions
                 SelfForecastResponse forecasts = await service.GetForecastsAsync(ct);
                 sw.Stop();
                 return Results.Ok(ApiResponse<SelfForecastResponse>.Ok(forecasts, sw.ElapsedMilliseconds));
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -235,6 +251,10 @@ public static class WebApiApplicationExtensions
                 sw.Stop();
                 return Results.Ok(ApiResponse<List<CommitmentDto>>.Ok(commitments, sw.ElapsedMilliseconds));
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 return Results.BadRequest(ApiResponse<List<CommitmentDto>>.Fail($"Error: {ex.Message}"));
@@ -259,6 +279,10 @@ public static class WebApiApplicationExtensions
                 SelfExplainResponse explanation = await service.ExplainAsync(request, ct);
                 sw.Stop();
                 return Results.Ok(ApiResponse<SelfExplainResponse>.Ok(explanation, sw.ElapsedMilliseconds));
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -287,6 +311,10 @@ public static class WebApiApplicationExtensions
                 sw.Stop();
                 return Results.Ok(ApiResponse<SyncStatusResponse>.Ok(status, sw.ElapsedMilliseconds));
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 return Results.BadRequest(ApiResponse<SyncStatusResponse>.Fail($"Error: {ex.Message}"));
@@ -311,6 +339,10 @@ public static class WebApiApplicationExtensions
                 SyncDiffResponse diff = await service.GetDiffAsync(ct);
                 sw.Stop();
                 return Results.Ok(ApiResponse<SyncDiffResponse>.Ok(diff, sw.ElapsedMilliseconds));
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -337,6 +369,10 @@ public static class WebApiApplicationExtensions
                 sw.Stop();
                 return Results.Ok(ApiResponse<SyncResultResponse>.Ok(result, sw.ElapsedMilliseconds));
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 return Results.BadRequest(ApiResponse<SyncResultResponse>.Fail($"Error: {ex.Message}"));
@@ -362,6 +398,10 @@ public static class WebApiApplicationExtensions
                 sw.Stop();
                 return Results.Ok(ApiResponse<SyncVerifyResponse>.Ok(result, sw.ElapsedMilliseconds));
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 return Results.BadRequest(ApiResponse<SyncVerifyResponse>.Fail($"Error: {ex.Message}"));
@@ -386,6 +426,10 @@ public static class WebApiApplicationExtensions
                 SyncCollectionsResponse result = await service.ListCloudCollectionsAsync(ct);
                 sw.Stop();
                 return Results.Ok(ApiResponse<SyncCollectionsResponse>.Ok(result, sw.ElapsedMilliseconds));
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {

@@ -47,7 +47,7 @@ public static partial class MemoryCliSteps
 
                 Console.WriteLine($"[memory] ✓ Linked {source} ─{relation}→ {target}");
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[memory] Failed to link collections: {ex.Message}");
             }
@@ -90,7 +90,7 @@ public static partial class MemoryCliSteps
                     }
                 }
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[memory] Failed to get links: {ex.Message}");
             }
@@ -138,7 +138,7 @@ public static partial class MemoryCliSteps
 
                 Console.WriteLine("╚═══════════════════════════════════════════════════════╝");
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[memory] Failed to get statistics: {ex.Message}");
             }
@@ -167,7 +167,7 @@ public static partial class MemoryCliSteps
                 // Store snapshot info in context
                 s.Context = $"Memory snapshot: {snapshot.Collections.Count} collections, {snapshot.Statistics.TotalVectors} vectors";
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[memory] Failed to create snapshot: {ex.Message}");
             }
@@ -232,7 +232,7 @@ public static partial class MemoryCliSteps
                     Console.WriteLine($"[memory] Failed to clear {layer.Value} memory layer");
                 }
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[memory] Failed to clear layer: {ex.Message}");
             }

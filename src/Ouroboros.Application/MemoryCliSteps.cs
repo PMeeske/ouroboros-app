@@ -46,7 +46,7 @@ public static partial class MemoryCliSteps
                 Console.WriteLine(map);
                 s.Context = map;
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[memory] Failed to generate memory map: {ex.Message}");
             }
@@ -101,7 +101,7 @@ public static partial class MemoryCliSteps
 
                 s.Context = $"Health check complete. Healthy: {report.HealthyCollections}, Unhealthy: {report.UnhealthyCollections}";
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[memory] Health check failed: {ex.Message}");
             }
@@ -157,7 +157,7 @@ public static partial class MemoryCliSteps
 
                 Console.WriteLine("└────────────────────────────────────┴────────┴──────────┴────────────┘");
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[memory] Failed to list collections: {ex.Message}");
             }
@@ -206,7 +206,7 @@ public static partial class MemoryCliSteps
                     Console.WriteLine($"[memory] Collection '{name}' already exists or creation failed");
                 }
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[memory] Failed to create collection: {ex.Message}");
             }
@@ -243,7 +243,7 @@ public static partial class MemoryCliSteps
                     Console.WriteLine($"[memory] Collection '{name}' not found or deletion failed");
                 }
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[memory] Failed to delete collection: {ex.Message}");
             }
@@ -285,7 +285,7 @@ public static partial class MemoryCliSteps
                     Console.WriteLine("[memory] No collections needed healing");
                 }
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[memory] Auto-heal failed: {ex.Message}");
             }

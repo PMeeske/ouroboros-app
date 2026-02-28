@@ -116,7 +116,7 @@ public static class AgentToolFactory
         {
             return "Error: Operation cancelled";
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             return $"Error reading file: {ex.Message}";
         }
@@ -153,7 +153,7 @@ public static class AgentToolFactory
         {
             return "Error: Operation cancelled";
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             return $"Error writing file: {ex.Message}";
         }
@@ -195,7 +195,7 @@ public static class AgentToolFactory
         {
             return "Error: Operation cancelled";
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             return $"Error editing file: {ex.Message}";
         }
@@ -223,7 +223,7 @@ public static class AgentToolFactory
 
             return Task.FromResult(string.Join("\n", entries));
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             return Task.FromResult($"Error listing directory: {ex.Message}");
         }
@@ -279,7 +279,7 @@ public static class AgentToolFactory
         {
             return "Error: Search cancelled";
         }
-        catch (Exception ex)
+        catch (IOException ex)
         {
             return $"Error searching: {ex.Message}";
         }
@@ -340,7 +340,11 @@ public static class AgentToolFactory
                     : $"Error: Command timed out after {CommandTimeout.TotalSeconds}s and was killed";
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            return $"Error running command: {ex.Message}";
+        }
+        catch (System.ComponentModel.Win32Exception ex)
         {
             return $"Error running command: {ex.Message}";
         }
@@ -376,7 +380,7 @@ public static class AgentToolFactory
 
             return sb.ToString();
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
             return $"Error searching vectors: {ex.Message}";
         }

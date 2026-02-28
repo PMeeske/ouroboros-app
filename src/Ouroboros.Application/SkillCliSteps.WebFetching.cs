@@ -66,7 +66,12 @@ public static partial class SkillCliSteps
                 s.Output = content.Length > 50000 ? content[..50000] + "\n...[truncated]" : content;
                 s.Context = $"[Fetched from {targetUrl}]\n{s.Output}";
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
+            {
+                Console.WriteLine($"[Fetch] ⚠ Failed: {ex.Message}");
+                s.Output = $"Fetch failed: {ex.Message}";
+            }
+            catch (TaskCanceledException ex)
             {
                 Console.WriteLine($"[Fetch] ⚠ Failed: {ex.Message}");
                 s.Output = $"Fetch failed: {ex.Message}";
@@ -120,7 +125,12 @@ public static partial class SkillCliSteps
                 s.Output = string.Join("\n\n", results);
                 s.Context = $"[arXiv search: {searchQuery}]\n{s.Output}";
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
+            {
+                Console.WriteLine($"[ArxivSearch] ⚠ Failed: {ex.Message}");
+                s.Output = $"arXiv search failed: {ex.Message}";
+            }
+            catch (TaskCanceledException ex)
             {
                 Console.WriteLine($"[ArxivSearch] ⚠ Failed: {ex.Message}");
                 s.Output = $"arXiv search failed: {ex.Message}";
@@ -188,12 +198,16 @@ public static partial class SkillCliSteps
                     s.Context = $"[Wikipedia search: {searchQuery}]\n{s.Output}";
                     Console.WriteLine($"[WikiSearch] ✓ Found {results.Count} results");
                 }
-                catch (Exception ex2)
+                catch (HttpRequestException ex2)
+                {
+                    s.Output = $"Wikipedia search failed: {ex2.Message}";
+                }
+                catch (TaskCanceledException ex2)
                 {
                     s.Output = $"Wikipedia search failed: {ex2.Message}";
                 }
             }
-            catch (Exception ex)
+            catch (TaskCanceledException ex)
             {
                 Console.WriteLine($"[WikiSearch] ⚠ Failed: {ex.Message}");
                 s.Output = $"Wikipedia search failed: {ex.Message}";
@@ -252,7 +266,12 @@ public static partial class SkillCliSteps
                 s.Output = string.Join("\n\n", results);
                 s.Context = $"[Semantic Scholar: {searchQuery}]\n{s.Output}";
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
+            {
+                Console.WriteLine($"[ScholarSearch] ⚠ Failed: {ex.Message}");
+                s.Output = $"Semantic Scholar search failed: {ex.Message}";
+            }
+            catch (TaskCanceledException ex)
             {
                 Console.WriteLine($"[ScholarSearch] ⚠ Failed: {ex.Message}");
                 s.Output = $"Semantic Scholar search failed: {ex.Message}";
@@ -307,7 +326,12 @@ public static partial class SkillCliSteps
                     s.Output = "No search results found.";
                 }
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
+            {
+                Console.WriteLine($"[GoogleSearch] ⚠ Failed: {ex.Message}");
+                s.Output = $"Web search failed: {ex.Message}";
+            }
+            catch (TaskCanceledException ex)
             {
                 Console.WriteLine($"[GoogleSearch] ⚠ Failed: {ex.Message}");
                 s.Output = $"Web search failed: {ex.Message}";
@@ -432,7 +456,12 @@ public static partial class SkillCliSteps
                 s.Output = string.Join("\n\n", results);
                 s.Context = $"[GitHub: {searchQuery}]\n{s.Output}";
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
+            {
+                Console.WriteLine($"[GithubSearch] ⚠ Failed: {ex.Message}");
+                s.Output = $"GitHub search failed: {ex.Message}";
+            }
+            catch (TaskCanceledException ex)
             {
                 Console.WriteLine($"[GithubSearch] ⚠ Failed: {ex.Message}");
                 s.Output = $"GitHub search failed: {ex.Message}";
@@ -480,7 +509,12 @@ public static partial class SkillCliSteps
                 s.Output = string.Join("\n\n", results);
                 s.Context = $"[News: {searchQuery}]\n{s.Output}";
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
+            {
+                Console.WriteLine($"[NewsSearch] ⚠ Failed: {ex.Message}");
+                s.Output = $"News search failed: {ex.Message}";
+            }
+            catch (TaskCanceledException ex)
             {
                 Console.WriteLine($"[NewsSearch] ⚠ Failed: {ex.Message}");
                 s.Output = $"News search failed: {ex.Message}";

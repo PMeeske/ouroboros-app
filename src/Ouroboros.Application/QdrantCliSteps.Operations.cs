@@ -59,7 +59,7 @@ public static partial class QdrantCliSteps
                     Console.WriteLine($"[qdrant] Recommend found {results.Count} results (positive: {positiveIds.Count}, negative: {negativeIds?.Count ?? 0})");
                 }
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[qdrant] Recommend failed: {ex.Message}");
             }
@@ -100,7 +100,7 @@ public static partial class QdrantCliSteps
                     Console.WriteLine($"[qdrant] Deleted {ids.Length} vectors by ID");
                 }
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[qdrant] Delete failed: {ex.Message}");
             }
@@ -140,7 +140,7 @@ public static partial class QdrantCliSteps
                     Console.WriteLine(state.Output);
                 }
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[qdrant] Delete by filter failed: {ex.Message}");
             }
@@ -201,7 +201,7 @@ public static partial class QdrantCliSteps
                     Console.WriteLine($"[qdrant] Added vector ({embedding.Length}D) with metadata: {string.Join(", ", metadata.Keys)}");
                 }
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[qdrant] Add with metadata failed: {ex.Message}");
             }

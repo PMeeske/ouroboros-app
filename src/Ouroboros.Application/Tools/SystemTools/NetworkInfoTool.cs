@@ -27,22 +27,24 @@ internal class NetworkInfoTool : ITool
                 psi = new ProcessStartInfo
                 {
                     FileName = "cmd.exe",
-                    Arguments = "/C ipconfig",
                     RedirectStandardOutput = true,
                     UseShellExecute = false,
                     CreateNoWindow = true
                 };
+                psi.ArgumentList.Add("/C");
+                psi.ArgumentList.Add("ipconfig");
             }
             else
             {
                 psi = new ProcessStartInfo
                 {
                     FileName = "/bin/sh",
-                    Arguments = "-c \"ip addr 2>/dev/null || ifconfig 2>/dev/null || echo 'No network tools available'\"",
                     RedirectStandardOutput = true,
                     UseShellExecute = false,
                     CreateNoWindow = true
                 };
+                psi.ArgumentList.Add("-c");
+                psi.ArgumentList.Add("ip addr 2>/dev/null || ifconfig 2>/dev/null || echo 'No network tools available'");
             }
 
             using var process = Process.Start(psi);

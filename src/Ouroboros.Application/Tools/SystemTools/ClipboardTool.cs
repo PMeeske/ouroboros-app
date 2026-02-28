@@ -88,11 +88,12 @@ internal class ClipboardTool : ITool
             // Linux: try xclip first, fall back to xsel
             var psi = new ProcessStartInfo("xclip")
             {
-                Arguments = "-selection clipboard",
                 RedirectStandardInput = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
+            psi.ArgumentList.Add("-selection");
+            psi.ArgumentList.Add("clipboard");
             try
             {
                 using var process = Process.Start(psi);
@@ -107,11 +108,12 @@ internal class ClipboardTool : ITool
                 // Fall back to xsel
                 var psi2 = new ProcessStartInfo("xsel")
                 {
-                    Arguments = "--clipboard --input",
                     RedirectStandardInput = true,
                     UseShellExecute = false,
                     CreateNoWindow = true
                 };
+                psi2.ArgumentList.Add("--clipboard");
+                psi2.ArgumentList.Add("--input");
                 using var process2 = Process.Start(psi2);
                 if (process2 == null)
                     return Result<string, string>.Failure("No clipboard tool available (tried xclip, xsel)");
@@ -155,11 +157,12 @@ internal class ClipboardTool : ITool
             psi = new ProcessStartInfo
             {
                 FileName = "/bin/sh",
-                Arguments = "-c \"xclip -selection clipboard -o 2>/dev/null || xsel --clipboard --output 2>/dev/null\"",
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
+            psi.ArgumentList.Add("-c");
+            psi.ArgumentList.Add("xclip -selection clipboard -o 2>/dev/null || xsel --clipboard --output 2>/dev/null");
         }
 
         using var p = Process.Start(psi);

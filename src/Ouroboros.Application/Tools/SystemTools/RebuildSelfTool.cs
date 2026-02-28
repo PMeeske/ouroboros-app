@@ -24,13 +24,14 @@ internal class RebuildSelfTool : ITool
             var psi = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = "dotnet",
-                Arguments = "build --no-restore",
                 WorkingDirectory = projectDir,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
+            psi.ArgumentList.Add("build");
+            psi.ArgumentList.Add("--no-restore");
 
             using var process = System.Diagnostics.Process.Start(psi);
             if (process == null)

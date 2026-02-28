@@ -36,7 +36,7 @@ public static partial class VectorCliSteps
 
                 if (s.Trace) Console.WriteLine($"[vector] Initialized {config.Type} store (collection: {config.DefaultCollection})");
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 Console.WriteLine($"[vector] Failed to initialize store: {ex.Message}");
             }
@@ -67,7 +67,7 @@ public static partial class VectorCliSteps
 
                 if (s.Trace) Console.WriteLine($"[vector] Connected to Qdrant at {connectionString} (collection: {parsed.CollectionName})");
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[vector] Failed to connect to Qdrant: {ex.Message}");
             }
@@ -110,7 +110,7 @@ public static partial class VectorCliSteps
 
                 if (s.Trace) Console.WriteLine("[vector] Store cleared");
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 Console.WriteLine($"[vector] Failed to clear store: {ex.Message}");
             }

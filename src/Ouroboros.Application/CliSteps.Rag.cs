@@ -53,7 +53,7 @@ public static partial class CliSteps
             // Ensure retrieved context
             if (s.Retrieved.Count == 0)
             {
-                try { s = await RetrieveSimilarDocuments($"amount={k}")(s); } catch (Exception) { /* retrieval optional — ignore */ }
+                try { s = await RetrieveSimilarDocuments($"amount={k}")(s); } catch (HttpRequestException) { /* retrieval optional — ignore */ }
             }
             if (s.Retrieved.Count == 0) return s;
 
@@ -97,7 +97,7 @@ public static partial class CliSteps
                         Console.Out.Flush();
                     }
                 }
-                catch (Exception ex)
+                catch (HttpRequestException ex)
                 {
                     s.Branch = s.Branch.WithIngestEvent($"dcrag:part-error:{ex.GetType().Name}:{ex.Message.Replace('|', ':')}", Array.Empty<string>());
                 }
@@ -125,7 +125,7 @@ public static partial class CliSteps
                     Console.Out.Flush();
                 }
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 s.Branch = s.Branch.WithIngestEvent($"dcrag:final-error:{ex.GetType().Name}:{ex.Message.Replace('|', ':')}", Array.Empty<string>());
             }
@@ -184,7 +184,7 @@ public static partial class CliSteps
             if (string.IsNullOrWhiteSpace(question)) return s;
 
             // Optional: warm retrieval cache using the main question
-            try { s = await RetrieveSimilarDocuments($"amount={k}|query={question.Replace("|", ":")}")(s); } catch (Exception) { /* retrieval cache warm-up optional — ignore */ }
+            try { s = await RetrieveSimilarDocuments($"amount={k}|query={question.Replace("|", ":")}")(s); } catch (HttpRequestException) { /* retrieval cache warm-up optional — ignore */ }
 
             // Default templates
             decomposeTpl ??= "You are tasked with answering a complex question by breaking it down into distinct sub-questions that together fully address the original.\n" +
@@ -223,7 +223,7 @@ public static partial class CliSteps
                     }
                 }
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 s.Branch = s.Branch.WithIngestEvent($"darag:decompose-error:{ex.GetType().Name}:{ex.Message.Replace('|', ':')}", Array.Empty<string>());
             }
@@ -257,7 +257,7 @@ public static partial class CliSteps
                         }
                     }
                 }
-                catch (Exception ex)
+                catch (HttpRequestException ex)
                 {
                     s.Branch = s.Branch.WithIngestEvent($"darag:retrieve-error:{ex.GetType().Name}:{ex.Message.Replace('|', ':')}", Array.Empty<string>());
                 }
@@ -282,7 +282,7 @@ public static partial class CliSteps
                         Console.Out.Flush();
                     }
                 }
-                catch (Exception ex)
+                catch (HttpRequestException ex)
                 {
                     s.Branch = s.Branch.WithIngestEvent($"darag:sub-error:{ex.GetType().Name}:{ex.Message.Replace('|', ':')}", Array.Empty<string>());
                 }
@@ -319,7 +319,7 @@ public static partial class CliSteps
                     Console.Out.Flush();
                 }
             }
-            catch (Exception ex)
+            catch (HttpRequestException ex)
             {
                 s.Branch = s.Branch.WithIngestEvent($"darag:final-error:{ex.GetType().Name}:{ex.Message.Replace('|', ':')}", Array.Empty<string>());
             }
