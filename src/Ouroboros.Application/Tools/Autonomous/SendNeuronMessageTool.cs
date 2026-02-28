@@ -32,10 +32,10 @@ public class SendNeuronMessageTool : ITool
     public string? JsonSchema => """{"type":"object","properties":{"neuron_id":{"type":"string"},"topic":{"type":"string"},"payload":{"type":"string"}},"required":["neuron_id","topic","payload"]}""";
 
     /// <inheritdoc/>
-    public Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
+    public async Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
     {
         if (_ctx.Coordinator == null)
-            return Task.FromResult(Result<string, string>.Failure("Autonomous coordinator not initialized."));
+            return Result<string, string>.Failure("Autonomous coordinator not initialized.");
 
         try
         {
@@ -44,14 +44,14 @@ public class SendNeuronMessageTool : ITool
             var topic = args.GetProperty("topic").GetString() ?? "";
             var payload = args.GetProperty("payload").GetString() ?? "";
 
-            _ctx.Coordinator.SendToNeuron(neuronId, topic, payload);
+            await _ctx.Coordinator.SendToNeuronAsync(neuronId, topic, payload);
 
-            return Task.FromResult(Result<string, string>.Success(
-                $"\ud83d\udce4 Message sent to `{neuronId}` on topic `{topic}`"));
+            return Result<string, string>.Success(
+                $"\ud83d\udce4 Message sent to `{neuronId}` on topic `{topic}`");
         }
         catch (InvalidOperationException ex)
         {
-            return Task.FromResult(Result<string, string>.Failure($"Failed to send: {ex.Message}"));
+            return Result<string, string>.Failure($"Failed to send: {ex.Message}");
         }
     }
 }
