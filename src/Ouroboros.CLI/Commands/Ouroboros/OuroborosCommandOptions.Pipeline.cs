@@ -198,7 +198,7 @@ public partial class OuroborosCommandOptions
 
     public Option<string?> SdEndpointOption { get; } = new("--sd-endpoint")
     {
-        Description = "Stable Diffusion (Forge/A1111) endpoint for avatar video stream (default: http://localhost:7860)"
+        Description = $"Stable Diffusion (Forge/A1111) endpoint for avatar video stream (default: {DefaultEndpoints.StableDiffusion})"
     };
 
     public Option<string?> SdModelOption { get; } = new("--sd-model")

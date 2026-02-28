@@ -286,6 +286,7 @@ public class PresenceDetector : IDetectionModule
             };
             psi.ArgumentList.Add("-a");
 
+            // SECURITY: safe — hardcoded "arp" with ArgumentList
             using var process = Process.Start(psi);
             if (process != null)
             {

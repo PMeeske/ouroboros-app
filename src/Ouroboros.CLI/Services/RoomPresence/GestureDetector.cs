@@ -123,6 +123,7 @@ public sealed class GestureDetector : IAsyncDisposable
 
             try
             {
+                // SECURITY: safe — hardcoded "ffmpeg" with ArgumentList for camera capture
                 using var process = Process.Start(psi);
                 if (process == null) continue;
 
@@ -165,6 +166,7 @@ public sealed class GestureDetector : IAsyncDisposable
 
         try
         {
+            // SECURITY: safe — hardcoded "ollama" with ArgumentList for vision analysis
             using var process = Process.Start(psi);
             if (process == null) return null;
 

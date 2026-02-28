@@ -31,25 +31,45 @@ public sealed partial class ImmersiveMode
         CancellationToken ct)
     {
         // Initialize persistent conversation memory
-        var qdrantEndpoint = NormalizeEndpoint(options.QdrantEndpoint, DefaultEndpoints.QdrantGrpc);
+        var qdrantEndpoint = NormalizeEndpoint(options.QdrantEndpoint, Ouroboros.Core.Configuration.DefaultEndpoints.QdrantGrpc);
         {
             var client = _serviceProvider?.GetService<QdrantClient>();
             var registry = _serviceProvider?.GetService<IQdrantCollectionRegistry>();
             if (client != null && registry != null)
             {
-                _conversationMemory = new PersistentConversationMemory(client, registry, embeddingModel);
+                _tools.ConversationMemory = new PersistentConversationMemory(client, registry, embeddingModel);
             }
             else
             {
-#pragma warning disable CS0618 // Obsolete endpoint-string constructor
-                _conversationMemory = new PersistentConversationMemory(
-                    embeddingModel,
-                    new ConversationMemoryConfig { QdrantEndpoint = qdrantEndpoint });
-#pragma warning restore CS0618
+                // Create a QdrantClient from the endpoint string to use the non-obsolete constructor
+                QdrantClient? fallbackClient = null;
+                try
+                {
+                    var uri = new Uri(qdrantEndpoint);
+                    fallbackClient = new QdrantClient(uri.Host, uri.Port > 0 ? uri.Port : 6334, uri.Scheme == "https");
+                }
+                catch
+                {
+                    // Qdrant not available, continue without semantic memory
+                }
+
+                if (fallbackClient != null)
+                {
+                    var fallbackRegistry = new Ouroboros.Domain.Vectors.QdrantCollectionRegistry(fallbackClient);
+                    _tools.ConversationMemory = new PersistentConversationMemory(
+                        fallbackClient,
+                        fallbackRegistry,
+                        embeddingModel,
+                        new ConversationMemoryConfig { QdrantEndpoint = qdrantEndpoint });
+                }
+                else
+                {
+                    _tools.ConversationMemory = new PersistentConversationMemory(embeddingModel);
+                }
             }
         }
-        await _conversationMemory.InitializeAsync(personaName, ct);
-        var memStats = _conversationMemory.GetStats();
+        await _tools.ConversationMemory.InitializeAsync(personaName, ct);
+        var memStats = _tools.ConversationMemory.GetStats();
         if (memStats.TotalSessions > 0)
         {
             AnsiConsole.MarkupLine($"[rgb(148,103,189)]{Markup.Escape($"  [Memory] Loaded {memStats.TotalSessions} previous conversations ({memStats.TotalTurns} turns)")}[/]");
@@ -66,21 +86,21 @@ public sealed partial class ImmersiveMode
                 var nsSettings = _serviceProvider?.GetService<QdrantSettings>();
                 if (nsClient != null && nsRegistry != null)
                 {
-                    _networkStateProjector = new PersistentNetworkStateProjector(
+                    _tools.NetworkStateProjector = new PersistentNetworkStateProjector(
                         dag,
                         nsClient,
                         nsRegistry,
-                        async text => await embeddingModel.CreateEmbeddingsAsync(text));
+                        async (text, ct2) => await embeddingModel.CreateEmbeddingsAsync(text, ct2));
                 }
                 else
                 {
-                    _networkStateProjector = new PersistentNetworkStateProjector(
+                    _tools.NetworkStateProjector = new PersistentNetworkStateProjector(
                         dag,
                         qdrantEndpoint,
-                        async text => await embeddingModel.CreateEmbeddingsAsync(text));
+                        async (text, ct2) => await embeddingModel.CreateEmbeddingsAsync(text, ct2));
                 }
-                await _networkStateProjector.InitializeAsync(ct);
-                AnsiConsole.MarkupLine($"[rgb(148,103,189)]{Markup.Escape($"  [NetworkState] Epoch {_networkStateProjector.CurrentEpoch}, {_networkStateProjector.RecentLearnings.Count} learnings loaded")}[/]");
+                await _tools.NetworkStateProjector.InitializeAsync(ct);
+                AnsiConsole.MarkupLine($"[rgb(148,103,189)]{Markup.Escape($"  [NetworkState] Epoch {_tools.NetworkStateProjector.CurrentEpoch}, {_tools.NetworkStateProjector.RecentLearnings.Count} learnings loaded")}[/]");
             }
             catch (OperationCanceledException) { throw; }
             catch (Exception ex)
@@ -101,7 +121,7 @@ public sealed partial class ImmersiveMode
         InMemoryMeTTaEngine mettaEngine,
         CancellationToken ct)
     {
-        var qdrantEndpoint = NormalizeEndpoint(options.QdrantEndpoint, DefaultEndpoints.QdrantGrpc);
+        var qdrantEndpoint = NormalizeEndpoint(options.QdrantEndpoint, Ouroboros.Core.Configuration.DefaultEndpoints.QdrantGrpc);
 
         // Initialize distinction learning
         try
@@ -109,9 +129,9 @@ public sealed partial class ImmersiveMode
             AnsiConsole.MarkupLine(OuroborosTheme.Dim("  [~] Initializing distinction learning..."));
             var storageConfig = DistinctionStorageConfig.Default;
             var storage = new FileSystemDistinctionWeightStorage(storageConfig);
-            _distinctionLearner = new DistinctionLearner(storage);
-            _dream = new ConsciousnessDream();
-            _currentDistinctionState = DistinctionState.Initial();
+            _learning.DistinctionLearner = new DistinctionLearner(storage);
+            _learning.Dream = new ConsciousnessDream();
+            _learning.CurrentDistinctionState = DistinctionState.Initial();
             AnsiConsole.MarkupLine($"[rgb(148,103,189)]{Markup.Escape("  [DistinctionLearning] Ready to learn from consciousness cycles")}[/]");
         }
         catch (OperationCanceledException) { throw; }
@@ -154,7 +174,10 @@ public sealed partial class ImmersiveMode
         SubscribeAutonomousMindEvents();
 
         // Start autonomous thinking
-        _autonomousMind!.Start();
+        if (_autonomousMind != null)
+            _autonomousMind.Start();
+        else
+            System.Diagnostics.Debug.WriteLine("Warning: Autonomous mind not initialized — skipping Start().");
         AnsiConsole.MarkupLine(OuroborosTheme.Ok("  [OK] Autonomous mind active (thinking, exploring, learning in background)"));
         AnsiConsole.MarkupLine(OuroborosTheme.Ok("       State persistence enabled (thoughts, emotions, learnings)"));
 
@@ -167,28 +190,28 @@ public sealed partial class ImmersiveMode
         }
 
         // Initialize ethics + cognitive physics + phi for response gating (via SharedAgentBootstrap)
-        _immersiveEthics = Ouroboros.Core.Ethics.EthicsFrameworkFactory.CreateDefault();
+        _cognitive.Ethics = Ouroboros.Core.Ethics.EthicsFrameworkFactory.CreateDefault();
         var (cogPhysicsEngine, cogState) = Ouroboros.CLI.Services.SharedAgentBootstrap.CreateCognitivePhysics();
-        _immersiveCogPhysics = cogPhysicsEngine;
-        _immersiveCogState = cogState;
-        _immersivePhiCalc = new Ouroboros.Providers.IITPhiCalculator();
-        _immersiveLastTopic = "general";
+        _cognitive.CogPhysics = cogPhysicsEngine;
+        _cognitive.CogState = cogState;
+        _cognitive.PhiCalc = new Ouroboros.Providers.IITPhiCalculator();
+        _cognitive.LastTopic = "general";
         AnsiConsole.MarkupLine($"[rgb(148,103,189)]{Markup.Escape("  [OK] Ethics gate + CognitivePhysics + Φ (IIT) online")}[/]");
 
         // Episodic memory + causal reasoning (resolved from DI — registered in RegisterEngineInterfaces)
-        _episodicMemory = _serviceProvider?.GetService<Ouroboros.Pipeline.Memory.IEpisodicMemoryEngine>()
+        _cognitive.EpisodicMemory = _serviceProvider?.GetService<Ouroboros.Pipeline.Memory.IEpisodicMemoryEngine>()
             ?? Ouroboros.CLI.Services.SharedAgentBootstrap.CreateEpisodicMemory(qdrantEndpoint, embeddingModel);
-        _causalReasoning = _serviceProvider?.GetService<Ouroboros.Core.Reasoning.ICausalReasoningEngine>()
+        _cognitive.CausalReasoning = _serviceProvider?.GetService<Ouroboros.Core.Reasoning.ICausalReasoningEngine>()
             ?? new Ouroboros.Core.Reasoning.CausalReasoningEngine();
 
         // Neural-symbolic bridge (via SharedAgentBootstrap)
-        _neuralSymbolicBridge = Ouroboros.CLI.Services.SharedAgentBootstrap.CreateNeuralSymbolicBridge(
-            _baseModel, mettaEngine);
+        _cognitive.NeuralSymbolicBridge = Ouroboros.CLI.Services.SharedAgentBootstrap.CreateNeuralSymbolicBridge(
+            _learning.BaseModel, mettaEngine);
 
         // Curiosity engine + sovereignty gate (via SharedAgentBootstrap)
-        (_curiosityEngine, _sovereigntyGate) = Ouroboros.CLI.Services.SharedAgentBootstrap
+        (_cognitive.CuriosityEngine, _learning.SovereigntyGate) = Ouroboros.CLI.Services.SharedAgentBootstrap
             .CreateCuriosityAndSovereignty(
-                _baseModel!,
+                _learning.BaseModel!,
                 embeddingModel,
                 mettaEngine,
                 _autonomousMind,

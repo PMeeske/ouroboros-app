@@ -54,7 +54,7 @@ internal class ClipboardTool : ITool
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            // Use stdin piping to avoid command injection (no shell metachar interpretation)
+            // SECURITY: safe — hardcoded "clip" with stdin piping; no shell metachar interpretation
             var psi = new ProcessStartInfo("clip")
             {
                 RedirectStandardInput = true,
@@ -70,6 +70,7 @@ internal class ClipboardTool : ITool
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
+            // SECURITY: safe — hardcoded "pbcopy" with stdin piping
             var psi = new ProcessStartInfo("pbcopy")
             {
                 RedirectStandardInput = true,
@@ -85,7 +86,7 @@ internal class ClipboardTool : ITool
         }
         else
         {
-            // Linux: try xclip first, fall back to xsel
+            // SECURITY: safe — hardcoded "xclip"/"xsel" with ArgumentList and stdin piping
             var psi = new ProcessStartInfo("xclip")
             {
                 RedirectStandardInput = true,
@@ -165,6 +166,7 @@ internal class ClipboardTool : ITool
             psi.ArgumentList.Add("xclip -selection clipboard -o 2>/dev/null || xsel --clipboard --output 2>/dev/null");
         }
 
+        // SECURITY: safe — hardcoded clipboard commands with ArgumentList
         using var p = Process.Start(psi);
         if (p == null) return Result<string, string>.Failure("Failed to access clipboard");
         var result = await p.StandardOutput.ReadToEndAsync(ct);

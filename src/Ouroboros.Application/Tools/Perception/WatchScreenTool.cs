@@ -20,10 +20,11 @@ public static partial class PerceptionTools
         public string Description => "Start watching the screen for changes. Input JSON: {\"duration_seconds\": 60, \"interval_ms\": 1000, \"sensitivity\": 0.1}. Reports when significant screen changes occur.";
         public string? JsonSchema => """{"type":"object","properties":{"duration_seconds":{"type":"integer"},"interval_ms":{"type":"integer"},"sensitivity":{"type":"number"}}}""";
 
-#pragma warning disable CS0169, CS0414 // Field is used in conditional compilation
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "CS0169:Field is never used", Justification = "Used in conditional compilation (NET10_0_OR_GREATER_WINDOWS)")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "CS0414:Field is assigned but never used", Justification = "Used in conditional compilation (NET10_0_OR_GREATER_WINDOWS)")]
         private static CancellationTokenSource? _watchCts;
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "CS0414:Field is assigned but never used", Justification = "Used in conditional compilation (NET10_0_OR_GREATER_WINDOWS)")]
         private static bool _isWatching = false;
-#pragma warning restore CS0169, CS0414
 
         public async Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
         {

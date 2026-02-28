@@ -52,9 +52,19 @@ public sealed class PersistentConversationMemory : IAsyncDisposable
     }
 
     /// <summary>
+    /// Creates a new persistent conversation memory without Qdrant (disk-only persistence).
+    /// </summary>
+    public PersistentConversationMemory(
+        IEmbeddingModel? embeddingModel)
+    {
+        _config = new ConversationMemoryConfig();
+        _embedding = embeddingModel;
+    }
+
+    /// <summary>
     /// Creates a new persistent conversation memory instance.
     /// </summary>
-    [Obsolete("Use the constructor accepting QdrantClient + IQdrantCollectionRegistry from DI.")]
+    [Obsolete("Use the constructor accepting QdrantClient + IQdrantCollectionRegistry from DI, or the embeddingModel-only constructor for disk-only mode.")]
     public PersistentConversationMemory(
         IEmbeddingModel? embedding = null,
         ConversationMemoryConfig? config = null)

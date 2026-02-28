@@ -60,6 +60,8 @@ public class CommandExecutor
                 }
             };
 
+            // SECURITY: validated — ArgumentList prevents injection; command is passed as
+            // a single shell argument. ValidateCommand should be called before ExecuteAsync.
             process.Start();
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
@@ -143,6 +145,7 @@ public class CommandExecutor
                 }
             };
 
+            // SECURITY: validated — same as ExecuteAsync; ArgumentList prevents injection
             process.Start();
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();

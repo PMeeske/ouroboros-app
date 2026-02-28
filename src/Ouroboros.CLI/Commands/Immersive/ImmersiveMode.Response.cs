@@ -59,13 +59,13 @@ public sealed partial class ImmersiveMode
         }
 
         // Store base model for orchestration
-        _baseModel = baseModel;
+        _learning.BaseModel = baseModel;
 
         // Initialize multi-model orchestration if specialized models are configured via environment
         await InitializeImmersiveOrchestrationAsync(options, settings, endpoint, apiKey);
 
         // Return orchestrated model if available, otherwise base model
-        return _orchestratedModel ?? baseModel;
+        return _learning.OrchestratedModel ?? baseModel;
     }
 
     /// <summary>
@@ -89,7 +89,7 @@ public sealed partial class ImmersiveMode
                                      || !string.IsNullOrEmpty(reasonModel)
                                      || !string.IsNullOrEmpty(summarizeModel);
 
-            if (!hasSpecializedModels || _baseModel == null)
+            if (!hasSpecializedModels || _learning.BaseModel == null)
             {
                 return; // No orchestration needed
             }
@@ -105,10 +105,10 @@ public sealed partial class ImmersiveMode
             }
 
             // Build orchestrated chat model
-            var builder = new OrchestratorBuilder(_dynamicTools, "general")
+            var builder = new OrchestratorBuilder(_tools.DynamicTools, "general")
                 .WithModel(
                     "general",
-                    _baseModel,
+                    _learning.BaseModel,
                     ModelType.General,
                     new[] { "conversation", "general-purpose", "versatile", "chat", "emotion", "consciousness" },
                     maxTokens: 1024,
@@ -151,7 +151,7 @@ public sealed partial class ImmersiveMode
             }
 
             builder.WithMetricTracking(true);
-            _orchestratedModel = builder.Build();
+            _learning.OrchestratedModel = builder.Build();
 
             // Initialize divide-and-conquer for large input processing
             var dcConfig = new DivideAndConquerConfig(
@@ -159,7 +159,7 @@ public sealed partial class ImmersiveMode
                 ChunkSize: 800,
                 MergeResults: true,
                 MergeSeparator: "\n\n");
-            _divideAndConquer = new DivideAndConquerOrchestrator(_orchestratedModel, dcConfig);
+            _learning.DivideAndConquer = new DivideAndConquerOrchestrator(_learning.OrchestratedModel, dcConfig);
 
             AnsiConsole.MarkupLine(OuroborosTheme.Ok("  [OK] Multi-model orchestration enabled for immersive mode"));
 
@@ -181,27 +181,27 @@ public sealed partial class ImmersiveMode
         CancellationToken ct = default)
     {
         // For large inputs, use divide-and-conquer
-        if (useDivideAndConquer && _divideAndConquer != null && prompt.Length > 2000)
+        if (useDivideAndConquer && _learning.DivideAndConquer != null && prompt.Length > 2000)
         {
             AnsiConsole.MarkupLine(OuroborosTheme.Dim($"  [D&C] Processing large input ({prompt.Length} chars)..."));
 
-            var chunks = _divideAndConquer.DivideIntoChunks(prompt);
-            var dcResult = await _divideAndConquer.ExecuteAsync("Process:", chunks, ct);
+            var chunks = _learning.DivideAndConquer.DivideIntoChunks(prompt);
+            var dcResult = await _learning.DivideAndConquer.ExecuteAsync("Process:", chunks, ct);
 
             if (dcResult.IsSuccess)
                 return dcResult.Value;
 
             // Fall back to direct generation on D&C failure
-            return await ((_orchestratedModel ?? _baseModel)?.GenerateTextAsync(prompt, ct) ?? Task.FromResult(""));
+            return await ((_learning.OrchestratedModel ?? _learning.BaseModel)?.GenerateTextAsync(prompt, ct) ?? Task.FromResult(""));
         }
 
         // Use orchestrated model if available
-        if (_orchestratedModel != null)
+        if (_learning.OrchestratedModel != null)
         {
-            return await _orchestratedModel.GenerateTextAsync(prompt, ct);
+            return await _learning.OrchestratedModel.GenerateTextAsync(prompt, ct);
         }
 
         // Fall back to base model
-        return await (_baseModel?.GenerateTextAsync(prompt, ct) ?? Task.FromResult(""));
+        return await (_learning.BaseModel?.GenerateTextAsync(prompt, ct) ?? Task.FromResult(""));
     }
 }

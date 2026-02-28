@@ -119,7 +119,7 @@ public sealed partial class ChatSubsystem
 
             if (_autonomySub.Coordinator?.IsActive == true && !string.IsNullOrWhiteSpace(input))
             {
-                _autonomySub.Coordinator.Network?.Broadcast(
+                _ = _autonomySub.Coordinator.Network?.BroadcastAsync(
                     "learning.fact",
                     $"User interaction: {TruncateForThought(input, 100)} -> {TruncateForThought(response, 100)}",
                     "chat");

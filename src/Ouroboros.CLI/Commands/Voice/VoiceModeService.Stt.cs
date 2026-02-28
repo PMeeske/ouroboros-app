@@ -212,6 +212,7 @@ public sealed partial class VoiceModeService
                 CreateNoWindow = true
             };
             startInfo.ArgumentList.Add("--help");
+            // SECURITY: safe — hardcoded "whisper" with ArgumentList ["--help"]
             using var process = System.Diagnostics.Process.Start(startInfo);
             return process != null;
         }

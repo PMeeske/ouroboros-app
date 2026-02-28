@@ -25,6 +25,8 @@ internal static class GitProcessHelper
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
+            // SECURITY: validated — hardcoded "git" command; callers pass hardcoded
+            // argument strings (e.g., "rev-parse --short HEAD"). UseShellExecute = false.
             using var process = Process.Start(psi);
             if (process is null) return (false, string.Empty);
 

@@ -16,10 +16,10 @@ public sealed partial class ImmersiveMode
 {
     private string HandleListTools(string personaName)
     {
-        if (_dynamicTools == null)
+        if (_tools.DynamicTools == null)
             return "I don't have any tools loaded.";
 
-        var tools = _dynamicTools.All.ToList();
+        var tools = _tools.DynamicTools.All.ToList();
         var sb = new StringBuilder();
         sb.AppendLine($"\n  **My Tools ({tools.Count} available)**\n");
 

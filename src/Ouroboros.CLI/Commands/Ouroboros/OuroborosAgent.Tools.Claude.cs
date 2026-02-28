@@ -245,6 +245,7 @@ public sealed partial class OuroborosAgent
             foreach (var arg in args)
                 psi.ArgumentList.Add(arg);
 
+            // SECURITY: safe — resolved "claude" executable with ArgumentList for all args
             using var process = Process.Start(psi);
             if (process is null)
                 return Result<string, string>.Failure("Failed to start claude process.");
@@ -290,6 +291,7 @@ public sealed partial class OuroborosAgent
                 CreateNoWindow = true,
             };
             probePsi.ArgumentList.Add("--version");
+            // SECURITY: safe — hardcoded "claude" with ArgumentList ["--version"]
             using var probe = Process.Start(probePsi);
             probe?.WaitForExit(2000);
             if (probe?.ExitCode == 0) return "claude";

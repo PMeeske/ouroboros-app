@@ -62,6 +62,8 @@ public sealed class SystemNotifyHandler : IPcNodeCapabilityHandler
             var scriptBytes = System.Text.Encoding.Unicode.GetBytes(script);
             var encodedScript = Convert.ToBase64String(scriptBytes);
 
+            // SECURITY: validated — title/message escaped with '' for single-quoted PS strings;
+            // script Base64-encoded via -EncodedCommand to avoid shell metachar injection.
             Process.Start(new ProcessStartInfo("powershell.exe",
                 $"-NoProfile -NonInteractive -EncodedCommand {encodedScript}")
             {

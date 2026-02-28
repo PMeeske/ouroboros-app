@@ -58,6 +58,8 @@ internal class ProcessStartTool : ITool
                 UseShellExecute = true
             };
 
+            // SECURITY: validated — program checked against AllowedPrograms allowlist.
+            // UseShellExecute = true is intentional for launching GUI applications.
             var process = Process.Start(psi);
             if (process == null)
                 return Result<string, string>.Failure("Failed to start process");

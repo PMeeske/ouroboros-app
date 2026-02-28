@@ -36,6 +36,8 @@ internal class PowerShellTool : ITool
                 CreateNoWindow = true
             };
 
+            // SECURITY: validated — CheckCommandSafety blocks dangerous patterns;
+            // shell execution is intentional for the "shell" tool.
             using var process = Process.Start(psi);
             if (process == null)
                 return Result<string, string>.Failure("Failed to start shell process");

@@ -192,6 +192,7 @@ public static class ChatCommand
             {
                 console.MarkupLine("[yellow]Request timed out.[/] The model may still be loading — try again.");
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex)
             {
                 console.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");

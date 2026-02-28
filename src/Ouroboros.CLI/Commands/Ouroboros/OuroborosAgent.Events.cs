@@ -94,6 +94,7 @@ public sealed partial class OuroborosAgent : IAgentEventSink
             {
                 break;
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[AgentEvents] Error processing {evt.GetType().Name}: {ex.Message}");

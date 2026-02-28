@@ -73,7 +73,7 @@ public static class UrlValidator
     /// Synchronous convenience wrapper for <see cref="IsUrlSafeAsync"/>.
     /// </summary>
     public static bool IsUrlSafe(string url)
-        => IsUrlSafeAsync(url).GetAwaiter().GetResult();
+        => IsUrlSafeAsync(url).GetAwaiter().GetResult(); // Intentional: sync wrapper for callers that cannot be made async
 
     private static bool IsPrivateAddress(IPAddress address)
     {

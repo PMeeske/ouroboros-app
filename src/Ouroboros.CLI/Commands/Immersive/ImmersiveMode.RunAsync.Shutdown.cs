@@ -25,21 +25,21 @@ public sealed partial class ImmersiveMode
         PrintConsciousnessState(persona);
 
         // Persist final network state and learnings
-        if (_networkStateProjector != null)
+        if (_tools.NetworkStateProjector != null)
         {
             try
             {
                 AnsiConsole.MarkupLine(OuroborosTheme.Dim("  [~] Persisting learnings..."));
                 // Use CancellationToken.None — session token is already cancelled at this point
                 // (Ctrl+C fired), but we still want the final snapshot to complete.
-                await _networkStateProjector.ProjectAndPersistAsync(
+                await _tools.NetworkStateProjector.ProjectAndPersistAsync(
                     System.Collections.Immutable.ImmutableDictionary<string, string>.Empty
                         .Add("event", "session_end")
                         .Add("interactions", persona.InteractionCount.ToString())
                         .Add("uptime_minutes", persona.Uptime.TotalMinutes.ToString("F1")),
                     CancellationToken.None);
-                AnsiConsole.MarkupLine(OuroborosTheme.Ok($"  [OK] State saved (epoch {_networkStateProjector.CurrentEpoch}, {_networkStateProjector.RecentLearnings.Count} learnings)"));
-                await _networkStateProjector.DisposeAsync();
+                AnsiConsole.MarkupLine(OuroborosTheme.Ok($"  [OK] State saved (epoch {_tools.NetworkStateProjector.CurrentEpoch}, {_tools.NetworkStateProjector.RecentLearnings.Count} learnings)"));
+                await _tools.NetworkStateProjector.DisposeAsync();
             }
             catch (OperationCanceledException) { throw; }
             catch (Exception ex)

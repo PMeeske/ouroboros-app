@@ -26,10 +26,10 @@ public class InjectGoalTool : ITool
     public string? JsonSchema => """{"type":"object","properties":{"goal":{"type":"string"},"priority":{"type":"string"}},"required":["goal"]}""";
 
     /// <inheritdoc/>
-    public Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
+    public async Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
     {
         if (_ctx.Coordinator == null)
-            return Task.FromResult(Result<string, string>.Failure("Autonomous coordinator not initialized."));
+            return Result<string, string>.Failure("Autonomous coordinator not initialized.");
 
         try
         {
@@ -40,15 +40,15 @@ public class InjectGoalTool : ITool
             if (!Enum.TryParse<IntentionPriority>(priorityStr, true, out var priority))
                 priority = IntentionPriority.Normal;
 
-            _ctx.Coordinator.InjectGoal(goal, priority);
+            await _ctx.Coordinator.InjectGoalAsync(goal, priority);
 
-            return Task.FromResult(Result<string, string>.Success(
+            return Result<string, string>.Success(
                 $"\ud83c\udfaf Goal injected: {goal}\n" +
-                $"I will propose actions to work towards this goal."));
+                $"I will propose actions to work towards this goal.");
         }
         catch (InvalidOperationException ex)
         {
-            return Task.FromResult(Result<string, string>.Failure($"Failed to set goal: {ex.Message}"));
+            return Result<string, string>.Failure($"Failed to set goal: {ex.Message}");
         }
     }
 }

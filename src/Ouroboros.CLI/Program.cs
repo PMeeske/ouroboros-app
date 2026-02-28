@@ -16,6 +16,17 @@ using Ouroboros.CLI.Infrastructure;
 using Ouroboros.CLI.Services;
 using Ouroboros.CLI.Hosting;
 
+// ── Global exception handler ─────────────────────────────────────────────────
+// Catches unhandled exceptions during host construction, DI resolution,
+// and command execution to display friendly diagnostics instead of raw
+// stack traces.  Particularly useful when submodules are out-of-sync and
+// assemblies or configuration files are missing.
+bool verbose = args.Contains("--verbose")
+    || Environment.GetEnvironmentVariable("OUROBOROS_VERBOSE") == "1";
+
+try
+{
+
 // ── Pre-parse --api-url and --serve before building the DI host ───────────────
 // We need these values at host-construction time so we can swap service registrations.
 // Handles: --api-url VALUE, --api-url=VALUE, --serve
@@ -103,14 +114,14 @@ rootCommand.Add(versionOption);
 
 // --serve: embed the Ouroboros API server in-process alongside the CLI
 var serveOption = new System.CommandLine.Option<bool>("--serve");
-serveOption.Description = "Co-host the Ouroboros Web API server inside this CLI process (accessible at http://localhost:5000 by default)";
+serveOption.Description = $"Co-host the Ouroboros Web API server inside this CLI process (accessible at {DefaultEndpoints.OuroborosApi} by default)";
 serveOption.DefaultValueFactory = _ => false;
 serveOption.Recursive = true;
 rootCommand.Add(serveOption);
 
 // --api-url: use a remote (or co-hosted) Ouroboros API as upstream provider
 var apiUrlOption = new System.CommandLine.Option<string?>("--api-url");
-apiUrlOption.Description = "Base URL of a running Ouroboros Web API to use as upstream provider (e.g. http://localhost:5000). Overrides local pipeline execution.";
+apiUrlOption.Description = $"Base URL of a running Ouroboros Web API to use as upstream provider (e.g. {DefaultEndpoints.OuroborosApi}). Overrides local pipeline execution.";
 apiUrlOption.DefaultValueFactory = _ => null;
 apiUrlOption.Recursive = true;
 rootCommand.Add(apiUrlOption);
@@ -176,6 +187,64 @@ if (serveCts is not null)
 }
 
 return exitCode;
+
+}
+catch (Exception ex)
+{
+    // Peel off TargetInvocationException / TypeInitializationException wrappers
+    Exception root = ex;
+    while (root is TargetInvocationException or TypeInitializationException && root.InnerException is not null)
+        root = root.InnerException;
+
+    // Classify and render a user-friendly message
+    if (root is FileNotFoundException fnf)
+    {
+        AnsiConsole.MarkupLine("[red bold]Missing assembly or file[/]");
+        AnsiConsole.MarkupLine($"[red]{Markup.Escape(fnf.FileName ?? fnf.Message)}[/]");
+        AnsiConsole.MarkupLine("[yellow]This usually means a submodule is out of sync. Try:[/]");
+        AnsiConsole.MarkupLine("[dim]  git submodule update --init --recursive[/]");
+        AnsiConsole.MarkupLine("[dim]  dotnet restore[/]");
+    }
+    else if (root is FileLoadException fle)
+    {
+        AnsiConsole.MarkupLine("[red bold]Assembly version mismatch[/]");
+        AnsiConsole.MarkupLine($"[red]{Markup.Escape(fle.FileName ?? fle.Message)}[/]");
+        AnsiConsole.MarkupLine("[yellow]Rebuild after updating submodules:[/]");
+        AnsiConsole.MarkupLine("[dim]  git submodule update --init --recursive[/]");
+        AnsiConsole.MarkupLine("[dim]  dotnet build[/]");
+    }
+    else if (root is InvalidOperationException ioe
+             && ioe.Message.Contains("Unable to resolve service", StringComparison.OrdinalIgnoreCase))
+    {
+        AnsiConsole.MarkupLine("[red bold]Dependency injection failure[/]");
+        AnsiConsole.MarkupLine($"[red]{Markup.Escape(ioe.Message)}[/]");
+        AnsiConsole.MarkupLine("[yellow]A required service could not be resolved. Check that all projects built successfully.[/]");
+    }
+    else if (root is DllNotFoundException dll)
+    {
+        AnsiConsole.MarkupLine("[red bold]Missing native library[/]");
+        AnsiConsole.MarkupLine($"[red]{Markup.Escape(dll.Message)}[/]");
+        AnsiConsole.MarkupLine("[yellow]Run 'ouroboros doctor' to check for missing dependencies.[/]");
+    }
+    else
+    {
+        AnsiConsole.MarkupLine("[red bold]Unexpected error[/]");
+        AnsiConsole.MarkupLine($"[red]{Markup.Escape(root.GetType().Name)}: {Markup.Escape(root.Message)}[/]");
+    }
+
+    // Show full stack trace under --verbose or OUROBOROS_VERBOSE=1
+    if (verbose)
+    {
+        AnsiConsole.WriteLine();
+        AnsiConsole.WriteException(ex, ExceptionFormats.ShortenPaths | ExceptionFormats.ShortenMethods);
+    }
+    else
+    {
+        AnsiConsole.MarkupLine("[dim]Run with --verbose or OUROBOROS_VERBOSE=1 for full stack trace.[/]");
+    }
+
+    return 1;
+}
 
 // ────────────────────────────────────────────────────────
 // Command creation methods

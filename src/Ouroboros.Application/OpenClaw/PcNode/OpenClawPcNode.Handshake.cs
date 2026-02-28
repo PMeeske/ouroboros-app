@@ -138,18 +138,23 @@ public sealed partial class OpenClawPcNode
     {
         try
         {
-            var args = "devices approve --latest";
-            if (!string.IsNullOrEmpty(token))
-                args += $" --token {token}";
-
-            var psi = new System.Diagnostics.ProcessStartInfo("openclaw", args)
+            var psi = new System.Diagnostics.ProcessStartInfo("openclaw")
             {
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
+            psi.ArgumentList.Add("devices");
+            psi.ArgumentList.Add("approve");
+            psi.ArgumentList.Add("--latest");
+            if (!string.IsNullOrEmpty(token))
+            {
+                psi.ArgumentList.Add("--token");
+                psi.ArgumentList.Add(token);
+            }
 
+            // SECURITY: validated — ArgumentList prevents injection from token value
             using var proc = System.Diagnostics.Process.Start(psi);
             if (proc == null) return false;
 

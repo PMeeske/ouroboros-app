@@ -85,24 +85,24 @@ public sealed partial class ImmersiveMode
         AnsiConsole.MarkupLine($"\n  [grey]+-- Internal Systems Summary -------------------------------------------+[/]");
 
         // Tools
-        var toolCount = _dynamicTools?.All.Count() ?? 0;
+        var toolCount = _tools.DynamicTools?.All.Count() ?? 0;
         AnsiConsole.MarkupLine($"  [grey]| {OuroborosTheme.Accent("Tools:")} {toolCount} registered[/]");
 
         // Skills
         var skillCount = 0;
-        if (_skillRegistry != null)
+        if (_tools.SkillRegistry != null)
         {
-            var skills = await _skillRegistry.FindMatchingSkillsAsync("*");
+            var skills = await _tools.SkillRegistry.FindMatchingSkillsAsync("*");
             skillCount = skills.Count;
         }
         AnsiConsole.MarkupLine($"  [grey]| {OuroborosTheme.Accent("Skills:")} {skillCount} learned[/]");
 
         // Index
-        if (_selfIndexer != null)
+        if (_tools.SelfIndexer != null)
         {
             try
             {
-                var stats = await _selfIndexer.GetStatsAsync();
+                var stats = await _tools.SelfIndexer.GetStatsAsync();
                 AnsiConsole.MarkupLine($"  [grey]| {OuroborosTheme.Accent("Index:")} {stats.IndexedFiles} files, {stats.TotalVectors} vectors[/]");
             }
             catch
@@ -165,7 +165,7 @@ public sealed partial class ImmersiveMode
         string response,
         CancellationToken ct)
     {
-        if (_distinctionLearner == null || _dream == null)
+        if (_learning.DistinctionLearner == null || _learning.Dream == null)
         {
             return;
         }
@@ -173,49 +173,49 @@ public sealed partial class ImmersiveMode
         try
         {
             // Learn through dream cycle
-            await foreach (var moment in _dream.WalkTheDream(userInput, ct))
+            await foreach (var moment in _learning.Dream.WalkTheDream(userInput, ct))
             {
                 var observation = new Observation(
                     Content: userInput,
                     Timestamp: DateTime.UtcNow,
-                    PriorCertainty: _currentDistinctionState.EpistemicCertainty,
+                    PriorCertainty: _learning.CurrentDistinctionState.EpistemicCertainty,
                     Context: new Dictionary<string, object>
                     {
                         ["response_length"] = response.Length,
                         ["stage"] = moment.Stage.ToString()
                     });
 
-                var result = await _distinctionLearner.UpdateFromDistinctionAsync(
-                    _currentDistinctionState,
+                var result = await _learning.DistinctionLearner.UpdateFromDistinctionAsync(
+                    _learning.CurrentDistinctionState,
                     observation,
                     moment.Stage.ToString(),
                     ct);
 
                 if (result.IsSuccess)
                 {
-                    _currentDistinctionState = result.Value;
+                    _learning.CurrentDistinctionState = result.Value;
                 }
 
                 // At Recognition stage, apply self-insight
                 if (moment.Stage == DreamStage.Recognition)
                 {
-                    var recognizeResult = await _distinctionLearner.RecognizeAsync(
-                        _currentDistinctionState,
+                    var recognizeResult = await _learning.DistinctionLearner.RecognizeAsync(
+                        _learning.CurrentDistinctionState,
                         userInput,
                         ct);
 
                     if (recognizeResult.IsSuccess)
                     {
-                        _currentDistinctionState = recognizeResult.Value;
+                        _learning.CurrentDistinctionState = recognizeResult.Value;
                     }
                 }
             }
 
             // Periodic dissolution (every 10 cycles)
-            if (_currentDistinctionState.CycleCount % DistinctionLearningConstants.DissolutionCycleInterval == 0)
+            if (_learning.CurrentDistinctionState.CycleCount % DistinctionLearningConstants.DissolutionCycleInterval == 0)
             {
-                await _distinctionLearner.DissolveAsync(
-                    _currentDistinctionState,
+                await _learning.DistinctionLearner.DissolveAsync(
+                    _learning.CurrentDistinctionState,
                     DissolutionStrategy.FitnessThreshold,
                     ct);
             }
