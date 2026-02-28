@@ -6,6 +6,7 @@ namespace Ouroboros.Application.Services;
 
 using System.Collections.Concurrent;
 using System.Text;
+using Ouroboros.Application.Extensions;
 using Ouroboros.Application.Personality;
 
 /// <summary>
@@ -349,9 +350,13 @@ public partial class AutonomousMind : IDisposable
         _isActive = true;
 
         _thinkingTask = Task.Run(ThinkingLoopAsync);
+        _thinkingTask.ObserveExceptions("AutonomousMind.ThinkingLoop");
         _curiosityTask = Task.Run(CuriosityLoopAsync);
+        _curiosityTask.ObserveExceptions("AutonomousMind.CuriosityLoop");
         _actionTask = Task.Run(ActionLoopAsync);
+        _actionTask.ObserveExceptions("AutonomousMind.ActionLoop");
         _persistenceTask = Task.Run(PersistenceLoopAsync);
+        _persistenceTask.ObserveExceptions("AutonomousMind.PersistenceLoop");
 
         OnProactiveMessage?.Invoke(Localize("\ud83e\udde0 My autonomous mind is now active. I'll think, explore, and learn in the background."));
     }

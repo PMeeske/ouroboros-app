@@ -53,6 +53,7 @@ public static class SubsystemRegistration
         services.AddSingleton<ICommandRoutingSubsystem, CommandRoutingSubsystem>();
         services.AddSingleton<ISwarmSubsystem, SwarmSubsystem>();
         services.AddSingleton<IAuthSubsystem, AuthSubsystem>();
+        services.AddSingleton<IImmersiveSubsystem, ImmersiveSubsystem>();
 
         return services;
     }

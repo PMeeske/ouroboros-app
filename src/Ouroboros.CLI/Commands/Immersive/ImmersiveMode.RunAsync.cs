@@ -370,11 +370,22 @@ public sealed partial class ImmersiveMode
         }
         finally
         {
-            // Graceful shutdown: persist state, dispose resources
-            // Always runs even if initialization or the main loop throws
+            // Graceful shutdown: persist state, dispose resources.
+            // Always runs even if initialization or the main loop throws.
             if (persona != null)
             {
                 await ShutdownAsync(persona, ownedPersona, roomListener);
+            }
+            else
+            {
+                // Persona was never fully created, but some resources may have
+                // been partially allocated.  Dispose them individually so nothing leaks.
+                if (roomListener != null)
+                    await roomListener.DisposeAsync();
+                if (_immersive != null)
+                    await _immersive.DisposeAsync();
+                if (ownedPersona != null)
+                    await ownedPersona.DisposeAsync();
             }
         }
     }

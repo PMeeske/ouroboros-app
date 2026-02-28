@@ -10,15 +10,18 @@ namespace Ouroboros.CLI.Infrastructure;
 public class VoiceIntegrationService : IVoiceIntegrationService
 {
     private readonly VoiceModeService _voiceModeService;
+    private readonly ICommandLineInvoker _commandLineInvoker;
     private readonly ILogger<VoiceIntegrationService> _logger;
     private readonly ISpectreConsoleService _console;
-    
+
     public VoiceIntegrationService(
         VoiceModeService voiceModeService,
+        ICommandLineInvoker commandLineInvoker,
         ILogger<VoiceIntegrationService> logger,
         ISpectreConsoleService console)
     {
         _voiceModeService = voiceModeService;
+        _commandLineInvoker = commandLineInvoker;
         _logger = logger;
         _console = console;
     }
@@ -46,13 +49,23 @@ public class VoiceIntegrationService : IVoiceIntegrationService
             {
                 _console.MarkupLine($"[blue]Recognized: {string.Join(" ", recognizedArgs)}[/]");
                 
-                // Re-invoke the command with recognized arguments
-                // This prevents infinite recursion by not re-adding the --voice flag
+                // Re-invoke the command with recognized arguments.
+                // The --voice flag is intentionally omitted to prevent infinite recursion.
                 var newArgs = new List<string> { commandName };
                 newArgs.AddRange(recognizedArgs);
-                
-                // TODO: Invoke the command handler with new arguments
-                // This would require integration with System.CommandLine
+
+                _logger.LogInformation(
+                    "Dispatching voice command: {Command} {Args}",
+                    commandName, string.Join(" ", recognizedArgs));
+
+                var exitCode = await _commandLineInvoker.InvokeAsync(
+                    newArgs.ToArray(), cancellationToken);
+
+                if (exitCode != 0)
+                {
+                    _console.MarkupLine(
+                        $"[yellow]Voice command '{commandName}' completed with exit code {exitCode}.[/]");
+                }
             }
             else
             {

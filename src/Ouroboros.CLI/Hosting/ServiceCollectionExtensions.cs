@@ -91,6 +91,8 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services)
     {
         services.TryAddSingleton<ISpectreConsoleService, SpectreConsoleService>();
+        services.TryAddSingleton<CommandLineInvoker>();
+        services.TryAddSingleton<ICommandLineInvoker>(sp => sp.GetRequiredService<CommandLineInvoker>());
         services.TryAddTransient<IVoiceIntegrationService, VoiceIntegrationService>();
         services.TryAddSingleton<Ouroboros.ApiHost.Services.IQdrantSyncService, Ouroboros.ApiHost.Services.QdrantSyncService>();
         return services;

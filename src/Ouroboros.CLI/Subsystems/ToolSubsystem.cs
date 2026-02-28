@@ -14,7 +14,9 @@ using Ouroboros.CLI.Commands;
 using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Core.Configuration;
 using Spectre.Console;
+using Ouroboros.Agent.MeTTaAgents;
 using Ouroboros.Pipeline.WorldModel;
+using Ouroboros.Tools;
 using Ouroboros.Tools.MeTTa;
 using Qdrant.Client;
 
@@ -146,12 +148,14 @@ public sealed partial class ToolSubsystem : IToolSubsystem
                 Llm = new ToolAwareChatModel(effectiveModel, Tools);
                 ToolFactory = new DynamicToolFactory(Llm);
 
+                // MeTTa engine — shared across tool registrations and learner
+                var mettaEngine = ctx.Memory.MeTTaEngine as InMemoryMeTTaEngine
+                    ?? new InMemoryMeTTaEngine();
+                ctx.Memory.MeTTaEngine = mettaEngine;
+
                 // Tool Learner (needs embedding + MeTTa)
                 if (ctx.Models.Embedding != null)
                 {
-                    var mettaEngine = new InMemoryMeTTaEngine();
-                    ctx.Memory.MeTTaEngine = mettaEngine; // Set MeTTa on Memory subsystem
-
                     var tlClient = ctx.Services?.GetService<QdrantClient>();
                     var tlRegistry = ctx.Services?.GetService<IQdrantCollectionRegistry>();
                     if (tlClient != null && tlRegistry != null)
@@ -178,6 +182,44 @@ public sealed partial class ToolSubsystem : IToolSubsystem
                 foreach (var tool in RoslynAnalyzerTools.CreateAllTools())
                     Tools = Tools.WithTool(tool);
                 ctx.Output.RecordInit("Roslyn", true, "C# analysis tools registered");
+
+                // Git reflection tools (code analysis, self-modification)
+                Tools = Tools.WithGitReflectionTools();
+                ctx.Output.RecordInit("Git Reflection", true,
+                    $"{GitReflectionTools.GetAllTools().Count()} tools registered");
+
+                // MeTTa symbolic reasoning tools
+                Tools = Tools
+                    .WithMeTTaTools(mettaEngine)
+                    .WithTool(new SafeCalculatorTool(mettaEngine));
+                ctx.Output.RecordInit("MeTTa Tools", true, "symbolic reasoning tools registered");
+
+                // MeTTa agent management tool
+                try
+                {
+                    var agentRuntime = MeTTaAgentExtensions.CreateDefaultRuntime(
+                        mettaEngine, ctx.Config.Endpoint);
+                    Tools = Tools.WithTool(new MeTTaAgentTool(agentRuntime, mettaEngine));
+                    ctx.Output.RecordInit("MeTTa Agents", true, "agent management tool");
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    System.Diagnostics.Debug.WriteLine(
+                        $"[Tools] MeTTaAgentTool registration skipped: {ex.Message}");
+                }
+
+                // NextNode symbolic planning tool
+                Tools = Tools.WithTool(new NextNodeTool(mettaEngine, Tools));
+
+                // Qdrant sync tool (conditional on settings)
+                {
+                    var syncSettings = ctx.Services?.GetService<QdrantSettings>();
+                    if (syncSettings != null)
+                    {
+                        Tools = Tools.WithTool(new QdrantSyncTool(syncSettings));
+                        ctx.Output.RecordInit("Qdrant Sync", true, "collection sync tool");
+                    }
+                }
 
                 // OpenClaw Gateway integration
                 if (ctx.Config.EnableOpenClaw)

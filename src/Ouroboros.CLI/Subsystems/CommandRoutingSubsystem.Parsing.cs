@@ -128,12 +128,18 @@ public sealed partial class CommandRoutingSubsystem
             return (ActionType.Dag, input.Length > 4 ? input[4..].Trim() : "show", null);
 
         // Affect/emotions
-        if (lower.StartsWith("affect ") || lower.StartsWith("emotion"))
-            return (ActionType.Affect, input.Split(' ', 2).Last(), null);
+        if (lower.StartsWith("affect ") || lower.StartsWith("emotion "))
+        {
+            var parts = input.Split(' ', 2);
+            return (ActionType.Affect, parts.Length > 1 ? parts[1].Trim() : "", null);
+        }
 
-        // Environment
-        if (lower.StartsWith("env ") || lower.StartsWith("environment"))
-            return (ActionType.Environment, input.Split(' ', 2).Last(), null);
+        // Environment (RL gridworld)
+        if (lower.StartsWith("env ") || lower.StartsWith("environment "))
+        {
+            var parts = input.Split(' ', 2);
+            return (ActionType.Environment, parts.Length > 1 ? parts[1].Trim() : "", null);
+        }
 
         // Maintenance
         if (lower.StartsWith("maintenance ") || lower.StartsWith("maintain"))

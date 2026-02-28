@@ -174,6 +174,9 @@ rootCommand.Add(CreateClaudeCommand(host));
 // Add a special 'serve' subcommand for running API-only mode
 rootCommand.Add(CreateServeCommand());
 
+// Wire up the CommandLineInvoker so voice integration can re-invoke commands
+host.Services.GetRequiredService<CommandLineInvoker>().SetRootCommand(rootCommand);
+
 // Parse and invoke
 int exitCode = await rootCommand.Parse(args).InvokeAsync();
 

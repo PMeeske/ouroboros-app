@@ -8,7 +8,9 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Ouroboros.Agent.MetaAI;
 using Ouroboros.Agent.MetaAI.SelfModel;
 using Ouroboros.ApiHost.Services;
+using Ouroboros.Application.Integration;
 using Ouroboros.Core.CognitivePhysics;
+using Ouroboros.Core.Ethics;
 using Ouroboros.Domain;
 using Ouroboros.Providers;
 
@@ -74,6 +76,18 @@ public static class EngineServiceCollectionExtensions
         });
 
         services.TryAddSingleton<ISelfModelService, SelfModelService>();
+
+        // ── Ethics framework (needed by IEmbodiedAgent and others) ──────────
+        services.TryAddSingleton<IEthicsFramework>(
+            _ => EthicsFrameworkFactory.CreateDefault());
+
+        // ── Engine interfaces via AddOuroborosFull ────────────────────────────
+        // AddOuroborosFull uses TryAddSingleton throughout, so registrations
+        // above (cognitive physics, self-model, etc.) always win. This fills in
+        // the engine interfaces (IEpisodicMemoryEngine, IAdapterLearningEngine,
+        // IMultiAgentCoordinator, IProgramSynthesisEngine, etc.) that the CLI
+        // path was previously missing.
+        services.AddOuroborosFull();
 
         // ── Health checks (Kubernetes liveness/readiness probes) ─────────────
         services.AddHealthChecks();

@@ -41,8 +41,7 @@ public static class EnvironmentCommands
                 await ReplayEpisodeAsync(options);
                 break;
             default:
-                PrintError($"Unknown command: {options.Command}");
-                AnsiConsole.MarkupLine(OuroborosTheme.Dim("Available commands: step, run, replay"));
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim("  Environment (RL) commands: step, run, replay"));
                 break;
         }
     }

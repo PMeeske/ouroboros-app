@@ -269,6 +269,7 @@ public sealed partial class OuroborosAgent
             ActionType.AgiCoordinate => await RunAgentCoordinationAsync(action.Argument),
             ActionType.AgiExperience => GetExperienceBufferStatus(),
             ActionType.PromptOptimize => GetPromptOptimizerStatus(),
+            ActionType.Swarm => await SwarmCommandAsync(action.Argument),
             ActionType.Chat => await ChatAsync(input),
             _ => await ChatAsync(input)
         };

@@ -5,6 +5,7 @@
 namespace Ouroboros.Application.Personality;
 
 using System.Collections.Concurrent;
+using Ouroboros.Application.Extensions;
 
 /// <summary>
 /// Engine for conducting inner dialog and autonomous thinking processes.
@@ -94,6 +95,7 @@ public sealed partial class InnerDialogEngine
                 }
             }
         });
+        _autonomousThinkingTask.ObserveExceptions("InnerDialogEngine.AutonomousThinking");
     }
 
     /// <summary>
