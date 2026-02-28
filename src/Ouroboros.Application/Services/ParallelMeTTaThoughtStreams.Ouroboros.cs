@@ -5,6 +5,7 @@
 namespace Ouroboros.Application.Services;
 
 using System.Runtime.CompilerServices;
+using Ouroboros.Application.Extensions;
 using Ouroboros.Application.Tools;
 
 /// <summary>
@@ -35,7 +36,7 @@ public sealed partial class ParallelMeTTaThoughtStreams
                 Timestamp = DateTime.UtcNow,
                 SequenceNumber = a.SelfReferenceDepth,
             };
-            _ = EmitAtomAsync(thought, CancellationToken.None);
+            EmitAtomAsync(thought, CancellationToken.None).ObserveExceptions("OuroborosStream.SelfConsumption");
         };
 
         atom.OnFixedPoint += (a) =>
@@ -48,7 +49,7 @@ public sealed partial class ParallelMeTTaThoughtStreams
                 Timestamp = DateTime.UtcNow,
                 SequenceNumber = a.SelfReferenceDepth,
             };
-            _ = EmitAtomAsync(thought, CancellationToken.None);
+            EmitAtomAsync(thought, CancellationToken.None).ObserveExceptions("OuroborosStream.FixedPoint");
         };
 
         return (atom, node);
@@ -79,9 +80,9 @@ public sealed partial class ParallelMeTTaThoughtStreams
             var next = results[(i + 1) % count];
 
             // Add awareness of neighbors
-            _ = current.Node.InjectInsightAsync(
+            current.Node.InjectInsightAsync(
                 $"(neighbor-awareness (observe {prev.Atom.Id}) (observe {next.Atom.Id}))",
-                CancellationToken.None);
+                CancellationToken.None).ObserveExceptions("OuroborosNetwork.NeighborAwareness");
         }
 
         return results;

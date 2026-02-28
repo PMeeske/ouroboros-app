@@ -65,6 +65,10 @@ public sealed class GymEnvironmentAdapter : IAsyncDisposable
 
             return Result<Unit, string>.Success(Unit.Value);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             this.logger.LogError(ex, "Failed to connect to Gym environment");
@@ -97,6 +101,10 @@ public sealed class GymEnvironmentAdapter : IAsyncDisposable
 
             this.currentState = SensorState.Default();
             return Result<SensorState, string>.Success(this.currentState);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -147,6 +155,10 @@ public sealed class GymEnvironmentAdapter : IAsyncDisposable
 
             return Result<ActionResult, string>.Success(result);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             this.logger.LogError(ex, "Failed to step Gym environment");
@@ -173,6 +185,10 @@ public sealed class GymEnvironmentAdapter : IAsyncDisposable
 
             var state = this.currentState ?? SensorState.Default();
             return Result<SensorState, string>.Success(state);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

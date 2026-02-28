@@ -9,6 +9,7 @@ using Ouroboros.Agent.MetaAI;
 using Ouroboros.Agent.MetaAI.SelfModel;
 using Ouroboros.ApiHost.Services;
 using Ouroboros.Core.CognitivePhysics;
+using Ouroboros.Domain;
 using Ouroboros.Providers;
 
 namespace Ouroboros.ApiHost.Extensions;
@@ -49,11 +50,9 @@ public static class EngineServiceCollectionExtensions
         }
 
         // ── Cognitive Physics Engine defaults ─────────────────────────────────
-#pragma warning disable CS0618 // Obsolete IEmbeddingProvider/IEthicsGate — CPE still requires them
         services.TryAddSingleton<IEthicsGate, PermissiveEthicsGate>();
-        services.TryAddSingleton<IEmbeddingProvider>(
+        services.TryAddSingleton<IEmbeddingModel>(
             _ => new NullEmbeddingProvider());
-#pragma warning restore CS0618
         services.TryAddSingleton<CognitivePhysicsConfig>(CognitivePhysicsConfig.Default);
 
         // ── Self-model components (Phase 2) ──────────────────────────────────

@@ -6,6 +6,7 @@ namespace Ouroboros.Application.Personality;
 
 using System.Collections.Concurrent;
 using System.Text.Json;
+using Ouroboros.Application.Extensions;
 using Ouroboros.Domain;
 
 /// <summary>
@@ -109,7 +110,7 @@ public sealed partial class PersonDetectionEngine
             _currentPerson = updated;
 
             // Persist updated voice data
-            _ = StorePersonAsync(updated, ct);
+            StorePersonAsync(updated, ct).ObserveExceptions("PersonDetection.StorePerson");
 
             return new PersonDetectionResult(
                 Person: updated,

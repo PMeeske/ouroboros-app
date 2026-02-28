@@ -170,18 +170,17 @@ public partial class AutonomousMind
                 context.AppendLine($"Current emotional state: arousal={_currentEmotion.Arousal:F2}, valence={_currentEmotion.Valence:F2}, feeling={_currentEmotion.DominantEmotion}");
 
                 // Use diverse facts, not always the most recent (prevents thought loops)
-                if (_learnedFacts.Count > 0)
+                var diverseFacts = GetDiverseFacts(3);
+                if (diverseFacts.Count > 0)
                 {
-                    var diverseFacts = GetDiverseFacts(3);
-                    if (diverseFacts.Count > 0)
-                    {
-                        context.AppendLine($"Some things I've learned: {string.Join("; ", diverseFacts)}");
-                    }
+                    context.AppendLine($"Some things I've learned: {string.Join("; ", diverseFacts)}");
                 }
 
-                if (_interests.Count > 0)
+                List<string> interestsSnapshot;
+                lock (_interestsLock) { interestsSnapshot = _interests.ToList(); }
+                if (interestsSnapshot.Count > 0)
                 {
-                    context.AppendLine($"My interests: {string.Join(", ", _interests)}");
+                    context.AppendLine($"My interests: {string.Join(", ", interestsSnapshot)}");
                 }
 
                 context.AppendLine($"\nReflection prompt: {prompt}");

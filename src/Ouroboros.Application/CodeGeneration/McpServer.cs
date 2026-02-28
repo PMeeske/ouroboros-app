@@ -239,6 +239,18 @@ public partial class McpServer
                 }
             };
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (HttpRequestException ex)
+        {
+            return new McpToolResult
+            {
+                IsError = true,
+                Content = $"HTTP request failed: {ex.Message}"
+            };
+        }
         catch (Exception ex)
         {
             return new McpToolResult

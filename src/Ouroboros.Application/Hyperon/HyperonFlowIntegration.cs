@@ -54,7 +54,7 @@ public sealed class HyperonFlowIntegration : IAsyncDisposable
         _engine.AtomAdded += OnAtomAdded;
 
         // Start event processing
-        _ = ProcessEventsAsync(_cts.Token);
+        ProcessEventsAsync(_cts.Token).ObserveExceptions("HyperonFlowIntegration.ProcessEvents");
     }
 
     /// <summary>

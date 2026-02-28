@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using LangChain.Providers.Ollama;
 using Ouroboros.Abstractions.Monads;
 using Ouroboros.Application.Configuration;
+using Ouroboros.Application.Extensions;
 using Ouroboros.Application.Personality;
 using Ouroboros.Application.Services;
 using Ouroboros.CLI.Avatar;
@@ -240,9 +241,10 @@ public sealed partial class RoomMode
             presenceDetector.OnPresenceDetected += (evt) =>
             {
                 var awayDuration = DateTime.UtcNow - lastAbsenceTime;
-                _ = GreetOnPresenceAsync(
+                GreetOnPresenceAsync(
                     chatModel, ttsService, listener, immersive, personaName,
-                    awayDuration.TotalMinutes > 1 ? awayDuration : null, ct);
+                    awayDuration.TotalMinutes > 1 ? awayDuration : null, ct)
+                    .ObserveExceptions("RoomMode.GreetOnPresence");
             };
 
             presenceDetector.OnAbsenceDetected += (_) =>
@@ -259,10 +261,11 @@ public sealed partial class RoomMode
             gestureDetector = new GestureDetector();
             gestureDetector.OnGestureDetected += (gestureType, description) =>
             {
-                _ = RespondToGestureAsync(
+                RespondToGestureAsync(
                     gestureType, description,
                     ethicsFramework, chatModel, ttsService, listener, immersive,
-                    personaName, ct);
+                    personaName, ct)
+                    .ObserveExceptions("RoomMode.RespondToGesture");
             };
             await gestureDetector.StartAsync(ct).ConfigureAwait(false);
             AnsiConsole.MarkupLine(OuroborosTheme.Ok("  [OK] Gesture detection active"));

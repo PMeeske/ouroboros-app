@@ -100,6 +100,10 @@ public sealed class EmbodiedAgent : IEmbodiedAgent
 
             return Result<Unit, string>.Success(Unit.Value);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             this.logger.LogError(ex, "Failed to initialize agent in environment");
@@ -138,6 +142,10 @@ public sealed class EmbodiedAgent : IEmbodiedAgent
             this.lastSensorState = sensorState;
 
             return Result<SensorState, string>.Success(sensorState);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -287,6 +295,10 @@ public sealed class EmbodiedAgent : IEmbodiedAgent
 
             return Result<ActionResult, string>.Success(actionResult);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             this.logger.LogError(ex, "Failed to execute action");
@@ -342,6 +354,10 @@ public sealed class EmbodiedAgent : IEmbodiedAgent
             this.logger.LogInformation("Learning completed successfully");
             return Result<Unit, string>.Success(Unit.Value);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             this.logger.LogError(ex, "Failed to learn from experience");
@@ -377,6 +393,10 @@ public sealed class EmbodiedAgent : IEmbodiedAgent
 
             this.logger.LogInformation("Planning completed with {ActionCount} actions", plan.Actions.Count);
             return Result<Domain.Embodied.Plan, string>.Success(plan);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

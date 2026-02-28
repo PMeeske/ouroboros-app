@@ -22,6 +22,10 @@ public partial class AutonomousMind : IDisposable
     private readonly ConcurrentQueue<AutonomousAction> _pendingActions = new();
     private readonly List<string> _learnedFacts = [];
     private readonly List<string> _interests = [];
+    private readonly object _learnedFactsLock = new();
+    private readonly object _interestsLock = new();
+    private const int MaxLearnedFacts = 100;
+    private const int MaxInterests = 100;
     private readonly HashSet<string> _recentTopicKeywords = []; // Tracks recent topics to avoid repetition
     private int _topicRotationCounter; // Forces topic diversity
 
@@ -212,9 +216,12 @@ public partial class AutonomousMind : IDisposable
     public IEnumerable<Thought> RecentThoughts => _thoughtStream.TakeLast(20);
 
     /// <summary>
-    /// Gets learned facts.
+    /// Gets learned facts. Returns a snapshot copy for thread safety.
     /// </summary>
-    public IReadOnlyList<string> LearnedFacts => _learnedFacts.AsReadOnly();
+    public IReadOnlyList<string> LearnedFacts
+    {
+        get { lock (_learnedFactsLock) { return _learnedFacts.ToList().AsReadOnly(); } }
+    }
 
     /// <summary>
     /// Gets current emotional state.
@@ -271,12 +278,18 @@ public partial class AutonomousMind : IDisposable
 
     /// <summary>
     /// Add an interest for curiosity-driven exploration.
+    /// Thread-safe; capped at <see cref="MaxInterests"/> entries.
     /// </summary>
     public void AddInterest(string interest)
     {
-        if (!_interests.Contains(interest, StringComparer.OrdinalIgnoreCase))
+        lock (_interestsLock)
         {
-            _interests.Add(interest);
+            if (!_interests.Contains(interest, StringComparer.OrdinalIgnoreCase))
+            {
+                if (_interests.Count >= MaxInterests)
+                    _interests.RemoveAt(0); // evict oldest
+                _interests.Add(interest);
+            }
         }
     }
 
@@ -285,24 +298,30 @@ public partial class AutonomousMind : IDisposable
     /// </summary>
     public string GetMindState()
     {
+        // Take snapshots under locks before building the string
+        List<string> interestsSnapshot;
+        List<string> factsSnapshot;
+        lock (_interestsLock) { interestsSnapshot = _interests.ToList(); }
+        lock (_learnedFactsLock) { factsSnapshot = _learnedFacts.ToList(); }
+
         var sb = new StringBuilder();
         sb.AppendLine("\ud83e\udde0 **Autonomous Mind State**\n");
         sb.AppendLine($"**Status:** {(_isActive ? "Active \ud83d\udfe2" : "Dormant \ud83d\udd34")}");
         sb.AppendLine($"**Thoughts Generated:** {_thoughtCount}");
-        sb.AppendLine($"**Facts Learned:** {_learnedFacts.Count}");
-        sb.AppendLine($"**Active Interests:** {_interests.Count}");
+        sb.AppendLine($"**Facts Learned:** {factsSnapshot.Count}");
+        sb.AppendLine($"**Active Interests:** {interestsSnapshot.Count}");
         sb.AppendLine($"**Pending Curiosities:** {_curiosityQueue.Count}");
         sb.AppendLine($"**Pending Actions:** {_pendingActions.Count}");
 
-        if (_interests.Count > 0)
+        if (interestsSnapshot.Count > 0)
         {
-            sb.AppendLine($"\n**Interests:** {string.Join(", ", _interests.Take(10))}");
+            sb.AppendLine($"\n**Interests:** {string.Join(", ", interestsSnapshot.Take(10))}");
         }
 
-        if (_learnedFacts.Count > 0)
+        if (factsSnapshot.Count > 0)
         {
             sb.AppendLine("\n**Recent Discoveries:**");
-            foreach (var fact in _learnedFacts.TakeLast(5))
+            foreach (var fact in factsSnapshot.TakeLast(5))
             {
                 sb.AppendLine($"  \u2022 {fact}");
             }

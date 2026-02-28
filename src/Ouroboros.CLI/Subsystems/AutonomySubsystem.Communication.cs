@@ -4,6 +4,7 @@ namespace Ouroboros.CLI.Subsystems;
 using System.Text;
 using Ouroboros.Abstractions.Monads;
 using Ouroboros.Abstractions.Agent;
+using Ouroboros.Application.Extensions;
 using Ouroboros.Application.Services;
 using Ouroboros.Application.Tools;
 using Ouroboros.CLI.Infrastructure;
@@ -52,8 +53,10 @@ public sealed partial class AutonomySubsystem
             // Share coordinator with autonomous tools (enables status checks even without push mode)
             Ouroboros.Application.Tools.AutonomousTools.DefaultContext.Coordinator = Coordinator;
 
-            // Wire up event handlers
-            Coordinator.OnProactiveMessage += HandleAutonomousMessage;
+            // Wire up event handlers — use fire-and-forget with exception observation
+            // because the event delegate signature is synchronous (Action<T>)
+            Coordinator.OnProactiveMessage += args =>
+                HandleAutonomousMessageAsync(args).ObserveExceptions("HandleAutonomousMessage");
             Coordinator.OnIntentionRequiresAttention += HandleIntentionAttention;
 
             // Configure functions if available
@@ -227,8 +230,9 @@ public sealed partial class AutonomySubsystem
 
     /// <summary>
     /// Handles proactive messages from autonomous coordinator.
+    /// Must not be called directly from event handlers — use fire-and-forget via ObserveExceptions.
     /// </summary>
-    internal async void HandleAutonomousMessage(ProactiveMessageEventArgs args)
+    internal async Task HandleAutonomousMessageAsync(ProactiveMessageEventArgs args)
     {
         // Always show auto-training and user_persona messages
         bool isTrainingMessage = args.Source is "user_persona" or "auto_training";

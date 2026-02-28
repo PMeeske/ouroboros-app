@@ -111,6 +111,10 @@ public sealed class VisualProcessor
 
             return Result<float[], string>.Success(features);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             this.logger.LogError(ex, "Feature extraction failed");
@@ -158,6 +162,10 @@ public sealed class VisualProcessor
             this.logger.LogDebug("Object detection complete: {Count} objects found", detectedObjects.Count);
 
             return Result<List<DetectedObject>, string>.Success(detectedObjects);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

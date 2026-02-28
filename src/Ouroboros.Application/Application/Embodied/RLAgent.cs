@@ -128,6 +128,10 @@ public sealed class RLAgent
 
             return Result<EmbodiedAction, string>.Success(selectedAction);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             this.logger.LogError(ex, "Failed to select action");
@@ -244,6 +248,10 @@ public sealed class RLAgent
 
             return Result<TrainingMetrics, string>.Success(metrics);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             this.logger.LogError(ex, "Training failed");
@@ -272,6 +280,10 @@ public sealed class RLAgent
             this.logger.LogInformation("Checkpoint saved successfully");
             return Result<Unit, string>.Success(Unit.Value);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             this.logger.LogError(ex, "Failed to save checkpoint");
@@ -299,6 +311,10 @@ public sealed class RLAgent
 
             this.logger.LogInformation("Checkpoint loaded successfully");
             return Result<Unit, string>.Success(Unit.Value);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

@@ -67,6 +67,10 @@ public sealed class EnvironmentManager : IEnvironmentManager
             this.logger.LogInformation("Environment created: {Id}", handle.Id);
             return Result<EnvironmentHandle, string>.Success(handle);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             this.logger.LogError(ex, "Failed to create environment");
@@ -93,6 +97,10 @@ public sealed class EnvironmentManager : IEnvironmentManager
 
             this.logger.LogInformation("Environment reset successfully: {Id}", handle.Id);
             return Result<Unit, string>.Success(Unit.Value);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -127,6 +135,10 @@ public sealed class EnvironmentManager : IEnvironmentManager
             this.logger.LogInformation("Environment destroyed: {Id}", handle.Id);
             return Result<Unit, string>.Success(Unit.Value);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             this.logger.LogError(ex, "Failed to destroy environment");
@@ -152,6 +164,10 @@ public sealed class EnvironmentManager : IEnvironmentManager
 
             return Result<IReadOnlyList<EnvironmentInfo>, string>.Success(
                 this.availableEnvironments.AsReadOnly());
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

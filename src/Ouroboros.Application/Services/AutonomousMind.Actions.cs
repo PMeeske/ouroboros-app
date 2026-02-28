@@ -404,7 +404,9 @@ public partial class AutonomousMind
             // Persist mind state summary
             if (PersistLearningFunction != null)
             {
-                var stateSummary = $"Mind state at {DateTime.Now:HH:mm}: {_thoughtCount} thoughts, {_learnedFacts.Count} facts, emotion={_currentEmotion.DominantEmotion}";
+                int factsCount;
+                lock (_learnedFactsLock) { factsCount = _learnedFacts.Count; }
+                var stateSummary = $"Mind state at {DateTime.Now:HH:mm}: {_thoughtCount} thoughts, {factsCount} facts, emotion={_currentEmotion.DominantEmotion}";
                 await PersistLearningFunction("mind_state", stateSummary, 0.5, _cts.Token);
             }
 

@@ -9,6 +9,7 @@ using LangChain.DocumentLoaders;
 using LangChain.Providers.Ollama;
 using Ouroboros.Abstractions.Agent;
 using Ouroboros.Application.Configuration;
+using Ouroboros.Application.Extensions;
 using Ouroboros.Agent;
 using Ouroboros.Agent.MetaAI;
 using Ouroboros.CLI.Avatar;
@@ -301,7 +302,7 @@ public sealed partial class ImmersiveMode
                 }
 
                 // Learn from distinction consciousness cycle (async, don't block)
-                _ = LearnFromInteractionAsync(input, response, ct);
+                LearnFromInteractionAsync(input, response, ct).ObserveExceptions("ImmersiveMode.LearnFromInteraction");
 
                 // Add assistant response to persistent memory
                 conversationHistory.Add(("assistant", response));

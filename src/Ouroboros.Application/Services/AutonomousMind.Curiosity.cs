@@ -46,10 +46,19 @@ public partial class AutonomousMind
                     _topicRotationCounter++;
                     var forceNewTopic = _topicRotationCounter % 5 == 0;
 
-                    if (!forceNewTopic && _interests.Count > 0 && Random.Shared.NextDouble() < 0.5)
+                    string? interestQuery = null;
+                    if (!forceNewTopic && Random.Shared.NextDouble() < 0.5)
                     {
-                        var interest = _interests[Random.Shared.Next(_interests.Count)];
-                        query = $"{interest} news {DateTime.Now:yyyy}";
+                        lock (_interestsLock)
+                        {
+                            if (_interests.Count > 0)
+                                interestQuery = _interests[Random.Shared.Next(_interests.Count)];
+                        }
+                    }
+
+                    if (interestQuery != null)
+                    {
+                        query = $"{interestQuery} news {DateTime.Now:yyyy}";
                     }
                     else
                     {
@@ -95,17 +104,26 @@ public partial class AutonomousMind
                         if (!string.IsNullOrWhiteSpace(fact) && fact.Length < 500)
                         {
                             // Check for similarity to prevent repetitive facts
+                            bool added = false;
                             if (!IsSimilarToExistingFacts(fact))
                             {
-                                _learnedFacts.Add(fact);
-                                TrackTopicKeywords(fact);
-
-                                // Limit learned facts
-                                while (_learnedFacts.Count > 50)
+                                lock (_learnedFactsLock)
                                 {
-                                    _learnedFacts.RemoveAt(0);
+                                    _learnedFacts.Add(fact);
+
+                                    // Limit learned facts; MaxLearnedFacts cap enforced in AddLearnedFact
+                                    while (_learnedFacts.Count > MaxLearnedFacts)
+                                    {
+                                        _learnedFacts.RemoveAt(0);
+                                    }
                                 }
 
+                                added = true;
+                                TrackTopicKeywords(fact);
+                            }
+
+                            if (added)
+                            {
                                 OnDiscovery?.Invoke(query, fact);
 
                                 // Sometimes share discoveries (unless suppressed)
@@ -134,8 +152,10 @@ public partial class AutonomousMind
     /// </summary>
     private bool IsSimilarToExistingFacts(string newFact)
     {
+        List<string> snapshot;
+        lock (_learnedFactsLock) { snapshot = _learnedFacts.TakeLast(10).ToList(); }
         var newWords = ExtractKeywords(newFact);
-        foreach (var existingFact in _learnedFacts.TakeLast(10))
+        foreach (var existingFact in snapshot)
         {
             var existingWords = ExtractKeywords(existingFact);
             var commonWords = newWords.Intersect(existingWords, StringComparer.OrdinalIgnoreCase).Count();
@@ -202,35 +222,39 @@ public partial class AutonomousMind
 
     /// <summary>
     /// Gets diverse facts from the collection, avoiding recently used ones.
+    /// Takes a snapshot for thread safety.
     /// </summary>
     private List<string> GetDiverseFacts(int count)
     {
-        if (_learnedFacts.Count == 0) return [];
+        List<string> snapshot;
+        lock (_learnedFactsLock) { snapshot = _learnedFacts.ToList(); }
+
+        if (snapshot.Count == 0) return [];
 
         var result = new List<string>();
         var used = new HashSet<int>();
 
         // Try to get facts from different parts of the list
-        var step = Math.Max(1, _learnedFacts.Count / count);
-        for (int i = 0; i < _learnedFacts.Count && result.Count < count; i += step)
+        var step = Math.Max(1, snapshot.Count / count);
+        for (int i = 0; i < snapshot.Count && result.Count < count; i += step)
         {
             // Add some randomness to selection
-            var index = Math.Min(i + Random.Shared.Next(Math.Max(1, step / 2)), _learnedFacts.Count - 1);
+            var index = Math.Min(i + Random.Shared.Next(Math.Max(1, step / 2)), snapshot.Count - 1);
             if (!used.Contains(index))
             {
                 used.Add(index);
-                result.Add(_learnedFacts[index]);
+                result.Add(snapshot[index]);
             }
         }
 
         // If we still need more, fill from unused
         if (result.Count < count)
         {
-            for (int i = 0; i < _learnedFacts.Count && result.Count < count; i++)
+            for (int i = 0; i < snapshot.Count && result.Count < count; i++)
             {
                 if (!used.Contains(i))
                 {
-                    result.Add(_learnedFacts[i]);
+                    result.Add(snapshot[i]);
                 }
             }
         }

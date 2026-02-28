@@ -83,7 +83,7 @@ public sealed partial class ChatSubsystem
 
         // ── Store episode ─────────────────────────────────────────────────
         if (_episodicMemory != null)
-            _ = StoreAgentEpisodeAsync(input, response, ExtractTopicFromResponse(input));
+            StoreAgentEpisodeAsync(input, response, ExtractTopicFromResponse(input)).ObserveExceptions("StoreAgentEpisode");
 
         if (!string.IsNullOrWhiteSpace(response))
         {

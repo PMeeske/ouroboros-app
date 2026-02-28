@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Ouroboros.Abstractions.Monads;
 using Ouroboros.Core.CognitivePhysics;
+using Ouroboros.Domain;
 
 namespace Ouroboros.CLI.Services;
 
@@ -15,14 +16,12 @@ public sealed class CognitivePhysicsService : ICognitivePhysicsService
     private readonly ILogger<CognitivePhysicsService> _logger;
 
     public CognitivePhysicsService(
-#pragma warning disable CS0618 // Obsolete IEmbeddingProvider/IEthicsGate — CPE still requires them
-        IEmbeddingProvider embeddingProvider,
+        IEmbeddingModel embeddingModel,
         IEthicsGate ethicsGate,
-#pragma warning restore CS0618
         ILogger<CognitivePhysicsService> logger,
         CognitivePhysicsConfig? config = null)
     {
-        _engine = new CognitivePhysicsEngine(embeddingProvider, ethicsGate, config);
+        _engine = new CognitivePhysicsEngine(embeddingModel, ethicsGate, config);
         _logger = logger;
     }
 

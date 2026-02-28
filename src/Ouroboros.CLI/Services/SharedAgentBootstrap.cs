@@ -107,11 +107,9 @@ public static partial class SharedAgentBootstrap
     /// </summary>
     public static (CognitivePhysicsEngine Engine, CognitiveState State) CreateCognitivePhysics()
     {
-#pragma warning disable CS0618 // Obsolete IEmbeddingProvider/IEthicsGate — CPE requires them
         var engine = new CognitivePhysicsEngine(
             new Ouroboros.ApiHost.NullEmbeddingProvider(),
             new PermissiveEthicsGate());
-#pragma warning restore CS0618
         var state = CognitiveState.Create("general");
         return (engine, state);
     }

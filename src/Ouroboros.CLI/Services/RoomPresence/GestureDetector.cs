@@ -136,15 +136,19 @@ public sealed class GestureDetector : IAsyncDisposable
         string imagePath, CancellationToken ct)
     {
         // Use Ollama vision model for image analysis
-        var psi = new ProcessStartInfo
+        // Use ArgumentList to prevent command injection via prompt or image path
+        var psi = new ProcessStartInfo("ollama")
         {
-            FileName = "ollama",
-            Arguments = $"run llava \"{GesturePrompt}\" --images \"{imagePath}\"",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true,
         };
+        psi.ArgumentList.Add("run");
+        psi.ArgumentList.Add("llava");
+        psi.ArgumentList.Add(GesturePrompt);
+        psi.ArgumentList.Add("--images");
+        psi.ArgumentList.Add(imagePath);
 
         try
         {

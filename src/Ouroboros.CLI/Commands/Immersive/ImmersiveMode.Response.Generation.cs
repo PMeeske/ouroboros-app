@@ -6,6 +6,7 @@ namespace Ouroboros.CLI.Commands;
 
 using System.Text;
 using Ouroboros.Application;
+using Ouroboros.Application.Extensions;
 using Ouroboros.Application.Personality;
 using Ouroboros.Application.Personality.Consciousness;
 using Ouroboros.Application.Services;
@@ -326,8 +327,9 @@ public sealed partial class ImmersiveMode
             }
 
             if (_episodicMemory != null)
-                _ = StoreConversationEpisodeAsync(_episodicMemory, input, response,
-                    _immersiveLastTopic, personaName, CancellationToken.None);
+                StoreConversationEpisodeAsync(_episodicMemory, input, response,
+                    _immersiveLastTopic, personaName, CancellationToken.None)
+                    .ObserveExceptions("ImmersiveMode.StoreConversationEpisode");
 
             return response;
         }

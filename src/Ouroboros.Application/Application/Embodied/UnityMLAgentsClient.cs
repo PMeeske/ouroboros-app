@@ -66,6 +66,10 @@ public sealed class UnityMLAgentsClient : IAsyncDisposable
 
             return Result<Unit, string>.Success(Unit.Value);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             this.logger.LogError(ex, "Failed to connect to Unity ML-Agents");
@@ -108,6 +112,10 @@ public sealed class UnityMLAgentsClient : IAsyncDisposable
 
             return Result<ActionResult, string>.Success(actionResult);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             this.logger.LogError(ex, "Failed to send action to Unity ML-Agents");
@@ -141,6 +149,10 @@ public sealed class UnityMLAgentsClient : IAsyncDisposable
             var sensorState = SensorState.Default();
             return Result<SensorState, string>.Success(sensorState);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             this.logger.LogError(ex, "Failed to get sensor state from Unity ML-Agents");
@@ -168,6 +180,10 @@ public sealed class UnityMLAgentsClient : IAsyncDisposable
             await Task.Delay(50, ct); // Simulate reset delay
 
             return Result<Unit, string>.Success(Unit.Value);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

@@ -5,6 +5,7 @@
 namespace Ouroboros.Application.Middleware;
 
 using Microsoft.Extensions.Logging;
+using Ouroboros.Application.Extensions;
 using Ouroboros.Application.Personality.Consciousness;
 using Ouroboros.Core.DistinctionLearning;
 using Ouroboros.Pipeline.Middleware;
@@ -42,7 +43,7 @@ public sealed class DistinctionLearningMiddleware : IPipelineMiddleware
         var result = await next(context, ct);
 
         // 2. Learn from this interaction (async, don't block)
-        _ = LearnFromInteractionAsync(context, result, ct);
+        LearnFromInteractionAsync(context, result, ct).ObserveExceptions("DistinctionLearning.LearnFromInteraction");
 
         return result;
     }

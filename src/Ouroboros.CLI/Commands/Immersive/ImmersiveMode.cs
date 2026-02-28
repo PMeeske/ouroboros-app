@@ -113,9 +113,7 @@ public sealed partial class ImmersiveMode
 
     // Ethics + CognitivePhysics + Phi — integrated into every response turn
     private Ouroboros.Core.Ethics.IEthicsFramework? _immersiveEthics;
-#pragma warning disable CS0618 // Obsolete CPE IEmbeddingProvider/IEthicsGate
     private Ouroboros.Core.CognitivePhysics.CognitivePhysicsEngine? _immersiveCogPhysics;
-#pragma warning restore CS0618
     private Ouroboros.Core.CognitivePhysics.CognitiveState _immersiveCogState
         = Ouroboros.Core.CognitivePhysics.CognitiveState.Create("general");
     private Ouroboros.Providers.IITPhiCalculator _immersivePhiCalc = new();
