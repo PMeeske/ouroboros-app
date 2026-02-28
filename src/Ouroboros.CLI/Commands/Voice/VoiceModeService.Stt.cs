@@ -74,7 +74,7 @@ public sealed partial class VoiceModeService
         {
             _stream.SetPresenceState(AgentPresenceState.Idle, "Listening cancelled");
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             var face4 = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
             AnsiConsole.MarkupLine($"  [red]{Markup.Escape(face4)} ✗ Listen error: {Markup.Escape(ex.Message)}[/]");

@@ -69,7 +69,12 @@ public sealed class ProcessDslHandler : IRequestHandler<ProcessDslRequest, strin
                     var step = PipelineDsl.Build(dsl);
                     state = await step(state);
                 }
-                catch (Exception stepEx)
+                catch (InvalidOperationException stepEx)
+                {
+                    success = false;
+                    throw new InvalidOperationException($"Pipeline step failed: {stepEx.Message}", stepEx);
+                }
+                catch (System.Net.Http.HttpRequestException stepEx)
                 {
                     success = false;
                     throw new InvalidOperationException($"Pipeline step failed: {stepEx.Message}", stepEx);
@@ -128,7 +133,20 @@ public sealed class ProcessDslHandler : IRequestHandler<ProcessDslRequest, strin
 
             return string.Empty;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            // Track failure for self-improvement
+            if (capabilityRegistry != null)
+            {
+                var execResult = AutonomySubsystem.CreateCapabilityPlanExecutionResult(false, TimeSpan.Zero, dsl);
+                await capabilityRegistry.UpdateCapabilityAsync("pipeline_execution", execResult);
+            }
+
+            AnsiConsole.MarkupLine($"[red]{Markup.Escape($"DSL execution failed: {ex.Message}")}[/]");
+
+            return string.Empty;
+        }
+        catch (System.Net.Http.HttpRequestException ex)
         {
             // Track failure for self-improvement
             if (capabilityRegistry != null)

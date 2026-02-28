@@ -262,7 +262,11 @@ public sealed partial class OuroborosAgent
         {
             return Result<string, string>.Failure("Cancelled.");
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            return Result<string, string>.Failure($"claude process error: {ex.Message}");
+        }
+        catch (System.ComponentModel.Win32Exception ex)
         {
             return Result<string, string>.Failure($"claude process error: {ex.Message}");
         }
@@ -290,7 +294,8 @@ public sealed partial class OuroborosAgent
             probe?.WaitForExit(2000);
             if (probe?.ExitCode == 0) return "claude";
         }
-        catch (Exception) { /* fall through — claude CLI not found */ }
+        catch (InvalidOperationException) { /* fall through — claude CLI not found */ }
+        catch (System.ComponentModel.Win32Exception) { /* fall through — claude CLI not found */ }
 
         // 2. VS Code extension bundle (Windows: anthropic.claude-code-*)
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);

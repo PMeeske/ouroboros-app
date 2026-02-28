@@ -36,7 +36,7 @@ public static class MaintenanceCommands
                 _ => PrintErrorAsync($"Unknown maintenance command: {options.Command}. Valid commands: compact, archive, detect-anomalies, schedule, history, alerts")
             });
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             PrintError($"Maintenance operation failed: {ex.Message}");
             if (options.Verbose)

@@ -26,7 +26,7 @@ public sealed class ProcessLargeTextHandler : IRequestHandler<ProcessLargeTextRe
             {
                 textToProcess = await File.ReadAllTextAsync(request.Input, ct);
             }
-            catch (Exception ex)
+            catch (IOException ex)
             {
                 return $"Error reading file: {ex.Message}";
             }
@@ -53,7 +53,11 @@ public sealed class ProcessLargeTextHandler : IRequestHandler<ProcessLargeTextRe
                 success => $"Processed {chunks.Count} chunks:\n\n{success}",
                 error => $"Processing error: {error}");
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            return $"Divide-and-conquer processing failed: {ex.Message}";
+        }
+        catch (System.Net.Http.HttpRequestException ex)
         {
             return $"Divide-and-conquer processing failed: {ex.Message}";
         }

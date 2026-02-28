@@ -394,7 +394,7 @@ public sealed partial class RoomMode
                         }
                     }
                     catch (OperationCanceledException) { break; }
-                    catch (Exception ex)
+                    catch (InvalidOperationException ex)
                     {
                         AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  [room] Proactive monitor error: {ex.Message}"));
                     }

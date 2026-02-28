@@ -79,7 +79,11 @@ public static class VoiceModeExtensions
                 var response = await executeCommand(input);
                 await voice.SayAsync(response);
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
+            {
+                await voice.SayAsync($"Hmm, something went wrong: {ex.Message}");
+            }
+            catch (System.Net.Http.HttpRequestException ex)
             {
                 await voice.SayAsync($"Hmm, something went wrong: {ex.Message}");
             }

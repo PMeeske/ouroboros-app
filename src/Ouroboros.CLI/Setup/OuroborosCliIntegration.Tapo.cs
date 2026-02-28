@@ -212,7 +212,7 @@ public static partial class OuroborosCliIntegration
         {
             return false; // Timeout
         }
-        catch (Exception)
+        catch (InvalidOperationException)
         {
             return false;
         }

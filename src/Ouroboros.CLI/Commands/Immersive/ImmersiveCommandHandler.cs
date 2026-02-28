@@ -48,7 +48,7 @@ public sealed class ImmersiveCommandHandler : ICommandHandler<ImmersiveConfig>
             await _immersiveService.RunAsync(config, cancellationToken);
             return 0;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             _logger.LogError(ex, "Error running immersive mode");
             _console.MarkupLine($"[red]Error:[/] {ex.Message}");

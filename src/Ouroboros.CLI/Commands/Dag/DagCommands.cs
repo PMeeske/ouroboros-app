@@ -64,7 +64,7 @@ public static class DagCommands
                 _ => PrintErrorAsync($"Unknown DAG command: {options.Command}. Valid commands: snapshot, show, replay, validate, retention")
             });
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             PrintError($"DAG operation failed: {ex.Message}");
             if (options.Verbose)
@@ -218,7 +218,11 @@ public static class DagCommands
                 }
             }
         }
-        catch (Exception ex)
+        catch (IOException ex)
+        {
+            PrintError($"Replay failed: {ex.Message}");
+        }
+        catch (System.Text.Json.JsonException ex)
         {
             PrintError($"Replay failed: {ex.Message}");
         }

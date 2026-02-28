@@ -114,7 +114,7 @@ public static class MeTTaInteractiveMode
                         break;
                 }
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 AnsiConsole.MarkupLine($"  [red]{Markup.Escape($"Error: {ex.Message}")}[/]");
             }

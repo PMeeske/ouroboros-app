@@ -82,7 +82,7 @@ public sealed class AgiWarmupHandler : IRequestHandler<AgiWarmupRequest, Unit>
             // discovers all ITool implementations and builds the IServiceProvider.
             _ = Ouroboros.Application.Tools.ServiceContainerFactory.Build();
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             _agent.ConsoleOutput.WriteWarning($"AGI warmup skipped: {ex.Message}");
         }

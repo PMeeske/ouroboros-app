@@ -246,7 +246,7 @@ public sealed class AmbientRoomListener : IAsyncDisposable
             {
                 break;
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 // Log to console so the user knows the mic loop is struggling, but keep running
                 AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  [room] Capture error: {Markup.Escape(ex.Message)}"));

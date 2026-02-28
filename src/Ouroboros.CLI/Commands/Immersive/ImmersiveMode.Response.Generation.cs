@@ -333,7 +333,12 @@ public sealed partial class ImmersiveMode
 
             return response;
         }
-        catch (Exception ex)
+        catch (System.Net.Http.HttpRequestException ex)
+        {
+            AnsiConsole.MarkupLine($"  {IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned)} [red]{Markup.Escape($"[LLM error: {ex.Message}]")}[/]");
+            return "I'm having trouble thinking right now. Let me try again.";
+        }
+        catch (InvalidOperationException ex)
         {
             AnsiConsole.MarkupLine($"  {IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned)} [red]{Markup.Escape($"[LLM error: {ex.Message}]")}[/]");
             return "I'm having trouble thinking right now. Let me try again.";

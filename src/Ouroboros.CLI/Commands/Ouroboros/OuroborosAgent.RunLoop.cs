@@ -141,13 +141,18 @@ public sealed partial class OuroborosAgent
                             await _personalityEngine.SavePersonalitySnapshotAsync(_voice.ActivePersona.Name);
                             System.Diagnostics.Debug.WriteLine("[Personality] Periodic snapshot saved");
                         }
-                        catch (Exception) { /* Ignore — snapshot is non-critical */ }
+                        catch (InvalidOperationException) { /* Ignore — snapshot is non-critical */ }
+                        catch (System.Net.Http.HttpRequestException) { /* Ignore — snapshot is non-critical */ }
                     })
                     .ObserveExceptions("PersonalitySnapshot save");
                     interactionsSinceSnapshot = 0;
                 }
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
+            {
+                await SayWithVoiceAsync($"Hmm, something went wrong: {ex.Message}");
+            }
+            catch (System.Net.Http.HttpRequestException ex)
             {
                 await SayWithVoiceAsync($"Hmm, something went wrong: {ex.Message}");
             }

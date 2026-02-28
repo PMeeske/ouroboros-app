@@ -78,7 +78,12 @@ public sealed class GestureDetector : IAsyncDisposable
                 await Task.Delay(TimeSpan.FromSeconds(IntervalSeconds), ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException) { break; }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
+            {
+                AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  [gesture] Error: {Markup.Escape(ex.Message)}"));
+                await Task.Delay(TimeSpan.FromSeconds(IntervalSeconds * 2), ct).ConfigureAwait(false);
+            }
+            catch (System.Net.Http.HttpRequestException ex)
             {
                 AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  [gesture] Error: {Markup.Escape(ex.Message)}"));
                 await Task.Delay(TimeSpan.FromSeconds(IntervalSeconds * 2), ct).ConfigureAwait(false);
@@ -128,7 +133,8 @@ public sealed class GestureDetector : IAsyncDisposable
                 if (process.ExitCode == 0 && File.Exists(filepath))
                     return filepath;
             }
-            catch (Exception) { /* try next camera name */ }
+            catch (InvalidOperationException) { /* try next camera name */ }
+            catch (System.ComponentModel.Win32Exception) { /* try next camera name */ }
         }
 
         return null;

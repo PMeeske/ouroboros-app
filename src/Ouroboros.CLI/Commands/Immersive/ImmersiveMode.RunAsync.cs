@@ -356,7 +356,12 @@ public sealed partial class ImmersiveMode
             {
                 break;
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
+            {
+                var errorFace = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
+                AnsiConsole.MarkupLine($"\n  [red]{Markup.Escape(errorFace)} {Markup.Escape($"✗ [error] {ex.Message}")}[/]");
+            }
+            catch (System.Net.Http.HttpRequestException ex)
             {
                 var errorFace = IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned);
                 AnsiConsole.MarkupLine($"\n  [red]{Markup.Escape(errorFace)} {Markup.Escape($"✗ [error] {ex.Message}")}[/]");

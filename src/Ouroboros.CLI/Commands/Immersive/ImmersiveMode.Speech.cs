@@ -88,7 +88,7 @@ public sealed partial class ImmersiveMode
                     error => AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"\\[tts: {Markup.Escape(error)}]")}"));
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"\\[tts error: {Markup.Escape(ex.Message)}]")}");
         }

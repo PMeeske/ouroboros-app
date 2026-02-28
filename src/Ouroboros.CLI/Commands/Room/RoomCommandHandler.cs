@@ -36,7 +36,7 @@ public sealed class RoomCommandHandler : ICommandHandler<RoomConfig>
             await _roomService.RunAsync(config, cancellationToken);
             return 0;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             _logger.LogError(ex, "Error running room mode");
             _console.MarkupLine($"[red]Error:[/] {ex.Message}");

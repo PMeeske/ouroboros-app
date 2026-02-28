@@ -46,7 +46,12 @@ public static partial class SharedAgentBootstrap
             log?.Invoke("Memory systems online");
             return model;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            log?.Invoke($"Memory unavailable: {ex.Message}");
+            return null;
+        }
+        catch (HttpRequestException ex)
         {
             log?.Invoke($"Memory unavailable: {ex.Message}");
             return null;
@@ -252,7 +257,7 @@ public static partial class SharedAgentBootstrap
                 log?.Invoke($"Voice output: Azure Neural TTS ({ttsVoice})");
                 return tts;
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 log?.Invoke($"Azure TTS unavailable: {ex.Message}");
             }

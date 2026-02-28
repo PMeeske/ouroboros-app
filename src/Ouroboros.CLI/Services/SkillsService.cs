@@ -57,7 +57,12 @@ public partial class SkillsService : ISkillsService
             return $"'{researchQuery}' is not a valid absolute URL. " +
                    "Use the pipeline command with ArxivSearch, WikiSearch, or Fetch tokens for full research capabilities.";
         }
-        catch (Exception ex)
+        catch (System.Net.Http.HttpRequestException ex)
+        {
+            _logger.LogWarning(ex, "Fetch failed for {Query}", researchQuery);
+            return $"Fetch failed: {ex.Message}";
+        }
+        catch (InvalidOperationException ex)
         {
             _logger.LogWarning(ex, "Fetch failed for {Query}", researchQuery);
             return $"Fetch failed: {ex.Message}";

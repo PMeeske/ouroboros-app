@@ -97,7 +97,12 @@ public sealed class RunAutoAgentHandler : IRequestHandler<RunAutoAgentRequest, s
                 resultBuilder.AppendLine("[AutoAgent] Cancelled by user.");
                 break;
             }
-            catch (Exception ex)
+            catch (System.Net.Http.HttpRequestException ex)
+            {
+                resultBuilder.AppendLine($"[AutoAgent] LLM error at iteration {iteration}: {ex.Message}");
+                break;
+            }
+            catch (InvalidOperationException ex)
             {
                 resultBuilder.AppendLine($"[AutoAgent] LLM error at iteration {iteration}: {ex.Message}");
                 break;

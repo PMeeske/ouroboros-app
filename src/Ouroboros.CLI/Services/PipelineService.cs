@@ -48,7 +48,12 @@ public class PipelineService : IPipelineService
                 .ToList();
             return string.Join("\n", resultLines);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Error executing pipeline: {Dsl}", dsl);
+            return $"Error: {ex.Message}";
+        }
+        catch (System.Net.Http.HttpRequestException ex)
         {
             _logger.LogError(ex, "Error executing pipeline: {Dsl}", dsl);
             return $"Error: {ex.Message}";

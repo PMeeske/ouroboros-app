@@ -115,7 +115,7 @@ public sealed partial class PolicyCommandHandler : IRequestHandler<PolicyCommand
             await PolicyCommands.RunPolicyAsync(policyOpts);
             return $"Policy command executed: {command}";
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return $"Policy command failed: {ex.Message}";
         }
