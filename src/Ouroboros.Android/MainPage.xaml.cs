@@ -39,7 +39,7 @@ public partial class MainPage : ContentPage
         try
         {
             var dbPath = Path.Combine(FileSystem.AppDataDirectory, "command_history.db");
-            var apiEndpoint = Preferences.Get("api_endpoint", "http://localhost:5000");
+            var apiEndpoint = Preferences.Get("api_endpoint", Services.DefaultEndpoints.OuroborosApi);
             _cliExecutor = new CliExecutor(dbPath, apiEndpoint);
 
             try

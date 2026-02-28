@@ -18,7 +18,7 @@ public class CliExecutor
     /// </summary>
     /// <param name="databasePath">Optional path to SQLite database for history</param>
     /// <param name="apiEndpoint">Ouroboros WebAPI base URL (default: http://localhost:5000)</param>
-    public CliExecutor(string? databasePath = null, string apiEndpoint = "http://localhost:5000")
+    public CliExecutor(string? databasePath = null, string apiEndpoint = DefaultEndpoints.OuroborosApi)
     {
         _apiClient = new OuroborosApiClient(apiEndpoint);
         _commandExecutor = new CommandExecutor(requiresRoot: false);

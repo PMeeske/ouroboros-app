@@ -189,7 +189,7 @@ public sealed class Pipeline
         try
         {
             // Create the language model using LangChain's Ollama provider
-            string endpoint = _ollamaEndpoint ?? "http://localhost:11434";
+            string endpoint = _ollamaEndpoint ?? DefaultEndpoints.Ollama;
             LangChain.Providers.Ollama.OllamaProvider provider = new(endpoint);
             LangChain.Providers.Ollama.OllamaChatModel ollamaModel = new(provider, _modelName);
             
@@ -249,7 +249,7 @@ public sealed class Pipeline
   Topic: {_topic ?? "not set"}
   Model: {_modelName ?? "not set"}
   Temperature: {_temperature}
-  Endpoint: {_ollamaEndpoint ?? "default (localhost:11434)"}
+  Endpoint: {_ollamaEndpoint ?? $"default ({DefaultEndpoints.Ollama})"}
   Stages: {stagesStr}
   Tools: {(_tools != null ? "custom" : "default")}
   Embedding: {(_embedding != null ? "custom" : "default")}";

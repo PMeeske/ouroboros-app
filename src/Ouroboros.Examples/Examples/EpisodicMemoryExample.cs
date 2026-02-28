@@ -52,7 +52,7 @@ public static class EpisodicMemoryExample
 
         var embeddingModel = new SimpleEmbeddingModel();
         var memory = new EpisodicMemoryEngine(
-            "http://localhost:6333",
+            DefaultEndpoints.QdrantRest,
             embeddingModel,
             "demo_episodes");
 
@@ -119,7 +119,7 @@ public static class EpisodicMemoryExample
 
         var embeddingModel = new SimpleEmbeddingModel();
         var memory = new EpisodicMemoryEngine(
-            "http://localhost:6333",
+            DefaultEndpoints.QdrantRest,
             embeddingModel,
             "demo_episodes");
 
@@ -164,7 +164,7 @@ public static class EpisodicMemoryExample
 
         var embeddingModel = new SimpleEmbeddingModel();
         var memory = new EpisodicMemoryEngine(
-            "http://localhost:6333",
+            DefaultEndpoints.QdrantRest,
             embeddingModel,
             "demo_episodes");
 

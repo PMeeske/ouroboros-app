@@ -22,7 +22,7 @@ public class OllamaService
     /// Initializes a new instance of the <see cref="OllamaService"/> class.
     /// </summary>
     /// <param name="baseUrl">Base URL of the Ollama service</param>
-    public OllamaService(string baseUrl = "http://localhost:11434")
+    public OllamaService(string baseUrl = DefaultEndpoints.Ollama)
     {
         _baseUrl = baseUrl;
         _httpClient = new HttpClient

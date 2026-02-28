@@ -136,7 +136,7 @@ public class AIProviderConfig
             AIProvider.Ollama => new AIProviderConfig
             {
                 Provider = AIProvider.Ollama,
-                Endpoint = "http://localhost:11434",
+                Endpoint = DefaultEndpoints.Ollama,
                 DefaultModel = "tinyllama"
             },
             AIProvider.OpenAI => new AIProviderConfig

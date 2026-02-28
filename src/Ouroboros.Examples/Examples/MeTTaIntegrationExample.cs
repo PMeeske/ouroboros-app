@@ -148,7 +148,7 @@ public static class MeTTaIntegrationExample
         Console.WriteLine("╚══════════════════════════════════════════════════════╝\n");
 
         // Configure HTTP client for Python Hyperon service
-        string serviceUrl = "http://localhost:8000"; // Default Python service URL
+        string serviceUrl = DefaultEndpoints.MeTTa; // Default Python service URL
         string? apiKey = Environment.GetEnvironmentVariable("METTA_API_KEY");
 
         Console.WriteLine($"Connecting to MeTTa service at: {serviceUrl}");
