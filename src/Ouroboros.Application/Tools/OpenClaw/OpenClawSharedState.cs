@@ -45,12 +45,12 @@ internal static class OpenClawSharedState
         }
         catch (OpenClawException ex) when (
             ex.Message.Contains("device signature", StringComparison.OrdinalIgnoreCase) ||
-            ex.Message.Contains("device identity", StringComparison.OrdinalIgnoreCase))
+            ex.Message.Contains("device identity", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("pairing required", StringComparison.OrdinalIgnoreCase))
         {
-            // Device keypair was rejected (signature invalid, key rotation, or file corruption).
-            // Regenerate a fresh identity and retry once.
+            // Auto-pairing was attempted inside SendConnectHandshakeAsync via the openclaw CLI.
+            // Dispose and retry ONCE with the same device identity — it should now be approved.
             await client.DisposeAsync();
-            deviceIdentity = await OpenClawDeviceIdentity.RegenerateAsync();
             client = new OpenClawGatewayClient(deviceIdentity);
             await client.ConnectAsync(new Uri(resolvedGateway), resolvedToken, CancellationToken.None);
         }
