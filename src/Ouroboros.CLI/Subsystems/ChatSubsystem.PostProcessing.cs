@@ -44,8 +44,8 @@ public sealed partial class ChatSubsystem
         }
 
         // === RECORD OUTCOME FOR PROMPT OPTIMIZER ===
-        var expectedTools = PromptOptimizer.DetectExpectedTools(input);
-        var actualToolCalls = PromptOptimizer.ExtractToolCalls(response);
+        var expectedTools = _toolsSub.PromptOptimizer.DetectExpectedTools(input);
+        var actualToolCalls = _toolsSub.PromptOptimizer.ExtractToolCalls(response);
         actualToolCalls.AddRange(tools.Select(t => t.ToolName).Where(n => !actualToolCalls.Contains(n)));
 
         var wasSuccessful = expectedTools.Count == 0 || actualToolCalls.Count > 0;

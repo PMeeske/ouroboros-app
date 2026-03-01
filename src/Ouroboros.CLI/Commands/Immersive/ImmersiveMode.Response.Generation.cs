@@ -212,7 +212,7 @@ public sealed partial class ImmersiveMode
                     new() { Name = "user",      Synapses = total, Activations = userTurns,      Weight = 1.0 },
                     new() { Name = personaName, Synapses = total, Activations = assistantTurns, Weight = 1.0 },
                 };
-                var phiResult = IITPhiCalculator.Compute(pathways);
+                var phiResult = new IITPhiCalculator().Compute(pathways);
 
                 if (phiResult.Phi >= 0.5 && _learning.OrchestratedModel != null)
                     chatModel = _learning.OrchestratedModel; // Upgrade to collective model

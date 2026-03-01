@@ -47,7 +47,7 @@ public sealed partial class RoomMode
             Weight      = 1.0,
         }).ToList();
 
-        return IITPhiCalculator.Compute(pathways);
+        return new IITPhiCalculator().Compute(pathways);
     }
 
     /// <summary>Displays the last N transcript lines, clearing the area each time.</summary>
