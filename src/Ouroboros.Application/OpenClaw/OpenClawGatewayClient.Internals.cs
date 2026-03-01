@@ -122,6 +122,16 @@ public sealed partial class OpenClawGatewayClient
                 && err.TryGetProperty("message", out var msg)
                 ? msg.GetString() ?? "Handshake rejected"
                 : "Handshake rejected";
+
+            // Auto-approve pairing on first connect, then throw so the
+            // outer retry (OpenClawSharedState) retries with the now-approved device.
+            if (errMsg.Contains("pairing required", StringComparison.OrdinalIgnoreCase) ||
+                errMsg.Contains("device signature", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogInformation("[OpenClaw] Pairing/signature error — auto-approving via CLI");
+                await TryAutoApprovePairingAsync(_token);
+            }
+
             throw new OpenClawException(errMsg);
         }
 
@@ -133,6 +143,54 @@ public sealed partial class OpenClawGatewayClient
         {
             Task.Run(() => _deviceIdentity.SaveDeviceTokenAsync(newDeviceToken, CancellationToken.None))
                 .ObserveExceptions("SaveDeviceToken");
+        }
+    }
+
+    // Auto-approve the pending device pairing request via the openclaw CLI.
+    // Mirrors the PcNode TryAutoApprovePairingAsync logic for the operator role.
+    private async Task<bool> TryAutoApprovePairingAsync(string? token)
+    {
+        try
+        {
+            var psi = new System.Diagnostics.ProcessStartInfo("openclaw")
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            psi.ArgumentList.Add("devices");
+            psi.ArgumentList.Add("approve");
+            psi.ArgumentList.Add("--latest");
+            if (!string.IsNullOrEmpty(token))
+            {
+                psi.ArgumentList.Add("--token");
+                psi.ArgumentList.Add(token);
+            }
+
+            // SECURITY: validated — ArgumentList prevents injection from token value
+            using var proc = System.Diagnostics.Process.Start(psi);
+            if (proc == null) return false;
+
+            await proc.WaitForExitAsync();
+            var output = await proc.StandardOutput.ReadToEndAsync();
+
+            if (proc.ExitCode == 0)
+            {
+                _logger.LogInformation("[OpenClaw] Auto-approved pairing: {Output}", output.Trim());
+                return true;
+            }
+
+            var error = await proc.StandardError.ReadToEndAsync();
+            _logger.LogWarning("[OpenClaw] Auto-approve failed (exit {Code}): {Error}",
+                proc.ExitCode, error.Trim());
+            return false;
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning("[OpenClaw] Auto-approve failed: {Message}", ex.Message);
+            return false;
         }
     }
 
