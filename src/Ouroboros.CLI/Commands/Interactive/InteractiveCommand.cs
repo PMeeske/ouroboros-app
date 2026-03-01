@@ -101,7 +101,11 @@ public static class InteractiveCommand
                     .BorderStyle(new Style(Color.Green))
                     .Padding(1, 0, 1, 0));
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            console.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
+        }
+        catch (System.Net.Http.HttpRequestException ex)
         {
             console.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
         }
@@ -179,7 +183,11 @@ public static class InteractiveCommand
                     .BorderStyle(new Style(Color.Green))
                     .Padding(1, 0, 1, 0));
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            console.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
+        }
+        catch (System.Net.Http.HttpRequestException ex)
         {
             console.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
         }
@@ -211,7 +219,11 @@ public static class InteractiveCommand
                     .BorderStyle(new Style(Color.Green))
                     .Padding(1, 0, 1, 0));
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            console.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
+        }
+        catch (System.Net.Http.HttpRequestException ex)
         {
             console.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
         }

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using LangChain.DocumentLoaders;
+using Ouroboros.Application.Json;
 using Ouroboros.CLI.Avatar;
 using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Options;
@@ -63,7 +64,7 @@ public static class DagCommands
                 _ => PrintErrorAsync($"Unknown DAG command: {options.Command}. Valid commands: snapshot, show, replay, validate, retention")
             });
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             PrintError($"DAG operation failed: {ex.Message}");
             if (options.Verbose)
@@ -217,7 +218,11 @@ public static class DagCommands
                 }
             }
         }
-        catch (Exception ex)
+        catch (IOException ex)
+        {
+            PrintError($"Replay failed: {ex.Message}");
+        }
+        catch (System.Text.Json.JsonException ex)
         {
             PrintError($"Replay failed: {ex.Message}");
         }
@@ -332,7 +337,7 @@ public static class DagCommands
     {
         if (asJson)
         {
-            var json = JsonSerializer.Serialize(epoch, new JsonSerializerOptions { WriteIndented = true });
+            var json = JsonSerializer.Serialize(epoch, JsonDefaults.IndentedExact);
             AnsiConsole.WriteLine(json);
         }
         else
@@ -352,7 +357,7 @@ public static class DagCommands
     {
         if (asJson)
         {
-            var json = JsonSerializer.Serialize(metrics, new JsonSerializerOptions { WriteIndented = true });
+            var json = JsonSerializer.Serialize(metrics, JsonDefaults.IndentedExact);
             AnsiConsole.WriteLine(json);
         }
         else
@@ -371,7 +376,7 @@ public static class DagCommands
 
     private static async Task ExportEpochAsync(EpochSnapshot epoch, string path)
     {
-        var json = JsonSerializer.Serialize(epoch, new JsonSerializerOptions { WriteIndented = true });
+        var json = JsonSerializer.Serialize(epoch, JsonDefaults.IndentedExact);
         await File.WriteAllTextAsync(path, json);
     }
 

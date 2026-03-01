@@ -57,7 +57,7 @@ public sealed class CognitiveLoopHealthCheck : IHealthCheck
                         ["cycles_completed"] = state.CyclesCompleted
                     });
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return HealthCheckResult.Unhealthy("Cognitive loop health check failed", ex);
         }

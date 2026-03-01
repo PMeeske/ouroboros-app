@@ -1,5 +1,5 @@
-// <copyright file="OuroborosServiceCollectionExtensions.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="OuroborosServiceCollectionExtensions.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 namespace Ouroboros.Application.Integration;
@@ -22,6 +22,7 @@ using Ouroboros.Domain.Learning;
 using Ouroboros.Domain.MetaLearning;
 using Ouroboros.Domain.MultiAgent;
 using Ouroboros.Domain.Reflection;
+using Ouroboros.Network.Persistence;
 using Ouroboros.Pipeline.Memory;
 using Ouroboros.Tools.MeTTa;
 using Qdrant.Client;
@@ -245,5 +246,10 @@ public static class OuroborosServiceCollectionExtensions
                 return new EmbodiedAgent(env, ethics, logger);
             return NullEmbodiedAgent.Instance;
         });
+
+        // ── Network persistence (file-based WAL for Merkle-DAG) ─────────────
+        services.TryAddSingleton<IGraphPersistence>(_ =>
+            new FileWalPersistence(
+                Path.Combine(Path.GetTempPath(), "ouroboros", "wal.ndjson")));
     }
 }

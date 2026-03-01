@@ -72,7 +72,7 @@ public class AgiWarmup
                     result.SelfAwarenessReady = codeResults.Count > 0;
                     steps.Add($"✓ Self-indexer: found {codeResults.Count} relevant code segments");
                 }
-                catch (Exception ex)
+                catch (HttpRequestException ex)
                 {
                     steps.Add($"⚠ Self-indexer: {ex.Message}");
                 }
@@ -100,7 +100,7 @@ Keep it to 1-2 sentences.";
                     result.WarmupThought = thought?.Trim();
                     steps.Add($"✓ Thinking engine: {(thought?.Length > 50 ? thought[..50] + "..." : thought)}");
                 }
-                catch (Exception ex)
+                catch (HttpRequestException ex)
                 {
                     steps.Add($"⚠ Thinking engine: {ex.Message}");
                 }
@@ -116,7 +116,7 @@ Keep it to 1-2 sentences.";
                     result.SearchReady = !string.IsNullOrWhiteSpace(searchResult);
                     steps.Add($"✓ Search engine: {(searchResult?.Length > 0 ? "operational" : "limited")}");
                 }
-                catch (Exception ex)
+                catch (HttpRequestException ex)
                 {
                     steps.Add($"⚠ Search engine: {ex.Message}");
                 }
@@ -133,7 +133,7 @@ Keep it to 1-2 sentences.";
                     result.ToolsReady = !string.IsNullOrWhiteSpace(toolResult) && !toolResult.Contains("not found", StringComparison.OrdinalIgnoreCase);
                     steps.Add($"✓ Tool system: {(result.ToolsReady ? "operational" : "limited")}");
                 }
-                catch (Exception ex)
+                catch (HttpRequestException ex)
                 {
                     steps.Add($"⚠ Tool system: {ex.Message}");
                 }
@@ -170,7 +170,7 @@ Keep it to 1-2 sentences.";
 
                     steps.Add($"✓ Seed thoughts: {result.SeedThoughts.Count} generated");
                 }
-                catch (Exception ex)
+                catch (HttpRequestException ex)
                 {
                     steps.Add($"⚠ Seed thoughts: {ex.Message}");
                 }
@@ -186,7 +186,7 @@ Keep it to 1-2 sentences.";
                     result.KnowledgeStats = stats;
                     steps.Add($"✓ Knowledge: {stats.TrackedPatterns} patterns, {stats.HotContentCount} hot, {stats.CoAccessClusters} clusters");
                 }
-                catch (Exception ex)
+                catch (InvalidOperationException ex)
                 {
                     steps.Add($"⚠ Knowledge stats: {ex.Message}");
                 }
@@ -200,7 +200,7 @@ Keep it to 1-2 sentences.";
             steps.Add("⚠ Warmup cancelled");
             result.Success = false;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             steps.Add($"✗ Warmup error: {ex.Message}");
             result.Success = false;
@@ -310,7 +310,11 @@ Keep it to 1-2 sentences.";
                 steps.Add($"  📊 Knowledge patterns: {reorgStats.TrackedPatterns} tracked, {reorgStats.HotContentCount} hot, {reorgStats.CoAccessClusters} clusters");
             }
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (HttpRequestException ex)
         {
             steps.Add($"⚠ Self-index warmup: {ex.Message}");
             result.SelfIndexReady = false;
@@ -347,6 +351,21 @@ Keep it to 1-2 sentences.";
 
             // Self-introspection - search only
             ["search_my_code"] = """{"query":"warmup","maxResults":1}""",
+
+            // OpenClaw tools - read-only gateway queries (warm up the WebSocket RPC path)
+            ["openclaw_status"] = "{}",
+            ["openclaw_health"] = "{}",
+            ["openclaw_list_channels"] = "{}",
+            ["openclaw_node_list"] = "{}",
+            ["openclaw_sessions_list"] = "{}",
+            ["openclaw_cron_list"] = "{}",
+            ["openclaw_devices_list"] = "{}",
+            ["openclaw_pc_capabilities"] = "{}",
+            ["openclaw_approval_list"] = "{}",
+
+            // Qdrant sync tools - read-only status/diagnostics (warm up cloud connection)
+            ["qdrant_sync"] = """{"command":"status"}""",
+            ["qdrant_admin"] = """{"command":"status"}""",
         };
 
         int testedCount = 0;
@@ -384,7 +403,7 @@ Keep it to 1-2 sentences.";
                 failedTools.Add($"{toolName}: timeout");
                 result.ToolWarmupResults[toolName] = false;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 failedTools.Add($"{toolName}: {ex.Message}");
                 result.ToolWarmupResults[toolName] = false;
@@ -436,7 +455,11 @@ Keep it to 1-2 sentences.";
 
             result.Success = true;
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (HttpRequestException ex)
         {
             steps.Add($"⚠ Quick warmup: {ex.Message}");
             result.Error = ex.Message;

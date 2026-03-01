@@ -1,5 +1,5 @@
-// <copyright file="CognitiveLoop.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="CognitiveLoop.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 using Ouroboros.Abstractions;
@@ -120,7 +120,7 @@ public sealed class CognitiveLoop : ICognitiveLoop
 
             return Result<Abstractions.Unit, string>.Success(Unit.Value);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return Result<Abstractions.Unit, string>.Failure($"Failed to stop loop: {ex.Message}");
         }
@@ -222,7 +222,7 @@ public sealed class CognitiveLoop : ICognitiveLoop
         {
             throw;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             stopwatch.Stop();
 

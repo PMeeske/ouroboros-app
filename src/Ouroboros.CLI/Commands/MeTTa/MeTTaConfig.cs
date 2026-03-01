@@ -1,3 +1,5 @@
+using Ouroboros.Application.Configuration;
+
 namespace Ouroboros.CLI.Commands;
 
 /// <summary>
@@ -8,9 +10,9 @@ namespace Ouroboros.CLI.Commands;
 public sealed record MeTTaConfig(
     string Goal = "",
     string? Culture = null,
-    string Model = "ministral-3:latest",
+    string Model = "deepseek-v3.1:671b-cloud",
     double Temperature = 0.7,
-    int MaxTokens = 512,
+    int MaxTokens = 2048,
     int TimeoutSeconds = 60,
     string? Endpoint = null,
     string? ApiKey = null,
@@ -18,7 +20,7 @@ public sealed record MeTTaConfig(
     bool Debug = false,
     string Embed = "nomic-embed-text",
     string EmbedModel = "nomic-embed-text",
-    string QdrantEndpoint = "http://localhost:6334",
+    string QdrantEndpoint = DefaultEndpoints.QdrantGrpc,
     bool PlanOnly = false,
     bool ShowMetrics = true,
     bool Interactive = false,

@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using MediatR;
 using Ouroboros.CLI.Commands;
 
@@ -50,6 +50,7 @@ public sealed class OrchestrateHandler : IRequestHandler<OrchestrateRequest, str
                 Console.SetOut(originalOut);
             }
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             return $"Orchestration error: {ex.Message}";

@@ -3,6 +3,7 @@ namespace Ouroboros.CLI.Services;
 
 using LangChain.Providers.Ollama;
 using Ouroboros.Agent.MetaAI;
+using Ouroboros.Application.Extensions;
 using Ouroboros.Agent.NeuralSymbolic;
 using Ouroboros.Application.Personality;
 using Ouroboros.Application.Services;
@@ -28,7 +29,7 @@ using IEmbeddingModel = Ouroboros.Domain.IEmbeddingModel;
 /// <see cref="SharedAgentBootstrap"/> produces shared-ready instances that can be
 /// consumed by any mode or handler.
 /// </summary>
-public static class SharedAgentBootstrap
+public static partial class SharedAgentBootstrap
 {
     /// <summary>
     /// Creates an embedding model backed by Ollama.
@@ -45,7 +46,12 @@ public static class SharedAgentBootstrap
             log?.Invoke("Memory systems online");
             return model;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            log?.Invoke($"Memory unavailable: {ex.Message}");
+            return null;
+        }
+        catch (HttpRequestException ex)
         {
             log?.Invoke($"Memory unavailable: {ex.Message}");
             return null;
@@ -68,9 +74,13 @@ public static class SharedAgentBootstrap
         {
             return new EpisodicMemoryEngine(qdrantEndpoint, embeddingModel, collectionName);
         }
-        catch
+        catch (Grpc.Core.RpcException)
         {
             return null; // Qdrant unavailable
+        }
+        catch (HttpRequestException)
+        {
+            return null; // Qdrant unavailable (HTTP mode)
         }
     }
 
@@ -90,7 +100,7 @@ public static class SharedAgentBootstrap
             var kb = new SymbolicKnowledgeBase(mettaEngine);
             return new NeuralSymbolicBridge(chatModel, kb);
         }
-        catch
+        catch (InvalidOperationException)
         {
             return null;
         }
@@ -102,11 +112,9 @@ public static class SharedAgentBootstrap
     /// </summary>
     public static (CognitivePhysicsEngine Engine, CognitiveState State) CreateCognitivePhysics()
     {
-#pragma warning disable CS0618 // Obsolete IEmbeddingProvider/IEthicsGate — CPE requires them
         var engine = new CognitivePhysicsEngine(
             new Ouroboros.ApiHost.NullEmbeddingProvider(),
             new PermissiveEthicsGate());
-#pragma warning restore CS0618
         var state = CognitiveState.Create("general");
         return (engine, state);
     }
@@ -135,11 +143,11 @@ public static class SharedAgentBootstrap
             curiosity = new CuriosityEngine(chatModel, memStore, skills, safetyGuard, ethics);
 
             try { sovereignty = new PersonaSovereigntyGate(chatModel); }
-            catch { /* sovereignty gate optional */ }
+            catch (InvalidOperationException) { /* sovereignty gate optional */ }
 
             if (mind != null)
             {
-                _ = Task.Run(async () =>
+                Task.Run(async () =>
                 {
                     try
                     {
@@ -151,28 +159,33 @@ public static class SharedAgentBootstrap
                                 var opps = await curiosity
                                     .IdentifyExplorationOpportunitiesAsync(2, ct)
                                     .ConfigureAwait(false);
-                                foreach (var opp in opps)
+                                foreach (var desc in opps.Select(opp => opp.Description))
                                 {
                                     if (sovereignty != null)
                                     {
                                         var verdict = await sovereignty
-                                            .EvaluateExplorationAsync(opp.Description, ct)
+                                            .EvaluateExplorationAsync(desc, ct)
                                             .ConfigureAwait(false);
                                         if (!verdict.Approved) continue;
                                     }
-                                    mind.InjectTopic(opp.Description);
+                                    mind.InjectTopic(desc);
                                 }
                             }
                         }
                     }
-                    catch
+                    catch (OperationCanceledException)
                     {
-                        // exploration loop ended (cancellation or transient failure)
+                        // exploration loop ended (cancellation)
                     }
-                }, ct);
+                    catch (HttpRequestException)
+                    {
+                        // exploration loop ended (transient failure)
+                    }
+                }, ct)
+                .ObserveExceptions("CuriosityEngine exploration");
             }
         }
-        catch
+        catch (InvalidOperationException)
         {
             // curiosity system optional
         }
@@ -189,27 +202,19 @@ public static class SharedAgentBootstrap
     {
         if (string.IsNullOrWhiteSpace(input)) return null;
 
-        var m = System.Text.RegularExpressions.Regex.Match(
-            input, @"\bwhy\s+(?:does|is|did|do|are)\s+(.+?)(?:\?|$)",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        var m = WhyCausalRegex().Match(input);
         if (m.Success)
             return ("external factors", m.Groups[1].Value.Trim().TrimEnd('?'));
 
-        m = System.Text.RegularExpressions.Regex.Match(
-            input, @"\bwhat\s+(?:causes?|leads?\s+to|results?\s+in)\s+(.+?)(?:\?|$)",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        m = WhatCausesRegex().Match(input);
         if (m.Success)
             return ("preceding conditions", m.Groups[1].Value.Trim().TrimEnd('?'));
 
-        m = System.Text.RegularExpressions.Regex.Match(
-            input, @"\bif\s+(.+?)\s+then\s+(.+?)(?:\?|$)",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        m = IfThenRegex().Match(input);
         if (m.Success)
             return (m.Groups[1].Value.Trim(), m.Groups[2].Value.Trim().TrimEnd('?'));
 
-        m = System.Text.RegularExpressions.Regex.Match(
-            input, @"(.+?)\s+causes?\s+(.+?)(?:\?|$)",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        m = CausesRegex().Match(input);
         if (m.Success)
             return (m.Groups[1].Value.Trim(), m.Groups[2].Value.Trim().TrimEnd('?'));
 
@@ -252,7 +257,7 @@ public static class SharedAgentBootstrap
                 log?.Invoke($"Voice output: Azure Neural TTS ({ttsVoice})");
                 return tts;
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 log?.Invoke($"Azure TTS unavailable: {ex.Message}");
             }
@@ -267,7 +272,7 @@ public static class SharedAgentBootstrap
                 log?.Invoke("Voice output: Windows SAPI");
                 return tts;
             }
-            catch { }
+            catch (InvalidOperationException) { }
         }
 
         // OpenAI TTS fallback
@@ -280,7 +285,7 @@ public static class SharedAgentBootstrap
                 log?.Invoke("Voice output: OpenAI TTS");
                 return tts;
             }
-            catch { }
+            catch (HttpRequestException) { /* OpenAI TTS unavailable */ }
         }
 
         log?.Invoke("Voice output: Text only (no TTS backend available)");
@@ -307,7 +312,7 @@ public static class SharedAgentBootstrap
                 return whisper;
             }
         }
-        catch { }
+        catch (InvalidOperationException) { /* Whisper.net unavailable */ }
 
         log?.Invoke("Voice input: No backend available (install Whisper.net for voice input)");
         return null;
@@ -346,4 +351,16 @@ public static class SharedAgentBootstrap
         log?.Invoke($"{personaName} is awake");
         return persona;
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\bwhy\s+(?:does|is|did|do|are)\s+(.+?)(?:\?|$)", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex WhyCausalRegex();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\bwhat\s+(?:causes?|leads?\s+to|results?\s+in)\s+(.+?)(?:\?|$)", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex WhatCausesRegex();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"\bif\s+(.+?)\s+then\s+(.+?)(?:\?|$)", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex IfThenRegex();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"(.+?)\s+causes?\s+(.+?)(?:\?|$)", System.Text.RegularExpressions.RegexOptions.IgnoreCase)]
+    private static partial System.Text.RegularExpressions.Regex CausesRegex();
 }

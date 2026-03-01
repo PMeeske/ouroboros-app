@@ -11,5 +11,5 @@ public sealed record PlanExecutionResult(
     string Output,
     PipelineBranch ReasoningTrace,
     Plan? ExecutedPlan,
-    List<Episode> GeneratedEpisodes,
+    IReadOnlyList<Episode> GeneratedEpisodes,
     TimeSpan Duration);

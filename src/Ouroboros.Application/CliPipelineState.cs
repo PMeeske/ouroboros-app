@@ -1,10 +1,14 @@
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 using Ouroboros.Network;
 
 namespace Ouroboros.Application;
 
 public sealed class CliPipelineState
 {
+    /// <summary>
+    /// Cancellation token threaded through agent tool invocations so long-running
+    /// operations (file I/O, shell commands) can be cancelled cooperatively.
+    /// </summary>
+    public CancellationToken CancellationToken { get; set; } = CancellationToken.None;
     public required PipelineBranch Branch { get; set; }
     public required ToolAwareChatModel Llm { get; set; }
     public required ToolRegistry Tools { get; set; }

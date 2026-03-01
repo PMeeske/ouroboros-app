@@ -13,7 +13,7 @@ using Spectre.Console;
 
 public sealed partial class ImmersiveMode
 {
-    private async Task<(ITextToSpeechService?, ISpeechToTextService?, AdaptiveSpeechDetector?)> InitializeSpeechServicesAsync(IVoiceOptions? options = null)
+    private static async Task<(ITextToSpeechService?, ISpeechToTextService?, AdaptiveSpeechDetector?)> InitializeSpeechServicesAsync(IVoiceOptions? options = null)
     {
         // Extract Azure config from options
         string? azureKey = null;
@@ -57,6 +57,57 @@ public sealed partial class ImmersiveMode
         if (stt == null) AnsiConsole.MarkupLine(OuroborosTheme.Dim("  [~] Voice input: Keyboard only (install Whisper for voice)"));
 
         return (tts, stt, detector);
+    }
+
+    private async Task SpeakAsync(ITextToSpeechService tts, string text, string _personaName)
+    {
+        // Suppress room microphone pickup of Iaret's own voice during and briefly after TTS.
+        IsSpeaking = true;
+        try
+        {
+            // If it's LocalWindowsTtsService, use SpeakDirectAsync for faster playback
+            if (tts is LocalWindowsTtsService localTts)
+            {
+                var result = await localTts.SpeakDirectAsync(text, CancellationToken.None);
+                result.Match(
+                    success => { /* spoken successfully */ },
+                    error => AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"\\[tts: {Markup.Escape(error)}]")}"));
+            }
+            else if (tts is Ouroboros.Providers.TextToSpeech.AzureNeuralTtsService azureDirect)
+            {
+                // Use Azure SDK direct playback — bypasses AudioPlayer/temp-file/PowerShell chain.
+                // SpeakAsync plays via the SDK's default audio sink and respects the SSML language.
+                await azureDirect.SpeakAsync(text, CancellationToken.None);
+            }
+            else
+            {
+                // Use the extension method to synthesize and play audio
+                var result = await tts.SpeakAsync(text, null, CancellationToken.None);
+                result.Match(
+                    success => { /* spoken successfully */ },
+                    error => AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"\\[tts: {Markup.Escape(error)}]")}"));
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            AnsiConsole.MarkupLine($"  {OuroborosTheme.Dim($"\\[tts error: {Markup.Escape(ex.Message)}]")}");
+        }
+        finally
+        {
+            // Always hold suppression for ~1.2 s after audio ends (or after error if Azure SDK
+            // played audio before AudioPlayer failed) — prevents room-mic coupling.
+            await Task.Delay(1200, CancellationToken.None).ConfigureAwait(false);
+            IsSpeaking = false;
+        }
+    }
+
+    private static async Task<string?> ListenWithVADAsync(
+        ISpeechToTextService _stt,
+        AdaptiveSpeechDetector _detector,
+        CancellationToken _ct)
+    {
+        // For now, use text input - VAD requires microphone setup
+        return await Task.FromResult(Console.ReadLine());
     }
 
     /// <summary>

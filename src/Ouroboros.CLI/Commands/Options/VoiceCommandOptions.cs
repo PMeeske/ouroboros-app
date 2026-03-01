@@ -1,4 +1,5 @@
 using System.CommandLine;
+using Ouroboros.Application.Configuration;
 
 namespace Ouroboros.CLI.Commands.Options;
 
@@ -28,7 +29,7 @@ public class VoiceCommandOptions
     public System.CommandLine.Option<string> QdrantEndpointOption { get; } = new("--qdrant")
     {
         Description = "Qdrant endpoint for skills",
-        DefaultValueFactory = _ => "http://localhost:6334"
+        DefaultValueFactory = _ => DefaultEndpoints.QdrantGrpc
     };
 
     public System.CommandLine.Option<bool> VoiceOnlyOption { get; } = new("--voice-only")

@@ -72,13 +72,18 @@ public sealed class GestureDetector : IAsyncDisposable
                     }
 
                     // Clean up the capture file
-                    try { File.Delete(imagePath); } catch { }
+                    try { File.Delete(imagePath); } catch (IOException) { /* best effort cleanup */ }
                 }
 
                 await Task.Delay(TimeSpan.FromSeconds(IntervalSeconds), ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException) { break; }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
+            {
+                AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  [gesture] Error: {Markup.Escape(ex.Message)}"));
+                await Task.Delay(TimeSpan.FromSeconds(IntervalSeconds * 2), ct).ConfigureAwait(false);
+            }
+            catch (System.Net.Http.HttpRequestException ex)
             {
                 AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  [gesture] Error: {Markup.Escape(ex.Message)}"));
                 await Task.Delay(TimeSpan.FromSeconds(IntervalSeconds * 2), ct).ConfigureAwait(false);
@@ -102,15 +107,23 @@ public sealed class GestureDetector : IAsyncDisposable
             var psi = new ProcessStartInfo
             {
                 FileName = "ffmpeg",
-                Arguments = $"-f dshow -i video=\"{camName}\" -frames:v 1 -y \"{filepath}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
+            psi.ArgumentList.Add("-f");
+            psi.ArgumentList.Add("dshow");
+            psi.ArgumentList.Add("-i");
+            psi.ArgumentList.Add($"video={camName}");
+            psi.ArgumentList.Add("-frames:v");
+            psi.ArgumentList.Add("1");
+            psi.ArgumentList.Add("-y");
+            psi.ArgumentList.Add(filepath);
 
             try
             {
+                // SECURITY: safe — hardcoded "ffmpeg" with ArgumentList for camera capture
                 using var process = Process.Start(psi);
                 if (process == null) continue;
 
@@ -121,7 +134,8 @@ public sealed class GestureDetector : IAsyncDisposable
                 if (process.ExitCode == 0 && File.Exists(filepath))
                     return filepath;
             }
-            catch { /* try next camera name */ }
+            catch (InvalidOperationException) { /* try next camera name */ }
+            catch (System.ComponentModel.Win32Exception) { /* try next camera name */ }
         }
 
         return null;
@@ -136,18 +150,23 @@ public sealed class GestureDetector : IAsyncDisposable
         string imagePath, CancellationToken ct)
     {
         // Use Ollama vision model for image analysis
-        var psi = new ProcessStartInfo
+        // Use ArgumentList to prevent command injection via prompt or image path
+        var psi = new ProcessStartInfo("ollama")
         {
-            FileName = "ollama",
-            Arguments = $"run llava \"{GesturePrompt}\" --images \"{imagePath}\"",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true,
         };
+        psi.ArgumentList.Add("run");
+        psi.ArgumentList.Add("llava");
+        psi.ArgumentList.Add(GesturePrompt);
+        psi.ArgumentList.Add("--images");
+        psi.ArgumentList.Add(imagePath);
 
         try
         {
+            // SECURITY: safe — hardcoded "ollama" with ArgumentList for vision analysis
             using var process = Process.Start(psi);
             if (process == null) return null;
 

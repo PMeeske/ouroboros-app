@@ -1,5 +1,5 @@
-// <copyright file="MeTTaInteractiveMode.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="MeTTaInteractiveMode.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 using Ouroboros.Abstractions;
@@ -114,7 +114,7 @@ public static class MeTTaInteractiveMode
                         break;
                 }
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 AnsiConsole.MarkupLine($"  [red]{Markup.Escape($"Error: {ex.Message}")}[/]");
             }
@@ -251,7 +251,6 @@ public static class MeTTaInteractiveMode
 
             if (actionInput.Trim().Equals("done", StringComparison.OrdinalIgnoreCase))
             {
-                enteringActions = false;
                 break;
             }
 

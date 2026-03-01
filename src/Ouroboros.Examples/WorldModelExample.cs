@@ -1,5 +1,5 @@
-// <copyright file="WorldModelExample.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="WorldModelExample.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 namespace Ouroboros.Examples;
@@ -46,7 +46,7 @@ public static class WorldModelExample
         // Step 3: Evaluate model quality on test set
         Console.WriteLine("3. Evaluating model quality...");
         var testData = GenerateSyntheticData(numTransitions: 20, seed: 999);
-        var evalResult = await engine.EvaluateModelAsync(model, testData);
+        var evalResult = await WorldModelEngine.EvaluateModelAsync(model, testData);
 
         if (evalResult.IsSuccess)
         {

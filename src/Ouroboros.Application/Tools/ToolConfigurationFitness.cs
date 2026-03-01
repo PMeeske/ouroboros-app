@@ -1,11 +1,12 @@
-﻿using Ouroboros.Genetic.Abstractions;
+﻿using System.Text.RegularExpressions;
+using Ouroboros.Genetic.Abstractions;
 
 namespace Ouroboros.Application.Tools;
 
 /// <summary>
 /// Fitness function for evaluating tool configurations.
 /// </summary>
-public sealed class ToolConfigurationFitness : IFitnessFunction<ToolConfigurationGene>
+public sealed partial class ToolConfigurationFitness : IFitnessFunction<ToolConfigurationGene>
 {
     private readonly ToolAwareChatModel _llm;
     private readonly string _goal;
@@ -33,15 +34,16 @@ Just respond with a number 0-100.";
         try
         {
             string response = await _llm.InnerModel.GenerateTextAsync(prompt);
-            var match = System.Text.RegularExpressions.Regex.Match(response, @"\d+");
+            var match = DigitsRegex().Match(response);
             if (match.Success && int.TryParse(match.Value, out int llmScore))
             {
                 return llmScore / 100.0;
             }
         }
-        catch
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException)
         {
-            // Ignore errors
+            // LLM evaluation failed — fall through to heuristic
         }
 
         // Heuristic fallback scoring
@@ -58,4 +60,7 @@ Just respond with a number 0-100.";
 
         return Math.Min(heuristicScore, 1.0);
     }
+
+    [GeneratedRegex(@"\d+")]
+    private static partial Regex DigitsRegex();
 }

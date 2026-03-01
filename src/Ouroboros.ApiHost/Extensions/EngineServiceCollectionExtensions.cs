@@ -1,5 +1,5 @@
-// <copyright file="EngineServiceCollectionExtensions.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="EngineServiceCollectionExtensions.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 using Microsoft.Extensions.Configuration;
@@ -8,7 +8,10 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Ouroboros.Agent.MetaAI;
 using Ouroboros.Agent.MetaAI.SelfModel;
 using Ouroboros.ApiHost.Services;
+using Ouroboros.Application.Integration;
 using Ouroboros.Core.CognitivePhysics;
+using Ouroboros.Core.Ethics;
+using Ouroboros.Domain;
 using Ouroboros.Providers;
 
 namespace Ouroboros.ApiHost.Extensions;
@@ -49,11 +52,9 @@ public static class EngineServiceCollectionExtensions
         }
 
         // ── Cognitive Physics Engine defaults ─────────────────────────────────
-#pragma warning disable CS0618 // Obsolete IEmbeddingProvider/IEthicsGate — CPE still requires them
         services.TryAddSingleton<IEthicsGate, PermissiveEthicsGate>();
-        services.TryAddSingleton<IEmbeddingProvider>(
+        services.TryAddSingleton<IEmbeddingModel>(
             _ => new NullEmbeddingProvider());
-#pragma warning restore CS0618
         services.TryAddSingleton<CognitivePhysicsConfig>(CognitivePhysicsConfig.Default);
 
         // ── Self-model components (Phase 2) ──────────────────────────────────
@@ -75,6 +76,18 @@ public static class EngineServiceCollectionExtensions
         });
 
         services.TryAddSingleton<ISelfModelService, SelfModelService>();
+
+        // ── Ethics framework (needed by IEmbodiedAgent and others) ──────────
+        services.TryAddSingleton<IEthicsFramework>(
+            _ => EthicsFrameworkFactory.CreateDefault());
+
+        // ── Engine interfaces via AddOuroborosFull ────────────────────────────
+        // AddOuroborosFull uses TryAddSingleton throughout, so registrations
+        // above (cognitive physics, self-model, etc.) always win. This fills in
+        // the engine interfaces (IEpisodicMemoryEngine, IAdapterLearningEngine,
+        // IMultiAgentCoordinator, IProgramSynthesisEngine, etc.) that the CLI
+        // path was previously missing.
+        services.AddOuroborosFull();
 
         // ── Health checks (Kubernetes liveness/readiness probes) ─────────────
         services.AddHealthChecks();

@@ -1,5 +1,5 @@
-// <copyright file="Epic120Example.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="Epic120Example.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 namespace Ouroboros.Examples.EpicWorkflow;
@@ -224,7 +224,7 @@ public static class Epic120Example
 
             await RunParallelSubIssuesAsync();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Console.WriteLine($"\n❌ Error: {ex.Message}");
             Console.WriteLine($"Stack trace: {ex.StackTrace}");

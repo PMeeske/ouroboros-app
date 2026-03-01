@@ -11,7 +11,7 @@ using Spectre.Console;
 /// Pipe processing subsystem: command chaining via | syntax, [PIPE:] detection,
 /// and non-interactive batch/exec/pipe-mode execution.
 /// </summary>
-public sealed class PipeProcessingSubsystem : IPipeProcessingSubsystem
+public sealed partial class PipeProcessingSubsystem : IPipeProcessingSubsystem
 {
     public string Name => "PipeProcessing";
     public bool IsInitialized { get; private set; }
@@ -67,7 +67,7 @@ public sealed class PipeProcessingSubsystem : IPipeProcessingSubsystem
                 lastOutput = await ProcessInputFunc(commandToRun);
                 allOutputs.Add($"[Step {i + 1}: {segment[..Math.Min(30, segment.Length)]}...]\n{lastOutput}");
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 allOutputs.Add($"[Step {i + 1} ERROR: {ex.Message}]");
                 break;
@@ -108,7 +108,7 @@ public sealed class PipeProcessingSubsystem : IPipeProcessingSubsystem
         foreach (var rawCmd in commands)
         {
             var cmd = rawCmd.Trim();
-            if (string.IsNullOrWhiteSpace(cmd) || cmd.StartsWith("#")) continue;
+            if (string.IsNullOrWhiteSpace(cmd) || cmd.StartsWith('#')) continue;
 
             var pipeSegments = ParsePipeSegments(cmd);
 
@@ -122,7 +122,7 @@ public sealed class PipeProcessingSubsystem : IPipeProcessingSubsystem
                         .Replace("$PIPE", lastOutput)
                         .Replace("$_", lastOutput);
 
-                    if (segment.TrimStart().StartsWith("|"))
+                    if (segment.TrimStart().StartsWith('|'))
                         commandToRun = $"{lastOutput}\n---\n{commandToRun.TrimStart().TrimStart('|').Trim()}";
                 }
 
@@ -134,7 +134,7 @@ public sealed class PipeProcessingSubsystem : IPipeProcessingSubsystem
                     lastOutput = response;
                     OutputResponse(commandToRun, response);
                 }
-                catch (Exception ex)
+                catch (InvalidOperationException ex)
                 {
                     OutputError($"Error processing '{commandToRun}': {ex.Message}");
                     if (_config.ExitOnError)
@@ -149,8 +149,7 @@ public sealed class PipeProcessingSubsystem : IPipeProcessingSubsystem
     {
         if (maxDepth <= 0) return response;
 
-        var pipePattern = new Regex(@"\[PIPE:\s*(.+?)\]|```pipe\s*\n(.+?)\n```", RegexOptions.Singleline);
-        var matches = pipePattern.Matches(response);
+        var matches = PipePatternRegex().Matches(response);
 
         if (matches.Count == 0) return response;
 
@@ -167,7 +166,7 @@ public sealed class PipeProcessingSubsystem : IPipeProcessingSubsystem
                 var pipeResult = await ProcessInputWithPipingAsync(pipeCommand.Trim(), maxDepth - 1);
                 result = result.Replace(match.Value, $"\n📤 Pipe Result:\n{pipeResult}\n");
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 result = result.Replace(match.Value, $"\n❌ Pipe Error: {ex.Message}\n");
             }
@@ -257,6 +256,9 @@ public sealed class PipeProcessingSubsystem : IPipeProcessingSubsystem
             Console.Error.WriteLine($"ERROR: {message}");
         }
     }
+
+    [GeneratedRegex(@"\[PIPE:\s*(.+?)\]|```pipe\s*\n(.+?)\n```", RegexOptions.Singleline)]
+    private static partial Regex PipePatternRegex();
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }

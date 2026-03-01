@@ -19,7 +19,12 @@ public static class IngestionCliSteps
                 Step<PipelineBranch, PipelineBranch> ingest = IngestionArrows.IngestArrow<FileLoader>(s.Embed, tag: "cli");
                 s.Branch = await ingest(s.Branch);
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (IOException ex)
+            {
+                s.Branch = s.Branch.WithIngestEvent($"ingest:error:{ex.GetType().Name}:{ex.Message.Replace('|', ':')}", Array.Empty<string>());
+            }
+            catch (InvalidOperationException ex)
             {
                 s.Branch = s.Branch.WithIngestEvent($"ingest:error:{ex.GetType().Name}:{ex.Message.Replace('|', ':')}", Array.Empty<string>());
             }
@@ -130,7 +135,12 @@ public static class IngestionCliSteps
                     opts);
                 s.Branch = s.Branch.WithIngestEvent($"solution:ingest:{Path.GetFileName(root)}", vectors.Select(v => v.Id));
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (IOException ex)
+            {
+                s.Branch = s.Branch.WithIngestEvent($"solution:error:{ex.GetType().Name}:{ex.Message.Replace('|', ':')}", Array.Empty<string>());
+            }
+            catch (InvalidOperationException ex)
             {
                 s.Branch = s.Branch.WithIngestEvent($"solution:error:{ex.GetType().Name}:{ex.Message.Replace('|', ':')}", Array.Empty<string>());
             }
@@ -246,7 +256,15 @@ public static class IngestionCliSteps
                             }
                             await s.Branch.Store.AddAsync(vectors);
                         }
-                        catch (Exception exBatch)
+                        catch (OperationCanceledException) { throw; }
+                        catch (HttpRequestException exBatch)
+                        {
+                            foreach ((string id, string _) in batch)
+                            {
+                                s.Branch = s.Branch.WithIngestEvent($"zip:doc-error:{id}:{exBatch.GetType().Name}", Array.Empty<string>());
+                            }
+                        }
+                        catch (InvalidOperationException exBatch)
                         {
                             foreach ((string id, string _) in batch)
                             {
@@ -257,7 +275,12 @@ public static class IngestionCliSteps
                 }
                 s.Branch = s.Branch.WithIngestEvent($"zip:ingest:{Path.GetFileName(full)}", parsed.Select(p => p.FullPath));
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (IOException ex)
+            {
+                s.Branch = s.Branch.WithIngestEvent($"zip:error:{ex.GetType().Name}:{ex.Message.Replace('|', ':')}", Array.Empty<string>());
+            }
+            catch (InvalidOperationException ex)
             {
                 s.Branch = s.Branch.WithIngestEvent($"zip:error:{ex.GetType().Name}:{ex.Message.Replace('|', ':')}", Array.Empty<string>());
             }
@@ -328,7 +351,12 @@ public static class IngestionCliSteps
                 }
                 s.Branch = s.Branch.WithIngestEvent($"zipstream:complete:{Path.GetFileName(full)}", Array.Empty<string>());
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (IOException ex)
+            {
+                s.Branch = s.Branch.WithIngestEvent($"zipstream:error:{ex.GetType().Name}:{ex.Message.Replace('|', ':')}", Array.Empty<string>());
+            }
+            catch (InvalidOperationException ex)
             {
                 s.Branch = s.Branch.WithIngestEvent($"zipstream:error:{ex.GetType().Name}:{ex.Message.Replace('|', ':')}", Array.Empty<string>());
             }
@@ -349,7 +377,13 @@ public static class IngestionCliSteps
             }
             await s.Branch.Store.AddAsync(vectors);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
+        {
+            foreach (var item in batch)
+                s.Branch = s.Branch.WithIngestEvent($"zipstream:batch-error:{item.id}:{ex.GetType().Name}", Array.Empty<string>());
+        }
+        catch (InvalidOperationException ex)
         {
             foreach (var item in batch)
                 s.Branch = s.Branch.WithIngestEvent($"zipstream:batch-error:{item.id}:{ex.GetType().Name}", Array.Empty<string>());

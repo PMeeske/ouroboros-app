@@ -73,7 +73,11 @@ public sealed class FetchResearchHandler : IRequestHandler<FetchResearchRequest,
 
             return sb.ToString();
         }
-        catch (Exception ex)
+        catch (System.Net.Http.HttpRequestException ex)
+        {
+            return $"Error fetching research: {ex.Message}";
+        }
+        catch (InvalidOperationException ex)
         {
             return $"Error fetching research: {ex.Message}";
         }

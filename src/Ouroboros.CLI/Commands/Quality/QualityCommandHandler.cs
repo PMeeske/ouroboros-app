@@ -227,7 +227,7 @@ public sealed class QualityCommandHandler : ICommandHandler
                 "NotImplementedException in VectorStoreFactory. Vector store construction is incomplete; any feature requiring a dynamically-created store will fail at runtime."),
             new Issue(
                 Severity.Low,
-                "50+ PlaceholderCompany copyright headers",
+                "50+ Ouroboros copyright headers",
                 "ouroboros-engine/**  ouroboros-app/**",
                 "Scaffolded copyright headers never replaced; looks unprofessional in any public-facing context."),
         };
@@ -318,7 +318,7 @@ public sealed class QualityCommandHandler : ICommandHandler
             ("Duration tracking in OuroborosExperience","Enables GA speed scoring; currently a hardcoded 0.7 placeholder",                               Color.Orange3),
             ("World Model architectures",                "Add Transformer (minimum) to WorldModelEngine for complex environments",                        Color.Yellow3),
             ("Unify error handling",                     "Propagate Result<T,E> through Engine and App instead of mixing with exceptions",                Color.Yellow),
-            ("Fix PlaceholderCompany headers",           "Replace 50+ copyright headers in engine/app with real attribution",                             Color.Olive),
+            ("Fix Ouroboros headers",           "Replace 50+ copyright headers in engine/app with real attribution",                             Color.Olive),
             ("Integration test layer boundaries",        "Add tests that verify Foundation→Engine and Engine→App contracts end-to-end",                   Color.Grey),
         };
 

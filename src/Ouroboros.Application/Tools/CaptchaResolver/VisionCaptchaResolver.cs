@@ -1,5 +1,5 @@
-// <copyright file="VisionCaptchaResolver.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="VisionCaptchaResolver.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 namespace Ouroboros.Application.Tools.CaptchaResolver;
@@ -134,7 +134,7 @@ public class VisionCaptchaResolver : ICaptchaResolverStrategy
                 },
                 error => new CaptchaResolutionResult(false, ErrorMessage: $"Vision analysis failed: {error}"));
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return new CaptchaResolutionResult(false, ErrorMessage: $"Vision resolver error: {ex.Message}");
         }

@@ -246,7 +246,7 @@ public sealed class AmbientRoomListener : IAsyncDisposable
             {
                 break;
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 // Log to console so the user knows the mic loop is struggling, but keep running
                 AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  [room] Capture error: {Markup.Escape(ex.Message)}"));
@@ -301,6 +301,21 @@ public sealed class AmbientRoomListener : IAsyncDisposable
 
         // Musical note artifacts from background music
         if (text.All(c => c == '♪' || c == '♫' || c == ' ' || c == '.' || c == ','))
+            return true;
+
+        // Non-Latin script hallucinations: Whisper hallucinates CJK, Arabic, Cyrillic on silence.
+        // If >40% of non-whitespace chars are outside Basic Latin + Latin-1 Supplement, discard.
+        var nonSpace = text.Where(c => !char.IsWhiteSpace(c)).ToArray();
+        if (nonSpace.Length > 0)
+        {
+            int nonLatin = nonSpace.Count(c => c > '\u024F'); // beyond Latin Extended-B
+            if ((double)nonLatin / nonSpace.Length > 0.4)
+                return true;
+        }
+
+        // Repeated non-alphanumeric symbols (e.g., ∫∑∫∑∫∑)
+        var symbols = nonSpace.Where(c => !char.IsLetterOrDigit(c)).ToArray();
+        if (symbols.Length >= 6 && symbols.Distinct().Count() <= 3)
             return true;
 
         return false;

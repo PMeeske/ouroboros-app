@@ -1,5 +1,5 @@
-// <copyright file="GymEnvironmentAdapter.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="GymEnvironmentAdapter.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 using Microsoft.Extensions.Logging;
@@ -65,7 +65,11 @@ public sealed class GymEnvironmentAdapter : IAsyncDisposable
 
             return Result<Unit, string>.Success(Unit.Value);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to connect to Gym environment");
             return Result<Unit, string>.Failure($"Connection failed: {ex.Message}");
@@ -98,7 +102,11 @@ public sealed class GymEnvironmentAdapter : IAsyncDisposable
             this.currentState = SensorState.Default();
             return Result<SensorState, string>.Success(this.currentState);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to reset Gym environment");
             return Result<SensorState, string>.Failure($"Reset failed: {ex.Message}");
@@ -147,7 +155,11 @@ public sealed class GymEnvironmentAdapter : IAsyncDisposable
 
             return Result<ActionResult, string>.Success(result);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to step Gym environment");
             return Result<ActionResult, string>.Failure($"Step failed: {ex.Message}");
@@ -174,7 +186,11 @@ public sealed class GymEnvironmentAdapter : IAsyncDisposable
             var state = this.currentState ?? SensorState.Default();
             return Result<SensorState, string>.Success(state);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to observe Gym environment");
             return Result<SensorState, string>.Failure($"Observation failed: {ex.Message}");
@@ -207,7 +223,7 @@ public sealed class GymEnvironmentAdapter : IAsyncDisposable
             this.currentState = null;
             this.logger.LogInformation("Disconnected from Gym environment");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Error during disconnect from Gym environment");
         }

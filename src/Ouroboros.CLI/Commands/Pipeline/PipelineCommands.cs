@@ -1,5 +1,7 @@
+﻿using System.Net.Http;
 using LangChain.DocumentLoaders;
 using LangChain.Providers.Ollama;
+using Ouroboros.Application.Configuration;
 using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Diagnostics;
 using Ouroboros.Options;
@@ -82,7 +84,7 @@ public static class PipelineCommands
                         m.Settings = OllamaPresets.Phi3MiniGeneral;
                     }
                 }
-                catch { /* non-fatal: fall back to provider defaults */ }
+                catch (InvalidOperationException) { /* non-fatal: fall back to provider defaults */ }
                 return new OllamaChatAdapter(m, settings?.Culture);
             }
             string general = pipelineOpts.GeneralModel ?? modelName;
@@ -98,6 +100,7 @@ public static class PipelineCommands
             {
                 chatModel = ServiceFactory.CreateRemoteChatModel(endpoint, apiKey, modelName, settings, endpointType);
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex) when (pipelineOpts is not null && !pipelineOpts.StrictModel && ex.Message.Contains("Invalid model", StringComparison.OrdinalIgnoreCase))
             {
                 AnsiConsole.MarkupLine(OuroborosTheme.Warn($"[WARN] Remote model '{modelName}' invalid. Falling back to local 'llama3'. Use --strict-model to disable fallback."));
@@ -125,7 +128,7 @@ public static class PipelineCommands
                 else if (n.StartsWith("qwen2.5") || n.Contains("qwen")) chat.Settings = OllamaPresets.Qwen25_7B_General;
                 else if (n.StartsWith("phi3") || n.Contains("phi-3")) chat.Settings = OllamaPresets.Phi3MiniGeneral;
             }
-            catch { /* ignore and use defaults */ }
+            catch (InvalidOperationException) { /* ignore and use defaults */ }
             chatModel = new OllamaChatAdapter(chat, settings?.Culture); // adapter added below
         }
         IEmbeddingModel embed = ServiceFactory.CreateEmbeddingModel(endpoint, apiKey, endpointType, embedName, provider);
@@ -186,7 +189,11 @@ public static class PipelineCommands
             }
             Telemetry.PrintSummary();
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            AnsiConsole.MarkupLine($"  [red]Pipeline failed: {Markup.Escape(ex.Message)}[/]");
+        }
+        catch (HttpRequestException ex)
         {
             AnsiConsole.MarkupLine($"  [red]Pipeline failed: {Markup.Escape(ex.Message)}[/]");
         }
@@ -204,7 +211,7 @@ public static class PipelineCommands
             localTts: o.LocalTts,
             voiceLoop: o.VoiceLoop,
             model: o.Model,
-            endpoint: o.Endpoint ?? "http://localhost:11434");
+            endpoint: o.Endpoint ?? DefaultEndpoints.Ollama);
 
         await voiceService.InitializeAsync();
         voiceService.PrintHeader("PIPELINE DSL");
@@ -267,7 +274,11 @@ public static class PipelineCommands
                     await RunPipelineDslAsync(input, o.Model, o.Embed, o.Source, o.K, o.Trace, settings, o);
                     await voiceService.SayAsync("Pipeline complete!");
                 }
-                catch (Exception ex)
+                catch (InvalidOperationException ex)
+                {
+                    await voiceService.SayAsync($"Pipeline error: {ex.Message}");
+                }
+                catch (HttpRequestException ex)
                 {
                     await voiceService.SayAsync($"Pipeline error: {ex.Message}");
                 }

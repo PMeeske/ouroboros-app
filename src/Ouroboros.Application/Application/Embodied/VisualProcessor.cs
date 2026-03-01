@@ -1,5 +1,5 @@
-// <copyright file="VisualProcessor.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="VisualProcessor.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 using Microsoft.Extensions.Logging;
@@ -111,7 +111,11 @@ public sealed class VisualProcessor
 
             return Result<float[], string>.Success(features);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Feature extraction failed");
             return Result<float[], string>.Failure($"Feature extraction failed: {ex.Message}");
@@ -159,7 +163,11 @@ public sealed class VisualProcessor
 
             return Result<List<DetectedObject>, string>.Success(detectedObjects);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Object detection failed");
             return Result<List<DetectedObject>, string>.Failure($"Object detection failed: {ex.Message}");

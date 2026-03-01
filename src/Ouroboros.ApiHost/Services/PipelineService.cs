@@ -10,10 +10,9 @@ public sealed class PipelineService : IPipelineService
     /// <inheritdoc/>
     public async Task<string> AskAsync(AskRequest request, CancellationToken cancellationToken = default)
     {
-        string modelName = request.Model ?? "llama3";
+        string modelName = request.Model ?? "deepseek-v3.1:671b-cloud";
         string embedName = "nomic-embed-text";
         bool withRag = request.UseRag;
-        string sourcePath = request.SourcePath ?? Environment.CurrentDirectory;
         int k = 3;
         string question = request.Question;
 
@@ -36,7 +35,7 @@ public sealed class PipelineService : IPipelineService
             }
             catch
             {
-                OllamaChatModel local = new OllamaChatModel(provider, "llama3");
+                OllamaChatModel local = new OllamaChatModel(provider, "deepseek-v3.1:671b-cloud");
                 chatModel = new OllamaChatAdapter(local, settings.Culture);
             }
         }
@@ -111,7 +110,7 @@ public sealed class PipelineService : IPipelineService
     /// <inheritdoc/>
     public async Task<string> ExecutePipelineAsync(PipelineRequest request, CancellationToken cancellationToken = default)
     {
-        string modelName = request.Model ?? "llama3";
+        string modelName = request.Model ?? "deepseek-v3.1:671b-cloud";
         string embedName = "nomic-embed-text";
         string dsl = request.Dsl;
         string sourcePath = Environment.CurrentDirectory;
@@ -137,7 +136,7 @@ public sealed class PipelineService : IPipelineService
             }
             catch
             {
-                OllamaChatModel local = new OllamaChatModel(provider, "llama3");
+                OllamaChatModel local = new OllamaChatModel(provider, "deepseek-v3.1:671b-cloud");
                 chatModel = new OllamaChatAdapter(local, settings.Culture);
             }
         }

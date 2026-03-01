@@ -1,4 +1,5 @@
 ﻿using System.CommandLine;
+using Ouroboros.Application.Configuration;
 
 namespace Ouroboros.CLI.Commands.Options;
 
@@ -17,7 +18,7 @@ public sealed class EmbeddingOptions : IComposableOptions
     public Option<string> QdrantEndpointOption { get; } = new("--qdrant")
     {
         Description = "Qdrant endpoint for persistent memory",
-        DefaultValueFactory = _ => "http://localhost:6334"
+        DefaultValueFactory = _ => DefaultEndpoints.QdrantGrpc
     };
 
     public void AddToCommand(Command command)

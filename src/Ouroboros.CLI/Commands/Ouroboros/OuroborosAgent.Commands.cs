@@ -103,6 +103,8 @@ public sealed partial class OuroborosAgent
     private Task<string> PolicyCommandAsync(string subCommand)
         => _mediator.Send(new PolicyCommandRequest(subCommand));
 
+    private Task<string> SwarmCommandAsync(string argument)
+        => Swarm.SwarmCommandHandler.HandleAsync(argument, _swarmSub);
 
     private Task<string> RunTestAsync(string testSpec)
         => _mediator.Send(new RunTestRequest(testSpec));

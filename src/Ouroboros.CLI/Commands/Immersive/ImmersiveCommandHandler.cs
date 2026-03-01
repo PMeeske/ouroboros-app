@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Ouroboros.Application.OpenClaw;
 using Ouroboros.CLI.Abstractions;
 using Ouroboros.CLI.Infrastructure;
 using Ouroboros.CLI.Services;
@@ -38,17 +39,17 @@ public sealed class ImmersiveCommandHandler : ICommandHandler<ImmersiveConfig>
         try
         {
             // Resolve OpenClaw token from user-secrets / appsettings if not provided via CLI or env
-            if (config.EnableOpenClaw && string.IsNullOrEmpty(config.OpenClawToken))
+            if (config.EnableOpenClaw)
             {
-                var secretToken = _configuration["OpenClaw:Token"];
-                if (!string.IsNullOrEmpty(secretToken))
-                    config = config with { OpenClawToken = secretToken };
+                var resolvedToken = OpenClawTokenManager.ResolveToken(config.OpenClawToken, _configuration);
+                if (resolvedToken != config.OpenClawToken)
+                    config = config with { OpenClawToken = resolvedToken };
             }
 
             await _immersiveService.RunAsync(config, cancellationToken);
             return 0;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             _logger.LogError(ex, "Error running immersive mode");
             _console.MarkupLine($"[red]Error:[/] {ex.Message}");

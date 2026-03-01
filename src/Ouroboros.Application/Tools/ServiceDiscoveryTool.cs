@@ -161,9 +161,13 @@ public sealed class ServiceDiscoveryTool : ITool
 
             return Result<string, string>.Success(output);
         }
-        catch (Exception ex)
+        catch (TargetInvocationException ex)
         {
             return Result<string, string>.Failure($"Invocation failed: {ex.InnerException?.Message ?? ex.Message}");
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Result<string, string>.Failure($"Invocation failed: {ex.Message}");
         }
     }
 
@@ -203,7 +207,7 @@ public sealed class ServiceDiscoveryTool : ITool
         if (!string.IsNullOrWhiteSpace(argsJson))
         {
             try { jsonRoot = JsonDocument.Parse(argsJson).RootElement; }
-            catch { /* plain-string fallback */ }
+            catch (System.Text.Json.JsonException) { /* plain-string fallback */ }
         }
 
         for (int i = 0; i < parameters.Length; i++)

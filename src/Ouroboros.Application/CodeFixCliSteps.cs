@@ -47,7 +47,8 @@ public static class CodeFixCliSteps
                     s.Branch = s.Branch.WithIngestEvent($"fix:error:{id}:{result.Error.Replace('|', ':')}", Array.Empty<string>());
                 }
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+            catch (HttpRequestException ex)
             {
                 s.Branch = s.Branch.WithIngestEvent($"fix:exception:{ex.GetType().Name}:{ex.Message.Replace('|', ':')}", Array.Empty<string>());
             }

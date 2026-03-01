@@ -170,7 +170,7 @@ public static class HybridRoutingExample
             string response = await router.GenerateTextAsync(prompt);
             Console.WriteLine($"Response: {response.Substring(0, Math.Min(150, response.Length))}...");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Console.WriteLine($"Error: {ex.Message}");
         }

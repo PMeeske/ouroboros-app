@@ -1,5 +1,5 @@
-// <copyright file="MetaAiPipelineExample.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="MetaAiPipelineExample.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 namespace Ouroboros.Examples;
@@ -113,7 +113,7 @@ Think step-by-step:
                 Console.WriteLine("This may require a more capable model or different prompt structure.");
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             if (ex.Message.Contains("Connection refused"))
             {
@@ -187,7 +187,7 @@ Explain how you would use these tools to create a high-quality response to: 'Wha
                 Console.WriteLine($"\n✓ Invoked {toolCalls.Count} tools from the allowed set");
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             if (ex.Message.Contains("Connection refused"))
             {

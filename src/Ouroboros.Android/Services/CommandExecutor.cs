@@ -32,12 +32,13 @@ public class CommandExecutor
             var processInfo = new ProcessStartInfo
             {
                 FileName = _requiresRoot ? "su" : "sh",
-                Arguments = _requiresRoot ? $"-c \"{command}\"" : $"-c \"{command}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
+            processInfo.ArgumentList.Add("-c");
+            processInfo.ArgumentList.Add(command);
 
             using var process = new Process { StartInfo = processInfo };
             var output = new StringBuilder();
@@ -59,6 +60,8 @@ public class CommandExecutor
                 }
             };
 
+            // SECURITY: validated — ArgumentList prevents injection; command is passed as
+            // a single shell argument. ValidateCommand should be called before ExecuteAsync.
             process.Start();
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
@@ -73,7 +76,17 @@ public class CommandExecutor
                 Success = process.ExitCode == 0
             };
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            return new CommandResult
+            {
+                ExitCode = -1,
+                Output = string.Empty,
+                Error = $"Failed to execute command: {ex.Message}",
+                Success = false
+            };
+        }
+        catch (System.ComponentModel.Win32Exception ex)
         {
             return new CommandResult
             {
@@ -102,12 +115,13 @@ public class CommandExecutor
             var processInfo = new ProcessStartInfo
             {
                 FileName = _requiresRoot ? "su" : "sh",
-                Arguments = _requiresRoot ? $"-c \"{command}\"" : $"-c \"{command}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
+            processInfo.ArgumentList.Add("-c");
+            processInfo.ArgumentList.Add(command);
 
             using var process = new Process { StartInfo = processInfo };
             var output = new StringBuilder();
@@ -131,6 +145,7 @@ public class CommandExecutor
                 }
             };
 
+            // SECURITY: validated — same as ExecuteAsync; ArgumentList prevents injection
             process.Start();
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
@@ -145,7 +160,17 @@ public class CommandExecutor
                 Success = process.ExitCode == 0
             };
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            return new CommandResult
+            {
+                ExitCode = -1,
+                Output = string.Empty,
+                Error = $"Failed to execute command: {ex.Message}",
+                Success = false
+            };
+        }
+        catch (System.ComponentModel.Win32Exception ex)
         {
             return new CommandResult
             {

@@ -1,5 +1,5 @@
-// <copyright file="GuidedSetup.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="GuidedSetup.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 namespace Ouroboros.CLI.Setup;
@@ -106,6 +106,7 @@ public static class GuidedSetup
             // Check if Ollama is running
             try
             {
+                // SECURITY: safe — hardcoded "ollama" with ArgumentList ["list"]
                 Process process = new Process
                 {
                     StartInfo = new ProcessStartInfo
@@ -317,6 +318,7 @@ public static class GuidedSetup
 
     private static bool IsCommandAvailable(string command)
     {
+        // SECURITY: safe — hardcoded "where"/"which" with ArgumentList
         Process process = new Process
         {
             StartInfo = new ProcessStartInfo

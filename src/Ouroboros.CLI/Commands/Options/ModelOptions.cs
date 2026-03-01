@@ -11,7 +11,7 @@ public sealed class ModelOptions : IComposableOptions
     public Option<string> ModelOption { get; } = new("--model", "-m")
     {
         Description = "LLM model name",
-        DefaultValueFactory = _ => "ministral-3:latest"
+        DefaultValueFactory = _ => "deepseek-v3.1:671b-cloud"
     };
 
     public Option<double> TemperatureOption { get; } = new("--temperature")
@@ -23,7 +23,7 @@ public sealed class ModelOptions : IComposableOptions
     public Option<int> MaxTokensOption { get; } = new("--max-tokens")
     {
         Description = "Max tokens for completion",
-        DefaultValueFactory = _ => 2048
+        DefaultValueFactory = _ => 0
     };
 
     public Option<int> TimeoutSecondsOption { get; } = new("--timeout")

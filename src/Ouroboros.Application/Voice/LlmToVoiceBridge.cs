@@ -187,7 +187,7 @@ public sealed class LlmToVoiceBridge : IDisposable
                 observer.OnNext(interruptEvent);
                 observer.OnCompleted();
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _stream.PublishError(ex.Message, ex, ErrorCategory.Generation);
                 observer.OnError(ex);
@@ -287,7 +287,7 @@ public sealed class LlmToVoiceBridge : IDisposable
         {
             // Expected during interruption
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _stream.PublishError($"TTS error: {ex.Message}", ex, ErrorCategory.SpeechSynthesis);
         }

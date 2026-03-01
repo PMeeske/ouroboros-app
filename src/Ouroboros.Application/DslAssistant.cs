@@ -1,4 +1,3 @@
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 using System.Text;
 
 namespace Ouroboros.Application;
@@ -7,7 +6,7 @@ namespace Ouroboros.Application;
 /// GitHub Copilot-like assistant for Ouroboros CLI DSL.
 /// Provides intelligent code completion, suggestions, and error recovery for pipeline DSL.
 /// </summary>
-public class DslAssistant
+public partial class DslAssistant
 {
     private readonly ToolAwareChatModel _llm;
     private readonly ToolRegistry _tools;
@@ -64,7 +63,12 @@ Example format:
 
             return Result<List<DslSuggestion>, string>.Success(suggestions);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
+        {
+            return Result<List<DslSuggestion>, string>.Failure($"Failed to generate suggestions: {ex.Message}");
+        }
+        catch (InvalidOperationException ex)
         {
             return Result<List<DslSuggestion>, string>.Failure($"Failed to generate suggestions: {ex.Message}");
         }
@@ -93,7 +97,7 @@ Example format:
 
             return Result<List<string>, string>.Success(completions);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return Result<List<string>, string>.Failure($"Failed to complete token: {ex.Message}");
         }
@@ -159,7 +163,12 @@ Respond with only the corrected DSL, no explanation.";
 
             return Result<DslValidationResult, string>.Success(result);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
+        {
+            return Result<DslValidationResult, string>.Failure($"Validation failed: {ex.Message}");
+        }
+        catch (InvalidOperationException ex)
         {
             return Result<DslValidationResult, string>.Failure($"Validation failed: {ex.Message}");
         }
@@ -190,7 +199,12 @@ Focus on the high-level purpose and flow, not implementation details.";
 
             return Result<string, string>.Success(response.Trim());
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
+        {
+            return Result<string, string>.Failure($"Failed to explain DSL: {ex.Message}");
+        }
+        catch (InvalidOperationException ex)
         {
             return Result<string, string>.Failure($"Failed to explain DSL: {ex.Message}");
         }
@@ -221,7 +235,12 @@ Be brief but informative (3-5 sentences).";
 
             return Result<string, string>.Success(response.Trim());
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
+        {
+            return Result<string, string>.Failure($"Failed to explain code: {ex.Message}");
+        }
+        catch (InvalidOperationException ex)
         {
             return Result<string, string>.Failure($"Failed to explain code: {ex.Message}");
         }
@@ -260,7 +279,12 @@ Example format: SetTopic('AI Ethics') | UseDraft | UseCritique | UseImprove";
 
             return Result<string, string>.Success(response.Trim());
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
+        {
+            return Result<string, string>.Failure($"Failed to build DSL: {ex.Message}");
+        }
+        catch (InvalidOperationException ex)
         {
             return Result<string, string>.Failure($"Failed to build DSL: {ex.Message}");
         }
@@ -283,7 +307,7 @@ You provide intelligent code completion, error recovery, and guidance.";
         foreach (string line in lines.Take(maxSuggestions * 3)) // Process more lines than needed
         {
             // Match numbered list format: "1. TokenName - explanation"
-            if (System.Text.RegularExpressions.Regex.Match(line, @"^\d+\.\s+(\w+)(?:\([^)]*\))?\s*-\s*(.+)$") is var match && match.Success)
+            if (NumberedListSuggestionRegex().Match(line) is var match && match.Success)
             {
                 string token = match.Groups[1].Value;
                 string explanation = match.Groups[2].Value;
@@ -307,9 +331,7 @@ You provide intelligent code completion, error recovery, and guidance.";
     {
         string name = token;
         string? args = null;
-        System.Text.RegularExpressions.Match m = System.Text.RegularExpressions.Regex.Match(
-            token, 
-            @"^(?<name>[A-Za-z0-9_<>:, ]+)\s*\((?<args>.*)\)\s*$");
+        System.Text.RegularExpressions.Match m = DslTokenParseRegex().Match(token);
         
         if (m.Success)
         {
@@ -371,4 +393,10 @@ You provide intelligent code completion, error recovery, and guidance.";
         
         return sb.ToString();
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"^\d+\.\s+(\w+)(?:\([^)]*\))?\s*-\s*(.+)$")]
+    private static partial System.Text.RegularExpressions.Regex NumberedListSuggestionRegex();
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"^(?<name>[A-Za-z0-9_<>:, ]+)\s*\((?<args>.*)\)\s*$")]
+    private static partial System.Text.RegularExpressions.Regex DslTokenParseRegex();
 }

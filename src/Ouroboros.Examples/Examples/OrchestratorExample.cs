@@ -1,5 +1,5 @@
-// <copyright file="OrchestratorExample.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="OrchestratorExample.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 namespace Ouroboros.Examples;
@@ -82,7 +82,7 @@ public static class OrchestratorExample
                 string response = await orchestrator.GenerateTextAsync(prompt);
                 Console.WriteLine($"Response: {response.Substring(0, Math.Min(150, response.Length))}...\n");
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 if (ex.Message.Contains("Connection refused"))
                 {
@@ -185,7 +185,7 @@ Available tools include: run_usedraft, run_usecritique, run_useimprove.";
                 Console.WriteLine($"  Success Rate: {metric.SuccessRate:P0}");
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             if (ex.Message.Contains("Connection refused"))
             {

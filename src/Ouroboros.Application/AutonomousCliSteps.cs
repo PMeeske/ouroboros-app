@@ -21,7 +21,7 @@ public static class AutonomousCliSteps
     [PipelineToken("AutonomousStatus")]
     public static async Task<string> AutonomousStatus()
     {
-        var tool = new AutonomousTools.GetAutonomousStatusTool();
+        var tool = new GetAutonomousStatusTool();
         var result = await tool.InvokeAsync("", CancellationToken.None);
         return result.Match(s => s, e => $"Error: {e}");
     }
@@ -32,7 +32,7 @@ public static class AutonomousCliSteps
     [PipelineToken("NeuralNetworkStatus")]
     public static async Task<string> NeuralNetworkStatus()
     {
-        var tool = new AutonomousTools.GetNetworkStatusTool();
+        var tool = new GetNetworkStatusTool();
         var result = await tool.InvokeAsync("", CancellationToken.None);
         return result.Match(s => s, e => $"Error: {e}");
     }
@@ -47,7 +47,7 @@ public static class AutonomousCliSteps
     [PipelineToken("ListIntentions")]
     public static async Task<string> ListIntentions()
     {
-        var tool = new AutonomousTools.ListPendingIntentionsTool();
+        var tool = new ListPendingIntentionsTool();
         var result = await tool.InvokeAsync("", CancellationToken.None);
         return result.Match(s => s, e => $"Error: {e}");
     }
@@ -60,7 +60,7 @@ public static class AutonomousCliSteps
     [PipelineToken("ApproveIntention")]
     public static async Task<string> ApproveIntention(string partialId, string? comment = null)
     {
-        var tool = new AutonomousTools.ApproveIntentionTool();
+        var tool = new ApproveIntentionTool();
         var input = comment != null
             ? $"{{\"id\":\"{partialId}\",\"comment\":\"{comment}\"}}"
             : $"{{\"id\":\"{partialId}\"}}";
@@ -76,7 +76,7 @@ public static class AutonomousCliSteps
     [PipelineToken("RejectIntention")]
     public static async Task<string> RejectIntention(string partialId, string? reason = null)
     {
-        var tool = new AutonomousTools.RejectIntentionTool();
+        var tool = new RejectIntentionTool();
         var input = reason != null
             ? $"{{\"id\":\"{partialId}\",\"reason\":\"{reason}\"}}"
             : $"{{\"id\":\"{partialId}\"}}";
@@ -100,7 +100,7 @@ public static class AutonomousCliSteps
         string category = "SelfReflection",
         string priority = "Normal")
     {
-        var tool = new AutonomousTools.ProposeIntentionTool();
+        var tool = new ProposeIntentionTool();
         var input = $"{{\"title\":\"{EscapeJson(title)}\",\"description\":\"{EscapeJson(description)}\",\"rationale\":\"{EscapeJson(rationale)}\",\"category\":\"{category}\",\"priority\":\"{priority}\"}}";
         var result = await tool.InvokeAsync(input, CancellationToken.None);
         return result.Match(s => s, e => $"Error: {e}");
@@ -112,10 +112,10 @@ public static class AutonomousCliSteps
     [PipelineToken("ApproveAllSafe")]
     public static Task<string> ApproveAllSafe()
     {
-        if (AutonomousTools.SharedCoordinator == null)
+        if (AutonomousTools.DefaultContext.Coordinator == null)
             return Task.FromResult("Error: Autonomous coordinator not initialized.");
 
-        var count = AutonomousTools.SharedCoordinator.IntentionBus.ApproveAllLowRisk();
+        var count = AutonomousTools.DefaultContext.Coordinator.IntentionBus.ApproveAllLowRisk();
         return Task.FromResult($"✅ Auto-approved {count} low-risk intentions.");
     }
 
@@ -129,7 +129,7 @@ public static class AutonomousCliSteps
     [PipelineToken("StartAutonomous")]
     public static async Task<string> StartAutonomous()
     {
-        var tool = new AutonomousTools.ToggleAutonomousModeTool();
+        var tool = new ToggleAutonomousModeTool();
         var result = await tool.InvokeAsync("start", CancellationToken.None);
         return result.Match(s => s, e => $"Error: {e}");
     }
@@ -140,7 +140,7 @@ public static class AutonomousCliSteps
     [PipelineToken("StopAutonomous")]
     public static async Task<string> StopAutonomous()
     {
-        var tool = new AutonomousTools.ToggleAutonomousModeTool();
+        var tool = new ToggleAutonomousModeTool();
         var result = await tool.InvokeAsync("stop", CancellationToken.None);
         return result.Match(s => s, e => $"Error: {e}");
     }
@@ -157,7 +157,7 @@ public static class AutonomousCliSteps
     [PipelineToken("SetGoal")]
     public static async Task<string> SetGoal(string goal, string priority = "Normal")
     {
-        var tool = new AutonomousTools.InjectGoalTool();
+        var tool = new InjectGoalTool();
         var input = $"{{\"goal\":\"{EscapeJson(goal)}\",\"priority\":\"{priority}\"}}";
         var result = await tool.InvokeAsync(input, CancellationToken.None);
         return result.Match(s => s, e => $"Error: {e}");
@@ -172,7 +172,7 @@ public static class AutonomousCliSteps
     [PipelineToken("SendToNeuron")]
     public static async Task<string> SendToNeuron(string neuronId, string topic, string payload)
     {
-        var tool = new AutonomousTools.SendNeuronMessageTool();
+        var tool = new SendNeuronMessageTool();
         var input = $"{{\"neuron_id\":\"{neuronId}\",\"topic\":\"{topic}\",\"payload\":\"{EscapeJson(payload)}\"}}";
         var result = await tool.InvokeAsync(input, CancellationToken.None);
         return result.Match(s => s, e => $"Error: {e}");
@@ -185,7 +185,7 @@ public static class AutonomousCliSteps
     [PipelineToken("SearchNeuronHistory")]
     public static async Task<string> SearchNeuronHistory(string query)
     {
-        var tool = new AutonomousTools.SearchNeuronHistoryTool();
+        var tool = new SearchNeuronHistoryTool();
         var result = await tool.InvokeAsync(query, CancellationToken.None);
         return result.Match(s => s, e => $"Error: {e}");
     }
@@ -204,7 +204,7 @@ public static class AutonomousCliSteps
         bool pushBasedMode = true,
         bool autoApproveSelfReflection = true)
     {
-        if (AutonomousTools.SharedCoordinator != null)
+        if (AutonomousTools.DefaultContext.Coordinator != null)
             return Task.FromResult("Autonomous coordinator already initialized.");
 
         var config = new AutonomousConfiguration
@@ -217,7 +217,7 @@ public static class AutonomousCliSteps
             EnableCodeModification = true,
         };
 
-        AutonomousTools.SharedCoordinator = new AutonomousCoordinator(config);
+        AutonomousTools.DefaultContext.Coordinator = new AutonomousCoordinator(config);
         return Task.FromResult(
             $"✅ Autonomous coordinator initialized.\n" +
             $"   Push-based mode: {pushBasedMode}\n" +
@@ -231,10 +231,10 @@ public static class AutonomousCliSteps
     [PipelineToken("IntentionBusSummary")]
     public static Task<string> IntentionBusSummary()
     {
-        if (AutonomousTools.SharedCoordinator == null)
+        if (AutonomousTools.DefaultContext.Coordinator == null)
             return Task.FromResult("Error: Autonomous coordinator not initialized.");
 
-        return Task.FromResult(AutonomousTools.SharedCoordinator.IntentionBus.GetSummary());
+        return Task.FromResult(AutonomousTools.DefaultContext.Coordinator.IntentionBus.GetSummary());
     }
 
     /// <summary>
@@ -244,10 +244,10 @@ public static class AutonomousCliSteps
     [PipelineToken("ProcessCommand")]
     public static Task<string> ProcessCommand(string command)
     {
-        if (AutonomousTools.SharedCoordinator == null)
+        if (AutonomousTools.DefaultContext.Coordinator == null)
             return Task.FromResult("Error: Autonomous coordinator not initialized.");
 
-        var processed = AutonomousTools.SharedCoordinator.ProcessCommand(command);
+        var processed = AutonomousTools.DefaultContext.Coordinator.ProcessCommand(command);
         return Task.FromResult(processed
             ? "Command processed successfully."
             : "Not a recognized command. Use /help for available commands.");

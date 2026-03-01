@@ -47,7 +47,7 @@ public sealed class StartListeningHandler : IRequestHandler<StartListeningReques
             {
                 // Expected when stopping
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 _agent.ConsoleOutput.WriteError($"Listening error: {ex.Message}");
             }
@@ -83,7 +83,7 @@ public sealed class StartListeningHandler : IRequestHandler<StartListeningReques
             ct.Register(() =>
             {
                 try { _ = speechSynthesizer.StopSpeakingAsync(); }
-                catch { /* Best effort */ }
+                catch (InvalidOperationException) { /* Best effort barge-in stop */ }
             });
 
             // Detect the response language via LanguageSubsystem (Ollama LLM -> heuristic fallback).
@@ -99,19 +99,24 @@ public sealed class StartListeningHandler : IRequestHandler<StartListeningReques
 
             var result = await speechSynthesizer.SpeakSsmlAsync(ssml);
 
-            if (result.Reason != Microsoft.CognitiveServices.Speech.ResultReason.SynthesizingAudioCompleted)
+            if (result.Reason != Microsoft.CognitiveServices.Speech.ResultReason.SynthesizingAudioCompleted
+                && _agent.Config.Debug)
             {
-                if (_agent.Config.Debug)
-                {
-                    _agent.ConsoleOutput.WriteDebug($"[Azure TTS] Synthesis issue: {result.Reason}");
-                }
+                _agent.ConsoleOutput.WriteDebug($"[Azure TTS] Synthesis issue: {result.Reason}");
             }
         }
         catch (OperationCanceledException)
         {
             // Expected during barge-in
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            if (_agent.Config.Debug)
+            {
+                _agent.ConsoleOutput.WriteDebug($"[Azure TTS] Error: {ex.Message}");
+            }
+        }
+        catch (System.Net.Http.HttpRequestException ex)
         {
             if (_agent.Config.Debug)
             {

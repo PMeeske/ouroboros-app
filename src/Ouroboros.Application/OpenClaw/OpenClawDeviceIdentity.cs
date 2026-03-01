@@ -63,7 +63,9 @@ public sealed class OpenClawDeviceIdentity
         if (File.Exists(path))
         {
             try { return await LoadAsync(path, ct); }
-            catch { /* Corrupted or unreadable — regenerate below */ }
+            catch (System.Text.Json.JsonException) { /* Corrupted — regenerate below */ }
+            catch (FormatException) { /* Invalid Base64 seed — regenerate below */ }
+            catch (IOException) { /* Unreadable file — regenerate below */ }
         }
 
         var fresh = Create();
@@ -91,14 +93,27 @@ public sealed class OpenClawDeviceIdentity
     {
         long signedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         string payload = $"v2|{DeviceId}|{clientId}|{clientMode}|{role}|{scopesCsv}|{signedAt}|{tokenOrEmpty}|{nonce}";
-        // DEBUG — remove once handshake is stable
-        Console.Error.WriteLine($"[OpenClaw DEBUG] Signing payload: {payload}");
+        System.Diagnostics.Debug.WriteLine($"[OpenClaw] Signing payload: {payload}");
         byte[] data = Encoding.UTF8.GetBytes(payload);
         byte[] rawSig = OpenClawEd25519.Sign(data, _seed, _publicKey);
         return (ToBase64Url(rawSig), signedAt, nonce);
     }
 
     // ── Token persistence ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Deletes the persisted device identity and creates a fresh Ed25519 keypair.
+    /// Called automatically by the gateway client when the server rejects the
+    /// device signature (e.g. after key rotation or file corruption).
+    /// </summary>
+    public static async Task<OpenClawDeviceIdentity> RegenerateAsync(CancellationToken ct = default)
+    {
+        var path = StoragePath();
+        try { File.Delete(path); } catch (IOException) { /* best-effort */ }
+        var fresh = Create();
+        await fresh.PersistAsync(path, ct);
+        return fresh;
+    }
 
     /// <summary>
     /// Store the device token returned by the gateway in memory and on disk.
@@ -108,7 +123,7 @@ public sealed class OpenClawDeviceIdentity
     {
         DeviceToken = token;
         try { await PersistAsync(StoragePath(), ct); }
-        catch { /* Non-fatal — token will be re-acquired on next connect */ }
+        catch (IOException) { /* Non-fatal — token will be re-acquired on next connect */ }
     }
 
     // ── Internals ─────────────────────────────────────────────────────────────────

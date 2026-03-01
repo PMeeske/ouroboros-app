@@ -1,4 +1,4 @@
-using Ouroboros.Abstractions.Monads;
+﻿using Ouroboros.Abstractions.Monads;
 using Ouroboros.Providers.SpeechToText;
 using Ouroboros.Providers.TextToSpeech;
 
@@ -244,6 +244,7 @@ public sealed class VoicePipeline
                     return VoicePipelineResult.Success(result.Output!, null, $"Voice generation failed: {ttsResult.Error}");
                 }
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex)
             {
                 // Voice generation failed, but text output succeeded

@@ -1,3 +1,5 @@
+using Ouroboros.Application.Configuration;
+
 namespace Ouroboros.CLI.Commands;
 
 /// <summary>
@@ -12,7 +14,7 @@ public sealed record VoiceModeConfig(
     bool VoiceLoop = true,
     bool DisableStt = false,
     string Model = "llama3",
-    string Endpoint = "http://localhost:11434",
+    string Endpoint = DefaultEndpoints.Ollama,
     string EmbedModel = "nomic-embed-text",
-    string QdrantEndpoint = "http://localhost:6334",
+    string QdrantEndpoint = DefaultEndpoints.QdrantGrpc,
     string? Culture = null);

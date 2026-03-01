@@ -1,5 +1,5 @@
-// <copyright file="AgentCliSteps.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="AgentCliSteps.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 using Ouroboros.Application.Agent;
@@ -14,6 +14,12 @@ namespace Ouroboros.Application;
 /// </summary>
 public static class AgentCliSteps
 {
+    private const int MaxConsecutiveThinks = 3;
+    private const int ForceCompleteThinks = 5;
+    private const int MaxConsecutiveUnknowns = 3;
+    private const int MaxHistoryEntries = 20;
+    private const int MaxExecutedActions = 30;
+
     /// <summary>
     /// Autonomous agent that plans and executes multi-step tasks.
     /// Usage: AutoAgent('Fix the bug in UserService.cs')
@@ -45,9 +51,13 @@ public static class AgentCliSteps
             var executedActions = new List<string>();
             bool taskComplete = false;
 
-            for (int iteration = 1; iteration <= config.MaxIterations && !taskComplete; iteration++)
+            int consecutiveThinks = 0;
+            int consecutiveUnknowns = 0;
+            int actionIterations = 0; // Only count non-think iterations toward the limit
+
+            for (int iteration = 1; actionIterations < config.MaxIterations && !taskComplete; iteration++)
             {
-                Console.WriteLine($"\n[AutoAgent] === Iteration {iteration}/{config.MaxIterations} ===");
+                Console.WriteLine($"\n[AutoAgent] === Iteration {iteration} (actions: {actionIterations}/{config.MaxIterations}) ===");
 
                 // Build the agent prompt
                 var agentPrompt = AgentPromptBuilder.Build(task, toolDescriptions, conversationHistory, executedActions);
@@ -63,7 +73,8 @@ public static class AgentCliSteps
                     Console.WriteLine($"[AutoAgent] LLM responded: {agentResponse.Length} chars");
                     if (s.Trace) Console.WriteLine($"[AutoAgent] Response: {StringHelpers.TruncateForDisplay(agentResponse, 300)}");
                 }
-                catch (Exception ex)
+                catch (OperationCanceledException) { throw; }
+            catch (HttpRequestException ex)
                 {
                     Console.WriteLine($"[AutoAgent] LLM error: {ex.Message}");
                     if (s.Trace) Console.WriteLine($"[AutoAgent] Stack: {ex.StackTrace}");
@@ -82,18 +93,18 @@ public static class AgentCliSteps
                     taskComplete = true;
                     s.Output = action.Summary ?? "Task completed successfully.";
                 }
-                else if (action.Type == AgentActionType.Think)
+                else if (action.Type == AgentActionType.UseTool && !string.IsNullOrEmpty(action.ToolName))
                 {
-                    Console.WriteLine($"[AutoAgent] Thinking: {action.Thought}");
-                }
-                else if (action.Type == AgentActionType.UseTool)
-                {
+                    consecutiveThinks = 0;
+                    consecutiveUnknowns = 0;
+                    actionIterations++;
+
                     Console.WriteLine($"[AutoAgent] Using tool: {action.ToolName}");
                     if (s.Trace) Console.WriteLine($"[AutoAgent] Args: {action.ToolArgs}");
 
                     // Execute the tool
                     var toolResult = await AgentToolExecutor.ExecuteAsync(
-                        agentTools, action.ToolName!, action.ToolArgs ?? string.Empty, s);
+                        agentTools, action.ToolName, action.ToolArgs ?? string.Empty, s);
 
                     executedActions.Add(
                         $"[{action.ToolName}] {StringHelpers.TruncateForDisplay(action.ToolArgs, 50)} -> {StringHelpers.TruncateForDisplay(toolResult, 100)}");
@@ -103,14 +114,56 @@ public static class AgentCliSteps
 
                     Console.WriteLine($"[AutoAgent] Result: {StringHelpers.TruncateForDisplay(toolResult, 200)}");
                 }
+                else if (action.Type == AgentActionType.Think)
+                {
+                    consecutiveThinks++;
+                    consecutiveUnknowns = 0;
+
+                    Console.WriteLine($"[AutoAgent] Thinking: {action.Thought}");
+                    conversationHistory.Add(new AgentMessage("system", $"Thought: {action.Thought}"));
+
+                    if (consecutiveThinks >= ForceCompleteThinks)
+                    {
+                        Console.WriteLine("[AutoAgent] Forced completion after too many consecutive thoughts.");
+                        s.Output = "Agent forced completion after excessive thinking without action.";
+                        break;
+                    }
+
+                    if (consecutiveThinks >= MaxConsecutiveThinks)
+                    {
+                        conversationHistory.Add(new AgentMessage("system",
+                            "You have been thinking for several iterations without taking action. " +
+                            "Please use a tool or mark the task as complete. If you're stuck, use ask_user."));
+                    }
+                }
                 else
                 {
+                    consecutiveUnknowns++;
+                    consecutiveThinks = 0;
+
+                    if (consecutiveUnknowns >= MaxConsecutiveUnknowns)
+                    {
+                        Console.WriteLine("[AutoAgent] Too many unparseable responses. Task aborted.");
+                        s.Output = "Agent aborted: too many unparseable responses.";
+                        break;
+                    }
+
                     Console.WriteLine($"[AutoAgent] Unknown action, asking for clarification...");
-                    conversationHistory.Add(new AgentMessage("system", "Please use one of the available tools or mark the task as complete."));
+                    conversationHistory.Add(new AgentMessage("system",
+                        "Your response could not be parsed. Respond with valid JSON: " +
+                        "either a tool call or a completion signal. Examples:\n" +
+                        "{\"tool\": \"read_file\", \"args\": {\"path\": \"file.cs\"}}\n" +
+                        "{\"complete\": true, \"summary\": \"Done\"}"));
                 }
+
+                // Cap conversation history to prevent unbounded memory growth
+                if (conversationHistory.Count > MaxHistoryEntries)
+                    conversationHistory.RemoveRange(0, conversationHistory.Count - MaxHistoryEntries);
+                if (executedActions.Count > MaxExecutedActions)
+                    executedActions.RemoveRange(0, executedActions.Count - MaxExecutedActions);
             }
 
-            if (!taskComplete)
+            if (!taskComplete && s.Output == null)
             {
                 Console.WriteLine($"\n[AutoAgent] Max iterations reached ({config.MaxIterations})");
                 s.Output = $"Task incomplete after {config.MaxIterations} iterations. Actions taken: {executedActions.Count}";

@@ -1,10 +1,9 @@
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Ouroboros.Application;
 
-public static class PipelineDsl
+public static partial class PipelineDsl
 {
     public static string[] Tokenize(string dsl)
     {
@@ -103,7 +102,7 @@ public static class PipelineDsl
         // Generic patterns: Name(), Name(arg), Step<...>(arg)
         string name = token;
         string? args = null;
-        Match m = Regex.Match(token, @"^(?<name>[A-Za-z0-9_<>:, ]+)\s*\((?<args>.*)\)\s*$", RegexOptions.Singleline);
+        Match m = TokenParseRegex().Match(token);
         if (m.Success)
         {
             name = m.Groups["name"].Value.Trim();
@@ -152,5 +151,8 @@ public static class PipelineDsl
 
         return string.Join(Environment.NewLine, lines);
     }
+
+    [GeneratedRegex(@"^(?<name>[A-Za-z0-9_<>:, ]+)\s*\((?<args>.*)\)\s*$", RegexOptions.Singleline)]
+    private static partial Regex TokenParseRegex();
 }
 

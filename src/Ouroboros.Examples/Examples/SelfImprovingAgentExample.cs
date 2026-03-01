@@ -1,5 +1,5 @@
-// <copyright file="SelfImprovingAgentExample.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="SelfImprovingAgentExample.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 namespace Ouroboros.Examples;
@@ -262,7 +262,7 @@ public static class SelfImprovingAgentExample
             orchestrator.LearnFromExecution(verification);
             Console.WriteLine($"✓ Learning completed (skill extraction triggered if quality > 80%)");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Console.WriteLine($"✗ Error: {ex.Message}");
         }

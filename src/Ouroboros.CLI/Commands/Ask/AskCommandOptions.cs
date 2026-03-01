@@ -19,6 +19,16 @@ public sealed class AskCommandOptions
 
     // ── Ask-specific options ───────────────────────────────────────────
 
+    /// <summary>
+    /// Positional argument: allows <c>ask "What is AI?"</c> in addition to <c>ask --question "..."</c>.
+    /// When both are provided, the positional argument takes precedence.
+    /// </summary>
+    public Argument<string?> QuestionArgument { get; } = new("question")
+    {
+        Description = "The question to ask (positional)",
+        Arity = ArgumentArity.ZeroOrOne,
+    };
+
     public Option<string> QuestionOption { get; } = new("--question", "-q")
     {
         Description = "The question to ask",
@@ -44,7 +54,8 @@ public sealed class AskCommandOptions
 
     public void AddToCommand(Command command)
     {
-        // Ask-specific
+        // Ask-specific (positional argument first, then option fallback)
+        command.Add(QuestionArgument);
         command.Add(QuestionOption);
         command.Add(RagOption);
         command.Add(CultureOption);

@@ -1,5 +1,5 @@
-// <copyright file="StakeholderReviewLoopExample.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="StakeholderReviewLoopExample.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 namespace Ouroboros.Examples;
@@ -114,7 +114,7 @@ Implement advanced search functionality with filters and facets.
                     Console.WriteLine($"\n❌ Review failed: {error}\n");
                 });
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Console.WriteLine($"❌ Error: {ex.Message}\n");
         }

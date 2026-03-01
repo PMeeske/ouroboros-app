@@ -23,7 +23,7 @@ public sealed class ProcessDslHandler : IRequestHandler<ProcessDslRequest, strin
     {
         var dsl = request.Dsl;
         var config = _agent.Config;
-        var output = _agent.ConsoleOutput;
+        _ = _agent.ConsoleOutput; // retained for future debug use
         var llm = _agent.ModelsSub.Llm;
         var embedding = _agent.ModelsSub.Embedding;
         var tools = _agent.ToolsSub.Tools;
@@ -53,7 +53,8 @@ public sealed class ProcessDslHandler : IRequestHandler<ProcessDslRequest, strin
                     Tools = tools,
                     Embed = embedding,
                     Trace = config.Debug,
-                    NetworkTracker = networkTracker  // Enable automatic step reification
+                    NetworkTracker = networkTracker,  // Enable automatic step reification
+                    CancellationToken = cancellationToken,
                 };
 
                 // Initial tracking of the branch
@@ -68,9 +69,12 @@ public sealed class ProcessDslHandler : IRequestHandler<ProcessDslRequest, strin
                     var step = PipelineDsl.Build(dsl);
                     state = await step(state);
                 }
-                catch (Exception stepEx)
+                catch (InvalidOperationException stepEx)
                 {
-                    success = false;
+                    throw new InvalidOperationException($"Pipeline step failed: {stepEx.Message}", stepEx);
+                }
+                catch (System.Net.Http.HttpRequestException stepEx)
+                {
                     throw new InvalidOperationException($"Pipeline step failed: {stepEx.Message}", stepEx);
                 }
 
@@ -127,7 +131,20 @@ public sealed class ProcessDslHandler : IRequestHandler<ProcessDslRequest, strin
 
             return string.Empty;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            // Track failure for self-improvement
+            if (capabilityRegistry != null)
+            {
+                var execResult = AutonomySubsystem.CreateCapabilityPlanExecutionResult(false, TimeSpan.Zero, dsl);
+                await capabilityRegistry.UpdateCapabilityAsync("pipeline_execution", execResult);
+            }
+
+            AnsiConsole.MarkupLine($"[red]{Markup.Escape($"DSL execution failed: {ex.Message}")}[/]");
+
+            return string.Empty;
+        }
+        catch (System.Net.Http.HttpRequestException ex)
         {
             // Track failure for self-improvement
             if (capabilityRegistry != null)

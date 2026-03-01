@@ -1,5 +1,5 @@
-// <copyright file="MetaLearningExample.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="MetaLearningExample.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 using Ouroboros.Agent.MetaLearning;
@@ -208,7 +208,7 @@ public static class MetaLearningExample
 
             Console.WriteLine("=== All Examples Completed ===");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Console.WriteLine($"Error: {ex.Message}");
             Console.WriteLine(ex.StackTrace);

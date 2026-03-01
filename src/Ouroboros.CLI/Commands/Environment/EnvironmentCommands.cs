@@ -5,6 +5,7 @@
 using System.Text.Json;
 using Ouroboros.Abstractions;
 using Ouroboros.Abstractions.Monads;
+using Ouroboros.Application.Json;
 using Ouroboros.CLI.Avatar;
 using Ouroboros.CLI.Infrastructure;
 using Ouroboros.Domain.Environment;
@@ -40,8 +41,7 @@ public static class EnvironmentCommands
                 await ReplayEpisodeAsync(options);
                 break;
             default:
-                PrintError($"Unknown command: {options.Command}");
-                AnsiConsole.MarkupLine(OuroborosTheme.Dim("Available commands: step, run, replay"));
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim("  Environment (RL) commands: step, run, replay"));
                 break;
         }
     }
@@ -210,7 +210,11 @@ public static class EnvironmentCommands
                 }
             }
         }
-        catch (Exception ex)
+        catch (IOException ex)
+        {
+            PrintError($"Error replaying episode: {ex.Message}");
+        }
+        catch (System.Text.Json.JsonException ex)
         {
             PrintError($"Error replaying episode: {ex.Message}");
         }
@@ -274,12 +278,7 @@ public static class EnvironmentCommands
 
     private static async Task SaveEpisodesToFileAsync(List<Episode> episodes, string filePath)
     {
-        var options = new JsonSerializerOptions
-        {
-            WriteIndented = true,
-        };
-
-        var json = JsonSerializer.Serialize(episodes, options);
+        var json = JsonSerializer.Serialize(episodes, JsonDefaults.IndentedExact);
         await File.WriteAllTextAsync(filePath, json);
     }
 

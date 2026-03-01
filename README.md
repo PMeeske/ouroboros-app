@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/PMeeske/ouroboros-app/actions/workflows/ci.yml/badge.svg)](https://github.com/PMeeske/ouroboros-app/actions/workflows/ci.yml)
 [![Mutation Testing](https://github.com/PMeeske/ouroboros-app/actions/workflows/mutation.yml/badge.svg)](https://github.com/PMeeske/ouroboros-app/actions/workflows/mutation.yml)
+![Tests](https://img.shields.io/badge/tests-2%2C021%20passed-brightgreen)
+![Coverage](https://img.shields.io/badge/coverage-274%20test%20files%20%2F%20909%20src-blue)
 
 Application layer of the Ouroboros system, providing user-facing interfaces and remoting capabilities for the Ouroboros AI pipeline framework.
 

@@ -78,5 +78,7 @@ public enum ActionType
     AgiCoordinate,
     AgiExperience,
     // Prompt optimization
-    PromptOptimize
+    PromptOptimize,
+    // Swarm orchestration
+    Swarm
 }

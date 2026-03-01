@@ -24,7 +24,7 @@ public sealed class OuroborosApiClient : IDisposable
     /// Initializes a new instance of the <see cref="OuroborosApiClient"/> class.
     /// </summary>
     /// <param name="baseUrl">Base URL of the Ouroboros WebAPI (e.g. http://192.168.1.100:5000)</param>
-    public OuroborosApiClient(string baseUrl = "http://localhost:5000")
+    public OuroborosApiClient(string baseUrl = DefaultEndpoints.OuroborosApi)
     {
         _baseUrl = baseUrl.TrimEnd('/');
         _http = new HttpClient { Timeout = TimeSpan.FromMinutes(3) };
@@ -36,7 +36,7 @@ public sealed class OuroborosApiClient : IDisposable
     public string BaseUrl
     {
         get => _baseUrl;
-        set => _baseUrl = (value ?? "http://localhost:5000").TrimEnd('/');
+        set => _baseUrl = (value ?? DefaultEndpoints.OuroborosApi).TrimEnd('/');
     }
 
     // ── Ask ────────────────────────────────────────────────────────────

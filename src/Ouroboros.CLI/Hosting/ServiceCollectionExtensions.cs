@@ -48,46 +48,53 @@ public static class ServiceCollectionExtensions
 
     /// <summary>
     /// Registers CLI business-logic services.
+    /// Services are registered as <c>Transient</c> because System.CommandLine
+    /// does not create a DI scope per command invocation — resolving Scoped
+    /// services from the root provider would cause them to behave as singletons.
     /// </summary>
     public static IServiceCollection AddCliServices(this IServiceCollection services)
     {
-        services.TryAddScoped<IAskService, AskService>();
-        services.TryAddScoped<IPipelineService, PipelineService>();
-        services.TryAddScoped<IOuroborosAgentService, OuroborosAgentService>();
-        services.TryAddScoped<IImmersiveModeService, ImmersiveModeService>();
-        services.TryAddScoped<IRoomModeService, RoomModeService>();
-        services.TryAddScoped<ISkillsService, SkillsService>();
-        services.TryAddScoped<IOrchestratorService, OrchestratorService>();
-        services.TryAddScoped<ICognitivePhysicsService, CognitivePhysicsService>();
-        services.TryAddScoped<IMeTTaService, MeTTaService>();
+        services.TryAddTransient<IAskService, AskService>();
+        services.TryAddTransient<IPipelineService, PipelineService>();
+        services.TryAddTransient<IOuroborosAgentService, OuroborosAgentService>();
+        services.TryAddTransient<IImmersiveModeService, ImmersiveModeService>();
+        services.TryAddTransient<IRoomModeService, RoomModeService>();
+        services.TryAddTransient<ISkillsService, SkillsService>();
+        services.TryAddTransient<IOrchestratorService, OrchestratorService>();
+        services.TryAddTransient<ICognitivePhysicsService, CognitivePhysicsService>();
+        services.TryAddTransient<IMeTTaService, MeTTaService>();
         return services;
     }
 
     /// <summary>
-    /// Registers all command handlers.
+    /// Registers all command handlers as <c>Transient</c>.
     /// </summary>
     public static IServiceCollection AddCommandHandlers(this IServiceCollection services)
     {
-        services.AddScoped<AskCommandHandler>();
-        services.AddScoped<PipelineCommandHandler>();
-        services.AddScoped<OuroborosCommandHandler>();
-        services.AddScoped<ImmersiveCommandHandler>();
-        services.AddScoped<RoomCommandHandler>();
-        services.AddScoped<SkillsCommandHandler>();
-        services.AddScoped<OrchestratorCommandHandler>();
-        services.AddScoped<CognitivePhysicsCommandHandler>();
-        services.AddScoped<QualityCommandHandler>();
-        services.AddScoped<MeTTaCommandHandler>();
+        services.AddTransient<AskCommandHandler>();
+        services.AddTransient<PipelineCommandHandler>();
+        services.AddTransient<OuroborosCommandHandler>();
+        services.AddTransient<ImmersiveCommandHandler>();
+        services.AddTransient<RoomCommandHandler>();
+        services.AddTransient<SkillsCommandHandler>();
+        services.AddTransient<OrchestratorCommandHandler>();
+        services.AddTransient<CognitivePhysicsCommandHandler>();
+        services.AddTransient<QualityCommandHandler>();
+        services.AddTransient<MeTTaCommandHandler>();
+        services.AddTransient<ClaudeCheckCommandHandler>();
         return services;
     }
 
     /// <summary>
-    /// Registers infrastructure services (console, voice).
+    /// Registers infrastructure services (console, voice, cloud sync).
     /// </summary>
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services)
     {
         services.TryAddSingleton<ISpectreConsoleService, SpectreConsoleService>();
-        services.TryAddScoped<IVoiceIntegrationService, VoiceIntegrationService>();
+        services.TryAddSingleton<CommandLineInvoker>();
+        services.TryAddSingleton<ICommandLineInvoker>(sp => sp.GetRequiredService<CommandLineInvoker>());
+        services.TryAddTransient<IVoiceIntegrationService, VoiceIntegrationService>();
+        services.TryAddSingleton<Ouroboros.ApiHost.Services.IQdrantSyncService, Ouroboros.ApiHost.Services.QdrantSyncService>();
         return services;
     }
 
@@ -96,7 +103,8 @@ public static class ServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddExistingBusinessLogic(this IServiceCollection services)
     {
-        services.TryAddScoped<VoiceModeService>();
+        services.TryAddSingleton(new VoiceModeConfig());
+        services.TryAddTransient<VoiceModeService>();
         return services;
     }
 
@@ -118,9 +126,10 @@ public static class ServiceCollectionExtensions
         // Register the typed HTTP client that talks to the upstream API
         services.AddOuroborosApiClient(apiBaseUrl);
 
-        // Override the local service implementations with HTTP-backed ones
-        services.AddScoped<IAskService, HttpApiAskService>();
-        services.AddScoped<IPipelineService, HttpApiPipelineService>();
+        // Override the local service implementations with HTTP-backed ones.
+        // Uses Transient to match AddCliServices() — see lifetime rationale there.
+        services.AddTransient<IAskService, HttpApiAskService>();
+        services.AddTransient<IPipelineService, HttpApiPipelineService>();
 
         return services;
     }

@@ -1,3 +1,4 @@
+using System.Net.Http;
 using System.Text;
 using Ouroboros.Android.Services;
 using Ouroboros.Android.Views;
@@ -38,7 +39,7 @@ public partial class MainPage : ContentPage
         try
         {
             var dbPath = Path.Combine(FileSystem.AppDataDirectory, "command_history.db");
-            var apiEndpoint = Preferences.Get("api_endpoint", "http://localhost:5000");
+            var apiEndpoint = Preferences.Get("api_endpoint", Services.DefaultEndpoints.OuroborosApi);
             _cliExecutor = new CliExecutor(dbPath, apiEndpoint);
 
             try
@@ -46,14 +47,14 @@ public partial class MainPage : ContentPage
                 var historyService = new CommandHistoryService(dbPath);
                 _suggestionEngine = new CommandSuggestionEngine(historyService);
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 _suggestionEngine = null;
                 _outputHistory.AppendLine($"? Suggestions unavailable: {ex.Message}");
                 _outputHistory.AppendLine();
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             _outputHistory.AppendLine($"? Initialization error: {ex.Message}");
             _outputHistory.AppendLine("Some features may be unavailable.");
@@ -220,7 +221,7 @@ public partial class MainPage : ContentPage
             var updateView = new Views.UpdateView(updateManager);
             await Navigation.PushAsync(updateView);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             await DisplayAlert("Error", $"Failed to open update view: {ex.Message}", "OK");
         }
@@ -247,7 +248,11 @@ public partial class MainPage : ContentPage
             {
                 result = await _cliExecutor.ExecuteCommandAsync(command);
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
+            {
+                result = $"Error executing command: {ex.Message}";
+            }
+            catch (HttpRequestException ex)
             {
                 result = $"Error executing command: {ex.Message}";
             }

@@ -1,15 +1,17 @@
-﻿namespace Ouroboros.CLI.Commands;
+﻿using Ouroboros.Application.Configuration;
+
+namespace Ouroboros.CLI.Commands;
 
 /// <summary>
 /// Configuration for the unified Ouroboros agent.
 /// </summary>
 public sealed record OuroborosConfig(
     string Persona = "Iaret",
-    string Model = "llama3:latest",
-    string Endpoint = "http://localhost:11434",
+    string Model = "deepseek-v3.1:671b-cloud",
+    string Endpoint = DefaultEndpoints.Ollama,
     string EmbedModel = "nomic-embed-text",
-    string EmbedEndpoint = "http://localhost:11434",
-    string QdrantEndpoint = "http://localhost:6334",
+    string EmbedEndpoint = DefaultEndpoints.Ollama,
+    string QdrantEndpoint = DefaultEndpoints.QdrantGrpc,
     string? ApiKey = null,
     string? EndpointType = null,  // auto|openai|ollama-cloud|litellm|github-models|anthropic
     bool Voice = false,
@@ -28,7 +30,7 @@ public sealed record OuroborosConfig(
     bool Debug = false,
     OutputVerbosity Verbosity = OutputVerbosity.Normal,
     double Temperature = 0.7,
-    int MaxTokens = 2048,
+    int MaxTokens = 0,
     string? Culture = null,
     // Feature toggles - all enabled by default
     bool EnableSkills = true,
@@ -93,6 +95,9 @@ public sealed record OuroborosConfig(
     // Room Presence
     bool RoomMode = false,
     // OpenClaw Gateway integration
-    string? OpenClawGateway = "ws://127.0.0.1:18789",
+    string? OpenClawGateway = DefaultEndpoints.OpenClawGateway,
     string? OpenClawToken = null,          // gateway auth token
-    bool EnableOpenClaw = true);
+    bool EnableOpenClaw = true,
+    // OpenClaw PC Node
+    bool EnablePcNode = false,             // PC node (receive commands from gateway)
+    string? PcNodeConfigPath = null);      // path to JSON security config file

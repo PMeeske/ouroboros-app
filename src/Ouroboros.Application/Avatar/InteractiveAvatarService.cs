@@ -58,7 +58,7 @@ public sealed class InteractiveAvatarService : IAsyncDisposable
             {
                 await ((IVideoFrameRenderer)renderer).BroadcastFrameAsync(jpegFrame);
             }
-            catch (Exception)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 // Individual renderer failures shouldn't crash the stream
             }
@@ -148,7 +148,7 @@ public sealed class InteractiveAvatarService : IAsyncDisposable
                     {
                         await renderer.UpdateStateAsync(snapshot);
                     }
-                    catch (Exception)
+                    catch (Exception ex) when (ex is not OperationCanceledException)
                     {
                         // Individual renderer failures shouldn't crash the system
                     }
@@ -175,7 +175,7 @@ public sealed class InteractiveAvatarService : IAsyncDisposable
                 await renderer.StopAsync();
                 await renderer.DisposeAsync();
             }
-            catch (Exception)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 // Best-effort cleanup
             }

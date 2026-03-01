@@ -54,7 +54,7 @@ public sealed class CognitivePhysicsCommandHandler
                     return 1;
             }
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             _logger.LogError(ex, "Error executing cognitive-physics command");
             _console.MarkupLine($"[red]Error:[/] {ex.Message}");

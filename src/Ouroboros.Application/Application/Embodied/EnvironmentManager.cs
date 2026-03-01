@@ -1,5 +1,5 @@
-// <copyright file="EnvironmentManager.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="EnvironmentManager.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 using Microsoft.Extensions.Logging;
@@ -67,7 +67,11 @@ public sealed class EnvironmentManager : IEnvironmentManager
             this.logger.LogInformation("Environment created: {Id}", handle.Id);
             return Result<EnvironmentHandle, string>.Success(handle);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to create environment");
             return Result<EnvironmentHandle, string>.Failure($"Environment creation failed: {ex.Message}");
@@ -94,7 +98,11 @@ public sealed class EnvironmentManager : IEnvironmentManager
             this.logger.LogInformation("Environment reset successfully: {Id}", handle.Id);
             return Result<Unit, string>.Success(Unit.Value);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to reset environment");
             return Result<Unit, string>.Failure($"Environment reset failed: {ex.Message}");
@@ -127,7 +135,11 @@ public sealed class EnvironmentManager : IEnvironmentManager
             this.logger.LogInformation("Environment destroyed: {Id}", handle.Id);
             return Result<Unit, string>.Success(Unit.Value);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to destroy environment");
             return Result<Unit, string>.Failure($"Environment destruction failed: {ex.Message}");
@@ -153,7 +165,11 @@ public sealed class EnvironmentManager : IEnvironmentManager
             return Result<IReadOnlyList<EnvironmentInfo>, string>.Success(
                 this.availableEnvironments.AsReadOnly());
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to list available environments");
             return Result<IReadOnlyList<EnvironmentInfo>, string>.Failure($"Environment listing failed: {ex.Message}");

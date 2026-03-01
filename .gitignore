@@ -66,3 +66,8 @@ launchSettings.json
 *.p12
 *.pfx
 *.jks
+scripts/find-sig.mjs
+scripts/find-sig2.mjs
+scripts/find-sig3.mjs
+scripts/test-agent-chat-tool.csx
+scripts/test-oc-sig.mjs

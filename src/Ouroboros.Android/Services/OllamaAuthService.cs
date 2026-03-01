@@ -47,7 +47,7 @@ public class OllamaAuthService
             SecureStorage.Remove(UsernameKey);
             SecureStorage.Remove(PasswordKey);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             throw new OllamaAuthException($"Failed to save API key: {ex.Message}", ex);
         }
@@ -70,7 +70,7 @@ public class OllamaAuthService
             // Clear API key if it was set
             SecureStorage.Remove(ApiKeyKey);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             throw new OllamaAuthException($"Failed to save credentials: {ex.Message}", ex);
         }

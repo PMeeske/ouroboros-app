@@ -26,10 +26,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Override vulnerable transitive dependencies from project references -->
-    <PackageReference Include="Microsoft.Build.Tasks.Core" Version="18.3.3" />
-    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="18.3.3" />
-
     <PackageReference Include="LangChain" Version="0.17.0" />
   </ItemGroup>
 
@@ -39,8 +35,5 @@
     <Compile Remove="Examples\ProperLangChainIntegrationExamples.cs" />
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.19.0.132793" PrivateAssets="all" />
-  </ItemGroup>
 
 </Project>

@@ -1,0 +1,4 @@
+<Project>
+  <!-- Standalone SDK — do NOT inherit Ouroboros build system global usings. -->
+  <!-- This file intentionally stops MSBuild from walking up to app/Directory.Build.props. -->
+</Project>

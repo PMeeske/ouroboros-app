@@ -1,5 +1,5 @@
-// <copyright file="RLAgent.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="RLAgent.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 using Microsoft.Extensions.Logging;
@@ -128,7 +128,11 @@ public sealed class RLAgent
 
             return Result<EmbodiedAction, string>.Success(selectedAction);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to select action");
             return Result<EmbodiedAction, string>.Failure($"Action selection failed: {ex.Message}");
@@ -244,7 +248,11 @@ public sealed class RLAgent
 
             return Result<TrainingMetrics, string>.Success(metrics);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Training failed");
             return Result<TrainingMetrics, string>.Failure($"Training failed: {ex.Message}");
@@ -272,7 +280,11 @@ public sealed class RLAgent
             this.logger.LogInformation("Checkpoint saved successfully");
             return Result<Unit, string>.Success(Unit.Value);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (IOException ex)
         {
             this.logger.LogError(ex, "Failed to save checkpoint");
             return Result<Unit, string>.Failure($"Checkpoint save failed: {ex.Message}");
@@ -300,7 +312,11 @@ public sealed class RLAgent
             this.logger.LogInformation("Checkpoint loaded successfully");
             return Result<Unit, string>.Success(Unit.Value);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (IOException ex)
         {
             this.logger.LogError(ex, "Failed to load checkpoint");
             return Result<Unit, string>.Failure($"Checkpoint load failed: {ex.Message}");

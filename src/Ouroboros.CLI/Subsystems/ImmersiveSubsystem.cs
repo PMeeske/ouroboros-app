@@ -1,4 +1,4 @@
-// Copyright (c) Ouroboros. All rights reserved.
+﻿// Copyright (c) Ouroboros. All rights reserved.
 namespace Ouroboros.CLI.Subsystems;
 
 using Ouroboros.Application.Avatar;
@@ -59,6 +59,7 @@ public sealed class ImmersiveSubsystem : IImmersiveSubsystem
                 AvatarService = service;
                 ctx.Output.WriteSystem("  [OK] Avatar viewer launched — Iaret is watching");
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex)
             {
                 ctx.Output.WriteWarning($"Avatar launch failed: {ex.Message}");
@@ -86,6 +87,7 @@ public sealed class ImmersiveSubsystem : IImmersiveSubsystem
                 AvatarService = service;
                 AnsiConsole.MarkupLine(OuroborosTheme.Ok("  [OK] Avatar viewer launched — Iaret is watching"));
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex)
             {
                 AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  [!] Avatar launch failed: {Markup.Escape(ex.Message)}"));

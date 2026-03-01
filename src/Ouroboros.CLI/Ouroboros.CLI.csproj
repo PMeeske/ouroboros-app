@@ -8,10 +8,18 @@
     <Product>LangChain Pipeline System</Product>
     <Description>Command-line interface for Ouroboros</Description>
     <UserSecretsId>49b81524-d310-4809-8e7f-abdcbb49329e</UserSecretsId>
+    <NoWarn>$(NoWarn);NU1510</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\..\appsettings.json" CopyToOutputDirectory="PreserveNewest" Link="appsettings.json" />
+    <InternalsVisibleTo Include="Ouroboros.CLI.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\appsettings.json" CopyToOutputDirectory="PreserveNewest" Link="appsettings.json"
+          Condition="Exists('$(MSBuildThisFileDirectory)..\..\appsettings.json')" />
+    <None Include="..\..\appsettings.Example.json" CopyToOutputDirectory="PreserveNewest" Link="appsettings.json"
+          Condition="!Exists('$(MSBuildThisFileDirectory)..\..\appsettings.json')" />
   </ItemGroup>
 
   <!-- Iaret's constitution — embedded at build time, immutable at runtime -->
@@ -43,10 +51,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Override vulnerable transitive dependencies from Microsoft.CodeAnalysis -->
     <PackageReference Include="MediatR" Version="12.*" />
-    <PackageReference Include="Microsoft.Build.Tasks.Core" Version="18.3.3" />
-    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="18.3.3" />
 
     <PackageReference Include="LangChain" Version="0.17.0" />
     <PackageReference Include="CommandLineParser" Version="2.9.1" />
@@ -73,8 +78,5 @@
     <PackageReference Include="System.Drawing.Common" Version="10.0.3" />
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.19.0.132793" PrivateAssets="all" />
-  </ItemGroup>
 
 </Project>

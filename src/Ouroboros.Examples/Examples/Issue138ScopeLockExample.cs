@@ -1,5 +1,5 @@
-// <copyright file="Issue138ScopeLockExample.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="Issue138ScopeLockExample.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 namespace Ouroboros.Examples.EpicWorkflow;
@@ -208,7 +208,7 @@ public static class Issue138ScopeLockExample
                 await RunDirectScopeLockAsync(githubToken, owner, repo);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Console.WriteLine($"\n❌ Error: {ex.Message}");
             Console.WriteLine($"Stack trace: {ex.StackTrace}");

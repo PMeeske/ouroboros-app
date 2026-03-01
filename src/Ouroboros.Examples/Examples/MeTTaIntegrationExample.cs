@@ -1,5 +1,5 @@
-// <copyright file="MeTTaIntegrationExample.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="MeTTaIntegrationExample.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 using Ouroboros.Abstractions;
@@ -148,7 +148,7 @@ public static class MeTTaIntegrationExample
         Console.WriteLine("╚══════════════════════════════════════════════════════╝\n");
 
         // Configure HTTP client for Python Hyperon service
-        string serviceUrl = "http://localhost:8000"; // Default Python service URL
+        string serviceUrl = DefaultEndpoints.MeTTa; // Default Python service URL
         string? apiKey = Environment.GetEnvironmentVariable("METTA_API_KEY");
 
         Console.WriteLine($"Connecting to MeTTa service at: {serviceUrl}");
@@ -229,7 +229,7 @@ public static class MeTTaIntegrationExample
             engine.Dispose();
             Console.WriteLine("\n✓ Orchestrator integration example completed!\n");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             if (ex.Message.Contains("Connection refused") || ex.Message.Contains("No connection"))
             {
@@ -288,7 +288,7 @@ public static class MeTTaIntegrationExample
             engine.Dispose();
             Console.WriteLine("\n✓ Memory bridge example completed!\n");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             if (ex.Message.Contains("Connection refused") || ex.Message.Contains("No connection"))
             {

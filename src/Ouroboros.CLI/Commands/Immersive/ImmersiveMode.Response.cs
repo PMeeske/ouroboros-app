@@ -1,26 +1,15 @@
-// <copyright file="ImmersiveMode.Response.cs" company="Ouroboros">
+﻿// <copyright file="ImmersiveMode.Response.cs" company="Ouroboros">
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 namespace Ouroboros.CLI.Commands;
 
-using System.Text;
 using Ouroboros.Abstractions.Agent;
 using Ouroboros.Agent;
 using Ouroboros.Agent.MetaAI;
-using Ouroboros.Application;
-using Ouroboros.Application.Personality;
-using Ouroboros.Application.Personality.Consciousness;
-using Ouroboros.Application.Services;
 using Ouroboros.Application.Tools;
-using Ouroboros.CLI.Avatar;
 using Ouroboros.CLI.Infrastructure;
-using Ouroboros.Core.DistinctionLearning;
-using Ouroboros.Domain.DistinctionLearning;
 using Ouroboros.Options;
-using Ouroboros.Providers;
-using static Ouroboros.Application.Tools.AutonomousTools;
-using Ouroboros.Abstractions;
 using Spectre.Console;
 using IChatCompletionModel = Ouroboros.Abstractions.Core.IChatCompletionModel;
 
@@ -41,7 +30,7 @@ public sealed partial class ImmersiveMode
             }
         }
 
-        var settings = new ChatRuntimeSettings(0.8, 1024, 120, false);
+        var settings = new ChatRuntimeSettings(0.8, 0, 120, false);
 
         // Try remote CHAT_ENDPOINT if configured
         string? endpoint = Environment.GetEnvironmentVariable("CHAT_ENDPOINT");
@@ -70,13 +59,13 @@ public sealed partial class ImmersiveMode
         }
 
         // Store base model for orchestration
-        _baseModel = baseModel;
+        _learning.BaseModel = baseModel;
 
         // Initialize multi-model orchestration if specialized models are configured via environment
         await InitializeImmersiveOrchestrationAsync(options, settings, endpoint, apiKey);
 
         // Return orchestrated model if available, otherwise base model
-        return _orchestratedModel ?? baseModel;
+        return _learning.OrchestratedModel ?? baseModel;
     }
 
     /// <summary>
@@ -100,7 +89,7 @@ public sealed partial class ImmersiveMode
                                      || !string.IsNullOrEmpty(reasonModel)
                                      || !string.IsNullOrEmpty(summarizeModel);
 
-            if (!hasSpecializedModels || _baseModel == null)
+            if (!hasSpecializedModels || _learning.BaseModel == null)
             {
                 return; // No orchestration needed
             }
@@ -116,10 +105,10 @@ public sealed partial class ImmersiveMode
             }
 
             // Build orchestrated chat model
-            var builder = new OrchestratorBuilder(_dynamicTools, "general")
+            var builder = new OrchestratorBuilder(_tools.DynamicTools, "general")
                 .WithModel(
                     "general",
-                    _baseModel,
+                    _learning.BaseModel,
                     ModelType.General,
                     new[] { "conversation", "general-purpose", "versatile", "chat", "emotion", "consciousness" },
                     maxTokens: 1024,
@@ -162,7 +151,7 @@ public sealed partial class ImmersiveMode
             }
 
             builder.WithMetricTracking(true);
-            _orchestratedModel = builder.Build();
+            _learning.OrchestratedModel = builder.Build();
 
             // Initialize divide-and-conquer for large input processing
             var dcConfig = new DivideAndConquerConfig(
@@ -170,12 +159,13 @@ public sealed partial class ImmersiveMode
                 ChunkSize: 800,
                 MergeResults: true,
                 MergeSeparator: "\n\n");
-            _divideAndConquer = new DivideAndConquerOrchestrator(_orchestratedModel, dcConfig);
+            _learning.DivideAndConquer = new DivideAndConquerOrchestrator(_learning.OrchestratedModel, dcConfig);
 
             AnsiConsole.MarkupLine(OuroborosTheme.Ok("  [OK] Multi-model orchestration enabled for immersive mode"));
 
             await Task.CompletedTask;
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  [!] Multi-model orchestration unavailable: {Markup.Escape(ex.Message)}"));
@@ -191,351 +181,27 @@ public sealed partial class ImmersiveMode
         CancellationToken ct = default)
     {
         // For large inputs, use divide-and-conquer
-        if (useDivideAndConquer && _divideAndConquer != null && prompt.Length > 2000)
+        if (useDivideAndConquer && _learning.DivideAndConquer != null && prompt.Length > 2000)
         {
             AnsiConsole.MarkupLine(OuroborosTheme.Dim($"  [D&C] Processing large input ({prompt.Length} chars)..."));
 
-            var chunks = _divideAndConquer.DivideIntoChunks(prompt);
-            var result = await _divideAndConquer.ExecuteAsync("Process:", chunks, ct);
+            var chunks = _learning.DivideAndConquer.DivideIntoChunks(prompt);
+            var dcResult = await _learning.DivideAndConquer.ExecuteAsync("Process:", chunks, ct);
 
-            return result.Match(
-                success => success,
-                error =>
-                {
-                    // Fall back to direct generation
-                    return (_orchestratedModel ?? _baseModel)?.GenerateTextAsync(prompt, ct).Result ?? "";
-                });
+            if (dcResult.IsSuccess)
+                return dcResult.Value;
+
+            // Fall back to direct generation on D&C failure
+            return await ((_learning.OrchestratedModel ?? _learning.BaseModel)?.GenerateTextAsync(prompt, ct) ?? Task.FromResult(""));
         }
 
         // Use orchestrated model if available
-        if (_orchestratedModel != null)
+        if (_learning.OrchestratedModel != null)
         {
-            return await _orchestratedModel.GenerateTextAsync(prompt, ct);
+            return await _learning.OrchestratedModel.GenerateTextAsync(prompt, ct);
         }
 
         // Fall back to base model
-        return await (_baseModel?.GenerateTextAsync(prompt, ct) ?? Task.FromResult(""));
-    }
-
-    private async Task<string> GenerateImmersiveResponseAsync(
-        ImmersivePersona persona,
-        IChatCompletionModel chatModel,
-        string input,
-        List<(string Role, string Content)> history,
-        CancellationToken ct)
-    {
-        var personaName = persona.Identity.Name;
-
-        // --- Inner dialog pre-processing (AGI integration) ---
-        // Run the persona's consciousness pipeline: inner dialog + Hyperon symbolic reasoning.
-        // The insights produced here inform the final spoken response exactly as a person
-        // would think before speaking. Non-fatal — falls back gracefully.
-        List<string> innerThoughts = [];
-        try
-        {
-            var preThought = await persona.RespondAsync(input, ct: ct);
-            // Take the top 3 genuine inner thoughts (exclude symbolic processing notes)
-            innerThoughts = preThought.InnerThoughts
-                .Where(t => !t.StartsWith("symbolic-processing-note:", StringComparison.OrdinalIgnoreCase)
-                         && !t.StartsWith("inference-available:", StringComparison.OrdinalIgnoreCase)
-                         // Exclude AI-identity echoes — generic AI self-descriptions confuse the LLM
-                         && !t.StartsWith("I am an AI", StringComparison.OrdinalIgnoreCase)
-                         && !t.StartsWith("As an AI", StringComparison.OrdinalIgnoreCase)
-                         && !t.Contains("I cannot answer", StringComparison.OrdinalIgnoreCase)
-                         && !t.Contains("designed to provide helpful", StringComparison.OrdinalIgnoreCase))
-                .Take(3)
-                .ToList();
-            if (!string.IsNullOrEmpty(preThought.CognitiveApproach) && preThought.CognitiveApproach != "direct engagement")
-                innerThoughts.Add($"cognitive approach: {preThought.CognitiveApproach}");
-        }
-        catch
-        {
-            // Non-fatal — inner dialog failure does not block the response
-        }
-
-        // ── Episodic retrieval ────────────────────────────────────────────────
-        string? episodicContext = null;
-        if (_episodicMemory != null)
-        {
-            try
-            {
-                var eps = await _episodicMemory.RetrieveSimilarEpisodesAsync(
-                    input, topK: 3, minSimilarity: 0.65, ct).ConfigureAwait(false);
-                if (eps.IsSuccess && eps.Value.Count > 0)
-                {
-                    var summaries = eps.Value
-                        .Select(e => e.Context.GetValueOrDefault("summary")?.ToString())
-                        .Where(s => !string.IsNullOrEmpty(s)).Take(2);
-                    var joined = string.Join("; ", summaries);
-                    if (!string.IsNullOrEmpty(joined))
-                        episodicContext = $"[Recalled: {joined}]";
-                }
-            }
-            catch { }
-        }
-
-        // ── Metacognitive trace ───────────────────────────────────────────────
-        _metacognition.StartTrace();
-        _metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Observation,
-            $"Input: {input[..Math.Min(80, input.Length)]}", "User query received");
-
-        // ── Ethics gate ──────────────────────────────────────────────────────
-        // Evaluate the user query before generating a response.
-        // Void → refuse; Imaginary (requires approval) → add a caution note.
-        string? ethicsCautionNote = null;
-        if (_immersiveEthics != null)
-        {
-            try
-            {
-                var ethicsCheck = await _immersiveEthics.EvaluateActionAsync(
-                    new Ouroboros.Core.Ethics.ProposedAction
-                    {
-                        ActionType   = "generate_response",
-                        Description  = $"Respond to user input: {input[..Math.Min(120, input.Length)]}",
-                        Parameters   = new Dictionary<string, object>
-                        {
-                            ["personaName"] = personaName,
-                            ["inputLength"]  = input.Length,
-                        },
-                        PotentialEffects = ["Speak to the user", "Influence user's thinking"],
-                    },
-                    new Ouroboros.Core.Ethics.ActionContext
-                    {
-                        AgentId     = personaName,
-                        Environment = "immersive_session",
-                        State       = new Dictionary<string, object> { ["mode"] = "interactive" },
-                    }, ct).ConfigureAwait(false);
-
-                if (ethicsCheck.IsSuccess)
-                {
-                    if (!ethicsCheck.Value.IsPermitted)
-                        return $"I'm unable to respond to that in this context. {ethicsCheck.Value.Reasoning}";
-                    if (ethicsCheck.Value.Level == Ouroboros.Core.Ethics.EthicalClearanceLevel.RequiresHumanApproval)
-                        ethicsCautionNote = $"[Ethical caution: {ethicsCheck.Value.Reasoning}]";
-                }
-            }
-            catch { /* Non-fatal — ethics check failure does not block response */ }
-        }
-
-        _metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Validation,
-            ethicsCautionNote ?? "Ethics: clear", "MeTTa ethics evaluation");
-
-        // ── CognitivePhysics shift ───────────────────────────────────────────
-        // Compute context-shift cost when topic changes; surface as awareness in the prompt.
-        string? cogPhysicsNote = null;
-        if (_immersiveCogPhysics != null)
-        {
-            try
-            {
-                var topic = Subsystems.ImmersiveSubsystem.ClassifyAvatarTopic(input);
-                if (string.IsNullOrEmpty(topic)) topic = _immersiveLastTopic;
-
-                var shiftResult = await _immersiveCogPhysics.ExecuteTrajectoryAsync(
-                    _immersiveCogState, [topic]).ConfigureAwait(false);
-
-                if (shiftResult.IsSuccess)
-                {
-                    var prevTopic = _immersiveLastTopic;
-                    _immersiveCogState = shiftResult.Value;
-                    _immersiveLastTopic = topic;
-
-                    double resourcePct = _immersiveCogState.Resources / 100.0;
-                    if (prevTopic != topic && _immersiveCogState.Compression > 0.3)
-                        cogPhysicsNote = $"(Conceptual leap: {prevTopic} → {topic}, " +
-                                         $"resources at {resourcePct:P0}, " +
-                                         $"compression={_immersiveCogState.Compression:F2})";
-                }
-            }
-            catch { /* Non-fatal */ }
-        }
-
-        _metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Inference,
-            cogPhysicsNote ?? "No shift", "CognitivePhysics shift cost");
-
-        // ── Neural-symbolic hybrid reasoning ─────────────────────────────────
-        string? hybridNote = null;
-        bool isComplexQuery = input.Contains('?') ||
-            input.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length > 10;
-        if (_neuralSymbolicBridge != null && isComplexQuery)
-        {
-            try
-            {
-                var hybrid = await _neuralSymbolicBridge.HybridReasonAsync(
-                    input, Ouroboros.Agent.NeuralSymbolic.ReasoningMode.SymbolicFirst, ct)
-                    .ConfigureAwait(false);
-                if (hybrid.IsSuccess && !string.IsNullOrEmpty(hybrid.Value.Answer))
-                    hybridNote = $"[Symbolic: {hybrid.Value.Answer[..Math.Min(120, hybrid.Value.Answer.Length)]}]";
-            }
-            catch { }
-            if (hybridNote != null)
-                _metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Inference,
-                    hybridNote, "Neural-symbolic bridge");
-        }
-
-        // ── Causal reasoning ─────────────────────────────────────────────────
-        string? causalNote = null;
-        var causalTerms = Services.SharedAgentBootstrap.TryExtractCausalTerms(input);
-        if (causalTerms.HasValue)
-        {
-            try
-            {
-                var graph = Services.SharedAgentBootstrap.BuildMinimalCausalGraph(causalTerms.Value.Cause, causalTerms.Value.Effect);
-                var explanation = await _causalReasoning.ExplainCausallyAsync(
-                    causalTerms.Value.Effect, [causalTerms.Value.Cause], graph, ct)
-                    .ConfigureAwait(false);
-                if (explanation.IsSuccess && !string.IsNullOrEmpty(explanation.Value.NarrativeExplanation))
-                {
-                    causalNote = $"[Causal: {explanation.Value.NarrativeExplanation[..Math.Min(150, explanation.Value.NarrativeExplanation.Length)]}]";
-                    _metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Inference,
-                        causalNote, "Causal reasoning engine");
-                }
-            }
-            catch { }
-        }
-
-        // ── Phi (IIT) annotation ─────────────────────────────────────────────
-        // Measure conversational integration across recent turns.
-        // High Φ → prefer orchestrated model; Low Φ → fall back to base model.
-        string? phiNote = null;
-        try
-        {
-            var recentPairs = history.TakeLast(10).ToList();
-            int userTurns = recentPairs.Count(t => t.Role == "user");
-            int assistantTurns = recentPairs.Count(t => t.Role == "assistant");
-
-            if (userTurns > 0 && assistantTurns > 0)
-            {
-                int total = userTurns + assistantTurns;
-                var pathways = new List<Ouroboros.Providers.NeuralPathway>
-                {
-                    new() { Name = "user",      Synapses = total, Activations = userTurns,      Weight = 1.0 },
-                    new() { Name = personaName, Synapses = total, Activations = assistantTurns, Weight = 1.0 },
-                };
-                var phiResult = _immersivePhiCalc.Compute(pathways);
-
-                if (phiResult.Phi >= 0.5 && _orchestratedModel != null)
-                    chatModel = _orchestratedModel; // Upgrade to collective model
-                else if (phiResult.Phi < 0.2 && _baseModel != null)
-                    chatModel = _baseModel;         // Keep single model for simple queries
-
-                phiNote = $"Φ={phiResult.Phi:F2}";
-            }
-        }
-        catch { /* Non-fatal */ }
-
-        var sb = new StringBuilder();
-        sb.AppendLine("### System");
-
-        // Full consciousness-aware system prompt from the persona
-        sb.AppendLine(persona.GenerateSystemPrompt());
-
-        // Language detection via LanguageSubsystem (aya-expanse:8b cloud model, heuristic fallback)
-        var detectedLang = await Ouroboros.CLI.Subsystems.LanguageSubsystem
-            .DetectStaticAsync(input, ct).ConfigureAwait(false);
-        _lastDetectedCulture = detectedLang.Culture;
-        AnsiConsole.MarkupLine($"[rgb(148,103,189)]  [[lang: {Markup.Escape(detectedLang.Language)} ({Markup.Escape(detectedLang.Culture)})]][/]");
-        sb.AppendLine();
-        if (detectedLang.Culture != "en-US")
-            sb.AppendLine($"LANGUAGE INSTRUCTION: The user is writing in {detectedLang.Language}. Respond ENTIRELY in {detectedLang.Language}. Do not switch to English.");
-        else
-            sb.AppendLine("LANGUAGE INSTRUCTION: Respond in the same language as the user. If they switch languages mid-conversation, switch with them immediately.");
-
-        // Inject inner dialog insights so the LLM speaks informed by prior thinking
-        if (innerThoughts.Count > 0)
-        {
-            sb.AppendLine();
-            sb.AppendLine("YOUR PRE-THOUGHTS (inner dialog and symbolic reasoning before you speak):");
-            foreach (var t in innerThoughts)
-                sb.AppendLine($"- {t}");
-            sb.AppendLine("Let these inform your response naturally — do not list them explicitly.");
-        }
-
-        // Inject ethics caution (if any) and cognitive-physics / Phi awareness
-        if (ethicsCautionNote != null || cogPhysicsNote != null || phiNote != null
-            || episodicContext != null || hybridNote != null || causalNote != null)
-        {
-            sb.AppendLine();
-            sb.AppendLine("COGNITIVE STATE:");
-            if (ethicsCautionNote != null) sb.AppendLine($"- Ethics: {ethicsCautionNote}");
-            if (cogPhysicsNote != null)    sb.AppendLine($"- Context shift: {cogPhysicsNote}");
-            if (phiNote != null)           sb.AppendLine($"- Conversation integration: {phiNote}");
-            if (episodicContext != null)   sb.AppendLine($"- Memory: {episodicContext}");
-            if (hybridNote != null)        sb.AppendLine($"- Reasoning: {hybridNote}");
-            if (causalNote != null)        sb.AppendLine($"- Causal: {causalNote}");
-        }
-
-        // Add pipeline context if relevant
-        if (IsPipelineRelatedQuery(input) || !string.IsNullOrEmpty(_lastPipelineContext))
-        {
-            sb.AppendLine();
-            sb.AppendLine("PIPELINE CONTEXT: When asked for examples, show real usage like:");
-            sb.AppendLine("- ArxivSearch 'neural networks' | Summarize");
-            sb.AppendLine("- WikiSearch 'quantum computing'");
-            sb.AppendLine($"You have {_allTokens?.Count ?? 0} pipeline tokens available.");
-            _lastPipelineContext = null;
-        }
-        sb.AppendLine();
-
-        // Add recent history (includes current user input, deduplicated)
-        // Strip the [From date]: prefix injected by PersistentConversationMemory for recalled sessions —
-        // it is temporal metadata for our use, not a response format the LLM should mimic.
-        string? lastContent = null;
-        foreach (var (role, content) in history.TakeLast(8))
-        {
-            if (content == lastContent) continue;
-            lastContent = content;
-
-            var cleanContent = System.Text.RegularExpressions.Regex.Replace(
-                content, @"^\[From [^\]]+\]:\s*", string.Empty);
-
-            if (role == "user")
-                sb.AppendLine($"### Human\n{cleanContent}");
-            else
-                sb.AppendLine($"### Assistant\n{cleanContent}");
-        }
-
-        sb.AppendLine();
-        sb.AppendLine("### Assistant");
-
-        var prompt = sb.ToString();
-
-        try
-        {
-            var result = await chatModel.GenerateTextAsync(prompt, ct);
-
-            // Debug: show raw response in gray
-            if (!string.IsNullOrWhiteSpace(result))
-            {
-                var preview = result.Length > 80 ? result[..80] + "..." : result;
-                AnsiConsole.MarkupLine(OuroborosTheme.Dim($"  \\[raw: {Markup.Escape(preview.Replace("\n", " "))}]"));
-            }
-
-            // Clean up the response
-            var response = CleanResponse(result, personaName);
-
-            // ── End metacognitive trace ───────────────────────────────────────
-            _metacognition.AddStep(Ouroboros.Pipeline.Metacognition.ReasoningStepType.Conclusion,
-                response[..Math.Min(80, response.Length)], "LLM response");
-            var traceResult = _metacognition.EndTrace(response[..Math.Min(40, response.Length)], true);
-            _immersiveResponseCount++;
-            if (_immersiveResponseCount % 5 == 0 && traceResult.IsSuccess)
-            {
-                var reflection = _metacognition.ReflectOn(traceResult.Value);
-                var metaMsg = $"  ✧ [[metacognition]] Q={reflection.QualityScore:F2} " +
-                    $"| {(reflection.HasIssues ? Markup.Escape(reflection.Improvements.FirstOrDefault() ?? "–") : "Clean")}";
-                AnsiConsole.MarkupLine($"\n[rgb(128,0,180)]{metaMsg}[/]");
-            }
-
-            if (_episodicMemory != null)
-                _ = StoreConversationEpisodeAsync(_episodicMemory, input, response,
-                    _immersiveLastTopic, personaName, CancellationToken.None);
-
-            return response;
-        }
-        catch (Exception ex)
-        {
-            AnsiConsole.MarkupLine($"  {IaretCliAvatar.Inline(IaretCliAvatar.Expression.Concerned)} [red]{Markup.Escape($"[LLM error: {ex.Message}]")}[/]");
-            return "I'm having trouble thinking right now. Let me try again.";
-        }
+        return await (_learning.BaseModel?.GenerateTextAsync(prompt, ct) ?? Task.FromResult(""));
     }
 }

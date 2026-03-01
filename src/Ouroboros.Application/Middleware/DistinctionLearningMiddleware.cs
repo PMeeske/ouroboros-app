@@ -1,10 +1,11 @@
-// <copyright file="DistinctionLearningMiddleware.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="DistinctionLearningMiddleware.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 namespace Ouroboros.Application.Middleware;
 
 using Microsoft.Extensions.Logging;
+using Ouroboros.Application.Extensions;
 using Ouroboros.Application.Personality.Consciousness;
 using Ouroboros.Core.DistinctionLearning;
 using Ouroboros.Pipeline.Middleware;
@@ -42,7 +43,7 @@ public sealed class DistinctionLearningMiddleware : IPipelineMiddleware
         var result = await next(context, ct);
 
         // 2. Learn from this interaction (async, don't block)
-        _ = LearnFromInteractionAsync(context, result, ct);
+        LearnFromInteractionAsync(context, result, ct).ObserveExceptions("DistinctionLearning.LearnFromInteraction");
 
         return result;
     }
@@ -105,7 +106,7 @@ public sealed class DistinctionLearningMiddleware : IPipelineMiddleware
                 state.ActiveDistinctions.Count,
                 state.CycleCount);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger?.LogWarning(ex, "Distinction learning failed for interaction");
             // Don't fail the main pipeline

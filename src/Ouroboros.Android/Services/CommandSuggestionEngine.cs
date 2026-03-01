@@ -189,7 +189,7 @@ public class CommandSuggestionEngine
     {
         return new Dictionary<string, List<string>>
         {
-            ["config"] = new List<string> { "http://localhost:11434", "http://192.168.1.100:11434" },
+            ["config"] = new List<string> { DefaultEndpoints.Ollama, "http://192.168.1.100:11434" },
             ["pull"] = new List<string> { "tinyllama", "phi", "qwen:0.5b", "gemma:2b", "llama2" },
             ["ask"] = new List<string> { "What is", "How do", "Explain", "Tell me about" },
             ["shell"] = new List<string> { "ls", "ps", "df", "top", "free" },

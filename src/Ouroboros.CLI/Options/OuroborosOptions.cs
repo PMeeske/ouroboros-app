@@ -1,5 +1,5 @@
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 using CommandLine;
+using Ouroboros.Application.Configuration;
 
 namespace Ouroboros.Options;
 
@@ -65,14 +65,14 @@ public sealed class OuroborosOptions : IVoiceOptions
     // LLM & MODEL CONFIGURATION
     // ═══════════════════════════════════════════════════════════════════════════
 
-    [Option('m', "model", Required = false, HelpText = "LLM model name", Default = "llama3:latest")]
-    public string Model { get; set; } = "llama3:latest";
+    [Option('m', "model", Required = false, HelpText = "LLM model name", Default = "deepseek-v3.1:671b-cloud")]
+    public string Model { get; set; } = "deepseek-v3.1:671b-cloud";
 
     [Option('c', "culture", Required = false, HelpText = "Target culture for the response (e.g. en-US, fr-FR, es).")]
     public string? Culture { get; set; }
 
-    [Option("endpoint", Required = false, HelpText = "LLM endpoint URL", Default = "http://localhost:11434")]
-    public string Endpoint { get; set; } = "http://localhost:11434";
+    [Option("endpoint", Required = false, HelpText = "LLM endpoint URL", Default = DefaultEndpoints.Ollama)]
+    public string Endpoint { get; set; } = DefaultEndpoints.Ollama;
 
     [Option("api-key", Required = false, HelpText = "API key for remote endpoint")]
     public string? ApiKey { get; set; }
@@ -96,11 +96,11 @@ public sealed class OuroborosOptions : IVoiceOptions
     [Option("embed-model", Required = false, HelpText = "Embedding model name", Default = "nomic-embed-text")]
     public string EmbedModel { get; set; } = "nomic-embed-text";
 
-    [Option("embed-endpoint", Required = false, HelpText = "Embedding endpoint (defaults to local Ollama)", Default = "http://localhost:11434")]
-    public string EmbedEndpoint { get; set; } = "http://localhost:11434";
+    [Option("embed-endpoint", Required = false, HelpText = "Embedding endpoint (defaults to local Ollama)", Default = DefaultEndpoints.Ollama)]
+    public string EmbedEndpoint { get; set; } = DefaultEndpoints.Ollama;
 
-    [Option("qdrant", Required = false, HelpText = "Qdrant endpoint for persistent memory", Default = "http://localhost:6334")]
-    public string QdrantEndpoint { get; set; } = "http://localhost:6334";
+    [Option("qdrant", Required = false, HelpText = "Qdrant endpoint for persistent memory", Default = DefaultEndpoints.QdrantGrpc)]
+    public string QdrantEndpoint { get; set; } = DefaultEndpoints.QdrantGrpc;
 
     // ═══════════════════════════════════════════════════════════════════════════
     // FEATURE TOGGLES (All enabled by default for max experience)

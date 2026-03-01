@@ -7,5 +7,5 @@ public sealed record CycleOutcome(
     bool Success,
     string Phase,
     TimeSpan Duration,
-    List<string> ActionsPerformed,
-    Dictionary<string, object> Metrics);
+    IReadOnlyList<string> ActionsPerformed,
+    IReadOnlyDictionary<string, object> Metrics);

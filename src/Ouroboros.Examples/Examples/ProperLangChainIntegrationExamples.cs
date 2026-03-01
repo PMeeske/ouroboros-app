@@ -1,5 +1,5 @@
-// <copyright file="ProperLangChainIntegrationExamples.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="ProperLangChainIntegrationExamples.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 namespace Ouroboros.Examples;
@@ -81,7 +81,7 @@ public static class ProperLangChainIntegrationExamples
             Console.WriteLine("  - Factory methods available: CreateLLMKleisli() and CreateLLMStep()");
             Console.WriteLine("  - Note: Actual LLM execution requires a real model (OpenAI, Anthropic, etc.)");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Console.WriteLine($"✗ Example Error: {ex.Message}");
         }
@@ -107,7 +107,7 @@ public static class ProperLangChainIntegrationExamples
             Console.WriteLine("  - Proper integration between LangChain chains and monadic operations");
             Console.WriteLine("  - Note: Complex pipelines require actual models for full execution");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Console.WriteLine($"✗ Example Error: {ex.Message}");
         }
@@ -140,7 +140,7 @@ public static class ProperLangChainIntegrationExamples
 
             Console.WriteLine($"  - Context created with history length: {context.GetConversationHistory().Length}");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Console.WriteLine($"✗ Conversational Error: {ex.Message}");
         }

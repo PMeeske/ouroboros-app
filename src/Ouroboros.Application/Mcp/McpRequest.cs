@@ -11,25 +11,25 @@ public record McpRequest
     /// Gets or sets the JSON-RPC version.
     /// </summary>
     [JsonPropertyName("jsonrpc")]
-    public string JsonRpc { get; set; } = "2.0";
+    public string JsonRpc { get; init; } = "2.0";
 
     /// <summary>
-    /// Gets or sets the request ID (null for notifications).
+    /// Gets or initializes the request ID (null for notifications).
     /// </summary>
     [JsonPropertyName("id")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public int? Id { get; set; }
+    public int? Id { get; init; }
 
     /// <summary>
-    /// Gets or sets the method name.
+    /// Gets or initializes the method name.
     /// </summary>
     [JsonPropertyName("method")]
-    public required string Method { get; set; }
+    public required string Method { get; init; }
 
     /// <summary>
-    /// Gets or sets the parameters.
+    /// Gets or initializes the parameters.
     /// </summary>
     [JsonPropertyName("params")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public object? Params { get; set; }
+    public object? Params { get; init; }
 }

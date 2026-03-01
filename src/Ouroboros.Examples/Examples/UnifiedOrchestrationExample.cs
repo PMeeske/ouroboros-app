@@ -207,7 +207,7 @@ public static class UnifiedOrchestrationExample
             Console.WriteLine($"Metrics available: {metrics.Count} resources tracked");
             Console.WriteLine($"Unified metrics interface: ✓\n");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Console.WriteLine($"⚠ Ollama not available: {ex.Message}");
             Console.WriteLine("This is expected if Ollama is not running.\n");

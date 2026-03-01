@@ -116,7 +116,8 @@ public sealed class GitHubSelfModificationWorkflow
 
             return Result<SelfModificationResult, string>.Success(result);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
         {
             await LogWorkflowStepAsync("Exception", $"Workflow failed: {ex.Message}", ct);
             return Result<SelfModificationResult, string>.Failure($"Workflow exception: {ex.Message}");

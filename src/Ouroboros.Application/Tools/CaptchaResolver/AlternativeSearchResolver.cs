@@ -1,5 +1,5 @@
-// <copyright file="AlternativeSearchResolver.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="AlternativeSearchResolver.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 namespace Ouroboros.Application.Tools.CaptchaResolver;
@@ -97,7 +97,8 @@ public class AlternativeSearchResolver : ICaptchaResolverStrategy
 
                 errors.Add($"{engineName}: No results extracted");
             }
-            catch (Exception ex)
+            catch (OperationCanceledException) { throw; }
+        catch (HttpRequestException ex)
             {
                 errors.Add($"{GetEngineName(engineTemplate)}: {ex.Message}");
             }

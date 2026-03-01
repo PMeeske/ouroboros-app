@@ -26,7 +26,7 @@ public static class TelemetryExtensions
             onSuccess?.Invoke(activity, result);
             return result;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
             activity?.SetTag("exception.type", ex.GetType().Name);

@@ -8,7 +8,7 @@ namespace Ouroboros.CLI.Commands;
 /// Runtime prompt optimizer that learns from interaction outcomes.
 /// Uses multi-armed bandit approach to balance exploration vs exploitation.
 /// </summary>
-public sealed class PromptOptimizer
+public sealed partial class PromptOptimizer
 {
     private readonly ConcurrentDictionary<string, PromptPattern> _patterns = new();
     private readonly ConcurrentQueue<InteractionOutcome> _recentOutcomes = new();
@@ -296,7 +296,7 @@ When user says 'read file X' you MUST output [TOOL:read_my_file X]"
             expected.Add("read_my_file");
         if (inputLower.Contains("modify") || inputLower.Contains("change") || inputLower.Contains("edit") || inputLower.Contains("save"))
             expected.Add("modify_my_code");
-        if (inputLower.Contains("calculate") || inputLower.Contains("math") || Regex.IsMatch(inputLower, @"\d+\s*[+\-*/]\s*\d+"))
+        if (inputLower.Contains("calculate") || inputLower.Contains("math") || MathExpressionRegex().IsMatch(inputLower))
             expected.Add("calculator");
         if (inputLower.Contains("web") || inputLower.Contains("search online") || inputLower.Contains("look up"))
             expected.Add("web_research");
@@ -319,4 +319,7 @@ When user says 'read file X' you MUST output [TOOL:read_my_file X]"
         }
         return calls;
     }
+
+    [GeneratedRegex(@"\d+\s*[+\-*/]\s*\d+")]
+    private static partial Regex MathExpressionRegex();
 }

@@ -39,3 +39,21 @@ jobs:
       test-project: tests/Ouroboros.Application.Tests/Ouroboros.Application.Tests.csproj
       category: application
       mutation-level: Standard
+
+  mutate-apihost:
+    name: Mutate ApiHost
+    uses: PMeeske/ouroboros-build/.github/workflows/_reusable-mutation-testing.yml@main
+    with:
+      project: src/Ouroboros.ApiHost/Ouroboros.ApiHost.csproj
+      test-project: tests/Ouroboros.ApiHost.Tests/Ouroboros.ApiHost.Tests.csproj
+      category: apihost
+      mutation-level: Standard
+
+  mutate-easy:
+    name: Mutate Easy
+    uses: PMeeske/ouroboros-build/.github/workflows/_reusable-mutation-testing.yml@main
+    with:
+      project: src/Ouroboros.Easy/Ouroboros.Easy.csproj
+      test-project: tests/Ouroboros.Easy.Tests/Ouroboros.Easy.Tests.csproj
+      category: easy
+      mutation-level: Standard

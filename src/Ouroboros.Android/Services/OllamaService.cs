@@ -1,3 +1,5 @@
+using System.IO;
+using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
@@ -20,7 +22,7 @@ public class OllamaService
     /// Initializes a new instance of the <see cref="OllamaService"/> class.
     /// </summary>
     /// <param name="baseUrl">Base URL of the Ollama service</param>
-    public OllamaService(string baseUrl = "http://localhost:11434")
+    public OllamaService(string baseUrl = DefaultEndpoints.Ollama)
     {
         _baseUrl = baseUrl;
         _httpClient = new HttpClient
@@ -105,7 +107,11 @@ public class OllamaService
             var result = await response.Content.ReadFromJsonAsync<OllamaTagsResponse>();
             return result?.Models ?? new List<OllamaModel>();
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            throw new OllamaException($"Failed to list models: {ex.Message}", ex);
+        }
+        catch (TaskCanceledException ex)
         {
             throw new OllamaException($"Failed to list models: {ex.Message}", ex);
         }
@@ -150,7 +156,15 @@ public class OllamaService
                 }
             }
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new OllamaException($"Failed to pull model: {ex.Message}", ex);
+        }
+        catch (IOException ex)
         {
             throw new OllamaException($"Failed to pull model: {ex.Message}", ex);
         }
@@ -179,7 +193,7 @@ public class OllamaService
             var response = await _httpClient.SendAsync(httpRequest);
             response.EnsureSuccessStatusCode();
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
             throw new OllamaException($"Failed to delete model: {ex.Message}", ex);
         }
@@ -253,7 +267,15 @@ public class OllamaService
 
             return fullResponse.ToString();
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new OllamaException($"Failed to generate response: {ex.Message}", ex);
+        }
+        catch (IOException ex)
         {
             throw new OllamaException($"Failed to generate response: {ex.Message}", ex);
         }

@@ -1,4 +1,4 @@
-// Copyright (c) Ouroboros. All rights reserved.
+﻿// Copyright (c) Ouroboros. All rights reserved.
 namespace Ouroboros.CLI.Subsystems;
 
 using Ouroboros.Application.Tools;
@@ -188,7 +188,7 @@ OUTPUT (translation only, no explanations, no JSON, no metadata):";
 
             var result = translated?.Trim() ?? thought;
 
-            if (result.StartsWith("\"") && result.EndsWith("\""))
+            if (result.StartsWith('"') && result.EndsWith('"'))
                 result = result[1..^1];
             if (result.Contains("```"))
                 result = result.Split("```")[0].Trim();
@@ -197,6 +197,7 @@ OUTPUT (translation only, no explanations, no JSON, no metadata):";
 
             return string.IsNullOrEmpty(result) ? thought : result;
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[Thought Translation] Error: {ex.Message}");

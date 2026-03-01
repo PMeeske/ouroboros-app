@@ -1,8 +1,7 @@
-// <copyright file="TrackedStep.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="TrackedStep.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
 using System.Diagnostics;
 using System.Reflection;
@@ -58,7 +57,7 @@ public static class TrackedStep
                 var updatedBranch = UpdateLastStepEvent(result.Branch, startEvent.Id, completedEvent);
                 return result.WithBranch(updatedBranch);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 stopwatch.Stop();
 

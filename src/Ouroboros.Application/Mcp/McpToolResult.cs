@@ -6,12 +6,12 @@
 public record McpToolResult
 {
     /// <summary>
-    /// Gets or sets whether the result is an error.
+    /// Gets or initializes whether the result is an error.
     /// </summary>
-    public bool IsError { get; set; }
+    public bool IsError { get; init; }
 
     /// <summary>
-    /// Gets or sets the content of the result.
+    /// Gets or initializes the content of the result.
     /// </summary>
-    public required string Content { get; set; }
+    public required string Content { get; init; }
 }

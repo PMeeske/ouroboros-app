@@ -62,6 +62,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     public static void SetStaticCulture(string? culture)
     {
         _staticCulture = culture;
+        _ = _staticCulture; // S4487: retained for static context
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -118,6 +119,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     // ── Autonomy ──
     private MetaAIPlannerOrchestrator? _orchestrator { get => _autonomySub.Orchestrator; set => _autonomySub.Orchestrator = value; }
     private AutonomousMind? _autonomousMind { get => _autonomySub.AutonomousMind; set => _autonomySub.AutonomousMind = value; }
+    private AutonomousActionEngine? _actionEngine { get => _autonomySub.ActionEngine; set => _autonomySub.ActionEngine = value; }
     private AutonomousCoordinator? _autonomousCoordinator { get => _autonomySub.Coordinator; set => _autonomySub.Coordinator = value; }
     private ConcurrentQueue<AutonomousGoal> _goalQueue => _autonomySub.GoalQueue;
     private Task? _selfExecutionTask { get => _autonomySub.SelfExecutionTask; set => _autonomySub.SelfExecutionTask = value; }
@@ -181,6 +183,13 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     private readonly StringBuilder _currentInputBuffer = new();
     private readonly object _inputLock = new();
     private bool _isInConversationLoop;
+    private ToolPermissionBroker? _permissionBroker;
+
+    // ── Cognitive Thought Streams (Rx, permanently running) ──
+    private Ouroboros.Application.Streams.CognitiveStreamEngine? _cognitiveStream;
+
+    // ── MeTTa shared orchestrator (persists atom state across tool calls) ──
+    private Ouroboros.Application.Services.ParallelMeTTaThoughtStreams? _mettaOrchestrator;
 
     // State
     private bool _isInitialized;
@@ -202,6 +211,8 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     private readonly PipeProcessingSubsystem _pipeSub;
     private readonly ChatSubsystem _chatSub;
     private readonly CommandRoutingSubsystem _commandRoutingSub;
+    private readonly SwarmSubsystem _swarmSub;
+    private readonly AuthSubsystem _authSub;
     private readonly IAgentSubsystem[] _allSubsystems;
 
     /// <summary>
@@ -272,6 +283,8 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
     internal ModelSubsystem ModelsSub => _modelsSub;
     internal ToolSubsystem ToolsSub => _toolsSub;
     internal SelfAssemblySubsystem SelfAssemblySub => _selfAssemblySub;
+    internal SwarmSubsystem SwarmSub => _swarmSub;
+    internal AuthSubsystem AuthSub => _authSub;
     internal IMediator Mediator => _mediator;
 
     /// <summary>
@@ -293,6 +306,8 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
         IPipeProcessingSubsystem pipeProcessing,
         IChatSubsystem chat,
         ICommandRoutingSubsystem commandRouting,
+        ISwarmSubsystem swarm,
+        IAuthSubsystem auth,
         IServiceProvider? serviceProvider = null)
     {
         _config = config;
@@ -313,13 +328,16 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
         _pipeSub = (PipeProcessingSubsystem)pipeProcessing;
         _chatSub = (ChatSubsystem)chat;
         _commandRoutingSub = (CommandRoutingSubsystem)commandRouting;
+        _swarmSub = (SwarmSubsystem)swarm;
+        _authSub = (AuthSubsystem)auth;
 
         _voice = _voiceSub.Service;
         _allSubsystems =
         [
-            _voiceSub, _modelsSub, _toolsSub, _memorySub,
+            _authSub, _voiceSub, _modelsSub, _toolsSub, _memorySub,
             _cognitiveSub, _autonomySub, _embodimentSub,
-            _localizationSub, _languageSub, _selfAssemblySub, _pipeSub, _chatSub, _commandRoutingSub
+            _localizationSub, _languageSub, _selfAssemblySub, _pipeSub, _chatSub, _commandRoutingSub,
+            _swarmSub
         ];
 
         // Register process exit handler to kill speech processes on forceful exit
@@ -358,7 +376,9 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
             new SelfAssemblySubsystem(),
             new PipeProcessingSubsystem(),
             new ChatSubsystem(),
-            new CommandRoutingSubsystem())
+            new CommandRoutingSubsystem(),
+            new SwarmSubsystem(),
+            new AuthSubsystem())
     {
     }
 
@@ -381,6 +401,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
             {
                 await _allSubsystems[i].DisposeAsync();
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine(
@@ -413,6 +434,7 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
                 await _memorySub.SavePersonalitySnapshotAsync(_voice.ActivePersona.Name);
                 _output.WriteDebug("Personality snapshot saved");
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex)
             {
                 AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Failed to save personality snapshot: {ex.Message}"));
@@ -421,6 +443,12 @@ public sealed partial class OuroborosAgent : IAsyncDisposable, IAgentFacade
 
         // Clear sub-agents (not owned by a subsystem since the dict is readonly here)
         _subAgents.Clear();
+
+        // Dispose cognitive stream engine
+        _cognitiveStream?.Dispose();
+
+        // Dispose shared MeTTa orchestrator
+        await (_mettaOrchestrator?.DisposeAsync() ?? ValueTask.CompletedTask).ConfigureAwait(false);
     }
 
 

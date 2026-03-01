@@ -8,4 +8,4 @@ public sealed record LearningResult(
     int RulesLearned,
     int AdaptersUpdated,
     double PerformanceImprovement,
-    List<Insight> Insights);
+    IReadOnlyList<Insight> Insights);

@@ -1,5 +1,5 @@
-// <copyright file="FunctionalReasoningExamples.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="FunctionalReasoningExamples.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 namespace Ouroboros.Examples;
@@ -246,7 +246,7 @@ public static class FunctionalReasoningExamples
 
                 return Result<PipelineBranch, string>.Success(final);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 return Result<PipelineBranch, string>.Failure($"Pipeline failed: {ex.Message}");
             }

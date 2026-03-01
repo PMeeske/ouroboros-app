@@ -351,7 +351,7 @@ public static class ProviderLoadBalancingExample
 
             Console.WriteLine("\n✅ All examples completed successfully!");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Console.WriteLine($"\n❌ Error running examples: {ex.Message}");
             Console.WriteLine($"Stack trace: {ex.StackTrace}");

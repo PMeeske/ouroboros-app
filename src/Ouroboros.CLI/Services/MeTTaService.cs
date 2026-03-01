@@ -1,7 +1,8 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using LangChain.Providers.Ollama;
 using Microsoft.Extensions.Logging;
 using Ouroboros.Agent.MetaAI;
+using Ouroboros.Application.Configuration;
 using Ouroboros.Application.Services;
 using Ouroboros.CLI.Commands;
 using Ouroboros.CLI.Infrastructure;
@@ -159,6 +160,7 @@ public sealed class MeTTaService : IMeTTaService
 
             _console.MarkupLine("\n[green]✓[/] MeTTa orchestrator execution completed successfully");
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex) when (ex.Message.Contains("Connection refused") || ex.Message.Contains("ECONNREFUSED"))
         {
             _console.MarkupLine("[red]Error:[/] Ollama is not running. Please start Ollama before using the MeTTa orchestrator.");
@@ -170,7 +172,16 @@ public sealed class MeTTaService : IMeTTaService
             _console.MarkupLine("[dim]  Install from: https://github.com/trueagi-io/hyperon-experimental[/]");
             _console.MarkupLine("[dim]  Ensure 'metta' executable is in your PATH[/]");
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "MeTTa orchestrator failed");
+            _console.MarkupLine($"[red]MeTTa Orchestrator Failed:[/] {Markup.Escape(ex.Message)}");
+            if (config.Debug)
+            {
+                _console.MarkupLine($"[dim]{Markup.Escape(ex.StackTrace ?? "")}[/]");
+            }
+        }
+        catch (System.Net.Http.HttpRequestException ex)
         {
             _logger.LogError(ex, "MeTTa orchestrator failed");
             _console.MarkupLine($"[red]MeTTa Orchestrator Failed:[/] {Markup.Escape(ex.Message)}");
@@ -181,7 +192,7 @@ public sealed class MeTTaService : IMeTTaService
         }
     }
 
-    private async Task RunVoiceModeAsync(MeTTaConfig config)
+    private static async Task RunVoiceModeAsync(MeTTaConfig config)
     {
         var voiceService = VoiceModeExtensions.CreateVoiceService(
             voice: true,
@@ -190,7 +201,7 @@ public sealed class MeTTaService : IMeTTaService
             localTts: config.LocalTts,
             voiceLoop: config.VoiceLoop,
             model: config.Model,
-            endpoint: config.Endpoint ?? "http://localhost:11434");
+            endpoint: config.Endpoint ?? DefaultEndpoints.Ollama);
 
         await voiceService.InitializeAsync();
         voiceService.PrintHeader("METTA ORCHESTRATOR");
@@ -253,13 +264,11 @@ public sealed class MeTTaService : IMeTTaService
             await voiceService.SayAsync($"Planning for: {goal}");
 
             var planResult = await orchestrator.PlanAsync(goal);
+            string? planError = null;
             var plan = planResult.Match<Plan?>(
                 success => success,
-                error =>
-                {
-                    voiceService.SayAsync($"Planning failed: {error}").Wait();
-                    return null;
-                });
+                error => { planError = error; return null; });
+            if (planError != null) await voiceService.SayAsync($"Planning failed: {planError}");
 
             if (plan == null) return;
 
@@ -275,21 +284,28 @@ public sealed class MeTTaService : IMeTTaService
             await voiceService.SayAsync("Executing the plan now...");
             var executionResult = await orchestrator.ExecuteAsync(plan);
 
+            string? execSummary = null;
+            string? execError = null;
             executionResult.Match(
                 success =>
                 {
-                    var summary = success.Success
+                    execSummary = success.Success
                         ? $"Execution completed successfully in {success.Duration.TotalSeconds:F1} seconds."
                         : "Execution completed with some issues.";
                     if (!string.IsNullOrWhiteSpace(success.FinalOutput))
                     {
-                        summary += $" Result: {success.FinalOutput}";
+                        execSummary += $" Result: {success.FinalOutput}";
                     }
-                    voiceService.SayAsync(summary).Wait();
                 },
-                error => voiceService.SayAsync($"Execution failed: {error}").Wait());
+                error => { execError = error; });
+            if (execSummary != null) await voiceService.SayAsync(execSummary);
+            if (execError != null) await voiceService.SayAsync($"Execution failed: {execError}");
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            await voiceService.SayAsync($"Something went wrong: {ex.Message}");
+        }
+        catch (System.Net.Http.HttpRequestException ex)
         {
             await voiceService.SayAsync($"Something went wrong: {ex.Message}");
         }

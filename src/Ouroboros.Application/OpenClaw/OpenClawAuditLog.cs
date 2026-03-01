@@ -126,12 +126,11 @@ public sealed class OpenClawAuditLog
     {
         _entries.Enqueue(entry);
 
-        // Evict oldest entries if over capacity
-        while (Interlocked.Increment(ref _count) > MaxEntries)
+        // Evict oldest entries if over capacity.
+        // ConcurrentQueue.Count is O(1) in .NET 6+; avoids Interlocked races.
+        while (_entries.Count > MaxEntries)
         {
-            if (_entries.TryDequeue(out _))
-                Interlocked.Decrement(ref _count);
-            else
+            if (!_entries.TryDequeue(out _))
                 break;
         }
     }

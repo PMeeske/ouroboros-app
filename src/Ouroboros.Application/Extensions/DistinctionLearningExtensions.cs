@@ -1,16 +1,18 @@
-// <copyright file="DistinctionLearningExtensions.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="DistinctionLearningExtensions.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 namespace Ouroboros.Application.Extensions;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Ouroboros.Application.Middleware;
 using Ouroboros.Application.Personality.Consciousness;
 using Ouroboros.Application.Services;
 using Ouroboros.Core.DistinctionLearning;
 using Ouroboros.Domain.DistinctionLearning;
+using Ouroboros.Pipeline.Middleware;
 
 /// <summary>
 /// Extension methods for registering distinction learning services.
@@ -48,6 +50,8 @@ public static class DistinctionLearningExtensions
         if (options.EnablePipelineIntegration)
         {
             services.AddSingleton<DistinctionLearningMiddleware>();
+            services.TryAddSingleton<IPipelineMiddleware>(sp =>
+                sp.GetRequiredService<DistinctionLearningMiddleware>());
         }
 
         // Background consolidation

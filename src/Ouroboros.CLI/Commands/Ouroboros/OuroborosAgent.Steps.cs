@@ -1,5 +1,6 @@
 // Copyright (c) Ouroboros. All rights reserved.
 
+using System.Net.Http;
 using Ouroboros.Abstractions.Monads;
 
 namespace Ouroboros.CLI.Commands;
@@ -50,7 +51,15 @@ public sealed partial class OuroborosAgent
                 var text = await OrchestrateAsync(goal);
                 return Result<string, string>.Success(text);
             }
-            catch (Exception ex)
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Result<string, string>.Failure(ex.Message);
+            }
+            catch (HttpRequestException ex)
             {
                 return Result<string, string>.Failure(ex.Message);
             }
@@ -67,7 +76,15 @@ public sealed partial class OuroborosAgent
                 var text = await PlanAsync(goal);
                 return Result<string, string>.Success(text);
             }
-            catch (Exception ex)
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Result<string, string>.Failure(ex.Message);
+            }
+            catch (HttpRequestException ex)
             {
                 return Result<string, string>.Failure(ex.Message);
             }
@@ -84,7 +101,15 @@ public sealed partial class OuroborosAgent
                 var text = await ExecuteAsync(goal);
                 return Result<string, string>.Success(text);
             }
-            catch (Exception ex)
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Result<string, string>.Failure(ex.Message);
+            }
+            catch (HttpRequestException ex)
             {
                 return Result<string, string>.Failure(ex.Message);
             }
@@ -101,7 +126,15 @@ public sealed partial class OuroborosAgent
                 var text = await FetchResearchAsync(query);
                 return Result<string, string>.Success(text);
             }
-            catch (Exception ex)
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Result<string, string>.Failure(ex.Message);
+            }
+            catch (HttpRequestException ex)
             {
                 return Result<string, string>.Failure(ex.Message);
             }
@@ -118,7 +151,15 @@ public sealed partial class OuroborosAgent
                 var text = await ProcessLargeInputAsync(input);
                 return Result<string, string>.Success(text);
             }
-            catch (Exception ex)
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Result<string, string>.Failure(ex.Message);
+            }
+            catch (HttpRequestException ex)
             {
                 return Result<string, string>.Failure(ex.Message);
             }
@@ -135,7 +176,15 @@ public sealed partial class OuroborosAgent
                 var text = await RememberAsync(info);
                 return Result<string, string>.Success(text);
             }
-            catch (Exception ex)
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Result<string, string>.Failure(ex.Message);
+            }
+            catch (HttpRequestException ex)
             {
                 return Result<string, string>.Failure(ex.Message);
             }
@@ -152,7 +201,15 @@ public sealed partial class OuroborosAgent
                 var text = await RecallAsync(topic);
                 return Result<string, string>.Success(text);
             }
-            catch (Exception ex)
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Result<string, string>.Failure(ex.Message);
+            }
+            catch (HttpRequestException ex)
             {
                 return Result<string, string>.Failure(ex.Message);
             }
@@ -169,7 +226,15 @@ public sealed partial class OuroborosAgent
                 var text = await RunSkillAsync(skillName);
                 return Result<string, string>.Success(text);
             }
-            catch (Exception ex)
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Result<string, string>.Failure(ex.Message);
+            }
+            catch (HttpRequestException ex)
             {
                 return Result<string, string>.Failure(ex.Message);
             }
@@ -190,7 +255,15 @@ public sealed partial class OuroborosAgent
                 Result<string, string> result = await tool.InvokeAsync(toolInput ?? string.Empty);
                 return result;
             }
-            catch (Exception ex)
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Result<string, string>.Failure(ex.Message);
+            }
+            catch (HttpRequestException ex)
             {
                 return Result<string, string>.Failure(ex.Message);
             }

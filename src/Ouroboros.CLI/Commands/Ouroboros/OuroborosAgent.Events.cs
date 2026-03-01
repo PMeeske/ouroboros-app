@@ -1,4 +1,4 @@
-// Copyright (c) Ouroboros. All rights reserved.
+﻿// Copyright (c) Ouroboros. All rights reserved.
 
 using System.Threading.Channels;
 using Ouroboros.CLI.Avatar;
@@ -94,6 +94,7 @@ public sealed partial class OuroborosAgent : IAgentEventSink
             {
                 break;
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[AgentEvents] Error processing {evt.GetType().Name}: {ex.Message}");
@@ -136,6 +137,10 @@ public sealed partial class OuroborosAgent : IAgentEventSink
 
             case GoalExecutedNotification goal:
                 OnGoalExecuted(goal);
+                break;
+
+            case ExceptionOccurredNotification exception:
+                await OnExceptionOccurredAsync(exception, ct);
                 break;
 
             // Other events are recorded in Hyperon but don't require
@@ -190,6 +195,9 @@ public sealed partial class OuroborosAgent : IAgentEventSink
             ReasoningCompletedNotification rc =>
                 $"(AgentEvent reasoning \"{Sanitize(rc.Query)}\" {rc.Confidence:F2} {ticks})",
 
+            ExceptionOccurredNotification ex =>
+                $"(AgentEvent exception \"{Sanitize(ex.Context)}\" \"{Sanitize(ex.ExceptionType)}\" \"{Sanitize(ex.Message)}\" {(ex.IsFatal ? "fatal" : "recoverable")} {ticks})",
+
             _ => $"(AgentEvent unknown \"{evt.Source}\" {ticks})"
         };
 
@@ -197,6 +205,7 @@ public sealed partial class OuroborosAgent : IAgentEventSink
         {
             await engine.AddFactAsync(fact, ct);
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[AgentEvents] Hyperon record failed: {ex.Message}");
@@ -242,7 +251,7 @@ public sealed partial class OuroborosAgent : IAgentEventSink
         await Task.CompletedTask;
     }
 
-    private void OnSpeakerIdentified(SpeakerIdentifiedNotification n)
+    private static void OnSpeakerIdentified(SpeakerIdentifiedNotification n)
     {
         System.Diagnostics.Debug.WriteLine(
             $"[AgentEvents] Speaker identified: {n.SpeakerLabel} (owner={n.IsOwner})");
@@ -272,15 +281,34 @@ public sealed partial class OuroborosAgent : IAgentEventSink
         await Task.CompletedTask;
     }
 
-    private void OnConsciousnessShifted(ConsciousnessShiftedNotification n)
+    private static void OnConsciousnessShifted(ConsciousnessShiftedNotification n)
     {
         System.Diagnostics.Debug.WriteLine(
             $"[AgentEvents] Consciousness shift: {n.NewEmotion} (arousal delta={n.ArousalChange:+0.00;-0.00})");
     }
 
-    private void OnGoalExecuted(GoalExecutedNotification n)
+    private static void OnGoalExecuted(GoalExecutedNotification n)
     {
         System.Diagnostics.Debug.WriteLine(
             $"[AgentEvents] Goal executed: {n.Goal} (success={n.Success}, duration={n.Duration})");
+    }
+
+    private async Task OnExceptionOccurredAsync(ExceptionOccurredNotification n, CancellationToken ct)
+    {
+        System.Diagnostics.Debug.WriteLine(
+            $"[AgentEvents] Exception [{n.Context}] {n.ExceptionType}: {n.Message} (fatal={n.IsFatal})");
+
+        // Let the autonomous mind think about the problem
+        _immersivePersona?.UpdateInnerDialogContext(
+            $"An error occurred in {n.Context}: {n.ExceptionType} — {n.Message}");
+
+        // For fatal exceptions, emit a visible warning
+        if (n.IsFatal && _config.Verbosity != OutputVerbosity.Quiet)
+        {
+            Spectre.Console.AnsiConsole.MarkupLine(
+                OuroborosTheme.Warn($"\n  [FATAL] {Markup.Escape(n.ExceptionType)} in {Markup.Escape(n.Context)}: {Markup.Escape(n.Message)}"));
+        }
+
+        await Task.CompletedTask;
     }
 }

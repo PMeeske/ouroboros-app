@@ -148,7 +148,7 @@ public sealed class EmbodimentSubsystem : IEmbodimentSubsystem
             AnsiConsole.MarkupLine(OuroborosTheme.Dim($"    Capabilities: {Markup.Escape(string.Join(", ", BodySchema.Capabilities))}"));
             AnsiConsole.MarkupLine(OuroborosTheme.Dim($"    Sensors: {BodySchema.Sensors.Count} | Actuators: {BodySchema.Actuators.Count}"));
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Embodiment initialization failed: {Markup.Escape(ex.Message)}"));
             if (ctx.Config.Debug)
@@ -190,7 +190,7 @@ public sealed class EmbodimentSubsystem : IEmbodimentSubsystem
             ctx.Output.RecordInit("Presence Detection", true, $"WiFi + Input (interval={config.CheckIntervalSeconds}s)");
             await Task.CompletedTask;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Presence Detection: {Markup.Escape(ex.Message)}"));
         }
@@ -216,7 +216,7 @@ public sealed class EmbodimentSubsystem : IEmbodimentSubsystem
             ctx.Output.RecordInit("Perception", true,
                 $"{perceptionTools.Count} perception tools + vision");
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Perception/Vision: {Markup.Escape(ex.Message)}"));
         }
@@ -254,7 +254,7 @@ public sealed class EmbodimentSubsystem : IEmbodimentSubsystem
             var frameInfo = hasStability ? "Stability AI frame gen" : "static frames + Ollama vision";
             ctx.Output.RecordInit("Avatar", true, $"port {ctx.Config.AvatarPort} + {frameInfo}");
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  ⚠ Avatar: {Markup.Escape(ex.Message)}"));
         }

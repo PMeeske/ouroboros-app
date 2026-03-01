@@ -16,7 +16,7 @@ using Unit = Unit;
 /// Native C# Hyperon-based MeTTa engine implementation.
 /// Uses the in-process AtomSpace and Interpreter for high-performance symbolic reasoning.
 /// </summary>
-public sealed class HyperonMeTTaEngine : IMeTTaEngine
+public sealed partial class HyperonMeTTaEngine : IMeTTaEngine
 {
     private readonly AtomSpace _space;
     private readonly Interpreter _interpreter;
@@ -111,7 +111,11 @@ public sealed class HyperonMeTTaEngine : IMeTTaEngine
 
             return Task.FromResult(Result<string, string>.Success(resultStr));
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
+        {
+            return Task.FromResult(Result<string, string>.Failure($"Query failed: {ex.Message}"));
+        }
+        catch (InvalidOperationException ex)
         {
             return Task.FromResult(Result<string, string>.Failure($"Query failed: {ex.Message}"));
         }
@@ -136,7 +140,7 @@ public sealed class HyperonMeTTaEngine : IMeTTaEngine
 
             return Task.FromResult(Result<Unit, string>.Success(Unit.Value));
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
         {
             return Task.FromResult(Result<Unit, string>.Failure($"Failed to add fact: {ex.Message}"));
         }
@@ -231,7 +235,11 @@ public sealed class HyperonMeTTaEngine : IMeTTaEngine
 
             return Task.FromResult(Result<string, string>.Success("Rule added"));
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
+        {
+            return Task.FromResult(Result<string, string>.Failure($"Failed to apply rule: {ex.Message}"));
+        }
+        catch (InvalidOperationException ex)
         {
             return Task.FromResult(Result<string, string>.Failure($"Failed to apply rule: {ex.Message}"));
         }
@@ -262,7 +270,11 @@ public sealed class HyperonMeTTaEngine : IMeTTaEngine
 
             return Task.FromResult(Result<bool, string>.Success(verified));
         }
-        catch (Exception ex)
+        catch (ArgumentException ex)
+        {
+            return Task.FromResult(Result<bool, string>.Failure($"Verification failed: {ex.Message}"));
+        }
+        catch (InvalidOperationException ex)
         {
             return Task.FromResult(Result<bool, string>.Failure($"Verification failed: {ex.Message}"));
         }
@@ -288,90 +300,6 @@ public sealed class HyperonMeTTaEngine : IMeTTaEngine
         InitializeCoreAtoms();
 
         return Task.FromResult(Result<Unit, string>.Success(Unit.Value));
-    }
-
-    /// <summary>
-    /// Evaluates a query and returns results with their bindings.
-    /// </summary>
-    /// <param name="query">The query string.</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <returns>List of (result atom, bindings) pairs.</returns>
-    public Task<Result<IReadOnlyList<(Atom Result, Substitution Bindings)>, string>> EvaluateWithBindingsAsync(
-        string query, CancellationToken ct = default)
-    {
-        if (_disposed)
-            return Task.FromResult(Result<IReadOnlyList<(Atom, Substitution)>, string>.Failure("Engine disposed"));
-
-        try
-        {
-            var parseResult = _parser.Parse(query);
-            if (!parseResult.IsSuccess)
-            {
-                return Task.FromResult(Result<IReadOnlyList<(Atom, Substitution)>, string>.Failure($"Parse error: {parseResult.Error}"));
-            }
-
-            var results = _interpreter.EvaluateWithBindings(parseResult.Value).ToList();
-            return Task.FromResult(Result<IReadOnlyList<(Atom, Substitution)>, string>.Success(results));
-        }
-        catch (Exception ex)
-        {
-            return Task.FromResult(Result<IReadOnlyList<(Atom, Substitution)>, string>.Failure($"Evaluation failed: {ex.Message}"));
-        }
-    }
-
-    /// <summary>
-    /// Queries the space for pattern matches.
-    /// </summary>
-    /// <param name="pattern">The pattern to match.</param>
-    /// <returns>List of matching atoms with their bindings.</returns>
-    public IReadOnlyList<(Atom Atom, Substitution Bindings)> Query(Atom pattern)
-    {
-        return _space.Query(pattern).ToList();
-    }
-
-    /// <summary>
-    /// Gets all atoms in the space.
-    /// </summary>
-    /// <returns>All atoms.</returns>
-    public IEnumerable<Atom> GetAllAtoms() => _space.All();
-
-    /// <summary>
-    /// Gets the count of atoms in the space.
-    /// </summary>
-    public int AtomCount => _space.Count;
-
-    /// <summary>
-    /// Adds multiple atoms from MeTTa source code.
-    /// </summary>
-    /// <param name="mettaSource">Multi-line MeTTa source code.</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <returns>Number of atoms successfully added.</returns>
-    public async Task<int> LoadMeTTaSourceAsync(string mettaSource, CancellationToken ct = default)
-    {
-        int added = 0;
-        var lines = mettaSource.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-
-        foreach (var line in lines)
-        {
-            var trimmed = line.Trim();
-            if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith(";"))
-                continue;
-
-            var result = await AddFactAsync(trimmed, ct);
-            if (result.IsSuccess)
-                added++;
-        }
-
-        return added;
-    }
-
-    /// <summary>
-    /// Exports all atoms as MeTTa source code.
-    /// </summary>
-    /// <returns>MeTTa source code string.</returns>
-    public string ExportToMeTTa()
-    {
-        return string.Join("\n", _space.All().Select(a => a.ToSExpr()));
     }
 
     private void InitializeCoreAtoms()

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Ouroboros.Application.Configuration;
 using Ouroboros.CLI.Commands;
 using Ouroboros.Options;
 
@@ -31,8 +32,8 @@ public class OrchestratorService : IOrchestratorService
             VoiceLoop = false,
             LocalTts = false,
             Persona = "Iaret",
-            Model = "llama3",
-            Endpoint = "http://localhost:11434",
+            Model = "deepseek-v3.1:671b-cloud",
+            Endpoint = DefaultEndpoints.Ollama,
             Temperature = 0.7f,
             MaxTokens = 2048,
             TimeoutSeconds = 60
@@ -53,7 +54,12 @@ public class OrchestratorService : IOrchestratorService
                 .ToList();
             return string.Join("\n", resultLines);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Error orchestrating models for goal: {Goal}", goal);
+            return $"Error: {ex.Message}";
+        }
+        catch (System.Net.Http.HttpRequestException ex)
         {
             _logger.LogError(ex, "Error orchestrating models for goal: {Goal}", goal);
             return $"Error: {ex.Message}";

@@ -3,6 +3,7 @@
 // </copyright>
 
 using MediatR;
+using Ouroboros.Application.Configuration;
 using Ouroboros.CLI.Mediator;
 
 namespace Ouroboros.CLI.Commands;
@@ -24,17 +25,17 @@ public sealed partial class OuroborosAgent
 
         // 3. Wire RoomIntentBus → ImmersiveMode (room events appear in the chat pane)
         Ouroboros.CLI.Services.RoomPresence.RoomIntentBus.Reset();
-        Ouroboros.CLI.Services.RoomPresence.RoomIntentBus.OnIaretInterjected   += immersive.ShowRoomInterjection;
-        Ouroboros.CLI.Services.RoomPresence.RoomIntentBus.OnUserAddressedIaret += immersive.ShowRoomAddress;
+        Ouroboros.CLI.Services.RoomPresence.RoomIntentBus.OnIaretInterjected   += ImmersiveMode.ShowRoomInterjection;
+        Ouroboros.CLI.Services.RoomPresence.RoomIntentBus.OnUserAddressedIaret += ImmersiveMode.ShowRoomAddress;
 
         // 4. Build voice/TTS options from agent config
         var opts = new Ouroboros.Options.ImmersiveCommandVoiceOptions
         {
             Persona           = _config.Persona ?? "Iaret",
-            Model             = _config.Model   ?? "llama3:latest",
-            Endpoint          = _config.Endpoint ?? "http://localhost:11434",
+            Model             = _config.Model   ?? "deepseek-v3.1:671b-cloud",
+            Endpoint          = _config.Endpoint ?? DefaultEndpoints.Ollama,
             EmbedModel        = _config.EmbedModel ?? "nomic-embed-text",
-            QdrantEndpoint    = _config.QdrantEndpoint ?? "http://localhost:6334",
+            QdrantEndpoint    = _config.QdrantEndpoint ?? DefaultEndpoints.QdrantGrpc,
             Voice             = _config.Voice,
             VoiceOnly         = _config.VoiceOnly,
             LocalTts          = _config.LocalTts,
@@ -85,7 +86,8 @@ public sealed partial class OuroborosAgent
             Ouroboros.CLI.Services.RoomPresence.RoomIntentBus.Reset();
             await roomCts.CancelAsync();
             try { await roomTask.WaitAsync(TimeSpan.FromSeconds(3)); }
-            catch { /* best-effort */ }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception) { /* best-effort room shutdown */ }
         }
     }
 

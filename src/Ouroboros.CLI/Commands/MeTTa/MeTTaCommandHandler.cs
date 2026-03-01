@@ -36,7 +36,13 @@ public sealed class MeTTaCommandHandler : ICommandHandler<MeTTaConfig>
         {
             return 0;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "metta command failed");
+            _console.MarkupLine($"[red]Error:[/] {ex.Message}");
+            return 1;
+        }
+        catch (System.Net.Http.HttpRequestException ex)
         {
             _logger.LogError(ex, "metta command failed");
             _console.MarkupLine($"[red]Error:[/] {ex.Message}");

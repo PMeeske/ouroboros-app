@@ -1,5 +1,5 @@
-// <copyright file="UnityMLAgentsClient.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="UnityMLAgentsClient.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 using Microsoft.Extensions.Logging;
@@ -66,7 +66,11 @@ public sealed class UnityMLAgentsClient : IAsyncDisposable
 
             return Result<Unit, string>.Success(Unit.Value);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to connect to Unity ML-Agents");
             return Result<Unit, string>.Failure($"Connection failed: {ex.Message}");
@@ -108,7 +112,11 @@ public sealed class UnityMLAgentsClient : IAsyncDisposable
 
             return Result<ActionResult, string>.Success(actionResult);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to send action to Unity ML-Agents");
             return Result<ActionResult, string>.Failure($"Action send failed: {ex.Message}");
@@ -141,7 +149,11 @@ public sealed class UnityMLAgentsClient : IAsyncDisposable
             var sensorState = SensorState.Default();
             return Result<SensorState, string>.Success(sensorState);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to get sensor state from Unity ML-Agents");
             return Result<SensorState, string>.Failure($"Sensor state retrieval failed: {ex.Message}");
@@ -169,7 +181,11 @@ public sealed class UnityMLAgentsClient : IAsyncDisposable
 
             return Result<Unit, string>.Success(Unit.Value);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Failed to reset Unity environment");
             return Result<Unit, string>.Failure($"Reset failed: {ex.Message}");
@@ -200,7 +216,7 @@ public sealed class UnityMLAgentsClient : IAsyncDisposable
             this.isConnected = false;
             this.logger.LogInformation("Disconnected from Unity ML-Agents");
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             this.logger.LogError(ex, "Error during disconnect");
         }

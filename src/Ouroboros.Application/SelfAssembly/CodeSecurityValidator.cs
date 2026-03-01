@@ -94,7 +94,7 @@ public sealed class CodeSecurityValidator
 
             return Result<Unit>.Success(Unit.Value);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             return Result<Unit>.Failure($"Security validation error: {ex.Message}");
         }

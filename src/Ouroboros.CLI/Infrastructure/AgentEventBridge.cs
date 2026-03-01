@@ -1,6 +1,7 @@
 // Copyright (c) Ouroboros. All rights reserved.
 
 using MediatR;
+using Ouroboros.Application.Extensions;
 using Ouroboros.Application.Integration;
 using Ouroboros.Application.Personality;
 using Ouroboros.Application.Services;
@@ -153,7 +154,7 @@ public sealed class AgentEventBridge : IDisposable
     public void WireAgentEventBroker(EventBroker<AgentEvent> broker, CancellationToken ct)
     {
         var reader = broker.Subscribe(ct);
-        _ = Task.Run(async () =>
+        Task.Run(async () =>
         {
             await foreach (var evt in reader.ReadAllAsync(ct))
             {
@@ -169,7 +170,44 @@ public sealed class AgentEventBridge : IDisposable
                     // skip forwarding unless there's a reason to expose them.
                 }
             }
-        }, ct);
+        }, ct)
+        .ObserveExceptions("AgentEventBroker reader");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Exception routing — all exceptions pass through Iaret's kernel
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Wires global exception handlers so every exception — fire-and-forget faults,
+    /// unhandled domain exceptions, and unobserved task exceptions — routes through
+    /// Iaret's consciousness via <see cref="ExceptionSink"/>.
+    /// Call once during agent initialization.
+    /// </summary>
+    public static void WireExceptionRouting(IAgentEventSink sink)
+    {
+        ExceptionSink.SetSink(sink);
+
+        // Fire-and-forget task faults (via ObserveExceptions)
+        Application.Extensions.TaskExtensions.ExceptionObserved += (ex, context) =>
+            ExceptionSink.Publish(ex, context ?? "fire-and-forget", isFatal: false);
+
+        // Unhandled exceptions on any thread
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        {
+            if (args.ExceptionObject is Exception ex)
+                ExceptionSink.Publish(ex, "unhandled", isFatal: args.IsTerminating);
+        };
+
+        // Unobserved task exceptions (tasks that faulted without anyone awaiting)
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+        {
+            if (args.Exception != null)
+            {
+                ExceptionSink.Publish(args.Exception, "unobserved-task", isFatal: false);
+                args.SetObserved(); // Prevent process crash
+            }
+        };
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -199,7 +237,7 @@ public sealed class AgentEventBridge : IDisposable
         {
             await _mediator.Publish(notification);
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             System.Diagnostics.Debug.WriteLine($"[AgentEventBridge] Failed to publish {typeof(T).Name}: {ex.Message}");
         }
@@ -219,5 +257,7 @@ public sealed class AgentEventBridge : IDisposable
         foreach (var sub in _subscriptions)
             sub.Dispose();
         _subscriptions.Clear();
+
+        ExceptionSink.Clear();
     }
 }

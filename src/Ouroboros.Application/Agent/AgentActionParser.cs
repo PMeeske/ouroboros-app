@@ -1,5 +1,5 @@
-// <copyright file="AgentActionParser.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="AgentActionParser.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 using System.Text.Json;
@@ -14,22 +14,116 @@ public static class AgentActionParser
 {
     /// <summary>
     /// Parses the agent's LLM response into an <see cref="AgentAction"/>.
-    /// Extracts the first JSON object from the response and interprets it as
-    /// a completion signal, tool invocation, or thought.
+    /// Tries multiple JSON extraction strategies to handle LLM responses that
+    /// embed JSON within surrounding prose or contain multiple JSON objects.
     /// </summary>
     public static AgentAction Parse(string response)
     {
+        // Strategy 1: Try extracting balanced JSON objects and interpreting them
+        var candidates = ExtractBalancedJsonCandidates(response);
+
+        // Try candidates from last to first — the last JSON object is usually the action
+        for (int i = candidates.Count - 1; i >= 0; i--)
+        {
+            var action = TryParseAction(candidates[i]);
+            if (action != null && action.Type != AgentActionType.Unknown)
+                return action;
+        }
+
+        // Strategy 2: Fall back to first-to-last brace span (legacy behavior)
+        var jsonStart = response.IndexOf('{');
+        var jsonEnd = response.LastIndexOf('}');
+        if (jsonStart >= 0 && jsonEnd > jsonStart)
+        {
+            var action = TryParseAction(response[jsonStart..(jsonEnd + 1)]);
+            if (action != null && action.Type != AgentActionType.Unknown)
+                return action;
+        }
+
+        // No valid JSON action found — if there's text, treat as thought; otherwise unknown
+        if (!string.IsNullOrWhiteSpace(response))
+            return new AgentAction { Type = AgentActionType.Think, Thought = response };
+
+        return new AgentAction { Type = AgentActionType.Unknown };
+    }
+
+    /// <summary>
+    /// Extracts all balanced-brace JSON candidates from the response string.
+    /// Tracks brace depth to find proper object boundaries.
+    /// </summary>
+    private static List<string> ExtractBalancedJsonCandidates(string text)
+    {
+        var candidates = new List<string>();
+        int i = 0;
+
+        while (i < text.Length)
+        {
+            if (text[i] == '{')
+            {
+                int start = i;
+                int depth = 0;
+                bool inString = false;
+                bool escape = false;
+
+                for (int j = start; j < text.Length; j++)
+                {
+                    char c = text[j];
+
+                    if (escape)
+                    {
+                        escape = false;
+                        continue;
+                    }
+
+                    if (c == '\\' && inString)
+                    {
+                        escape = true;
+                        continue;
+                    }
+
+                    if (c == '"')
+                    {
+                        inString = !inString;
+                        continue;
+                    }
+
+                    if (!inString)
+                    {
+                        if (c == '{') depth++;
+                        else if (c == '}')
+                        {
+                            depth--;
+                            if (depth == 0)
+                            {
+                                candidates.Add(text[start..(j + 1)]);
+                                i = j + 1;
+                                goto nextCandidate;
+                            }
+                        }
+                    }
+                }
+
+                // Unbalanced — skip this opening brace
+                i = start + 1;
+                nextCandidate:;
+            }
+            else
+            {
+                i++;
+            }
+        }
+
+        return candidates;
+    }
+
+    /// <summary>
+    /// Attempts to parse a JSON string into an <see cref="AgentAction"/>.
+    /// Returns null if parsing fails entirely.
+    /// </summary>
+    private static AgentAction? TryParseAction(string json)
+    {
         try
         {
-            var jsonStart = response.IndexOf('{');
-            var jsonEnd = response.LastIndexOf('}');
-
-            if (jsonStart < 0 || jsonEnd <= jsonStart)
-            {
-                return new AgentAction { Type = AgentActionType.Think, Thought = response };
-            }
-
-            var json = response[jsonStart..(jsonEnd + 1)];
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
 
@@ -74,8 +168,7 @@ public static class AgentActionParser
         }
         catch
         {
-            // If JSON parsing fails, treat as a thought
-            return new AgentAction { Type = AgentActionType.Think, Thought = response };
+            return null;
         }
     }
 }

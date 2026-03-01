@@ -1,5 +1,5 @@
-// <copyright file="ConvenienceLayerExamples.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="ConvenienceLayerExamples.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 namespace Ouroboros.Examples;
@@ -367,7 +367,7 @@ public static class ConvenienceLayerExamples
 
             await ComparePresets();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             if (ex.Message.Contains("Connection refused") || ex.Message.Contains("No connection"))
             {

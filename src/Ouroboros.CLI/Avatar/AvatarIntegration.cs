@@ -4,6 +4,7 @@
 
 using System.Reactive.Linq;
 using Ouroboros.Application.Avatar;
+using Ouroboros.Application.Configuration;
 using Ouroboros.Core.EmbodiedInteraction;
 
 namespace Ouroboros.CLI.Avatar;
@@ -68,7 +69,7 @@ public static class AvatarIntegration
         CreateAndStartWithVisionAsync(
             string personaName = "Iaret",
             int port = 0,
-            string ollamaEndpoint = "http://localhost:11434",
+            string ollamaEndpoint = DefaultEndpoints.Ollama,
             string visionModelName = "qwen3-vl:235b-cloud",
             string? assetDirectory = null,
             IVisionModel? visionModel = null,

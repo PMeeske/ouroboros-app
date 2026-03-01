@@ -1,3 +1,5 @@
+using System.Net.Http;
+
 namespace Ouroboros.Android.Services;
 
 /// <summary>
@@ -43,7 +45,11 @@ public class ModelManager
                 IsRecommended = _recommendedModels.Any(r => m.Name.Contains(r, StringComparison.OrdinalIgnoreCase))
             }).ToList();
         }
-        catch (Exception ex)
+        catch (OllamaException ex)
+        {
+            throw new ModelManagerException($"Failed to get models: {ex.Message}", ex);
+        }
+        catch (HttpRequestException ex)
         {
             throw new ModelManagerException($"Failed to get models: {ex.Message}", ex);
         }
@@ -108,7 +114,15 @@ public class ModelManager
         {
             await _ollamaService.PullModelAsync(modelName, progressCallback, cancellationToken);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (OllamaException ex)
+        {
+            throw new ModelManagerException($"Failed to pull model: {ex.Message}", ex);
+        }
+        catch (HttpRequestException ex)
         {
             throw new ModelManagerException($"Failed to pull model: {ex.Message}", ex);
         }
@@ -125,7 +139,11 @@ public class ModelManager
         {
             await _ollamaService.DeleteModelAsync(modelName);
         }
-        catch (Exception ex)
+        catch (OllamaException ex)
+        {
+            throw new ModelManagerException($"Failed to delete model: {ex.Message}", ex);
+        }
+        catch (HttpRequestException ex)
         {
             throw new ModelManagerException($"Failed to delete model: {ex.Message}", ex);
         }

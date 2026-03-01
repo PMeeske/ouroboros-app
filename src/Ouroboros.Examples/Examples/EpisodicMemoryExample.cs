@@ -1,5 +1,5 @@
-// <copyright file="EpisodicMemoryExample.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="EpisodicMemoryExample.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 namespace Ouroboros.Examples;
@@ -52,7 +52,7 @@ public static class EpisodicMemoryExample
 
         var embeddingModel = new SimpleEmbeddingModel();
         var memory = new EpisodicMemoryEngine(
-            "http://localhost:6333",
+            DefaultEndpoints.QdrantRest,
             embeddingModel,
             "demo_episodes");
 
@@ -119,7 +119,7 @@ public static class EpisodicMemoryExample
 
         var embeddingModel = new SimpleEmbeddingModel();
         var memory = new EpisodicMemoryEngine(
-            "http://localhost:6333",
+            DefaultEndpoints.QdrantRest,
             embeddingModel,
             "demo_episodes");
 
@@ -164,7 +164,7 @@ public static class EpisodicMemoryExample
 
         var embeddingModel = new SimpleEmbeddingModel();
         var memory = new EpisodicMemoryEngine(
-            "http://localhost:6333",
+            DefaultEndpoints.QdrantRest,
             embeddingModel,
             "demo_episodes");
 
@@ -202,7 +202,7 @@ public static class EpisodicMemoryExample
         var dataSource = DataSource.FromPath(Environment.CurrentDirectory);
         var branch = new PipelineBranch("demo", store, dataSource);
 
-        var context = ExecutionContext.WithGoal(goal);
+        var context = PipelineExecutionContext.WithGoal(goal);
         var outcome = Outcome.Successful("Completed successfully", TimeSpan.FromMinutes(5));
         var metadata = ImmutableDictionary<string, object>.Empty
             .Add("example", true)
@@ -229,7 +229,7 @@ public static class EpisodicMemoryExample
         var dataSource = DataSource.FromPath(Environment.CurrentDirectory);
         var branch = new PipelineBranch("demo", store, dataSource);
 
-        var context = ExecutionContext.WithGoal(goal);
+        var context = PipelineExecutionContext.WithGoal(goal);
         var errors = ImmutableList<string>.Empty
             .Add("Configuration error")
             .Add("Missing dependencies");
@@ -263,7 +263,7 @@ public static class EpisodicMemoryExample
             Console.WriteLine("\n" + new string('=', 60) + "\n");
             await DemonstrateIntegration();
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             Console.WriteLine($"\n❌ Error running examples: {ex.Message}");
             Console.WriteLine("\nNote: These examples require Qdrant to be running on localhost:6333");

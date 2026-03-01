@@ -34,21 +34,18 @@ public sealed class ProcessLargeInputHandler : IRequestHandler<ProcessLargeInput
             var chunks = divideAndConquer.DivideIntoChunks(request.LargeInput);
             AnsiConsole.MarkupLine(OuroborosTheme.Dim($"  [D&C] Split into {chunks.Count} chunks"));
 
-            var result = await divideAndConquer.ExecuteAsync(request.Task, chunks, cancellationToken);
+            var dcResult = await divideAndConquer.ExecuteAsync(request.Task, chunks, cancellationToken);
 
-            return result.Match(
-                success =>
-                {
-                    AnsiConsole.MarkupLine(OuroborosTheme.Dim("  [D&C] Parallel processing completed"));
-                    return success;
-                },
-                error =>
-                {
-                    AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  [D&C] Error: {error}"));
-                    // Fall back to direct orchestration (inline to avoid circular mediator call)
-                    return GenerateWithOrchestrationInlineAsync(
-                        $"{request.Task}\n\n{request.LargeInput}", cancellationToken).Result;
-                });
+            if (dcResult.IsSuccess)
+            {
+                AnsiConsole.MarkupLine(OuroborosTheme.Dim("  [D&C] Parallel processing completed"));
+                return dcResult.Value;
+            }
+
+            AnsiConsole.MarkupLine(OuroborosTheme.Warn($"  [D&C] Error: {dcResult.Error}"));
+            // Fall back to direct orchestration (inline to avoid circular mediator call)
+            return await GenerateWithOrchestrationInlineAsync(
+                $"{request.Task}\n\n{request.LargeInput}", cancellationToken);
         }
 
         // For smaller inputs, use direct orchestration

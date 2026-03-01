@@ -1,3 +1,6 @@
+using System.IO;
+using System.Net.Http;
+
 namespace Ouroboros.Android.Services;
 
 /// <summary>
@@ -60,9 +63,14 @@ public class UpdateManagerService
                 PublishedAt = latestRelease.PublishedAt
             };
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
         {
             // Log error but don't throw - return null to indicate no update available
+            System.Diagnostics.Debug.WriteLine($"Error checking for updates: {ex.Message}");
+            return null;
+        }
+        catch (TaskCanceledException ex)
+        {
             System.Diagnostics.Debug.WriteLine($"Error checking for updates: {ex.Message}");
             return null;
         }
@@ -112,7 +120,16 @@ public class UpdateManagerService
 
             return filePath;
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (HttpRequestException ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error downloading update: {ex.Message}");
+            throw;
+        }
+        catch (IOException ex)
         {
             System.Diagnostics.Debug.WriteLine($"Error downloading update: {ex.Message}");
             throw;

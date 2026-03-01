@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using MediatR;
 using Ouroboros.CLI.Commands;
 
@@ -35,6 +35,7 @@ public sealed class NetworkCommandHandler : IRequestHandler<NetworkCommandReques
                 Console.SetOut(originalOut);
             }
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
             return $"Network command error: {ex.Message}";

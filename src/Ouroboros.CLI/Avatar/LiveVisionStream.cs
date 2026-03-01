@@ -1,4 +1,4 @@
-// <copyright file="LiveVisionStream.cs" company="Ouroboros">
+﻿// <copyright file="LiveVisionStream.cs" company="Ouroboros">
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
@@ -8,6 +8,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Ouroboros.Application.Avatar;
+using Ouroboros.Application.Configuration;
 
 namespace Ouroboros.CLI.Avatar;
 
@@ -45,7 +46,7 @@ public sealed class LiveVisionStream : IAsyncDisposable
 
     public LiveVisionStream(
         InteractiveAvatarService avatarService,
-        string ollamaEndpoint = "http://localhost:11434",
+        string ollamaEndpoint = DefaultEndpoints.Ollama,
         string visionModel = "qwen3-vl:235b-cloud",
         string? assetDirectory = null,
         ILogger<LiveVisionStream>? logger = null,
@@ -152,7 +153,11 @@ public sealed class LiveVisionStream : IAsyncDisposable
             {
                 break;
             }
-            catch (Exception ex)
+            catch (System.Net.Http.HttpRequestException ex)
+            {
+                _logger?.LogWarning(ex, "Error in live vision stream loop");
+            }
+            catch (InvalidOperationException ex)
             {
                 _logger?.LogWarning(ex, "Error in live vision stream loop");
             }
@@ -238,6 +243,7 @@ public sealed class LiveVisionStream : IAsyncDisposable
             {
                 await renderer.BroadcastVisionTextAsync(text, isNewFrame);
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception)
             {
                 // Individual renderer failures shouldn't crash the stream

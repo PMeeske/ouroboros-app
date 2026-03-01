@@ -8,6 +8,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
 using Ouroboros.ApiHost.Extensions;
+using Ouroboros.Application.Configuration;
 using Ouroboros.CLI.Commands;
 using Ouroboros.CLI.Commands.Options;
 using Ouroboros.CLI.Commands.Handlers;
@@ -15,14 +16,28 @@ using Ouroboros.CLI.Infrastructure;
 using Ouroboros.CLI.Services;
 using Ouroboros.CLI.Hosting;
 
+// ── Global exception handler ─────────────────────────────────────────────────
+// Catches unhandled exceptions during host construction, DI resolution,
+// and command execution to display friendly diagnostics instead of raw
+// stack traces.  Particularly useful when submodules are out-of-sync and
+// assemblies or configuration files are missing.
+bool verbose = args.Contains("--verbose")
+    || Environment.GetEnvironmentVariable("OUROBOROS_VERBOSE") == "1";
+
+try
+{
+
 // ── Pre-parse --api-url and --serve before building the DI host ───────────────
 // We need these values at host-construction time so we can swap service registrations.
+// Handles: --api-url VALUE, --api-url=VALUE, --serve
 string? apiUrlPreparse = null;
 bool servePreparse = false;
 for (int i = 0; i < args.Length; i++)
 {
     if (args[i] == "--api-url" && i + 1 < args.Length)
         apiUrlPreparse = args[i + 1];
+    else if (args[i].StartsWith("--api-url=", StringComparison.Ordinal))
+        apiUrlPreparse = args[i]["--api-url=".Length..];
     if (args[i] == "--serve")
         servePreparse = true;
 }
@@ -53,7 +68,13 @@ var hostBuilder = Host.CreateDefaultBuilder(args)
         logging.ClearProviders();
         logging.AddConsole();
         logging.SetMinimumLevel(LogLevel.Warning);
-    });
+    })
+    // Agent-dependent MediatR handlers (OuroborosAgent, subsystems) live in the
+    // child container built by AgentBootstrapper.CreateAgentWithDIAsync, not in
+    // the host container.  The assembly-wide MediatR scan registers them here
+    // too, but they are never resolved from the host — skip build-time validation
+    // so these unused registrations don't block startup.
+    .UseDefaultServiceProvider(options => options.ValidateOnBuild = false);
 
 // Build the host
 using var host = hostBuilder.Build();
@@ -93,14 +114,14 @@ rootCommand.Add(versionOption);
 
 // --serve: embed the Ouroboros API server in-process alongside the CLI
 var serveOption = new System.CommandLine.Option<bool>("--serve");
-serveOption.Description = "Co-host the Ouroboros Web API server inside this CLI process (accessible at http://localhost:5000 by default)";
+serveOption.Description = $"Co-host the Ouroboros Web API server inside this CLI process (accessible at {DefaultEndpoints.OuroborosApi} by default)";
 serveOption.DefaultValueFactory = _ => false;
 serveOption.Recursive = true;
 rootCommand.Add(serveOption);
 
 // --api-url: use a remote (or co-hosted) Ouroboros API as upstream provider
 var apiUrlOption = new System.CommandLine.Option<string?>("--api-url");
-apiUrlOption.Description = "Base URL of a running Ouroboros Web API to use as upstream provider (e.g. http://localhost:5000). Overrides local pipeline execution.";
+apiUrlOption.Description = $"Base URL of a running Ouroboros Web API to use as upstream provider (e.g. {DefaultEndpoints.OuroborosApi}). Overrides local pipeline execution.";
 apiUrlOption.DefaultValueFactory = _ => null;
 apiUrlOption.Recursive = true;
 rootCommand.Add(apiUrlOption);
@@ -147,8 +168,14 @@ rootCommand.Add(CreateMeTTaCommand(host, voiceOption));
 rootCommand.Add(CreateImmersiveCommand(host, voiceOption));
 rootCommand.Add(CreateRoomCommand(host));
 
+// Claude Code diagnostic tools
+rootCommand.Add(CreateClaudeCommand(host));
+
 // Add a special 'serve' subcommand for running API-only mode
 rootCommand.Add(CreateServeCommand());
+
+// Wire up the CommandLineInvoker so voice integration can re-invoke commands
+host.Services.GetRequiredService<CommandLineInvoker>().SetRootCommand(rootCommand);
 
 // Parse and invoke
 int exitCode = await rootCommand.Parse(args).InvokeAsync();
@@ -164,6 +191,64 @@ if (serveCts is not null)
 
 return exitCode;
 
+}
+catch (Exception ex)
+{
+    // Peel off TargetInvocationException / TypeInitializationException wrappers
+    Exception root = ex;
+    while (root is TargetInvocationException or TypeInitializationException && root.InnerException is not null)
+        root = root.InnerException;
+
+    // Classify and render a user-friendly message
+    if (root is FileNotFoundException fnf)
+    {
+        AnsiConsole.MarkupLine("[red bold]Missing assembly or file[/]");
+        AnsiConsole.MarkupLine($"[red]{Markup.Escape(fnf.FileName ?? fnf.Message)}[/]");
+        AnsiConsole.MarkupLine("[yellow]This usually means a submodule is out of sync. Try:[/]");
+        AnsiConsole.MarkupLine("[dim]  git submodule update --init --recursive[/]");
+        AnsiConsole.MarkupLine("[dim]  dotnet restore[/]");
+    }
+    else if (root is FileLoadException fle)
+    {
+        AnsiConsole.MarkupLine("[red bold]Assembly version mismatch[/]");
+        AnsiConsole.MarkupLine($"[red]{Markup.Escape(fle.FileName ?? fle.Message)}[/]");
+        AnsiConsole.MarkupLine("[yellow]Rebuild after updating submodules:[/]");
+        AnsiConsole.MarkupLine("[dim]  git submodule update --init --recursive[/]");
+        AnsiConsole.MarkupLine("[dim]  dotnet build[/]");
+    }
+    else if (root is InvalidOperationException ioe
+             && ioe.Message.Contains("Unable to resolve service", StringComparison.OrdinalIgnoreCase))
+    {
+        AnsiConsole.MarkupLine("[red bold]Dependency injection failure[/]");
+        AnsiConsole.MarkupLine($"[red]{Markup.Escape(ioe.Message)}[/]");
+        AnsiConsole.MarkupLine("[yellow]A required service could not be resolved. Check that all projects built successfully.[/]");
+    }
+    else if (root is DllNotFoundException dll)
+    {
+        AnsiConsole.MarkupLine("[red bold]Missing native library[/]");
+        AnsiConsole.MarkupLine($"[red]{Markup.Escape(dll.Message)}[/]");
+        AnsiConsole.MarkupLine("[yellow]Run 'ouroboros doctor' to check for missing dependencies.[/]");
+    }
+    else
+    {
+        AnsiConsole.MarkupLine("[red bold]Unexpected error[/]");
+        AnsiConsole.MarkupLine($"[red]{Markup.Escape(root.GetType().Name)}: {Markup.Escape(root.Message)}[/]");
+    }
+
+    // Show full stack trace under --verbose or OUROBOROS_VERBOSE=1
+    if (verbose)
+    {
+        AnsiConsole.WriteLine();
+        AnsiConsole.WriteException(ex, ExceptionFormats.ShortenPaths | ExceptionFormats.ShortenMethods);
+    }
+    else
+    {
+        AnsiConsole.MarkupLine("[dim]Run with --verbose or OUROBOROS_VERBOSE=1 for full stack trace.[/]");
+    }
+
+    return 1;
+}
+
 // ────────────────────────────────────────────────────────
 // Command creation methods
 // ────────────────────────────────────────────────────────
@@ -172,6 +257,7 @@ static Command CreateAskCommand(IHost host, System.CommandLine.Option<bool> glob
 {
     var options = new AskCommandOptions();
     var command = new Command("ask", "Ask the LLM a question");
+    command.Aliases.Add("a");
 
     // Add all options using the helper
     options.AddToCommand(command);
@@ -184,6 +270,7 @@ static Command CreatePipelineCommand(IHost host, System.CommandLine.Option<bool>
 {
     var options = new PipelineCommandOptions();
     var command = new Command("pipeline", "Execute a DSL pipeline");
+    command.Aliases.Add("p");
     options.AddToCommand(command);
     return command.ConfigurePipelineCommand(host, options, globalVoiceOption);
 }
@@ -192,6 +279,7 @@ static Command CreateOuroborosCommand(IHost host, System.CommandLine.Option<bool
 {
     var options = new OuroborosCommandOptions();
     var command = new Command("ouroboros", "Run Ouroboros agent mode");
+    command.Aliases.Add("o");
 
     // Add all options using the helper
     options.AddToCommand(command);
@@ -297,15 +385,15 @@ static Command CreateMeTTaCommand(IHost host, System.CommandLine.Option<bool> gl
 static Command CreateServeCommand()
 {
     var urlOption = new System.CommandLine.Option<string>("--url");
-    urlOption.Description = "URL(s) to listen on (default: http://localhost:5000)";
-    urlOption.DefaultValueFactory = _ => "http://localhost:5000";
+    urlOption.Description = "URL(s) to listen on (default: " + DefaultEndpoints.OuroborosApi + ")";
+    urlOption.DefaultValueFactory = _ => DefaultEndpoints.OuroborosApi;
 
     var command = new Command("serve", "Start the Ouroboros Web API server in-process (co-hosted with CLI)");
     command.Add(urlOption);
 
     command.SetAction(async (parseResult, cancellationToken) =>
     {
-        var url = parseResult.GetValue(urlOption) ?? "http://localhost:5000";
+        var url = parseResult.GetValue(urlOption) ?? DefaultEndpoints.OuroborosApi;
 
         var webBuilder = WebApplication.CreateBuilder([]);
         webBuilder.WebHost.UseUrls(url);
@@ -344,4 +432,56 @@ static Command CreateRoomCommand(IHost host)
     var command = new Command("room", "Run Iaret as ambient room presence (ambient listening + ethics-gated interjections)");
     options.AddToCommand(command);
     return command.ConfigureRoomCommand(host, options);
+}
+
+/// <summary>
+/// 'claude' subcommand — Claude Code diagnostic tools: memory health, file integrity,
+/// Qdrant state (local + cloud), and submodule sync verification.
+/// </summary>
+static Command CreateClaudeCommand(IHost host)
+{
+    var command = new Command("claude", "Claude Code diagnostic tools — check memory, files, Qdrant, and sync state");
+
+    // ── claude check ──
+    var checkCommand = new Command("check", "Run comprehensive diagnostics on Qdrant, CLAUDE.md, memory, and submodules");
+    checkCommand.SetAction(async (parseResult, cancellationToken) =>
+    {
+        var handler = host.Services.GetRequiredService<ClaudeCheckCommandHandler>();
+        await handler.HandleAsync(cancellationToken);
+    });
+    command.Add(checkCommand);
+
+    // ── claude backup ──
+    var backupOutputOption = new System.CommandLine.Option<string?>("--output", "-o")
+    {
+        Description = "Output directory for backup (default: ~/.claude/backups/<timestamp>)",
+    };
+    var backupCommand = new Command("backup", "Backup CLAUDE.md and MEMORY.md files with integrity manifest");
+    backupCommand.Add(backupOutputOption);
+    backupCommand.SetAction(async (parseResult, cancellationToken) =>
+    {
+        var output = parseResult.GetValue(backupOutputOption);
+        await ClaudeBackupCommand.RunAsync(AnsiConsole.Console, output);
+    });
+    command.Add(backupCommand);
+
+    // ── claude restore ──
+    var restorePathArg = new Argument<string>("backup-path") { Description = "Path to backup directory to restore from" };
+    var restoreCommand = new Command("restore", "Restore CLAUDE.md and MEMORY.md files from a backup");
+    restoreCommand.Add(restorePathArg);
+    restoreCommand.SetAction(async (parseResult, cancellationToken) =>
+    {
+        var path = parseResult.GetValue(restorePathArg);
+        await ClaudeRestoreCommand.RunAsync(AnsiConsole.Console, path);
+    });
+    command.Add(restoreCommand);
+
+    // Default action (no subcommand) = check
+    command.SetAction(async (parseResult, cancellationToken) =>
+    {
+        var handler = host.Services.GetRequiredService<ClaudeCheckCommandHandler>();
+        await handler.HandleAsync(cancellationToken);
+    });
+
+    return command;
 }

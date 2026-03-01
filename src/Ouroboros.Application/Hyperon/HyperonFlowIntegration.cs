@@ -6,6 +6,7 @@ namespace Ouroboros.Application.Hyperon;
 
 using System.Collections.Concurrent;
 using System.Threading.Channels;
+using Ouroboros.Application.Extensions;
 using Ouroboros.Core.Hyperon;
 using Ouroboros.Core.Hyperon.Parsing;
 
@@ -36,9 +37,8 @@ public sealed class HyperonFlowIntegration : IAsyncDisposable
     /// <summary>
     /// Event raised when a flow completes.
     /// </summary>
-#pragma warning disable CS0067 // Event is never used - public API for external subscribers
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CS0067:Event is never used", Justification = "Public API for external subscribers")]
     public event Action<FlowCompletionEvent>? OnFlowComplete;
-#pragma warning restore CS0067
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HyperonFlowIntegration"/> class.
@@ -53,7 +53,7 @@ public sealed class HyperonFlowIntegration : IAsyncDisposable
         _engine.AtomAdded += OnAtomAdded;
 
         // Start event processing
-        _ = ProcessEventsAsync(_cts.Token);
+        ProcessEventsAsync(_cts.Token).ObserveExceptions("HyperonFlowIntegration.ProcessEvents");
     }
 
     /// <summary>
@@ -160,7 +160,7 @@ public sealed class HyperonFlowIntegration : IAsyncDisposable
         var loopCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
         var actualInterval = interval ?? TimeSpan.FromSeconds(5);
 
-        _ = Task.Run(async () =>
+        Task.Run(async () =>
         {
             while (!loopCts.Token.IsCancellationRequested)
             {
@@ -177,6 +177,7 @@ public sealed class HyperonFlowIntegration : IAsyncDisposable
                             Atom.Sym("meta-thought"),
                             Atom.Sym(loopId),
                             reflection,
+
                             Atom.Sym(DateTime.UtcNow.Ticks.ToString()));
                         _engine.AddAtom(metaAtom);
                     }
@@ -201,7 +202,7 @@ public sealed class HyperonFlowIntegration : IAsyncDisposable
                 {
                     break;
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     // Log error but continue loop
                     var errorAtom = Atom.Expr(
@@ -211,7 +212,8 @@ public sealed class HyperonFlowIntegration : IAsyncDisposable
                     _engine.AddAtom(errorAtom);
                 }
             }
-        }, loopCts.Token);
+        }, loopCts.Token)
+        .ObserveExceptions("ConsciousnessLoop background");
 
         return loopCts;
     }
@@ -243,7 +245,7 @@ public sealed class HyperonFlowIntegration : IAsyncDisposable
                     _engine.AddAtom(updatedIntention);
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 var errorAtom = Atom.Expr(
                     Atom.Sym("intention-error"),
@@ -271,8 +273,9 @@ public sealed class HyperonFlowIntegration : IAsyncDisposable
                 return Enumerable.Empty<Atom>();
 
             var prompt = expr.Children[1].ToSExpr();
-            // Block on async call since GroundedOperation is synchronous
-            var response = llmInference(prompt, CancellationToken.None).GetAwaiter().GetResult();
+            // GroundedOperation is synchronous; offload async call to thread pool
+            // to avoid SynchronizationContext deadlock.
+            var response = Task.Run(() => llmInference(prompt, CancellationToken.None)).GetAwaiter().GetResult(); // sync-over-async:accepted — GroundedOperation delegate is synchronous by design
 
             // Parse response as atom if possible, otherwise create a string atom
             var parseResult = _parser.Parse(response);

@@ -1,5 +1,6 @@
 using System.CommandLine;
 using System.CommandLine.Parsing;
+using Ouroboros.Application.Configuration;
 
 namespace Ouroboros.CLI.Commands.Options;
 
@@ -20,13 +21,13 @@ public sealed class ImmersiveCommandOptions
     public Option<string> ModelOption { get; } = new("--model")
     {
         Description = "LLM model to use",
-        DefaultValueFactory = _ => "llama3:latest",
+        DefaultValueFactory = _ => "deepseek-v3.1:671b-cloud",
     };
 
     public Option<string> EndpointOption { get; } = new("--endpoint")
     {
         Description = "LLM endpoint URL",
-        DefaultValueFactory = _ => "http://localhost:11434",
+        DefaultValueFactory = _ => DefaultEndpoints.Ollama,
     };
 
     public Option<string> EmbedModelOption { get; } = new("--embed-model")
@@ -38,7 +39,7 @@ public sealed class ImmersiveCommandOptions
     public Option<string> QdrantEndpointOption { get; } = new("--qdrant")
     {
         Description = "Qdrant endpoint for vector memory",
-        DefaultValueFactory = _ => "http://localhost:6334",
+        DefaultValueFactory = _ => DefaultEndpoints.QdrantGrpc,
     };
 
     // ── Voice options ─────────────────────────────────────────────────────────
@@ -167,10 +168,10 @@ public sealed class ImmersiveCommandOptions
 
         return new ImmersiveConfig(
             Persona:           parseResult.GetValue(PersonaOption) ?? "Iaret",
-            Model:             parseResult.GetValue(ModelOption) ?? "llama3:latest",
-            Endpoint:          parseResult.GetValue(EndpointOption) ?? "http://localhost:11434",
+            Model:             parseResult.GetValue(ModelOption) ?? "deepseek-v3.1:671b-cloud",
+            Endpoint:          parseResult.GetValue(EndpointOption) ?? DefaultEndpoints.Ollama,
             EmbedModel:        parseResult.GetValue(EmbedModelOption) ?? "nomic-embed-text",
-            QdrantEndpoint:    parseResult.GetValue(QdrantEndpointOption) ?? "http://localhost:6334",
+            QdrantEndpoint:    parseResult.GetValue(QdrantEndpointOption) ?? DefaultEndpoints.QdrantGrpc,
             Voice:             voice,
             VoiceOnly:         parseResult.GetValue(VoiceOnlyOption),
             LocalTts:          localTts,

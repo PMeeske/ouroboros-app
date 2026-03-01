@@ -1,4 +1,4 @@
-using MediatR;
+﻿using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Ouroboros.Abstractions.Monads;
 using Ouroboros.Application.Tools;
@@ -43,6 +43,7 @@ public sealed class RunMeTTaExpressionResultHandler : IRequestHandler<RunMeTTaEx
                 await action();
                 return Result<string, string>.Success(writer.ToString());
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex)
             {
                 return Result<string, string>.Failure(ex.Message);

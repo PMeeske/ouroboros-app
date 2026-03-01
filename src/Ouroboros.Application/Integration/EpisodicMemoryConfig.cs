@@ -8,7 +8,7 @@ public sealed class EpisodicMemoryConfig
     /// <summary>Gets or sets vector store connection string.</summary>
     [Required]
     [Url]
-    public string VectorStoreConnectionString { get; set; } = "http://localhost:6333";
+    public string VectorStoreConnectionString { get; set; } = Configuration.DefaultEndpoints.QdrantRest;
 
     /// <summary>Gets or sets maximum memory size.</summary>
     [Range(100, 1000000)]

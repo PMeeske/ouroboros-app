@@ -1,5 +1,5 @@
-// <copyright file="CaptchaResolverChain.cs" company="PlaceholderCompany">
-// Copyright (c) PlaceholderCompany. All rights reserved.
+// <copyright file="CaptchaResolverChain.cs" company="Ouroboros">
+// Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
 namespace Ouroboros.Application.Tools.CaptchaResolver;
@@ -97,7 +97,7 @@ public class CaptchaResolverChain
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 errors.Add($"{strategy.Name}: Exception - {ex.Message}");
             }

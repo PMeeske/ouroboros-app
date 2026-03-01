@@ -16,6 +16,7 @@ public interface IAutonomySubsystem : IAgentSubsystem
 {
     // Autonomous Mind
     AutonomousMind? AutonomousMind { get; }
+    AutonomousActionEngine? ActionEngine { get; set; }
     AutonomousCoordinator? Coordinator { get; }
     MetaAIPlannerOrchestrator? Orchestrator { get; }
 

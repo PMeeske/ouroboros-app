@@ -1,4 +1,3 @@
-#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 namespace Ouroboros.Application.Tools;
 
 /// <summary>
@@ -107,7 +106,7 @@ public sealed class PipelineStepTool : ITool
 
             return Result<string, string>.Success(resultMessage);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             return Result<string, string>.Failure($"Pipeline step '{_stepName}' failed: {ex.Message}");
         }

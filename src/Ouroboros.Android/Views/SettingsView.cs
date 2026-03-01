@@ -43,7 +43,7 @@ public class SettingsView : ContentPage
 
         _endpointEntry = new Entry
         {
-            Placeholder = "http://localhost:5000",
+            Placeholder = Services.DefaultEndpoints.OuroborosApi,
             PlaceholderColor = Color.FromRgb(128, 128, 128),
             TextColor = Color.FromRgb(0, 255, 0),
             BackgroundColor = Color.FromRgb(0, 0, 0),
@@ -179,7 +179,7 @@ public class SettingsView : ContentPage
 
     private void LoadSettings()
     {
-        _endpointEntry.Text = Preferences.Get("api_endpoint", "http://localhost:5000");
+        _endpointEntry.Text = Preferences.Get("api_endpoint", Services.DefaultEndpoints.OuroborosApi);
         _autoSuggestSwitch.IsToggled = Preferences.Get("auto_suggest", true);
         _commandHistorySwitch.IsToggled = Preferences.Get("command_history", true);
         _historyLimitSlider.Value = Preferences.Get("history_limit", 1000);
@@ -187,7 +187,7 @@ public class SettingsView : ContentPage
 
     private async void OnSaveClicked(object? sender, EventArgs e)
     {
-        var endpoint = _endpointEntry.Text?.Trim() ?? "http://localhost:5000";
+        var endpoint = _endpointEntry.Text?.Trim() ?? Services.DefaultEndpoints.OuroborosApi;
 
         if (!string.IsNullOrEmpty(endpoint) && !endpoint.StartsWith("http"))
         {
@@ -213,7 +213,7 @@ public class SettingsView : ContentPage
 
     private async void OnTestConnectionClicked(object? sender, EventArgs e)
     {
-        var endpoint = _endpointEntry.Text?.Trim() ?? "http://localhost:5000";
+        var endpoint = _endpointEntry.Text?.Trim() ?? Services.DefaultEndpoints.OuroborosApi;
 
         using var client = new OuroborosApiClient(endpoint);
         var healthy = await client.IsHealthyAsync();
@@ -243,7 +243,7 @@ public class SettingsView : ContentPage
                 await historyService.ClearHistoryAsync();
                 await DisplayAlert("Success", "Command history cleared successfully.", "OK");
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
                 await DisplayAlert("Error", $"Failed to clear history: {ex.Message}", "OK");
             }

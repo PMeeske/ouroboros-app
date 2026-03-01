@@ -31,7 +31,7 @@ public sealed partial class OuroborosAgent
         {
             string trimmed = line.Trim();
             // Skip lines starting with [something]:
-            if (Regex.IsMatch(trimmed, @"^\[[\w_:-]+\]:?\s*"))
+            if (ToolOutputPrefixRegex().IsMatch(trimmed))
                 return false;
             // Skip lines containing TOOL-RESULT
             if (trimmed.Contains("TOOL-RESULT", StringComparison.OrdinalIgnoreCase))
@@ -114,8 +114,8 @@ public sealed partial class OuroborosAgent
     /// Stops listening for voice input.
     /// Delegates to <see cref="StopListeningHandler"/> via MediatR.
     /// </summary>
-    public void StopListening()
-        => _mediator.Send(new StopListeningRequest()).GetAwaiter().GetResult();
+    public async Task StopListeningAsync()
+        => await _mediator.Send(new StopListeningRequest());
 
     /// <summary>
     /// Continuous listening loop using Azure Speech Recognition with optional Azure TTS response.
@@ -159,7 +159,7 @@ public sealed partial class OuroborosAgent
                 if (text.ToLowerInvariant().Contains("stop listening") ||
                     text.ToLowerInvariant().Contains("disable voice"))
                 {
-                    StopListening();
+                    await StopListeningAsync();
                     _autonomousCoordinator?.ProcessCommand("/listen off");
                     break;
                 }
@@ -179,7 +179,7 @@ public sealed partial class OuroborosAgent
                     {
                         await SpeakResponseWithAzureTtsAsync(response, speechKey, speechRegion, ct);
                     }
-                    catch (Exception ex)
+                    catch (InvalidOperationException ex)
                     {
                         if (_config.Debug)
                         {
@@ -226,7 +226,7 @@ public sealed partial class OuroborosAgent
             ct.Register(() =>
             {
                 try { _ = speechSynthesizer.StopSpeakingAsync(); }
-                catch { /* Best effort */ }
+                catch (InvalidOperationException) { /* Best effort barge-in stop */ }
             });
 
             // Detect the response language via LanguageSubsystem (Ollama LLM → heuristic fallback).
@@ -244,19 +244,17 @@ public sealed partial class OuroborosAgent
 
             var result = await speechSynthesizer.SpeakSsmlAsync(ssml);
 
-            if (result.Reason != Microsoft.CognitiveServices.Speech.ResultReason.SynthesizingAudioCompleted)
+            if (result.Reason != Microsoft.CognitiveServices.Speech.ResultReason.SynthesizingAudioCompleted
+                && _config.Debug)
             {
-                if (_config.Debug)
-                {
-                    _output.WriteDebug($"[Azure TTS] Synthesis issue: {result.Reason}");
-                }
+                _output.WriteDebug($"[Azure TTS] Synthesis issue: {result.Reason}");
             }
         }
         catch (OperationCanceledException)
         {
             // Expected during barge-in
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             if (_config.Debug)
             {
@@ -274,10 +272,10 @@ public sealed partial class OuroborosAgent
         var azureRegion = _staticConfiguration?["Azure:Speech:Region"]
             ?? Environment.GetEnvironmentVariable("AZURE_SPEECH_REGION");
 
-        if (!string.IsNullOrEmpty(azureKey) && !string.IsNullOrEmpty(azureRegion))
+        if (!string.IsNullOrEmpty(azureKey) && !string.IsNullOrEmpty(azureRegion)
+            && await SpeakWithAzureTtsAsync(text, voice, azureKey, azureRegion, ct))
         {
-            if (await SpeakWithAzureTtsAsync(text, voice, azureKey, azureRegion, ct))
-                return;
+            return;
         }
 
         // Fallback to Windows SAPI
@@ -380,7 +378,7 @@ public sealed partial class OuroborosAgent
 
             return false;
         }
-        catch (Exception ex)
+        catch (InvalidOperationException ex)
         {
             AnsiConsole.MarkupLine($"[red]{Markup.Escape($"  [Azure TTS Exception] {ex.Message}")}[/]");
             return false; // Fall back to SAPI
@@ -438,12 +436,14 @@ $synth.Dispose()
             process.StartInfo = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = "powershell",
-                Arguments = $"-NoProfile -Command \"{script.Replace("\"", "\\\"")}\"",
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true
             };
+            process.StartInfo.ArgumentList.Add("-NoProfile");
+            process.StartInfo.ArgumentList.Add("-Command");
+            process.StartInfo.ArgumentList.Add(script);
             process.Start();
 
             // Track the process so we can kill it on exit
@@ -456,7 +456,7 @@ $synth.Dispose()
             catch (OperationCanceledException)
             {
                 // Kill the process if cancelled
-                try { process.Kill(entireProcessTree: true); } catch { /* ignore */ }
+                try { process.Kill(entireProcessTree: true); } catch (InvalidOperationException) { /* process already exited */ }
                 throw;
             }
             finally
@@ -464,10 +464,16 @@ $synth.Dispose()
                 // Remove from tracking (best effort - ConcurrentBag doesn't have Remove)
             }
         }
-        catch
+        catch (InvalidOperationException)
+        {
+            // Silently fail if SAPI not available
+        }
+        catch (System.ComponentModel.Win32Exception)
         {
             // Silently fail if SAPI not available
         }
     }
 
+    [GeneratedRegex(@"^\[[\w_:-]+\]:?\s*")]
+    private static partial Regex ToolOutputPrefixRegex();
 }

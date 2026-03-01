@@ -180,7 +180,7 @@ public static class AvatarAssetPreparer
             return false;
         }
 
-        AnsiConsole.MarkupLine($"[rgb(148,103,189)]  [Avatar] Cropping character sheet for holographic assets...[/]");
+        AnsiConsole.MarkupLine($"[rgb(148,103,189)]  [[Avatar]] Cropping character sheet for holographic assets...[/]");
 
         // Iaret sheet: 1024×1536 → 6 columns × 3 rows
         var created = CropCharacterSheet(
@@ -190,7 +190,7 @@ public static class AvatarAssetPreparer
             columns: 6,
             IaretHoloMappings);
 
-        AnsiConsole.MarkupLine($"[rgb(148,103,189)]  [Avatar] Created {created.Count} holographic overlay(s)[/]");
+        AnsiConsole.MarkupLine($"[rgb(148,103,189)]  [[Avatar]] Created {created.Count} holographic overlay(s)[/]");
 
         return created.Count > 0;
     }

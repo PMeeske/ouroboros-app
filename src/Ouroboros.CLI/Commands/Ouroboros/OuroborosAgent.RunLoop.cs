@@ -3,6 +3,7 @@
 // </copyright>
 
 using MediatR;
+using Ouroboros.Application.Extensions;
 using Ouroboros.CLI.Avatar;
 using Ouroboros.CLI.Infrastructure;
 using Ouroboros.CLI.Mediator;
@@ -43,7 +44,7 @@ public sealed partial class OuroborosAgent
         }
     }
 
-    private void PrintQuickHelp()
+    private static void PrintQuickHelp()
     {
         AnsiConsole.MarkupLine(OuroborosTheme.Dim("  Quick commands: 'help' | 'status' | 'skills' | 'tools' | 'exit'"));
         AnsiConsole.MarkupLine(OuroborosTheme.Dim("  Say or type anything to chat. Use \\[TOOL:name args] to call tools."));
@@ -81,6 +82,9 @@ public sealed partial class OuroborosAgent
         {
             var input = await GetInputWithVoiceAsync("\n  You: ");
             if (string.IsNullOrWhiteSpace(input)) continue;
+
+            // Notify cognitive stream — interleaves user interaction with running streams
+            _cognitiveStream?.EmitUserInteraction(input);
 
             // Track conversation
             _conversationHistory.Add($"User: {input}");
@@ -130,19 +134,25 @@ public sealed partial class OuroborosAgent
                 // Periodic personality snapshot every 10 interactions
                 if (interactionsSinceSnapshot >= 10 && _personalityEngine != null)
                 {
-                    _ = Task.Run(async () =>
+                    Task.Run(async () =>
                     {
                         try
                         {
                             await _personalityEngine.SavePersonalitySnapshotAsync(_voice.ActivePersona.Name);
                             System.Diagnostics.Debug.WriteLine("[Personality] Periodic snapshot saved");
                         }
-                        catch { /* Ignore */ }
-                    });
+                        catch (InvalidOperationException) { /* Ignore — snapshot is non-critical */ }
+                        catch (System.Net.Http.HttpRequestException) { /* Ignore — snapshot is non-critical */ }
+                    })
+                    .ObserveExceptions("PersonalitySnapshot save");
                     interactionsSinceSnapshot = 0;
                 }
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
+            {
+                await SayWithVoiceAsync($"Hmm, something went wrong: {ex.Message}");
+            }
+            catch (System.Net.Http.HttpRequestException ex)
             {
                 await SayWithVoiceAsync($"Hmm, something went wrong: {ex.Message}");
             }
@@ -259,6 +269,7 @@ public sealed partial class OuroborosAgent
             ActionType.AgiCoordinate => await RunAgentCoordinationAsync(action.Argument),
             ActionType.AgiExperience => GetExperienceBufferStatus(),
             ActionType.PromptOptimize => GetPromptOptimizerStatus(),
+            ActionType.Swarm => await SwarmCommandAsync(action.Argument),
             ActionType.Chat => await ChatAsync(input),
             _ => await ChatAsync(input)
         };

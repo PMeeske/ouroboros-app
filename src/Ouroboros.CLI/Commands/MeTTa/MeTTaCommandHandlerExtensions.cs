@@ -1,6 +1,7 @@
 using System.CommandLine;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Ouroboros.Application.Configuration;
 using Ouroboros.CLI.Commands.Options;
 
 namespace Ouroboros.CLI.Commands.Handlers;
@@ -23,7 +24,7 @@ public static class MeTTaCommandHandlerExtensions
             var config = new MeTTaConfig(
                 Goal:           parseResult.GetValue(options.GoalOption) ?? string.Empty,
                 Culture:        parseResult.GetValue(options.CultureOption),
-                Model:          parseResult.GetValue(options.Model.ModelOption) ?? "ministral-3:latest",
+                Model:          parseResult.GetValue(options.Model.ModelOption) ?? "deepseek-v3.1:671b-cloud",
                 Temperature:    parseResult.GetValue(options.Model.TemperatureOption),
                 MaxTokens:      parseResult.GetValue(options.Model.MaxTokensOption),
                 TimeoutSeconds: parseResult.GetValue(options.Model.TimeoutSecondsOption),
@@ -33,7 +34,7 @@ public static class MeTTaCommandHandlerExtensions
                 Debug:          parseResult.GetValue(options.Diagnostics.DebugOption),
                 Embed:          parseResult.GetValue(options.Embedding.EmbedModelOption) ?? "nomic-embed-text",
                 EmbedModel:     parseResult.GetValue(options.Embedding.EmbedModelOption) ?? "nomic-embed-text",
-                QdrantEndpoint: parseResult.GetValue(options.Embedding.QdrantEndpointOption) ?? "http://localhost:6334",
+                QdrantEndpoint: parseResult.GetValue(options.Embedding.QdrantEndpointOption) ?? DefaultEndpoints.QdrantGrpc,
                 PlanOnly:       parseResult.GetValue(options.PlanOnlyOption),
                 ShowMetrics:    parseResult.GetValue(options.ShowMetricsOption),
                 Interactive:    parseResult.GetValue(options.InteractiveOption),
