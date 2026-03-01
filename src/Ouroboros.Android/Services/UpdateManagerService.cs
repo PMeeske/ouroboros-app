@@ -188,8 +188,8 @@ public class UpdateManagerService
         }
         catch
         {
-            // If parsing fails, do string comparison
-            return string.Compare(version1, version2, StringComparison.OrdinalIgnoreCase) > 0;
+            // If parsing fails, assume no update is available (safer than unreliable string comparison)
+            return false;
         }
     }
 

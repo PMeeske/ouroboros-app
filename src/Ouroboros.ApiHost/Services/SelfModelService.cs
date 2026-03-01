@@ -54,7 +54,7 @@ public sealed class SelfModelService : ISelfModelService
                     r.Available,
                     r.Total,
                     r.Unit,
-                    Utilization = r.Total > 0 ? (r.Total - r.Available) / r.Total : 0.0
+                    Utilization = r.Total > 0 ? (double)(r.Total - r.Available) / r.Total : 0.0
                 });
 
         PerformanceDto performance = new PerformanceDto

@@ -189,7 +189,7 @@ Troubleshooting:
 
         var count = 20;
         if (parts.Length > 1 && int.TryParse(parts[1], out var requestedCount))
-            count = Math.Min(requestedCount, 100);
+            count = Math.Clamp(requestedCount, 1, 100);
 
         try
         {

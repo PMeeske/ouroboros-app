@@ -28,6 +28,7 @@ public sealed class DeviceKeyAuthService : IAuthenticationProvider, IDisposable
     private string _deviceId = string.Empty;
     private string _publicKeyPem = string.Empty;
     private bool _initialized;
+    private readonly SemaphoreSlim _initLock = new(1, 1);
 
     /// <summary>Hex-encoded SHA-256 of the DER public key (64 chars).</summary>
     public string DeviceId => _deviceId;
@@ -47,23 +48,33 @@ public sealed class DeviceKeyAuthService : IAuthenticationProvider, IDisposable
     {
         if (_initialized) return;
 
-        var path = StoragePath();
-
-        if (File.Exists(path))
+        await _initLock.WaitAsync(ct);
+        try
         {
-            try
-            {
-                await LoadAsync(path, ct);
-                _initialized = true;
-                return;
-            }
-            catch (System.Text.Json.JsonException) { /* Corrupted — regenerate */ }
-            catch (System.Security.Cryptography.CryptographicException) { /* Invalid key data — regenerate */ }
-        }
+            if (_initialized) return; // Double-check after acquiring lock
 
-        GenerateNewKey();
-        await PersistAsync(path, ct);
-        _initialized = true;
+            var path = StoragePath();
+
+            if (File.Exists(path))
+            {
+                try
+                {
+                    await LoadAsync(path, ct);
+                    _initialized = true;
+                    return;
+                }
+                catch (System.Text.Json.JsonException) { /* Corrupted — regenerate */ }
+                catch (System.Security.Cryptography.CryptographicException) { /* Invalid key data — regenerate */ }
+            }
+
+            GenerateNewKey();
+            await PersistAsync(path, ct);
+            _initialized = true;
+        }
+        finally
+        {
+            _initLock.Release();
+        }
     }
 
     // ── Signing / Verification ────────────────────────────────────────────────

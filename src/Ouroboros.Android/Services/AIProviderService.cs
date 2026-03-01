@@ -229,24 +229,19 @@ public class AIProviderConfig
             return (false, "Endpoint is required");
         }
 
-        if (Provider != AIProvider.Ollama && string.IsNullOrWhiteSpace(ApiKey))
-        {
-            return (false, "API key is required for this provider");
-        }
-
         if (Provider == AIProvider.GitHubModels && string.IsNullOrWhiteSpace(ApiKey))
         {
             return (false, "GitHub Personal Access Token is required for GitHub Models");
         }
 
+        if (Provider != AIProvider.Ollama && string.IsNullOrWhiteSpace(ApiKey))
+        {
+            return (false, "API key is required for this provider");
+        }
+
         if (Provider == AIProvider.AzureOpenAI && string.IsNullOrWhiteSpace(DeploymentName))
         {
             return (false, "Deployment name is required for Azure OpenAI");
-        }
-
-        if (Provider == AIProvider.Google && string.IsNullOrWhiteSpace(ProjectId))
-        {
-            return (false, "Project ID is required for Google AI");
         }
 
         return (true, null);

@@ -43,8 +43,8 @@ public static class PathSanitizer
         var expanded = Environment.ExpandEnvironmentVariables(path);
         var fullPath = Path.GetFullPath(expanded);
 
-        // Block obvious dangerous paths
-        var dangerous = new[] { @"\Windows\System32", @"\etc\shadow", @"\etc\passwd", ".ssh", "credentials" };
+        // Block obvious dangerous paths (both Windows and Unix separators)
+        var dangerous = new[] { @"\Windows\System32", "/Windows/System32", @"\etc\shadow", "/etc/shadow", @"\etc\passwd", "/etc/passwd", ".ssh", "credentials" };
         if (dangerous.Any(d => fullPath.Contains(d, StringComparison.OrdinalIgnoreCase)))
             throw new UnauthorizedAccessException($"Access denied: {path}");
 

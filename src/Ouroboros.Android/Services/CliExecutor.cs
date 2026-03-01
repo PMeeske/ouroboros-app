@@ -182,7 +182,8 @@ The endpoint should point to a running Ouroboros WebAPI instance.";
         }
 
         var newEndpoint = parts[1];
-        if (!newEndpoint.StartsWith("http"))
+        if (!newEndpoint.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+            !newEndpoint.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
         {
             return "Error: Endpoint must start with http:// or https://";
         }

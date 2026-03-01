@@ -55,7 +55,9 @@ public static class AgentCliSteps
             int consecutiveUnknowns = 0;
             int actionIterations = 0; // Only count non-think iterations toward the limit
 
-            for (int iteration = 1; actionIterations < config.MaxIterations && !taskComplete; iteration++)
+            // Cap total iterations (including thinks/unknowns) to prevent unbounded looping
+            int maxTotalIterations = config.MaxIterations * 3;
+            for (int iteration = 1; actionIterations < config.MaxIterations && iteration <= maxTotalIterations && !taskComplete; iteration++)
             {
                 Console.WriteLine($"\n[AutoAgent] === Iteration {iteration} (actions: {actionIterations}/{config.MaxIterations}) ===");
 
@@ -163,7 +165,7 @@ public static class AgentCliSteps
                     executedActions.RemoveRange(0, executedActions.Count - MaxExecutedActions);
             }
 
-            if (!taskComplete && s.Output == null)
+            if (!taskComplete && string.IsNullOrEmpty(s.Output))
             {
                 Console.WriteLine($"\n[AutoAgent] Max iterations reached ({config.MaxIterations})");
                 s.Output = $"Task incomplete after {config.MaxIterations} iterations. Actions taken: {executedActions.Count}";
