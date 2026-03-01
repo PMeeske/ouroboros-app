@@ -56,7 +56,7 @@ echo ""
 
 export DOTNET_ENVIRONMENT=Development
 
-CMD="dotnet run --project $CLI_PROJECT -- $MODE --enable-openclaw --enable-pc-node $PC_NODE_ARGS --openclaw-gateway $GATEWAY_URL $*"
+CMD="dotnet run -c Release --project $CLI_PROJECT -- $MODE --enable-openclaw --enable-pc-node $PC_NODE_ARGS --openclaw-gateway $GATEWAY_URL $*"
 echo "  $CMD"
 echo ""
 

@@ -53,9 +53,8 @@ public sealed partial class OpenClawGatewayClient
             if (nonce != null)
             {
                 // v2 payload: v2|deviceId|clientId|clientMode|role|scopesCsv|signedAtMs|tokenOrEmpty|nonce
-                // Gateway uses: auth?.token ?? auth?.deviceToken ?? "" in the verified payload.
-                var sortedScopes = ((string[])connectParams["scopes"]).OrderBy(s => s, StringComparer.Ordinal);
-                var scopesCsv = string.Join(",", sortedScopes);
+                // Gateway uses params.scopes.join(",") — NO sorting — so we must preserve the order as-sent.
+                var scopesCsv = string.Join(",", (string[])connectParams["scopes"]);
                 var tokenOrEmpty = token
                     ?? (_deviceIdentity.DeviceToken is { Length: > 0 } devTok ? devTok : null)
                     ?? "";

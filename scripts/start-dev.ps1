@@ -82,21 +82,21 @@ Write-Host ""
 
 $env:DOTNET_ENVIRONMENT = "Development"
 
-$args = @($Mode, "--enable-openclaw", "--enable-pc-node")
+$cliArgs = @($Mode, "--enable-openclaw", "--enable-pc-node")
 
 if ($PcNodeConfig) {
-    $args += "--pc-node-config"
-    $args += $PcNodeConfig
+    $cliArgs += "--pc-node-config"
+    $cliArgs += $PcNodeConfig
 }
 
-$args += "--openclaw-gateway"
-$args += $GatewayUrl
+$cliArgs += "--openclaw-gateway"
+$cliArgs += $GatewayUrl
 
 if ($ExtraArgs) {
-    $args += $ExtraArgs.Split(" ", [StringSplitOptions]::RemoveEmptyEntries)
+    $cliArgs += $ExtraArgs.Split(" ", [StringSplitOptions]::RemoveEmptyEntries)
 }
 
-Write-Host "  dotnet run --project $CliProject -- $($args -join ' ')" -ForegroundColor DarkGray
+Write-Host "  dotnet run -c Release --project $CliProject -- $($cliArgs -join ' ')" -ForegroundColor DarkGray
 Write-Host ""
 
-dotnet run --project $CliProject -- @args
+dotnet run -c Release --project $CliProject -- @cliArgs
