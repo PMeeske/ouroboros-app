@@ -44,6 +44,12 @@ public sealed partial class OpenClawGatewayClient : IAsyncDisposable
     /// <summary>Fired when a reconnection attempt fails after all retries.</summary>
     public event Action<Exception?>? OnReconnectionFailed;
 
+    /// <summary>
+    /// Fired for every push event received from the gateway.
+    /// Arguments: (eventName, payload) — both are safe to use outside the callback.
+    /// </summary>
+    public event Action<string, JsonElement>? OnPushMessage;
+
     /// <summary>Gets the resilience pipeline for status monitoring.</summary>
     public OpenClawResiliencePipeline Resilience => _resilience;
 

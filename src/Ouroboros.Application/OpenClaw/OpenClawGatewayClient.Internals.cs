@@ -235,10 +235,14 @@ public sealed partial class OpenClawGatewayClient
                 }
             }
 
-            // Event frame (no matching request ID) — log for now
+            // Event frame (no matching request ID) — log and broadcast
             if (root.TryGetProperty("type", out var typeProp) && typeProp.GetString() == "event")
             {
                 _logger.LogDebug("[OpenClaw] Event: {Json}", json.Length > 200 ? json[..200] + "..." : json);
+
+                var eventName = root.TryGetProperty("event", out var evProp) ? evProp.GetString() ?? "" : "";
+                var payload   = root.TryGetProperty("payload", out var plProp) ? plProp.Clone() : default;
+                OnPushMessage?.Invoke(eventName, payload);
             }
         }
         catch (JsonException ex)

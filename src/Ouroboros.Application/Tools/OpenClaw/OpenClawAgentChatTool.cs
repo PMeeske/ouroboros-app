@@ -2,15 +2,15 @@
 // Copyright (c) Ouroboros. All rights reserved.
 // </copyright>
 
+using System.Text;
 using System.Text.Json;
-using OpenClaw.Sdk;
-using OpenClaw.Sdk.Config;
 
 namespace Ouroboros.Application.Tools;
 
 /// <summary>
 /// Allows Iaret to send a query to a named OpenClaw gateway agent and receive its response.
-/// Uses <c>OpenClaw.Sdk.OpenClawClient</c> for streaming execution.
+/// Uses the shared <see cref="OpenClawSharedState.SharedClient"/> (already authenticated)
+/// and subscribes to <c>OnPushMessage</c> push events to collect the streaming response.
 ///
 /// Example input: {"agentId":"main","query":"What is the weather today?"}
 /// </summary>
@@ -44,10 +44,10 @@ public sealed class OpenClawAgentChatTool : ITool
         {
             using var doc = JsonDocument.Parse(input);
             var root = doc.RootElement;
-            agentId     = root.TryGetProperty("agentId", out var aid)     ? aid.GetString() ?? "main"  : "main";
-            query       = root.GetProperty("query").GetString()            ?? "";
-            sessionName = root.TryGetProperty("sessionName", out var sn)  ? sn.GetString() ?? "main"   : "main";
-            timeoutSeconds = root.TryGetProperty("timeoutSeconds", out var ts) ? ts.GetInt32() : 120;
+            agentId        = root.TryGetProperty("agentId",        out var aid) ? aid.GetString() ?? "main" : "main";
+            query          = root.GetProperty("query").GetString() ?? "";
+            sessionName    = root.TryGetProperty("sessionName",    out var sn)  ? sn.GetString()  ?? "main" : "main";
+            timeoutSeconds = root.TryGetProperty("timeoutSeconds", out var ts)  ? ts.GetInt32()             : 120;
         }
         catch (JsonException)
         {
@@ -57,42 +57,100 @@ public sealed class OpenClawAgentChatTool : ITool
         if (string.IsNullOrWhiteSpace(query))
             return Result<string, string>.Failure("query must not be empty.");
 
-        // Use the existing gateway URL from SharedState if available, otherwise auto-detect
-        var gatewayWsUrl = OpenClawSharedState.SharedClient?.IsConnected == true
-            ? "ws://127.0.0.1:18789"  // Gateway is local; SDK adds /gateway path as needed
-            : null;
+        var client = OpenClawSharedState.SharedClient;
+        if (client == null || !client.IsConnected)
+            return OpenClawSharedState.NotConnected();
 
-        var config = new ClientConfig
+        var sessionKey      = $"agent:{agentId}:{sessionName}";
+        var idempotencyKey  = Guid.NewGuid().ToString("N");
+        var content         = new StringBuilder();
+        string? runId       = null;
+        var done            = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        void Handler(string eventName, JsonElement payload)
         {
-            GatewayWsUrl   = gatewayWsUrl,
-            Mode           = GatewayMode.Auto,
-            TimeoutSeconds = timeoutSeconds,
-        };
+            if (eventName != "agent") return;
 
+            // Once we know the runId, filter to only our run
+            if (runId != null
+                && payload.TryGetProperty("runId", out var ridProp)
+                && ridProp.GetString() is { } payloadRunId
+                && payloadRunId != runId)
+                return;
+
+            var stream = payload.TryGetProperty("stream", out var sProp) ? sProp.GetString() : null;
+
+            if (stream == "assistant"
+                && payload.TryGetProperty("data", out var data)
+                && data.TryGetProperty("delta", out var delta))
+            {
+                content.Append(delta.GetString());
+            }
+            else if (stream == "lifecycle"
+                && payload.TryGetProperty("data", out var ld))
+            {
+                var phase = ld.TryGetProperty("phase", out var pProp) ? pProp.GetString() : null;
+
+                if (phase == "end")
+                {
+                    // Some gateways send the full content in lifecycle.end instead of deltas
+                    if (content.Length == 0 && ld.TryGetProperty("content", out var lc))
+                        content.Append(lc.GetString());
+                    done.TrySetResult(null);
+                }
+                else if (phase == "error")
+                {
+                    var errMsg = ld.TryGetProperty("error", out var em) ? em.GetString() : "Agent error";
+                    done.TrySetResult(errMsg ?? "Agent error");
+                }
+            }
+        }
+
+        client.OnPushMessage += Handler;
         try
         {
-            await using var client = await OpenClawClient.ConnectAsync(config, ct);
-            var agent  = client.GetAgent(agentId, sessionName);
-            var opts   = new ExecutionOptions { TimeoutSeconds = timeoutSeconds };
-            var result = await agent.ExecuteAsync(query, opts, ct);
+            var sendResult = await client.SendRequestAsync(
+                "chat.send",
+                new
+                {
+                    sessionKey,
+                    agentId,
+                    message        = query,
+                    idempotencyKey,
+                    timeoutMs      = timeoutSeconds * 1000,
+                },
+                ct);
 
-            if (!result.Success)
-                return Result<string, string>.Failure($"Agent '{agentId}' error: {result.ErrorMessage}");
+            // Extract runId from the response (payload.runId or runId at root)
+            if (sendResult.TryGetProperty("payload", out var pl) && pl.TryGetProperty("runId", out var r))
+                runId = r.GetString();
+            else if (sendResult.TryGetProperty("runId", out var r2))
+                runId = r2.GetString();
 
-            var response = result.Content;
-            if (result.LatencyMs > 0)
-                response += $"\n\n[latency: {result.LatencyMs}ms | tokens: {result.TokenUsage.Total}]";
+            // Wait for lifecycle end/error or timeout
+            using var timeoutCts  = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
+            using var linkedCts   = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
+            using var reg         = linkedCts.Token.Register(() => done.TrySetCanceled(linkedCts.Token));
+
+            var error = await done.Task;
+
+            if (error != null)
+                return Result<string, string>.Failure($"Agent '{agentId}' error: {error}");
+
+            var response = content.ToString();
+            if (string.IsNullOrWhiteSpace(response))
+                return Result<string, string>.Failure($"Agent '{agentId}' returned an empty response.");
 
             return Result<string, string>.Success(response);
         }
-        catch (ConfigurationException ex)
-        {
-            return Result<string, string>.Failure($"OpenClaw not available: {ex.Message}");
-        }
-        catch (GatewayException ex)
+        catch (OpenClaw.OpenClawException ex)
         {
             return Result<string, string>.Failure($"Gateway error: {ex.Message}");
         }
         catch (OperationCanceledException) { throw; }
+        finally
+        {
+            client.OnPushMessage -= Handler;
+        }
     }
 }
