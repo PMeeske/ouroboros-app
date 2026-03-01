@@ -350,10 +350,8 @@ public sealed partial class OuroborosAgent
 
                 if (!string.IsNullOrWhiteSpace(result))
                 {
-                    // Truncate long results for display
-                    var display = result.Length > 400 ? result[..400] + "…" : result;
                     AnsiConsole.MarkupLine(
-                        $"  [dim][rgb(0,200,160)]↳ {Markup.Escape(display)}[/][/]");
+                        $"  [dim][rgb(0,200,160)]↳ {Markup.Escape(result)}[/][/]");
                 }
             }
 
