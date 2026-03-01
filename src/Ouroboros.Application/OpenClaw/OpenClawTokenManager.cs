@@ -81,16 +81,20 @@ public static class OpenClawTokenManager
 
     /// <summary>
     /// Attempts to read the gateway auth token from the OpenClaw config file.
-    /// Searches in order: ~/.openclaw/config, $APPDATA/openclaw/config.
+    /// Searches in order: ~/.openclaw/openclaw.json, ~/.openclaw/config, $APPDATA/openclaw/config.
     /// </summary>
     private static string? ReadFromOpenClawConfig()
     {
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         var candidates = new[]
         {
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".openclaw", "config"),
-            Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "openclaw", "config"),
+            // Primary: npm-installed openclaw writes here on all platforms
+            Path.Combine(home, ".openclaw", "openclaw.json"),
+            // Legacy / alternative paths
+            Path.Combine(home, ".openclaw", "config"),
+            Path.Combine(appData, "openclaw", "config"),
+            Path.Combine(appData, ".openclaw", "openclaw.json"),
         };
 
         foreach (var path in candidates)

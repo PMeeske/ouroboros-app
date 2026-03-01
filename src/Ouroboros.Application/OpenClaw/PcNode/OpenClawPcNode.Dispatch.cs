@@ -202,21 +202,4 @@ public sealed partial class OpenClawPcNode
         }
     }
 
-    private async Task<string> ReadFullMessageAsync(CancellationToken ct)
-    {
-        byte[] buffer = new byte[8192];
-        StringBuilder accumulated = new();
-
-        while (true)
-        {
-            var result = await _ws.ReceiveAsync(buffer, ct);
-            if (result.MessageType == WebSocketMessageType.Close)
-                throw new WebSocketException("Gateway closed connection during handshake");
-
-            accumulated.Append(Encoding.UTF8.GetString(buffer, 0, result.Count));
-
-            if (result.EndOfMessage)
-                return accumulated.ToString();
-        }
-    }
 }

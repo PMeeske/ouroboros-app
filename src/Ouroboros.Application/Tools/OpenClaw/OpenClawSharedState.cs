@@ -31,11 +31,8 @@ internal static class OpenClawSharedState
         string? gatewayUrl = null,
         string? token = null)
     {
-        string resolvedGateway = gatewayUrl
-            ?? Environment.GetEnvironmentVariable("OPENCLAW_GATEWAY")
-            ?? DefaultGateway;
-        string? resolvedToken = token
-            ?? Environment.GetEnvironmentVariable("OPENCLAW_TOKEN");
+        string resolvedGateway = OpenClawTokenManager.ResolveGatewayUrl(gatewayUrl);
+        string? resolvedToken = OpenClawTokenManager.ResolveToken(token);
 
         var deviceIdentity = await OpenClawDeviceIdentity.LoadOrCreateAsync();
         var client = new OpenClawGatewayClient(deviceIdentity);

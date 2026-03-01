@@ -59,6 +59,14 @@ public sealed partial class OpenClawGatewayClient
                 var tokenOrEmpty = token
                     ?? (_deviceIdentity.DeviceToken is { Length: > 0 } devTok ? devTok : null)
                     ?? "";
+
+                _logger.LogDebug("[OpenClaw] Handshake token field: {Token}",
+                    string.IsNullOrEmpty(tokenOrEmpty)
+                        ? "<empty — signature will fail if gateway expects a bearer token>"
+                        : tokenOrEmpty[..Math.Min(8, tokenOrEmpty.Length)] + "...");
+                _logger.LogDebug("[OpenClaw] Signing payload: deviceId={DeviceId} role=operator scopes={Scopes} nonce={Nonce}",
+                    _deviceIdentity.DeviceId[..Math.Min(16, _deviceIdentity.DeviceId.Length)], scopesCsv, nonce[..Math.Min(16, nonce.Length)]);
+
                 var (sig, signedAt, nonceVal) = _deviceIdentity.SignHandshake(
                     nonce,
                     clientId: "gateway-client",
@@ -66,6 +74,10 @@ public sealed partial class OpenClawGatewayClient
                     role: "operator",
                     scopesCsv: scopesCsv,
                     tokenOrEmpty: tokenOrEmpty);
+
+                _logger.LogDebug("[OpenClaw] Signature computed: signedAt={SignedAt} sig={Sig}",
+                    signedAt, sig[..Math.Min(16, sig.Length)] + "...");
+
                 connectParams["device"] = new
                 {
                     id = _deviceIdentity.DeviceId,
@@ -129,7 +141,7 @@ public sealed partial class OpenClawGatewayClient
                 errMsg.Contains("device signature", StringComparison.OrdinalIgnoreCase))
             {
                 _logger.LogInformation("[OpenClaw] Pairing/signature error — auto-approving via CLI");
-                await TryAutoApprovePairingAsync(_token);
+                await OpenClawClientHelper.TryAutoApprovePairingAsync(_token, _logger);
             }
 
             throw new OpenClawException(errMsg);
@@ -146,131 +158,11 @@ public sealed partial class OpenClawGatewayClient
         }
     }
 
-    // Auto-approve the pending device pairing request via the openclaw CLI.
-    // Mirrors the PcNode TryAutoApprovePairingAsync logic for the operator role.
-    private async Task<bool> TryAutoApprovePairingAsync(string? token)
-    {
-        try
-        {
-            var psi = new System.Diagnostics.ProcessStartInfo("openclaw")
-            {
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-            psi.ArgumentList.Add("devices");
-            psi.ArgumentList.Add("approve");
-            psi.ArgumentList.Add("--latest");
-            if (!string.IsNullOrEmpty(token))
-            {
-                psi.ArgumentList.Add("--token");
-                psi.ArgumentList.Add(token);
-            }
+    private async Task<string> ReadFullMessageAsync(CancellationToken ct) =>
+        await OpenClawClientHelper.ReadFullMessageAsync(_ws, ct);
 
-            // SECURITY: validated — ArgumentList prevents injection from token value
-            using var proc = System.Diagnostics.Process.Start(psi);
-            if (proc == null) return false;
-
-            await proc.WaitForExitAsync();
-            var output = await proc.StandardOutput.ReadToEndAsync();
-
-            if (proc.ExitCode == 0)
-            {
-                _logger.LogInformation("[OpenClaw] Auto-approved pairing: {Output}", output.Trim());
-                return true;
-            }
-
-            var error = await proc.StandardError.ReadToEndAsync();
-            _logger.LogWarning("[OpenClaw] Auto-approve failed (exit {Code}): {Error}",
-                proc.ExitCode, error.Trim());
-            return false;
-        }
-        catch (OperationCanceledException) { throw; }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _logger.LogWarning("[OpenClaw] Auto-approve failed: {Message}", ex.Message);
-            return false;
-        }
-    }
-
-    // Read a complete WebSocket message, reassembling fragmented frames.
-    private async Task<string> ReadFullMessageAsync(CancellationToken ct)
-    {
-        byte[] buffer = new byte[8192];
-        StringBuilder accumulated = new();
-
-        while (true)
-        {
-            var result = await _ws.ReceiveAsync(buffer, ct);
-
-            if (result.MessageType == WebSocketMessageType.Close)
-                throw new WebSocketException("Gateway closed connection during handshake");
-
-            accumulated.Append(Encoding.UTF8.GetString(buffer, 0, result.Count));
-
-            if (result.EndOfMessage)
-                return accumulated.ToString();
-        }
-    }
-
-    // Extract the challenge nonce, trying common field locations.
-    // Logs a warning with the raw JSON if extraction fails so the correct
-    // field name can be identified without redeploying.
-    private string? ExtractNonce(string challengeJson)
-    {
-        try
-        {
-            using var doc = JsonDocument.Parse(challengeJson);
-            var root = doc.RootElement;
-
-            // Bare string: the nonce IS the value  e.g. "abc123"
-            if (root.ValueKind == JsonValueKind.String)
-                return root.GetString();
-
-            // Flat: { "nonce": "..." }
-            if (root.TryGetProperty("nonce", out var n))
-                return n.GetString();
-
-            // OpenClaw envelope: { "payload": { "nonce": "..." } }
-            if (root.TryGetProperty("payload", out var payload))
-            {
-                if (payload.TryGetProperty("nonce", out var pln))
-                    return pln.GetString();
-            }
-
-            // RPC envelope: { "params": { "nonce": "..." } }
-            if (root.TryGetProperty("params", out var prms))
-            {
-                if (prms.TryGetProperty("nonce", out var pn))
-                    return pn.GetString();
-            }
-
-            // Nested: { "data": { "nonce": "..." } }
-            if (root.TryGetProperty("data", out var data))
-            {
-                if (data.TryGetProperty("nonce", out var dn))
-                    return dn.GetString();
-            }
-
-            // Nested: { "challenge": "..." } or { "challenge": { "nonce": "..." } }
-            if (root.TryGetProperty("challenge", out var ch))
-            {
-                if (ch.ValueKind == JsonValueKind.String)
-                    return ch.GetString();
-                if (ch.TryGetProperty("nonce", out var cn))
-                    return cn.GetString();
-            }
-        }
-        catch
-        {
-            // Non-JSON challenge — log and fall through
-        }
-
-        _logger.LogWarning("[OpenClaw] Could not extract nonce from challenge; raw: {Raw}",
-            challengeJson.Length > 500 ? challengeJson[..500] + "\u2026" : challengeJson);
-        return null;
-    }
+    private string? ExtractNonce(string challengeJson) =>
+        OpenClawClientHelper.ExtractNonce(challengeJson, _logger);
 
     private async Task ReceiveLoopAsync(CancellationToken ct)
     {
