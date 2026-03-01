@@ -81,6 +81,9 @@ public static class OpenClawTools
         // Incoming messages
         yield return new OpenClawGetMessagesTool();
         yield return new OpenClawPollMessagesTool();
+
+        // Agent-to-agent chat via OpenClaw.Sdk
+        yield return new OpenClawAgentChatTool();
     }
 
     /// <summary>Adds OpenClaw tools to a registry.</summary>

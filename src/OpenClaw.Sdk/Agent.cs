@@ -100,8 +100,11 @@ public sealed class Agent
             switch (ev.EventType)
             {
                 case EventType.Content:
-                    if (payload.TryGetValue("content", out var c))
-                        content.Append(c?.ToString());
+                    // Wire format: payload.data.delta (streaming delta text)
+                    if (payload.TryGetValue("data", out var dataObj)
+                        && dataObj is System.Text.Json.JsonElement dataEl
+                        && dataEl.TryGetProperty("delta", out var delta))
+                        content.Append(delta.GetString());
                     break;
 
                 case EventType.Thinking:

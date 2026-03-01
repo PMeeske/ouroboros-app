@@ -199,11 +199,18 @@ public sealed class ProtocolGateway : GatewayBase
                 return;
             }
 
-            var eventType = MapEventType(eventName);
+            // Real wire format:
+            //   agent event: { stream:"assistant", data:{delta:"..."} }  → Content
+            //   agent event: { stream:"lifecycle", data:{phase:"end"} }  → Done
+            //   agent event: { stream:"lifecycle", data:{phase:"error"} }→ Error
             var payload = root.TryGetProperty("payload", out var pl)
-                ? pl.Deserialize<Dictionary<string, object?>>() ?? []
-                : new Dictionary<string, object?>();
-            var ev_ = new StreamEvent(eventType, payload);
+                ? pl.Clone()
+                : default;
+            var eventType = MapEventType(eventName, payload);
+            var payloadDict = payload.ValueKind == JsonValueKind.Undefined
+                ? new Dictionary<string, object?>()
+                : payload.Deserialize<Dictionary<string, object?>>() ?? [];
+            var ev_ = new StreamEvent(eventType, payloadDict);
             BroadcastEvent(ev_, eventName);
             return;
         }
@@ -224,7 +231,10 @@ public sealed class ProtocolGateway : GatewayBase
         }
         else
         {
-            var result = root.TryGetProperty("result", out var r) ? r : root;
+            // Gateway uses "payload" not "result" for response data
+            var result = root.TryGetProperty("payload", out var p) ? p
+                : root.TryGetProperty("result", out var r) ? r
+                : root;
             tcs.TrySetResult(result);
         }
     }
@@ -298,21 +308,34 @@ public sealed class ProtocolGateway : GatewayBase
         finally { _subscriberLock.Release(); }
     }
 
-    private static EventType MapEventType(string name) => name switch
+    private static EventType MapEventType(string name, JsonElement payload = default)
     {
-        "chat"      => EventType.Chat,
-        "agent"     => EventType.Agent,
-        "presence"  => EventType.Presence,
-        "health"    => EventType.Health,
-        "tick"      => EventType.Tick,
-        "heartbeat" => EventType.Heartbeat,
-        "cron"      => EventType.Cron,
-        "shutdown"  => EventType.Shutdown,
-        "done"      => EventType.Done,
-        "error"     => EventType.Error,
-        "content"   => EventType.Content,
-        _           => EventType.Agent,
-    };
+        // For agent events, inspect the `stream` and `data.phase` sub-fields
+        if (name == "agent" && payload.ValueKind == JsonValueKind.Object)
+        {
+            var stream = payload.TryGetProperty("stream", out var s) ? s.GetString() : null;
+            if (stream == "assistant") return EventType.Content;
+            if (stream == "lifecycle" && payload.TryGetProperty("data", out var d))
+            {
+                var phase = d.TryGetProperty("phase", out var p) ? p.GetString() : null;
+                if (phase == "end")   return EventType.Done;
+                if (phase == "error") return EventType.Error;
+            }
+            return EventType.Agent;
+        }
+
+        return name switch
+        {
+            "chat"      => EventType.Chat,
+            "presence"  => EventType.Presence,
+            "health"    => EventType.Health,
+            "tick"      => EventType.Tick,
+            "heartbeat" => EventType.Heartbeat,
+            "cron"      => EventType.Cron,
+            "shutdown"  => EventType.Shutdown,
+            _           => EventType.Agent,
+        };
+    }
 
     // ── Token loading ─────────────────────────────────────────────────────
 
