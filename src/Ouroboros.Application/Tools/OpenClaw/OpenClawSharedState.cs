@@ -39,10 +39,21 @@ internal static class OpenClawSharedState
 
         var deviceIdentity = await OpenClawDeviceIdentity.LoadOrCreateAsync();
         var client = new OpenClawGatewayClient(deviceIdentity);
-        await client.ConnectAsync(
-            new Uri(resolvedGateway),
-            resolvedToken,
-            CancellationToken.None);
+        try
+        {
+            await client.ConnectAsync(new Uri(resolvedGateway), resolvedToken, CancellationToken.None);
+        }
+        catch (OpenClawException ex) when (
+            ex.Message.Contains("device signature", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("device identity", StringComparison.OrdinalIgnoreCase))
+        {
+            // Device keypair was rejected (signature invalid, key rotation, or file corruption).
+            // Regenerate a fresh identity and retry once.
+            await client.DisposeAsync();
+            deviceIdentity = await OpenClawDeviceIdentity.RegenerateAsync();
+            client = new OpenClawGatewayClient(deviceIdentity);
+            await client.ConnectAsync(new Uri(resolvedGateway), resolvedToken, CancellationToken.None);
+        }
         SharedClient = client;
 
         var auditLog = new OpenClawAuditLog();

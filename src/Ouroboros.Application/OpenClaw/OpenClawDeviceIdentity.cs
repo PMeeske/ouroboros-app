@@ -102,6 +102,20 @@ public sealed class OpenClawDeviceIdentity
     // ── Token persistence ─────────────────────────────────────────────────────────
 
     /// <summary>
+    /// Deletes the persisted device identity and creates a fresh Ed25519 keypair.
+    /// Called automatically by the gateway client when the server rejects the
+    /// device signature (e.g. after key rotation or file corruption).
+    /// </summary>
+    public static async Task<OpenClawDeviceIdentity> RegenerateAsync(CancellationToken ct = default)
+    {
+        var path = StoragePath();
+        try { File.Delete(path); } catch (IOException) { /* best-effort */ }
+        var fresh = Create();
+        await fresh.PersistAsync(path, ct);
+        return fresh;
+    }
+
+    /// <summary>
     /// Store the device token returned by the gateway in memory and on disk.
     /// Called after a successful hello-ok that includes <c>auth.deviceToken</c>.
     /// </summary>
