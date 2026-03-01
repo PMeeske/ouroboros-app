@@ -14,7 +14,7 @@ public sealed class OpenClawCronRunsTool : ITool
 {
     public string Name => "openclaw_cron_runs";
     public string Description => "View execution history for a scheduled job.";
-    public string? JsonSchema => """{"type":"object","properties":{"name":{"type":"string","description":"Job name"},"limit":{"type":"integer","description":"Maximum runs to return (default: 10)"}},"required":["name"]}""";
+    public string? JsonSchema => """{"type":"object","properties":{"jobId":{"type":"string","description":"Job ID (from cron.list)"},"limit":{"type":"integer","description":"Maximum runs to return (default: 10)"}},"required":["jobId"]}""";
 
     public async Task<Result<string, string>> InvokeAsync(string input, CancellationToken ct = default)
     {
@@ -25,15 +25,15 @@ public sealed class OpenClawCronRunsTool : ITool
         {
             using var doc = JsonDocument.Parse(input);
             var root = doc.RootElement;
-            var name = root.GetProperty("name").GetString() ?? "";
+            var jobId = root.GetProperty("jobId").GetString() ?? "";
             var limit = root.TryGetProperty("limit", out var l) ? l.GetInt32() : 10;
 
-            var result = await OpenClawSharedState.SharedClient.SendRequestAsync("cron.runs", new { name, limit }, ct);
+            var result = await OpenClawSharedState.SharedClient.SendRequestAsync("cron.runs", new { jobId, limit }, ct);
             return Result<string, string>.Success(result.ToString());
         }
         catch (JsonException)
         {
-            return Result<string, string>.Failure("Invalid JSON. Expected: {\"name\":\"...\"}");
+            return Result<string, string>.Failure("Invalid JSON. Expected: {\"jobId\":\"...\"}");
         }
         catch (OpenClawException ex)
         {
