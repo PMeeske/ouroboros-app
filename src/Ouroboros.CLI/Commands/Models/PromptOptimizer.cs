@@ -285,7 +285,7 @@ When user says 'read file X' you MUST output [TOOL:read_my_file X]"
     /// <summary>
     /// Detects expected tools based on user input patterns.
     /// </summary>
-    public static List<string> DetectExpectedTools(string userInput)
+    public List<string> DetectExpectedTools(string userInput)
     {
         var expected = new List<string>();
         var inputLower = userInput.ToLowerInvariant();
@@ -309,7 +309,7 @@ When user says 'read file X' you MUST output [TOOL:read_my_file X]"
     /// <summary>
     /// Extracts actual tool calls from agent response.
     /// </summary>
-    public static List<string> ExtractToolCalls(string response)
+    public List<string> ExtractToolCalls(string response)
     {
         var calls = new List<string>();
         var matches = Regex.Matches(response, @"\[TOOL:([^\s\]]+)");
