@@ -194,7 +194,9 @@ public sealed partial class QdrantSyncService
     public void Dispose()
     {
         _localClient.Dispose();
-        _cloudClient.Dispose();
+        // Do not dispose the static shared UnconfiguredCloudClient
+        if (!ReferenceEquals(_cloudClient, UnconfiguredCloudClient))
+            _cloudClient.Dispose();
         _crypto?.Dispose();
     }
 }

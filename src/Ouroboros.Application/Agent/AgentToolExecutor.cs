@@ -23,7 +23,6 @@ public static class AgentToolExecutor
         "shell",
         "start_process",
         "environment",
-        "read_file",
     };
 
     /// <summary>

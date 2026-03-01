@@ -62,8 +62,8 @@ public static class AutonomousCliSteps
     {
         var tool = new ApproveIntentionTool();
         var input = comment != null
-            ? $"{{\"id\":\"{partialId}\",\"comment\":\"{comment}\"}}"
-            : $"{{\"id\":\"{partialId}\"}}";
+            ? $"{{\"id\":\"{EscapeJson(partialId)}\",\"comment\":\"{EscapeJson(comment)}\"}}"
+            : $"{{\"id\":\"{EscapeJson(partialId)}\"}}";
         var result = await tool.InvokeAsync(input, CancellationToken.None);
         return result.Match(s => s, e => $"Error: {e}");
     }
@@ -78,8 +78,8 @@ public static class AutonomousCliSteps
     {
         var tool = new RejectIntentionTool();
         var input = reason != null
-            ? $"{{\"id\":\"{partialId}\",\"reason\":\"{reason}\"}}"
-            : $"{{\"id\":\"{partialId}\"}}";
+            ? $"{{\"id\":\"{EscapeJson(partialId)}\",\"reason\":\"{EscapeJson(reason)}\"}}"
+            : $"{{\"id\":\"{EscapeJson(partialId)}\"}}";
         var result = await tool.InvokeAsync(input, CancellationToken.None);
         return result.Match(s => s, e => $"Error: {e}");
     }
@@ -294,5 +294,5 @@ public static class AutonomousCliSteps
             """);
     }
 
-    private static string EscapeJson(string s) => s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n");
+    private static string EscapeJson(string s) => s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
 }

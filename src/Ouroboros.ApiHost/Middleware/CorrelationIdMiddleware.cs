@@ -23,8 +23,13 @@ public sealed class CorrelationIdMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        var correlationId = context.Request.Headers[HeaderName].FirstOrDefault()
-                            ?? Guid.NewGuid().ToString("N");
+        var rawCorrelationId = context.Request.Headers[HeaderName].FirstOrDefault();
+        // Sanitize caller-supplied correlation IDs to prevent log injection and header injection
+        var correlationId = rawCorrelationId != null
+            && rawCorrelationId.Length <= 64
+            && System.Text.RegularExpressions.Regex.IsMatch(rawCorrelationId, @"^[a-zA-Z0-9\-_\.]+$")
+            ? rawCorrelationId
+            : Guid.NewGuid().ToString("N");
 
         context.Items["CorrelationId"] = correlationId;
         context.Response.OnStarting(() =>

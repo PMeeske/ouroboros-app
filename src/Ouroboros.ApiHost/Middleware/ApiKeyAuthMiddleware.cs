@@ -107,8 +107,8 @@ public sealed class ApiKeyAuthMiddleware
         if (SkipPaths.Contains(path))
             return true;
 
-        // Also skip swagger sub-paths
-        if (path.StartsWith("/swagger", StringComparison.OrdinalIgnoreCase))
+        // Also skip swagger sub-paths (exact prefix match only)
+        if (path.StartsWith("/swagger/", StringComparison.OrdinalIgnoreCase))
             return true;
 
         return false;
@@ -116,15 +116,8 @@ public sealed class ApiKeyAuthMiddleware
 
     private static bool CryptographicEquals(string a, string b)
     {
-        if (a.Length != b.Length)
-            return false;
-
-        int result = 0;
-        for (int i = 0; i < a.Length; i++)
-        {
-            result |= a[i] ^ b[i];
-        }
-
-        return result == 0;
+        var aBytes = System.Text.Encoding.UTF8.GetBytes(a);
+        var bBytes = System.Text.Encoding.UTF8.GetBytes(b);
+        return System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(aBytes, bBytes);
     }
 }

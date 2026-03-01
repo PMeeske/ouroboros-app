@@ -187,7 +187,9 @@ public static class AgentToolFactory
             if (!content.Contains(oldText))
                 return $"Error: Old text not found in file. Make sure to include enough context.";
 
-            var newContent = content.Replace(oldText, newText);
+            // Only replace the first occurrence to avoid unintended changes
+            var idx = content.IndexOf(oldText, StringComparison.Ordinal);
+            var newContent = string.Concat(content.AsSpan(0, idx), newText, content.AsSpan(idx + oldText.Length));
             await File.WriteAllTextAsync(path, newContent, s.CancellationToken);
             return $"Successfully edited {path}";
         }
@@ -321,8 +323,12 @@ public static class AgentToolFactory
 
             try
             {
-                var output = await process.StandardOutput.ReadToEndAsync(timeoutCts.Token);
-                var error = await process.StandardError.ReadToEndAsync(timeoutCts.Token);
+                // Read stdout and stderr concurrently to avoid deadlock when pipe buffers fill
+                var outputTask = process.StandardOutput.ReadToEndAsync(timeoutCts.Token);
+                var errorTask = process.StandardError.ReadToEndAsync(timeoutCts.Token);
+                await Task.WhenAll(outputTask, errorTask);
+                var output = await outputTask;
+                var error = await errorTask;
                 await process.WaitForExitAsync(timeoutCts.Token);
 
                 var result = new StringBuilder();

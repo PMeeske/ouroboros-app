@@ -34,10 +34,11 @@ public static partial class WebApiApplicationExtensions
 
         app.UseRequestLocalization(localizationOptions);
 
-        // Middleware pipeline — order matters
-        app.UseMiddleware<ApiKeyAuthMiddleware>();
-        app.UseMiddleware<CorrelationIdMiddleware>();
+        // Middleware pipeline — order matters (outermost first)
+        // GlobalExceptionMiddleware must be outermost to catch all unhandled exceptions
         app.UseMiddleware<GlobalExceptionMiddleware>();
+        app.UseMiddleware<CorrelationIdMiddleware>();
+        app.UseMiddleware<ApiKeyAuthMiddleware>();
 
         // Rate limiting (registered in AddOuroborosWebApi)
         app.UseRateLimiter();

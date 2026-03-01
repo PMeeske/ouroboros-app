@@ -41,6 +41,12 @@ public sealed class GlobalExceptionMiddleware
             _logger.LogError(ex, "Unhandled exception processing {Method} {Path} (CorrelationId: {CorrelationId})",
                 context.Request.Method, context.Request.Path, correlationId);
 
+            if (context.Response.HasStarted)
+            {
+                _logger.LogWarning("Response has already started, cannot write error response for {Path}", context.Request.Path);
+                throw;
+            }
+
             context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
             context.Response.ContentType = "application/problem+json";
 

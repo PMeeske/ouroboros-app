@@ -16,8 +16,10 @@ public class GitHubReleaseService
     public GitHubReleaseService(HttpClient httpClient)
     {
         _httpClient = httpClient;
-        _httpClient.DefaultRequestHeaders.Add("User-Agent", "Ouroboros-Android-App");
-        _httpClient.DefaultRequestHeaders.Add("Accept", "application/vnd.github.v3+json");
+        if (!_httpClient.DefaultRequestHeaders.Contains("User-Agent"))
+            _httpClient.DefaultRequestHeaders.Add("User-Agent", "Ouroboros-Android-App");
+        if (!_httpClient.DefaultRequestHeaders.Contains("Accept"))
+            _httpClient.DefaultRequestHeaders.Add("Accept", "application/vnd.github.v3+json");
     }
 
     /// <summary>
@@ -129,9 +131,9 @@ public class GitHubRelease
     /// </summary>
     public GitHubReleaseAsset? GetApkAsset()
     {
-        return Assets.FirstOrDefault(a => 
+        return Assets.FirstOrDefault(a =>
             a.Name.EndsWith(".apk", StringComparison.OrdinalIgnoreCase) &&
-            a.ContentType == "application/vnd.android.package-archive");
+            string.Equals(a.ContentType, "application/vnd.android.package-archive", StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>

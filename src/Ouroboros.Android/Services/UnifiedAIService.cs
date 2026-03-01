@@ -52,6 +52,7 @@ public partial class UnifiedAIService
             AIProvider.Mistral => await GenerateMistralAsync(config, useModel, prompt, streamCallback, cancellationToken),
             AIProvider.HuggingFace => await GenerateHuggingFaceAsync(config, useModel, prompt, streamCallback, cancellationToken),
             AIProvider.AzureOpenAI => await GenerateAzureOpenAIAsync(config, useModel, prompt, streamCallback, cancellationToken),
+            AIProvider.GitHubModels => await GenerateOpenAIAsync(config, useModel, prompt, streamCallback, cancellationToken),
             _ => throw new NotSupportedException($"Provider {config.Provider} not supported")
         };
     }
@@ -195,7 +196,8 @@ Please use the knowledge base context above to inform your response.";
             "application/json");
 
         ConfigureHeaders(config);
-        _httpClient.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
+        if (!_httpClient.DefaultRequestHeaders.Contains("anthropic-version"))
+            _httpClient.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
 
         using var response = await _httpClient.PostAsync(
             $"{config.Endpoint}/messages",
