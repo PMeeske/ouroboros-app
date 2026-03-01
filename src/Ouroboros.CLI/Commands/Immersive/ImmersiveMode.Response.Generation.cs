@@ -360,24 +360,22 @@ public sealed partial class ImmersiveMode
                 response = response[(markerEnd + 1)..].Trim();
         }
 
-        // If response contains "### Assistant" marker, extract only the content after it
-        var assistantMarker = "### Assistant";
-        var lastAssistantIdx = response.LastIndexOf(assistantMarker, StringComparison.OrdinalIgnoreCase);
-        if (lastAssistantIdx >= 0)
+        // If response starts with "### Assistant" marker (model echoed its role token), strip it
+        const string assistantMarker = "### Assistant";
+        if (response.StartsWith(assistantMarker, StringComparison.OrdinalIgnoreCase))
         {
-            response = response[(lastAssistantIdx + assistantMarker.Length)..].Trim();
+            response = response[assistantMarker.Length..].Trim();
         }
 
         // Remove any remaining ### markers
         response = MarkdownRoleMarkerRegex().Replace(response, "").Trim();
 
-        // If response contains prompt keywords, it's echoing the system prompt - provide fallback
-        if (response.Contains("friendly AI companion", StringComparison.OrdinalIgnoreCase) ||
-            response.Contains("Current mood:", StringComparison.OrdinalIgnoreCase) ||
-            response.Contains("Keep responses concise", StringComparison.OrdinalIgnoreCase) ||
-            response.StartsWith("You are " + personaName, StringComparison.OrdinalIgnoreCase) ||
+        // If response contains system-prompt format markers, it's echoing the system prompt - provide fallback
+        // (Only use format-specific markers that cannot appear in normal conversation)
+        if (response.StartsWith("You are " + personaName, StringComparison.OrdinalIgnoreCase) ||
             response.Contains("CORE IDENTITY:") ||
-            response.Contains("BEHAVIORAL GUIDELINES:"))
+            response.Contains("BEHAVIORAL GUIDELINES:") ||
+            response.Contains("Keep responses concise", StringComparison.OrdinalIgnoreCase))
         {
             return "Hey there! What's up?";
         }
