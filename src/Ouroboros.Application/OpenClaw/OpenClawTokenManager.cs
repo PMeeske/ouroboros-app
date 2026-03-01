@@ -3,6 +3,7 @@
 // </copyright>
 
 using System.Text.Json;
+using Microsoft.Extensions.Configuration;
 
 namespace Ouroboros.Application.OpenClaw;
 
@@ -10,7 +11,7 @@ namespace Ouroboros.Application.OpenClaw;
 /// Resolves the OpenClaw gateway token from multiple sources with a priority chain:
 ///   1. Explicit value (CLI argument)
 ///   2. Environment variable <c>OPENCLAW_TOKEN</c>
-///   3. .NET user-secrets (development)
+///   3. .NET user-secrets / appsettings via IConfiguration
 ///   4. OpenClaw config file (<c>~/.openclaw/config</c> or WSL equivalent)
 ///
 /// This follows the principle of least surprise — explicit always wins,
@@ -26,7 +27,8 @@ public static class OpenClawTokenManager
     /// Returns null if no token could be found (fail-closed: gateway will reject).
     /// </summary>
     /// <param name="explicitToken">Token from CLI argument (highest priority).</param>
-    public static string? ResolveToken(string? explicitToken = null)
+    /// <param name="configuration">IConfiguration instance for user-secrets and appsettings lookup.</param>
+    public static string? ResolveToken(string? explicitToken = null, IConfiguration? configuration = null)
     {
         // 1. Explicit value
         if (!string.IsNullOrWhiteSpace(explicitToken))
@@ -37,16 +39,18 @@ public static class OpenClawTokenManager
         if (!string.IsNullOrWhiteSpace(envToken))
             return envToken;
 
-        // 3. .NET user-secrets (via env var set by `dotnet user-secrets`)
-        var userSecretsToken = Environment.GetEnvironmentVariable(
-            UserSecretsKey.Replace(":", "__"));
-        if (!string.IsNullOrWhiteSpace(userSecretsToken))
-            return userSecretsToken;
+        // 3. .NET user-secrets / appsettings via IConfiguration
+        if (configuration != null)
+        {
+            var configToken = configuration[UserSecretsKey];
+            if (!string.IsNullOrWhiteSpace(configToken))
+                return configToken;
+        }
 
         // 4. OpenClaw config file
-        var configToken = ReadFromOpenClawConfig();
-        if (!string.IsNullOrWhiteSpace(configToken))
-            return configToken;
+        var fileToken = ReadFromOpenClawConfig();
+        if (!string.IsNullOrWhiteSpace(fileToken))
+            return fileToken;
 
         return null;
     }
@@ -55,7 +59,8 @@ public static class OpenClawTokenManager
     /// Resolves the gateway URL using the priority chain.
     /// </summary>
     /// <param name="explicitUrl">URL from CLI argument (highest priority).</param>
-    public static string ResolveGatewayUrl(string? explicitUrl = null)
+    /// <param name="configuration">IConfiguration instance for user-secrets and appsettings lookup.</param>
+    public static string ResolveGatewayUrl(string? explicitUrl = null, IConfiguration? configuration = null)
     {
         if (!string.IsNullOrWhiteSpace(explicitUrl))
             return explicitUrl;
@@ -63,6 +68,13 @@ public static class OpenClawTokenManager
         var envUrl = Environment.GetEnvironmentVariable("OPENCLAW_GATEWAY");
         if (!string.IsNullOrWhiteSpace(envUrl))
             return envUrl;
+
+        if (configuration != null)
+        {
+            var configUrl = configuration["OpenClaw:Gateway"];
+            if (!string.IsNullOrWhiteSpace(configUrl))
+                return configUrl;
+        }
 
         return Configuration.DefaultEndpoints.OpenClawGateway;
     }
