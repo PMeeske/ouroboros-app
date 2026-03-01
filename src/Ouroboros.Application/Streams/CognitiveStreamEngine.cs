@@ -211,6 +211,15 @@ public sealed class CognitiveStreamEngine : IDisposable
         if (!DisplayGaps.TryGetValue(evt.Kind, out var gap) || gap == TimeSpan.Zero)
             return false;
 
+        // Mirror ImmersiveSubsystem.WirePersonaEvents: only surface genuine insight thoughts.
+        // Musing/Metacognitive/Consolidation are template-filled noise — suppress console render
+        // while keeping them in the replay buffer for LLM context injection.
+        if (evt is InnerDialogEvent ide &&
+            ide.Thought.Type is not (InnerThoughtType.Curiosity
+                                   or InnerThoughtType.Observation
+                                   or InnerThoughtType.SelfReflection))
+            return false;
+
         lock (_lastDisplayTime)
         {
             if (_lastDisplayTime.TryGetValue(evt.Kind, out var last) &&
