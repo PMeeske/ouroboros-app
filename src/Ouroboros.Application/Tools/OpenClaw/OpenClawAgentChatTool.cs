@@ -114,7 +114,6 @@ public sealed class OpenClawAgentChatTool : ITool
                 new
                 {
                     sessionKey,
-                    agentId,
                     message        = query,
                     idempotencyKey,
                     timeoutMs      = timeoutSeconds * 1000,
